@@ -907,6 +907,27 @@ export async function sendInvitationEmailToGuestService({
 
     const invitationToken = crypto.randomBytes(32).toString("hex");
 
+    // const insertResult = await client.query(
+    //   `
+    //   INSERT INTO guest_invitations
+    //   (
+    //     guest_id,
+    //     event_id,
+    //     channel,
+    //     recipient_value,
+    //     invitation_token,
+    //     invitation_status,
+    //     created_at,
+    //     updated_at
+    //   )
+    //   VALUES
+    //   (
+    //     $1,$2,$3,$4,$5,'PENDING',NOW(),NOW()
+    //   )
+    //   RETURNING *
+    //   `,
+    //   [guest.id, eventId, channel, recipientValue, invitationToken],
+    // );
     const insertResult = await client.query(
       `
       INSERT INTO guest_invitations
@@ -922,13 +943,19 @@ export async function sendInvitationEmailToGuestService({
       )
       VALUES
       (
-        $1,$2,$3,$4,$5,'PENDING',NOW(),NOW()
+        $1::uuid,
+        $2::uuid,
+        $3,
+        $4,
+        $5,
+        'PENDING',
+        NOW(),
+        NOW()
       )
       RETURNING *
       `,
       [guest.id, eventId, channel, recipientValue, invitationToken],
     );
-
     const invitation = insertResult.rows[0];
     const invitationUrl = buildInvitationUrl({
       invitationToken,
@@ -943,19 +970,60 @@ export async function sendInvitationEmailToGuestService({
     if (channel === "EMAIL") {
       try {
         const html = `
-          <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-            <h2>You are invited</h2>
-            <p>Hello ${guest.full_name},</p>
-            <p>You are invited to <strong>${event.title || "our event"}</strong>.</p>
-            <p>Please respond using the link below:</p>
-            <p>
-              <a href="${invitationUrl}" target="_blank">
-                View invitation / RSVP
-              </a>
-            </p>
-            <p>If you cannot click the link, copy this URL:</p>
-            <p>${invitationUrl}</p>
+        <div style="font-family:Arial,Helvetica,sans-serif;background:#f4f4f7;padding:20px">
+          
+          <div style="max-width:600px;margin:auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 5px 20px rgba(0,0,0,0.1)">
+        
+            <!-- HERO -->
+            <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:40px;text-align:center">
+              <h1 style="margin:0;font-size:28px;">You're Invited 🎉</h1>
+              <p style="margin-top:10px;font-size:16px;opacity:0.9;">
+                ${event.title || "Special Event"}
+              </p>
+            </div>
+        
+            <!-- BODY -->
+            <div style="padding:30px">
+        
+              <p style="font-size:16px;">Hello <b>${guest.full_name}</b>,</p>
+        
+              <p style="font-size:15px;color:#555;">
+                You are invited to attend <strong>${event.title}</strong>.
+              </p>
+        
+              <!-- EVENT DETAILS -->
+              <div style="margin:20px 0;padding:15px;background:#f9fafb;border-radius:8px">
+                <p style="margin:5px 0;"><b>📅 Date:</b> ${event.start_at || "TBA"}</p>
+                <p style="margin:5px 0;"><b>📍 Location:</b> ${event.location_name || "TBA"}</p>
+              </div>
+        
+              <!-- CTA BUTTON -->
+              <div style="text-align:center;margin:30px 0">
+                <a href="${invitationUrl}"
+                  style="background:#6366f1;color:#fff;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;display:inline-block">
+                  View Invitation & RSVP
+                </a>
+              </div>
+        
+              <!-- FALLBACK -->
+              <p style="font-size:13px;color:#888;">
+                If the button doesn't work, copy and paste this link:
+              </p>
+        
+              <p style="font-size:12px;color:#6366f1;word-break:break-all;">
+                ${invitationUrl}
+              </p>
+        
+            </div>
+        
+            <!-- FOOTER -->
+            <div style="background:#f9fafb;padding:20px;text-align:center;font-size:12px;color:#888">
+              <p>Powered by Eventos</p>
+            </div>
+        
           </div>
+        
+        </div>
         `;
 
         const mailResult = await sendMail({
@@ -1003,240 +1071,7 @@ export async function sendInvitationEmailToGuestService({
   }
 }
 
-/* =========================
-   CHECK-IN BY QR TOKEN
-========================= */
 
-// export async function checkInGuestByQrTokenService({
-//   eventId,
-//   organizationId,
-//   userId,
-//   qrToken,
-// }) {
-//   if (!qrToken) {
-//     throw new AppError("qr_token is required", 400);
-//   }
-
-//   const client = await db.connect();
-
-//   try {
-//     await client.query("BEGIN");
-
-//     await assertOrganizationEventPermission(client, organizationId, userId);
-//     await assertEventExists(client, eventId, organizationId);
-
-//     const qrResult = await client.query(
-//       `
-//       SELECT *
-//       FROM guest_qr_passes
-//       WHERE event_id=$1
-//         AND qr_token=$2
-//       LIMIT 1
-//       `,
-//       [eventId, qrToken],
-//     );
-
-//     const qrPass = qrResult.rows[0];
-
-//     if (!qrPass) {
-//       throw new AppError("Invalid QR pass", 404);
-//     }
-
-//     if (qrPass.revoked_at) {
-//       throw new AppError("QR pass has been revoked", 400);
-//     }
-
-//     if (qrPass.used_at) {
-//       throw new AppError("QR pass already used", 400);
-//     }
-
-//     if (qrPass.expires_at && new Date(qrPass.expires_at) < new Date()) {
-//       await client.query(
-//         `
-//         UPDATE guest_qr_passes
-//         SET qr_status='EXPIRED', updated_at=NOW()
-//         WHERE id=$1
-//         `,
-//         [qrPass.id],
-//       );
-//       throw new AppError("QR pass has expired", 400);
-//     }
-
-//     await assertGuestBelongsToEvent(client, qrPass.guest_id, eventId);
-
-//     const attendanceResult = await client.query(
-//       `
-//       INSERT INTO guest_attendance
-//       (
-//         guest_id,
-//         event_id,
-//         attendance_status,
-//         marked_by_user_id,
-//         marked_via,
-//         marked_at,
-//         updated_at
-//       )
-//       VALUES ($1,$2,'CHECKED_IN',$3,'QR',NOW(),NOW())
-//       ON CONFLICT (guest_id,event_id)
-//       DO UPDATE SET
-//         attendance_status='CHECKED_IN',
-//         marked_by_user_id=EXCLUDED.marked_by_user_id,
-//         marked_via='QR',
-//         marked_at=NOW(),
-//         updated_at=NOW()
-//       RETURNING *
-//       `,
-//       [qrPass.guest_id, eventId, userId],
-//     );
-
-//     const qrUpdateResult = await client.query(
-//       `
-//       UPDATE guest_qr_passes
-//       SET
-//         qr_status='USED',
-//         used_at=NOW(),
-//         updated_at=NOW()
-//       WHERE id=$1
-//       RETURNING *
-//       `,
-//       [qrPass.id],
-//     );
-
-//     await client.query("COMMIT");
-
-//     return {
-//       attendance: attendanceResult.rows[0],
-//       qr_pass: mapQrPass(qrUpdateResult.rows[0]),
-//     };
-//   } catch (error) {
-//     await client.query("ROLLBACK");
-//     throw error;
-//   } finally {
-//     client.release();
-//   }
-// }
-
-
-// export async function checkInGuestByQrTokenService({
-//     eventId,
-//     organizationId,
-//     userId,
-//     qrToken,
-//   }) {
-//     if (!qrToken) {
-//       throw new AppError("qr_token is required", 400);
-//     }
-  
-//     const client = await db.connect();
-  
-//     try {
-//       await client.query("BEGIN");
-  
-//       await assertOrganizationEventPermission(client, organizationId, userId);
-//       await assertEventExists(client, eventId, organizationId);
-  
-//       const qrResult = await client.query(
-//         `
-//         SELECT
-//           qp.*,
-//           g.full_name,
-//           g.email,
-//           g.phone,
-//           g.is_vip
-//         FROM guest_qr_passes qp
-//         JOIN guests g ON g.id = qp.guest_id
-//         WHERE qp.event_id = $1
-//           AND qp.qr_token = $2
-//           AND g.deleted_at IS NULL
-//         LIMIT 1
-//         `,
-//         [eventId, qrToken]
-//       );
-  
-//       const qrPass = qrResult.rows[0];
-  
-//       if (!qrPass) {
-//         throw new AppError("Invalid QR pass", 404);
-//       }
-  
-//       if (qrPass.revoked_at) {
-//         throw new AppError("QR pass has been revoked", 400);
-//       }
-  
-//       if (qrPass.used_at) {
-//         throw new AppError("QR pass already used", 400);
-//       }
-  
-//       if (qrPass.expires_at && new Date(qrPass.expires_at) < new Date()) {
-//         await client.query(
-//           `
-//           UPDATE guest_qr_passes
-//           SET qr_status='EXPIRED', updated_at=NOW()
-//           WHERE id=$1
-//           `,
-//           [qrPass.id]
-//         );
-  
-//         throw new AppError("QR pass has expired", 400);
-//       }
-  
-//       const attendanceResult = await client.query(
-//         `
-//         INSERT INTO guest_attendance
-//         (
-//           guest_id,
-//           event_id,
-//           attendance_status,
-//           marked_by_user_id,
-//           marked_via,
-//           marked_at,
-//           updated_at
-//         )
-//         VALUES ($1,$2,'CHECKED_IN',$3,'QR',NOW(),NOW())
-//         ON CONFLICT (guest_id,event_id)
-//         DO UPDATE SET
-//           attendance_status='CHECKED_IN',
-//           marked_by_user_id=EXCLUDED.marked_by_user_id,
-//           marked_via='QR',
-//           marked_at=NOW(),
-//           updated_at=NOW()
-//         RETURNING *
-//         `,
-//         [qrPass.guest_id, eventId, userId]
-//       );
-  
-//       await client.query(
-//         `
-//         UPDATE guest_qr_passes
-//         SET
-//           qr_status='USED',
-//           used_at=NOW(),
-//           updated_at=NOW()
-//         WHERE id=$1
-//         `,
-//         [qrPass.id]
-//       );
-  
-//       await client.query("COMMIT");
-  
-//       return {
-//         checked_in: true,
-//         guest: {
-//           id: qrPass.guest_id,
-//           full_name: qrPass.full_name,
-//           email: qrPass.email,
-//           phone: qrPass.phone,
-//           is_vip: qrPass.is_vip,
-//         },
-//         attendance: attendanceResult.rows[0],
-//       };
-//     } catch (error) {
-//       await client.query("ROLLBACK");
-//       throw error;
-//     } finally {
-//       client.release();
-//     }
-//   }
 export async function checkInGuestByQrTokenService({
     eventId,
     organizationId,
@@ -1612,6 +1447,76 @@ export async function getInvitationByTokenService({ token }) {
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
+    } finally {
+      client.release();
+    }
+  }
+  export async function sendInvitationsToAllGuestsService({
+    eventId,
+    organizationId,
+    userId,
+    payload = {},
+  }) {
+    const client = await db.connect();
+  
+    try {
+      await client.query("BEGIN");
+  
+      await assertOrganizationEventPermission(client, organizationId, userId);
+      const event = await assertEventExists(client, eventId, organizationId);
+  
+      // 👉 GET ALL GUESTS
+      const guestsRes = await client.query(
+        `
+        SELECT *
+        FROM guests
+        WHERE event_id=$1
+          AND deleted_at IS NULL
+        `,
+        [eventId]
+      );
+  
+      const guests = guestsRes.rows;
+  
+      if (!guests.length) {
+        throw new AppError("No guests found", 404);
+      }
+  
+      const results = [];
+  
+      for (const guest of guests) {
+        try {
+          const result = await sendInvitationEmailToGuestService({
+            eventId,
+            guestId: guest.id,
+            organizationId,
+            userId,
+            payload,
+          });
+  
+          results.push({
+            guest_id: guest.id,
+            status: "SENT",
+            invitation_url: result.invitation_url,
+          });
+        } catch (err) {
+          results.push({
+            guest_id: guest.id,
+            status: "FAILED",
+            error: err.message,
+          });
+        }
+      }
+  
+      await client.query("COMMIT");
+  
+      return {
+        total: guests.length,
+        results,
+      };
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
     } finally {
       client.release();
     }

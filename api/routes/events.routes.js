@@ -19,6 +19,7 @@ import {
 } from "../controllers/events.controller.js";
 
 const router = express.Router();
+router.get("/public/:slug", getPublicEventBySlug);
 
 router.post("/", authenticate, resolveOrganization, createEvent);
 router.get("/" ,authenticate, resolveOrganization, listEvents);
@@ -33,9 +34,10 @@ router.post("/:id/archive",  authenticate, resolveOrganization, archiveEvent);
 router.post("/:id/restore",  authenticate, resolveOrganization, restoreEvent);
 router.post("/:id/duplicate", authenticate, resolveOrganization, duplicateEvent);
 
-router.get("/:id/dashboard", authenticate, resolveOrganization, getEventDashboard);
+router.get("/:id/dashboard", authenticate,  resolveOrganization, getEventDashboard);
 
-router.get("/public/:slug", getPublicEventBySlug);
+
+
 
 
 

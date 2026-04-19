@@ -14,9 +14,9 @@ function handleError(res, error) {
   });
 }
 
-/* =========================
-   GUESTS
-========================= */
+// /* =========================
+//    GUESTS
+// ========================= */
 
 export async function createGuest(req, res) {
   try {
@@ -93,9 +93,9 @@ export async function deleteGuest(req, res) {
   }
 }
 
-/* =========================
-   GUEST GROUPS (PLACEHOLDER SAFE)
-========================= */
+// /* =========================
+//    GUEST GROUPS (PLACEHOLDER SAFE)
+// ========================= */
 
 export async function createGuestGroup(req, res) {
   return res.status(501).json({ message: "Not implemented yet" });
@@ -164,9 +164,9 @@ export async function markGuestAttendance(req, res) {
   }
 }
 
-/* =========================
-   QR PASS
-========================= */
+// /* =========================
+//    QR PASS
+// ========================= */
 
 export async function generateQrPass(req, res) {
   try {
@@ -183,9 +183,9 @@ export async function generateQrPass(req, res) {
   }
 }
 
-/* =========================
-   INVITATIONS
-========================= */
+// /* =========================
+//    INVITATIONS
+// ========================= */
 
 export async function sendGuestInvitation(req, res) {
   try {
@@ -203,9 +203,9 @@ export async function sendGuestInvitation(req, res) {
   }
 }
 
-/* =========================
-   QR CHECK-IN
-========================= */
+// /* =========================
+//    QR CHECK-IN
+// ========================= */
 
 export async function checkInGuestByQr(req, res) {
   try {
@@ -229,9 +229,9 @@ export async function checkInGuestByQr(req, res) {
   }
 }
 
-/* =========================
-   DASHBOARD (FIXED ERROR)
-========================= */
+// /* =========================
+//    DASHBOARD (FIXED ERROR)
+// ========================= */
 
 export async function getGuestDashboard(req, res) {
   try {
@@ -248,7 +248,31 @@ export async function getGuestDashboard(req, res) {
 }
 
 
+export async function sendInvitationsToAllGuests(req, res) {
+  try {
+    const { eventId } = req.params;
 
+    const result = await sendInvitationsToAllGuestsService({
+      eventId,
+      organizationId: req.organizationId,
+      userId: req.user?.id,
+      payload: req.body || {},
+    });
+
+    return res.json({
+      success: true,
+      message: "Invitations sent to all guests",
+      data: result,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
 
 
 
@@ -298,25 +322,25 @@ export async function getGuestDashboard(req, res) {
 // |--------------------------------------------------------------------------
 // */
 
-// // export async function createGuest(req, res) {
-// //   try {
-// //     const { eventId } = req.params;
+// export async function createGuest(req, res) {
+//   try {
+//     const { eventId } = req.params;
 
-// //     const guest = await guestsService.createGuestService({
-// //       eventId,
-// //       organizationId: req.organizationId,
-// //       userId: req.user?.id,
-// //       payload: req.body,
-// //     });
+//     const guest = await guestsService.createGuestService({
+//       eventId,
+//       organizationId: req.organizationId,
+//       userId: req.user?.id,
+//       payload: req.body,
+//     });
 
-// //     return res.status(201).json({
-// //       success: true,
-// //       message: "Guest created successfully",
-// //       data: guest,
-// //     });
-// //   } catch (error) {
-// //     return handleControllerError(res, error, "Failed to create guest");
-// //   }
+//     return res.status(201).json({
+//       success: true,
+//       message: "Guest created successfully",
+//       data: guest,
+//     });
+//   } catch (error) {
+//     return handleControllerError(res, error, "Failed to create guest");
+//   }
 // // }
 // export async function createGuest(req, res) {
 //     try {
@@ -656,42 +680,42 @@ export async function getGuestDashboard(req, res) {
 //       return handleControllerError(res, error, "Failed to check in guest");
 //     }
 //   }
-// // export async function checkInGuestByQr(req, res) {
-// //     try {
-// //       const result = await guestsService.checkInGuestByQrTokenService({
-// //         eventId: req.params.eventId,
-// //         organizationId: req.organizationId,
-// //         userId: req.user.id,
-// //         qrToken: req.body.qr_token,
-// //         deviceId: req.body.device_id,
-// //         appPlatform: req.body.app_platform,
-// //         location: req.body.location,
-// //       });
+// export async function checkInGuestByQr(req, res) {
+//     try {
+//       const result = await guestsService.checkInGuestByQrTokenService({
+//         eventId: req.params.eventId,
+//         organizationId: req.organizationId,
+//         userId: req.user.id,
+//         qrToken: req.body.qr_token,
+//         deviceId: req.body.device_id,
+//         appPlatform: req.body.app_platform,
+//         location: req.body.location,
+//       });
   
-// //       res.status(200).json({
-// //         success: true,
-// //         message: "Checked in",
-// //         data: result,
-// //       });
-// //     } catch (e) {
-// //       handleError(res, e);
-// //     }
-// //   }
+//       res.status(200).json({
+//         success: true,
+//         message: "Checked in",
+//         data: result,
+//       });
+//     } catch (e) {
+//       handleError(res, e);
+//     }
+//   }
 
 
-// //   export async function submitGuestRsvp(req, res) {
-// //     try {
-// //       const rsvp = await guestsService.submitGuestRsvpService({
-// //         eventId: req.params.eventId,
-// //         organizationId: req.organizationId,
-// //         payload: req.body,
-// //       });
+//   export async function submitGuestRsvp(req, res) {
+//     try {
+//       const rsvp = await guestsService.submitGuestRsvpService({
+//         eventId: req.params.eventId,
+//         organizationId: req.organizationId,
+//         payload: req.body,
+//       });
   
-// //       res.status(200).json({ success: true, data: rsvp });
-// //     } catch (e) {
-// //       handleError(res, e);
-// //     }
-// //   }
+//       res.status(200).json({ success: true, data: rsvp });
+//     } catch (e) {
+//       handleError(res, e);
+//     }
+//   }
 
   
   

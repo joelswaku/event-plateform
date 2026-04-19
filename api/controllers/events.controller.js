@@ -361,3 +361,4 @@ export async function getPublicEventBySlug(req, res) {
     return handleControllerError(res, error, "Failed to fetch public event");
   }
 }
+

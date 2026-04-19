@@ -1,5 +1,5 @@
 //utils/sendEmail.js
-
+import QRCode from "qrcode";
 import nodemailer from "nodemailer";
 import { env } from "../config/env.js";
 
@@ -62,41 +62,7 @@ export async function sendWelcomeEmail({ to, name }) {
   console.log("Rejected:", info.rejected);
 }
 
-// export async function sendPasswordChangedEmail({ to, name }) {
 
-//   const html = `
-//   <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
-
-//     <h2>Password Changed Successfully</h2>
-
-//     <p>Hello ${name || "there"},</p>
-
-//     <p>Your password was successfully changed.</p>
-
-//     <p>If you made this change, you can safely ignore this message.</p>
-
-//     <p><b>If you did NOT change your password, please reset it immediately.</b></p>
-
-//     <br/>
-
-//     <p>For security, all active sessions were revoked.</p>
-
-//     <br/>
-
-//     <p>The Eventos Security Team</p>
-
-//   </div>
-//   `;
-
-//   const info = await transporter.sendMail({
-//     from: `"Eventos Security" <${env.mailFromEmail}>`,
-//     to,
-//     subject: "Your password was changed",
-//     html,
-//   });
-
-//   console.log("Email sent:", info.messageId);
-// }
 export async function sendPasswordChangedEmail({ to, name }) {
 
   const html = `
@@ -212,6 +178,101 @@ export async function sendTicketIssuedEmail({
   return sendMail({
     to,
     subject: `Your tickets for ${eventName}`,
+    html,
+  });
+}
+
+
+export async function sendEventInvitationEmail({
+  to,
+  guest,
+  event,
+  invitationUrl,
+}) {
+  // ✅ Generate QR Code (base64)
+  const qrCodeBase64 = await QRCode.toDataURL(invitationUrl);
+
+  // ✅ Google Calendar link
+  const googleCalendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE
+&text=${encodeURIComponent(event.title)}
+&dates=${event.start_at}/${event.end_at}
+&details=${encodeURIComponent("You're invited!")}
+&location=${encodeURIComponent(event.location_name || "")}`.replace(/\n/g, "");
+
+  const html = `
+  <div style="font-family:Arial;background:#f4f4f7;padding:20px">
+
+    <div style="max-width:600px;margin:auto;background:#fff;border-radius:12px;overflow:hidden">
+
+      <!-- HERO -->
+      <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:40px;text-align:center">
+        <h1>You're Invited 🎉</h1>
+        <p>${event.title}</p>
+      </div>
+
+      <!-- BODY -->
+      <div style="padding:30px">
+
+        <p>Hello <b>${guest.full_name}</b>,</p>
+
+        <p>You are invited to <strong>${event.title}</strong>.</p>
+
+        <!-- EVENT INFO -->
+        <div style="background:#f9fafb;padding:15px;border-radius:8px;margin:20px 0">
+          <p><b>📅 Date:</b> ${event.start_at || "TBA"}</p>
+          <p><b>📍 Location:</b> ${event.location_name || "TBA"}</p>
+        </div>
+
+        <!-- COUNTDOWN (fallback text) -->
+        <p style="text-align:center;font-size:14px;color:#666;">
+          ⏳ Happening soon — don’t miss it!
+        </p>
+
+        <!-- CTA -->
+        <div style="text-align:center;margin:25px 0">
+          <a href="${invitationUrl}"
+            style="background:#6366f1;color:#fff;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:bold">
+            View Invitation & RSVP
+          </a>
+        </div>
+
+        <!-- QR CODE -->
+        <div style="text-align:center;margin:20px 0">
+          <p style="font-size:14px;color:#666;">Scan for quick access:</p>
+          <img src="${qrCodeBase64}" width="140" />
+        </div>
+
+        <!-- ADD TO CALENDAR -->
+        <div style="text-align:center;margin:20px 0">
+          <a href="${googleCalendarUrl}" target="_blank"
+            style="display:inline-block;padding:10px 18px;border:1px solid #ddd;border-radius:6px;text-decoration:none;color:#333;font-size:14px">
+            📅 Add to Google Calendar
+          </a>
+        </div>
+
+        <!-- FALLBACK LINK -->
+        <p style="font-size:12px;color:#888">
+          Or open manually:
+        </p>
+
+        <p style="font-size:12px;color:#6366f1;word-break:break-all;">
+          ${invitationUrl}
+        </p>
+
+      </div>
+
+      <!-- FOOTER -->
+      <div style="background:#f9fafb;padding:15px;text-align:center;font-size:12px;color:#999">
+        Powered by Eventos
+      </div>
+
+    </div>
+  </div>
+  `;
+
+  await sendMail({
+    to,
+    subject: `You're invited to ${event.title} 🎉`,
     html,
   });
 }

@@ -13,9 +13,10 @@ router.get("/events/:eventId/builder", controller.getEventBuilder);
 router.put("/events/:eventId/page", controller.upsertEventPage);
 
 router.post("/events/:eventId/sections", controller.createSection);
+router.patch("/events/:eventId/sections/reorder", controller.reorderSections);
 router.patch("/events/:eventId/sections/:sectionId", controller.updateSection);
 router.delete("/events/:eventId/sections/:sectionId", controller.deleteSection);
-router.patch("/events/:eventId/sections/reorder", controller.reorderSections);
+
 
 router.post("/events/:eventId/page/publish", controller.publishEventPage);
 router.post("/events/:eventId/page/unpublish", controller.unpublishEventPage);
@@ -25,5 +26,11 @@ router.post("/events/:eventId/schedule-items", controller.createScheduleItem);
 router.post("/events/:eventId/speakers", controller.createSpeaker);
 router.post("/events/:eventId/media", controller.uploadEventMedia);
 router.post("/events/:eventId/theme/select", controller.selectEventTheme);
+//router.post("/events/:eventId/page/publish", controller.publishPage);
+
+
+
 
 export default router;
+
+

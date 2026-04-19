@@ -2,6 +2,7 @@
 import { Router } from "express";
 
 import { authenticate } from "../middleware/auth.middleware.js";
+import { resetLimiter } from "../utils/rateLimite.js";
 
 import { register } from "../controllers/auth/register.controller.js";
 import { login } from "../controllers/auth/login.controller.js";
@@ -38,7 +39,7 @@ router.post("/verify-email", verifyEmail);
 router.post("/request-password-reset", forgotPassword);
 
 // Reset password
-router.post("/reset-password", resetPassword);
+router.post("/reset-password", resetLimiter, resetPassword);
 
 /* =========================
    PROTECTED ROUTES (AUTH REQUIRED)

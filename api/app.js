@@ -14,6 +14,9 @@ import routes from "./routes/index.js";
 import webhookRoutes from "./routes/webhooks.routes.js";
 
 import { requestLogger } from "./middleware/logger.middleware.js";
+import publicPagesRoutes from "./routes/public-pages.routes.js";
+
+
 
 
 const app = express();
@@ -59,7 +62,7 @@ app.use(requestLogger);
 |--------------------------------------------------------------------------
 */
 
-const allowedOrigins = (env.CORS_ORIGIN || "")
+const allowedOrigins = (env.CORS_ORIGIN || "http://localhost:3000")
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
@@ -122,6 +125,8 @@ app.use((req, res, next) => {
 //app.use("/auth", authRoutes)
 app.use("/api", routes);
 app.use("/webhooks", webhookRoutes);
+app.use("/api", publicPagesRoutes);
+app.use("/api/public", publicPagesRoutes);
 
 /*
 |--------------------------------------------------------------------------

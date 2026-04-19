@@ -16,6 +16,7 @@ import ticketTypesRoutes from "./ticket-types.routes.js";
 
 import eventBuilderRoutes from "./event-builder.routes.js";
 import engagementRoutes from "./engagement.routes.js";
+import uploadImages from "./media-upload.routes.js"
 
 const router = Router();
 
@@ -26,7 +27,7 @@ router.use("/public", guestPublicRoutes);
 
 // 🔐 CORE FEATURES
 router.use("/events", eventsRoutes);
-router.use("/guests", guestsRoutes);
+router.use("/", guestsRoutes);
 router.use("/seating", seatRoutes);
 
 // 🎟️ TICKETING
@@ -45,6 +46,8 @@ router.use("/engagement", engagementRoutes);
 
 // 🌐 EVENT BUILDER (FIXED PREFIX)
 router.use("/builder", eventBuilderRoutes);
+router.use("/upload-image", uploadImages);
+
 
 export default router;
 

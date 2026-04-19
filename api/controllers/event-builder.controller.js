@@ -280,6 +280,54 @@ export async function selectEventTheme(req, res) {
     return handleControllerError(res, error, "Failed to select theme");
   }
 }
+// export async function updateSection(req, res) {
+//   try {
+//     const { eventId, sectionId } = req.params;
 
+//     const section = await builderService.updateSectionService({
+//       sectionId,
+//       eventId,
+//       organizationId: req.organizationId,
+//       userId: req.user?.id,
+//       payload: req.body,
+//     });
+
+//     res.json({
+//       success: true,
+//       data: section,
+//     });
+//   } catch (err) {
+//     handleControllerError(res, err);
+//   }
+// }
+// export async function publishPage(req, res) {
+//   try {
+//     const { eventId } = req.params;
+
+//     const result = await builderService.publishPageService({ eventId });
+
+//     res.json({
+//       success: true,
+//       data: result,
+//     });
+//   } catch (err) {
+//     handleControllerError(res, err);
+//   }
+// }
+export async function getPublicEventPageBySlugService({ slug }) {
+  const result = await db.query(
+    `
+    SELECT ep.*
+    FROM event_pages ep
+    JOIN events e ON e.id = ep.event_id
+    WHERE e.slug = $1
+    AND ep.is_published = true
+    LIMIT 1
+    `,
+    [slug]
+  );
+
+  return result.rows[0] || null;
+}
 
 
