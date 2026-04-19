@@ -1,0 +1,105 @@
+openapi: 3.0.0
+info:
+  title: Event Platform API
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000/api
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: API is running
+
+
+
+
+  /auth/register:
+    post:
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterUser"
+      responses:
+        "201":
+          description: User registered successfully
+        "400":
+          description: Bad request
+        "409":
+          description: User already exists
+
+  /auth/login:
+    post:
+      summary: Login a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginUser"
+      responses:
+        "200":
+          description: User logged in successfully
+        "400":
+          description: Bad request
+        "401":
+          description: Invalid credentials
+
+  /auth/google:
+    post:
+      summary: Login with Google
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoogleLogin"
+      responses:
+        "200":
+          description: User logged in successfully with Google
+        "400":
+          description: Bad request
+        "401":
+          description: Invalid Google credentials
+
+/logout:
+    post:
+      summary: Logout a user
+      responses:
+        "200":
+          description: User logged out successfully
+        "400":
+          description: Bad request
+
+/refresh-token:
+    post:
+      summary: Refresh authentication token
+      responses:
+        "200":
+          description: Token refreshed successfully
+        "400":
+          description: Bad request
+        "401":
+          description: Invalid refresh token
+
+/verify-email:
+    post:
+      summary: Verify user email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyEmail"
+      responses:
+        "200":
+          description: Email verified successfully
+        "400":
+          description: Bad request
+        "401":
+          description: Invalid verification token
