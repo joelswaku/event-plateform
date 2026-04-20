@@ -34,7 +34,7 @@ export async function uploadBuilderImage(req, res) {
       organizationId: req.organizationId,
       userId: req.user?.id,
       payload: {
-        upload_id: uploadResult.public_id,
+        upload_id: null,
         media_type: "IMAGE",
         file_url: uploadResult.secure_url,
         file_name: req.file.originalname,

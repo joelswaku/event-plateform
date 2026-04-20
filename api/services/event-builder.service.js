@@ -716,6 +716,7 @@ export async function createSectionService({
     if (payload.template_key) {
       const templateKey = String(payload.template_key).trim().toUpperCase();
       const template = SECTION_TEMPLATES[templateKey];
+      if (!template) throw new AppError(`Unknown template_key: "${templateKey}"`, 400);
 
       const nextPositionResult = await client.query(
         `
@@ -800,6 +801,189 @@ export async function createSectionService({
 
     await client.query("COMMIT");
     return mapSection(result.rows[0]);
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function replaceSectionsService({
+  eventId,
+  organizationId,
+  userId,
+  sections,
+}) {
+  if (!Array.isArray(sections) || sections.length === 0) {
+    throw new AppError("sections must be a non-empty array", 400);
+  }
+  if (sections.length > 20) {
+    throw new AppError("Cannot create more than 20 sections at once", 400);
+  }
+
+  const client = await db.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    await assertOrganizationEventPermission(client, organizationId, userId);
+    await assertEventExists(client, eventId, organizationId);
+
+    // Soft-delete all existing sections in one shot
+    await client.query(
+      `UPDATE event_page_sections
+       SET deleted_at = NOW(), updated_at = NOW()
+       WHERE event_id = $1 AND deleted_at IS NULL`,
+      [eventId]
+    );
+
+    const created = [];
+    let pos = 0;
+
+    for (const item of sections) {
+      validateSectionPayload(item);
+
+      let sectionData;
+      if (item.template_key) {
+        const key = String(item.template_key).trim().toUpperCase();
+        const template = SECTION_TEMPLATES[key];
+        if (!template) throw new AppError(`Unknown template_key: "${key}"`, 400);
+        sectionData = {
+          section_type: template.section_type,
+          title: item.title ?? template.title,
+          body: item.body ?? template.body,
+          position_order: pos++,
+          config: { ...template.config, ...(item.config || {}) },
+          is_visible: item.is_visible ?? true,
+        };
+      } else {
+        sectionData = {
+          section_type: normalizeSectionType(item.section_type),
+          title: normalizeText(item.title),
+          body: normalizeText(item.body),
+          position_order: pos++,
+          config: ensureObject(item.config, "config"),
+          is_visible: item.is_visible ?? true,
+        };
+      }
+
+      const result = await client.query(
+        `INSERT INTO event_page_sections
+         (event_id, section_type, title, body, position_order, is_visible, config, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW())
+         RETURNING *`,
+        [
+          eventId,
+          sectionData.section_type,
+          sectionData.title,
+          sectionData.body,
+          ensureNonNegativeInteger(sectionData.position_order, "position_order"),
+          Boolean(sectionData.is_visible),
+          sectionData.config ?? {},
+        ]
+      );
+      created.push(mapSection(result.rows[0]));
+    }
+
+    await client.query(
+      `UPDATE event_pages SET draft_updated_at = NOW(), updated_at = NOW() WHERE event_id = $1`,
+      [eventId]
+    );
+
+    await client.query("COMMIT");
+    return created;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function batchCreateSectionsService({
+  eventId,
+  organizationId,
+  userId,
+  sections,
+}) {
+  if (!Array.isArray(sections) || sections.length === 0) {
+    throw new AppError("sections must be a non-empty array", 400);
+  }
+  if (sections.length > 20) {
+    throw new AppError("Cannot create more than 20 sections at once", 400);
+  }
+
+  const client = await db.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    await assertOrganizationEventPermission(client, organizationId, userId);
+    await assertEventExists(client, eventId, organizationId);
+
+    const posResult = await client.query(
+      `SELECT COALESCE(MAX(position_order), -1) + 1 AS next_pos
+       FROM event_page_sections
+       WHERE event_id = $1 AND deleted_at IS NULL`,
+      [eventId]
+    );
+    let nextPos = posResult.rows[0].next_pos;
+
+    const created = [];
+
+    for (const item of sections) {
+      validateSectionPayload(item);
+
+      let sectionData;
+      if (item.template_key) {
+        const key = String(item.template_key).trim().toUpperCase();
+        const template = SECTION_TEMPLATES[key];
+        if (!template) throw new AppError(`Unknown template_key: "${key}"`, 400);
+        sectionData = {
+          section_type: template.section_type,
+          title: item.title ?? template.title,
+          body: item.body ?? template.body,
+          position_order: nextPos++,
+          config: { ...template.config, ...(item.config || {}) },
+          is_visible: item.is_visible ?? true,
+        };
+      } else {
+        sectionData = {
+          section_type: normalizeSectionType(item.section_type),
+          title: normalizeText(item.title),
+          body: normalizeText(item.body),
+          position_order: nextPos++,
+          config: ensureObject(item.config, "config"),
+          is_visible: item.is_visible ?? true,
+        };
+      }
+
+      const result = await client.query(
+        `INSERT INTO event_page_sections
+         (event_id, section_type, title, body, position_order, is_visible, config, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW())
+         RETURNING *`,
+        [
+          eventId,
+          sectionData.section_type,
+          sectionData.title,
+          sectionData.body,
+          ensureNonNegativeInteger(sectionData.position_order, "position_order"),
+          Boolean(sectionData.is_visible),
+          sectionData.config ?? {},
+        ]
+      );
+      created.push(mapSection(result.rows[0]));
+    }
+
+    await client.query(
+      `UPDATE event_pages SET draft_updated_at = NOW(), updated_at = NOW() WHERE event_id = $1`,
+      [eventId]
+    );
+
+    await client.query("COMMIT");
+    return created;
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -1421,78 +1605,4 @@ export async function selectEventThemeService({
     client.release();
   }
 }
-// // UPDATE SECTION
-// export async function updateSectionService({
-//   sectionId,
-//   eventId,
-//   organizationId,
-//   userId,
-//   payload,
-// }) {
-//   const client = await db.connect();
-
-//   try {
-//     await client.query("BEGIN");
-
-//     await assertOrganizationEventPermission(client, organizationId, userId);
-
-//     const result = await client.query(
-//       `
-//       UPDATE event_page_sections
-//       SET
-//         title = $1,
-//         body = $2,
-//         updated_at = NOW()
-//       WHERE id = $3
-//         AND event_id = $4
-//         AND deleted_at IS NULL
-//       RETURNING *
-//       `,
-//       [payload.title, payload.body, sectionId, eventId]
-//     );
-
-//     if (!result.rows[0]) {
-//       throw new AppError("Section not found", 404);
-//     }
-
-//     await client.query("COMMIT");
-
-//     return mapSection(result.rows[0]);
-//   } catch (err) {
-//     await client.query("ROLLBACK");
-//     throw err;
-//   } finally {
-//     client.release();
-//   }
-// }
-// export async function publishPageService({ eventId }) {
-//   const client = await db.connect();
-
-//   try {
-//     await client.query("BEGIN");
-
-//     const slug = `event-${eventId.slice(0, 8)}`;
-
-//     await client.query(
-//       `
-//       UPDATE event_pages
-//       SET
-//         is_published = true,
-//         slug = $1,
-//         published_at = NOW()
-//       WHERE event_id = $2
-//       `,
-//       [slug, eventId]
-//     );
-
-//     await client.query("COMMIT");
-
-//     return { slug };
-//   } catch (err) {
-//     await client.query("ROLLBACK");
-//     throw err;
-//   } finally {
-//     client.release();
-//   }
-// }
 

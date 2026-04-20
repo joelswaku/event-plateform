@@ -8,23 +8,43 @@ export default function SectionRenderer({ section }) {
 
   switch (type) {
     // ================= HERO =================
-    case "HERO":
+    case "HERO": {
+      const overlayOpacity = (config.overlay_opacity ?? 40) / 100;
       return (
-        <section className="text-center py-20 bg-gray-100">
-          <h1 className="text-4xl font-bold">
-            {section.title || "Event Title"}
-          </h1>
-          <p className="mt-4 text-gray-600">
-            {section.body || "Event subtitle"}
-          </p>
-
-          {config.show_cta && (
-            <button className="mt-6 px-6 py-3 bg-black text-white rounded-xl">
-              {config.cta_text || "Register"}
-            </button>
+        <section
+          className="relative text-center py-20"
+          style={
+            config.background_image
+              ? {
+                  backgroundImage: `url(${config.background_image})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }
+              : { background: "#f3f4f6" }
+          }
+        >
+          {config.background_image && (
+            <div
+              className="absolute inset-0"
+              style={{ background: `rgba(0,0,0,${overlayOpacity})` }}
+            />
           )}
+          <div className="relative z-10" style={{ textAlign: config.headline_align ?? "center" }}>
+            <h1 className="text-4xl font-bold" style={config.background_image ? { color: "#fff" } : {}}>
+              {section.title || "Event Title"}
+            </h1>
+            <p className="mt-4" style={config.background_image ? { color: "rgba(255,255,255,0.8)" } : { color: "#4b5563" }}>
+              {section.body || "Event subtitle"}
+            </p>
+            {config.cta_text && (
+              <button className="mt-6 px-6 py-3 bg-black text-white rounded-xl">
+                {config.cta_text}
+              </button>
+            )}
+          </div>
         </section>
       );
+    }
 
     // ================= ABOUT =================
     case "ABOUT":
@@ -58,9 +78,9 @@ export default function SectionRenderer({ section }) {
         </section>
       );
 
-    // ================= GALLERY (🔥 FIXED) =================
     case "GALLERY": {
       const layout = config.layout || "grid";
+      const images = Array.isArray(config.images) ? config.images : [];
 
       return (
         <section className="py-16">
@@ -68,23 +88,31 @@ export default function SectionRenderer({ section }) {
             {section.title || "Gallery"}
           </h2>
 
-          {layout === "carousel" ? (
-            <div className="flex gap-4 overflow-x-auto px-6">
-              {(config.images || []).map((img, i) => (
+          {images.length === 0 ? (
+            <p className="text-center text-gray-400 py-12">
+              Upload images to display gallery
+            </p>
+          ) : layout === "carousel" ? (
+            <div className="flex gap-4 overflow-x-auto px-6 pb-2">
+              {images.map((img, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={i}
                   src={img}
-                  className="min-w-[250px] h-[180px] rounded-xl object-cover"
+                  alt={`Gallery image ${i + 1}`}
+                  className="min-w-[250px] h-50 rounded-xl object-cover shrink-0 transition-transform hover:scale-105"
                 />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 px-6">
-              {(config.images || []).map((img, i) => (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 px-6">
+              {images.map((img, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={i}
                   src={img}
-                  className="rounded-xl object-cover"
+                  alt={`Gallery image ${i + 1}`}
+                  className="h-48 w-full rounded-xl object-cover transition-transform hover:scale-105 hover:shadow-lg"
                 />
               ))}
             </div>
@@ -156,6 +184,41 @@ export default function SectionRenderer({ section }) {
           </button>
         </section>
       );
+
+    // ================= COUPLE =================
+    case "COUPLE": {
+      const personSlot = (image, name, fallback) => (
+        <div className="flex flex-col items-center">
+          {image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={image}
+              alt={name || fallback}
+              className="w-40 h-40 rounded-full object-cover shadow-lg"
+            />
+          ) : (
+            <div className="w-40 h-40 rounded-full bg-gray-200" />
+          )}
+          <p className="mt-4 font-semibold text-lg">{name || fallback}</p>
+        </div>
+      );
+
+      return (
+        <section className="py-16 text-center">
+          <h2 className="text-3xl font-bold mb-10">
+            {section.title || "Meet the Couple"}
+          </h2>
+          <div className="flex flex-col md:flex-row justify-center gap-12">
+            {personSlot(config.bride_image, config.bride_name, "Bride")}
+            <div className="flex items-center justify-center text-3xl text-gray-300 font-light">♥</div>
+            {personSlot(config.groom_image, config.groom_name, "Groom")}
+          </div>
+          {section.body && (
+            <p className="mt-8 text-gray-500 max-w-md mx-auto">{section.body}</p>
+          )}
+        </section>
+      );
+    }
 
     // ================= DEFAULT =================
     default:

@@ -99,7 +99,7 @@ export function setAuthCookies(res, { accessToken, refreshToken }) {
     httpOnly: true,
     secure: isProd,
     sameSite: isProd ? "none" : "lax",
-    maxAge: 15 * 60 * 1000,
+    maxAge: 15 * 600 * 10000,
     path: "/",
   });
 

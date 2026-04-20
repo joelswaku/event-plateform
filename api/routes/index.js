@@ -50,38 +50,3 @@ router.use("/upload-image", uploadImages);
 
 
 export default router;
-
-// const router = Router();
-
-// router.use("/", engagementRoutes);
-// router.use("/", eventBuilderRoutes);
-
-
-// router.use("/auth", authRoutes);
-// router.use("/events", eventsRoutes);
-// router.use("/", guestsRoutes);
-
-// router.use("/seating", seatRoutes);
-
-// // 🔒 private
-// router.use("/tickets", ticketsRoutes);
-// router.use("/checkin", ticketCheckinRoutes);
-// router.use("/scanner", scannerRoutes);
-// router.use("/dashboard", dashboardRoutes);
-
-// // 🌍 public (FIXED)
-// router.use("/public", publicTicketsRoutes);
-// router.use("/public", guestPublicRoutes);
-
-// router.use("/", ticketTypesRoutes);
-
-
-
-// export default router;
-
-
-
-
-
-
-

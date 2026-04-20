@@ -53,6 +53,48 @@ export async function upsertEventPage(req, res) {
   }
 }
 
+export async function replaceSections(req, res) {
+  try {
+    const { eventId } = req.params;
+
+    const sections = await builderService.replaceSectionsService({
+      eventId,
+      organizationId: req.organizationId,
+      userId: req.user?.id,
+      sections: req.body.sections,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Sections replaced successfully",
+      data: sections,
+    });
+  } catch (error) {
+    return handleControllerError(res, error, "Failed to replace sections");
+  }
+}
+
+export async function batchCreateSections(req, res) {
+  try {
+    const { eventId } = req.params;
+
+    const sections = await builderService.batchCreateSectionsService({
+      eventId,
+      organizationId: req.organizationId,
+      userId: req.user?.id,
+      sections: req.body.sections,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Sections created successfully",
+      data: sections,
+    });
+  } catch (error) {
+    return handleControllerError(res, error, "Failed to batch create sections");
+  }
+}
+
 export async function createSection(req, res) {
   try {
     const { eventId } = req.params;
@@ -280,54 +322,3 @@ export async function selectEventTheme(req, res) {
     return handleControllerError(res, error, "Failed to select theme");
   }
 }
-// export async function updateSection(req, res) {
-//   try {
-//     const { eventId, sectionId } = req.params;
-
-//     const section = await builderService.updateSectionService({
-//       sectionId,
-//       eventId,
-//       organizationId: req.organizationId,
-//       userId: req.user?.id,
-//       payload: req.body,
-//     });
-
-//     res.json({
-//       success: true,
-//       data: section,
-//     });
-//   } catch (err) {
-//     handleControllerError(res, err);
-//   }
-// }
-// export async function publishPage(req, res) {
-//   try {
-//     const { eventId } = req.params;
-
-//     const result = await builderService.publishPageService({ eventId });
-
-//     res.json({
-//       success: true,
-//       data: result,
-//     });
-//   } catch (err) {
-//     handleControllerError(res, err);
-//   }
-// }
-export async function getPublicEventPageBySlugService({ slug }) {
-  const result = await db.query(
-    `
-    SELECT ep.*
-    FROM event_pages ep
-    JOIN events e ON e.id = ep.event_id
-    WHERE e.slug = $1
-    AND ep.is_published = true
-    LIMIT 1
-    `,
-    [slug]
-  );
-
-  return result.rows[0] || null;
-}
-
-

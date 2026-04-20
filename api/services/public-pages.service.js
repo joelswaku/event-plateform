@@ -13,11 +13,12 @@ export async function getPublicEventPageBySlugService({ slug }) {
   try {
     const eventRes = await client.query(
       `
-      SELECT *
-      FROM events
-      WHERE slug = $1
-        AND deleted_at IS NULL
-        AND status = 'PUBLISHED'
+      SELECT e.*
+      FROM events e
+      INNER JOIN event_pages ep ON ep.event_id = e.id
+      WHERE e.slug = $1
+        AND e.deleted_at IS NULL
+        AND ep.page_status = 'PUBLISHED'
       LIMIT 1
       `,
       [slug]
@@ -26,7 +27,7 @@ export async function getPublicEventPageBySlugService({ slug }) {
     const event = eventRes.rows[0];
 
     if (!event) {
-      throw new AppError("Public event not found", 404);
+      throw new AppError("Public event not found or page not published", 404);
     }
 
     const [pageRes, sectionsRes, mediaRes, settingsRes, scheduleRes, speakersRes] =
@@ -101,6 +102,7 @@ export async function getPublicEventPageBySlugService({ slug }) {
       settings: settingsRes.rows[0] || null,
       schedule_items: scheduleRes.rows,
       speakers: speakersRes.rows,
+     
     };
   } finally {
     client.release();

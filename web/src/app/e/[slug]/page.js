@@ -1,24 +1,12 @@
+
 import { notFound } from "next/navigation";
-import EventPublicRenderer from "@/components/events/public/EventPublicRenderer";
+
+import SharedEventRenderer from "@/components/events/shared/SharedEventRenderer";
 import { publicApi } from "@/lib/public-api";
 
-/* =========================
-   FETCH EVENT
-========================= */
-async function getPublicEvent(slug) {
-  try {
-    const res = await publicApi.get(`/events/public/${slug}`);
-    return res.data?.data || null;
-  } catch (error) {
-    console.error("Public event error:", error?.message);
-    return null;
-  }
-}
+// ── Data fetching ─────────────────────────────────────────────────────────────
 
-/* =========================
-   FETCH BUILDER (OPTIONAL)
-========================= */
-async function getPublicBuilder(slug) {
+async function getPageData(slug) {
   try {
     const res = await publicApi.get(`/public/pages/${slug}`);
     return res.data?.data || null;
@@ -27,50 +15,48 @@ async function getPublicBuilder(slug) {
   }
 }
 
-/* =========================
-   SEO METADATA (FIXED)
-========================= */
+// ── SEO metadata ──────────────────────────────────────────────────────────────
+
 export async function generateMetadata({ params }) {
-  const { slug } = await params; // ✅ FIX
+  const { slug } = await params;
+  const data = await getPageData(slug);
+  const event = data?.event;
 
-  const event = await getPublicEvent(slug);
-
-  if (!event) {
-    return { title: "Event not found" };
-  }
+  if (!event) return { title: "Event Not Found" };
 
   return {
     title: event.title,
     description:
-      event.short_description ||
-      event.description ||
-      "Join this event",
+      event.short_description || event.description || "Join this event",
+    openGraph: {
+      title: event.title,
+      description: event.short_description || event.description || "",
+      images: event.cover_image_url ? [{ url: event.cover_image_url }] : [],
+    },
   };
 }
 
-/* =========================
-   PAGE (FIXED)
-========================= */
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default async function PublicEventPage({ params }) {
-  const { slug } = await params; // ✅ FIX (MAIN BUG)
+  const { slug } = await params;
+  const data = await getPageData(slug);
 
-  console.log("Slug:", slug);
+  if (!data?.event) notFound();
 
-  const event = await getPublicEvent(slug);
-
-  if (!event) {
-    return (
-      <div className="p-10 text-center text-red-500">
-        ❌ Event not found — {slug}
-      </div>
-    );
-  }
-
-  const builder = await getPublicBuilder(slug);
+  const enrichedEvent = {
+    ...data.event,
+    speakers: data.speakers || [],
+    schedule_items: data.schedule_items || [],
+  };
 
   return (
     <main className="min-h-screen bg-white">
-      <EventPublicRenderer event={event} builder={builder} />
+      <SharedEventRenderer
+        event={enrichedEvent}
+        sections={data.sections || []}
+        isEditor={false}
+      />
     </main>
   );
 }
