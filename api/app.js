@@ -101,7 +101,7 @@ app.use(cookieParser());
 */
 
 const globalLimiter = rateLimit({
-  windowMs: 155 * 60 * 1000,
+  windowMs: 158 * 60 * 1000,
   max: 300,
   standardHeaders: true,
   legacyHeaders: false,

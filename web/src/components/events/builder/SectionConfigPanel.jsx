@@ -252,48 +252,85 @@ export default function SectionConfigPanel({ section, eventId }) {
       {/* ── COUPLE ───────────────────────────────────────────────────── */}
       {section.section_type === "COUPLE" && (
         <>
-          <ImageUploader
-            eventId={eventId}
-            value={localConfig.bride_image ?? ""}
-            onChange={(url) => handleConfig("bride_image", url)}
-            label="Bride Photo"
-          />
-          <Field label="Bride Name">
-            <Input
-              value={localConfig.bride_name ?? ""}
-              onChange={(e) => handleConfig("bride_name", e.target.value)}
-              placeholder="e.g. Sarah"
+          {/* Partner 1 */}
+          <div style={{ borderBottom: "1px solid rgba(255,255,255,0.07)", paddingBottom: 16, marginBottom: 4 }}>
+            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#c9a96e", marginBottom: 12 }}>Partner One</p>
+            <ImageUploader
+              eventId={eventId}
+              value={localConfig.bride_image ?? ""}
+              onChange={(url) => handleConfig("bride_image", url)}
+              label="Photo"
             />
-          </Field>
+            <div className="mt-3 space-y-3">
+              <Field label="Name">
+                <Input value={localConfig.bride_name ?? ""} onChange={(e) => handleConfig("bride_name", e.target.value)} placeholder="e.g. Sarah" />
+              </Field>
+              <Field label="Role / Title">
+                <Input value={localConfig.bride_role ?? ""} onChange={(e) => handleConfig("bride_role", e.target.value)} placeholder="e.g. Bride" />
+              </Field>
+              <Field label="Short Bio">
+                <Textarea value={localConfig.bride_bio ?? ""} onChange={(e) => handleConfig("bride_bio", e.target.value)} placeholder="A sentence or two about them…" rows={2} />
+              </Field>
+              <Field label="Personal Quote (flip card)">
+                <Input value={localConfig.bride_quote ?? ""} onChange={(e) => handleConfig("bride_quote", e.target.value)} placeholder="Something meaningful…" />
+              </Field>
+            </div>
+          </div>
 
-          <ImageUploader
-            eventId={eventId}
-            value={localConfig.groom_image ?? ""}
-            onChange={(url) => handleConfig("groom_image", url)}
-            label="Groom Photo"
-          />
-          <Field label="Groom Name">
-            <Input
-              value={localConfig.groom_name ?? ""}
-              onChange={(e) => handleConfig("groom_name", e.target.value)}
-              placeholder="e.g. James"
+          {/* Partner 2 */}
+          <div style={{ paddingTop: 4 }}>
+            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#c9a96e", marginBottom: 12 }}>Partner Two</p>
+            <ImageUploader
+              eventId={eventId}
+              value={localConfig.groom_image ?? ""}
+              onChange={(url) => handleConfig("groom_image", url)}
+              label="Photo"
             />
-          </Field>
+            <div className="mt-3 space-y-3">
+              <Field label="Name">
+                <Input value={localConfig.groom_name ?? ""} onChange={(e) => handleConfig("groom_name", e.target.value)} placeholder="e.g. James" />
+              </Field>
+              <Field label="Role / Title">
+                <Input value={localConfig.groom_role ?? ""} onChange={(e) => handleConfig("groom_role", e.target.value)} placeholder="e.g. Groom" />
+              </Field>
+              <Field label="Short Bio">
+                <Textarea value={localConfig.groom_bio ?? ""} onChange={(e) => handleConfig("groom_bio", e.target.value)} placeholder="A sentence or two about them…" rows={2} />
+              </Field>
+              <Field label="Personal Quote (flip card)">
+                <Input value={localConfig.groom_quote ?? ""} onChange={(e) => handleConfig("groom_quote", e.target.value)} placeholder="Something meaningful…" />
+              </Field>
+            </div>
+          </div>
         </>
       )}
 
       {/* ── STORY ────────────────────────────────────────────────────── */}
       {section.section_type === "STORY" && (
-        <Field label="Image Position">
-          <Select
-            value={localConfig.image_position ?? "left"}
-            onChange={(e) => handleConfig("image_position", e.target.value)}
-            options={[
-              { value: "left",  label: "Left"  },
-              { value: "right", label: "Right" },
-            ]}
+        <>
+          <ImageUploader
+            eventId={eventId}
+            value={localConfig.story_image ?? ""}
+            onChange={(url) => handleConfig("story_image", url)}
+            label="Story Photo"
           />
-        </Field>
+          <Field label="Image Position">
+            <Select
+              value={localConfig.image_position ?? "left"}
+              onChange={(e) => handleConfig("image_position", e.target.value)}
+              options={[
+                { value: "left",  label: "Left"  },
+                { value: "right", label: "Right" },
+              ]}
+            />
+          </Field>
+          <Field label="Pull Quote (optional)">
+            <Input
+              value={localConfig.quote ?? ""}
+              onChange={(e) => handleConfig("quote", e.target.value)}
+              placeholder="A meaningful quote…"
+            />
+          </Field>
+        </>
       )}
 
       {/* ── VENUE ────────────────────────────────────────────────────── */}

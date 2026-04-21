@@ -5,11 +5,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useEventStore } from "@/store/event.store";
+import { api } from "@/lib/api";
+import { resolveTemplate } from "@/lib/defaultTemplates";
 import PageHeader from "@/components/ui/page-header";
 
 export default function CreateEventPage() {
   const router = useRouter();
-  const { createEvent, isLoading } = useEventStore();
+  const { createEvent } = useEventStore();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [form, setForm] = useState({
     title: "",
@@ -58,42 +61,61 @@ export default function CreateEventPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!validate()) return;
 
+    setIsSubmitting(true);
     try {
       const payload = {
         ...form,
-
-        // ✅ ENUM FIX
         event_type: form.event_type.toUpperCase(),
-
-        // ✅ DATE FIX
         starts_at: new Date(form.starts_at).toISOString(),
         ends_at: new Date(form.ends_at).toISOString(),
-
-        // ✅ CLEAN STRINGS
         title: form.title.trim(),
         city: form.city.trim(),
         country: form.country.toUpperCase(),
       };
 
-      console.log("🚀 PAYLOAD:", payload);
-
       const res = await createEvent(payload);
-
       const eventId = res?.data?.id || res?.id;
+      if (!eventId) throw new Error("Event creation failed");
+
+      try {
+        const keys = resolveTemplate(payload.event_type);
+        const batchRes = await api.post(`/builder/events/${eventId}/sections/batch`, {
+          sections: keys.map((k) => ({ template_key: k })),
+        });
+        const newSections = batchRes.data?.data || [];
+
+        const prefills = [];
+        const hero = newSections.find((s) => s.section_type === "HERO");
+        if (hero) {
+          prefills.push(api.patch(`/builder/events/${eventId}/sections/${hero.id}`, {
+            title: payload.title,
+            config: { ...(hero.config ?? {}) },
+          }));
+        }
+        const countdown = newSections.find((s) => s.section_type === "COUNTDOWN");
+        if (countdown && payload.starts_at) {
+          prefills.push(api.patch(`/builder/events/${eventId}/sections/${countdown.id}`, {
+            config: { ...(countdown.config ?? {}), starts_at: payload.starts_at },
+          }));
+        }
+        const venue = newSections.find((s) => s.section_type === "VENUE");
+        if (venue && (payload.city || payload.country)) {
+          prefills.push(api.patch(`/builder/events/${eventId}/sections/${venue.id}`, {
+            config: { ...(venue.config ?? {}), city: payload.city || "", country: payload.country || "" },
+          }));
+        }
+        await Promise.all(prefills);
+      } catch {
+        // Section pre-creation failed — builder will handle on first open
+      }
 
       router.push(`/events/${eventId}`);
     } catch (error) {
-      console.error(
-        "❌ CREATE EVENT ERROR:",
-        error?.response?.data || error.message
-      );
-      alert(
-        error?.response?.data?.message ||
-          "Failed to create event. Check console."
-      );
+      alert(error?.response?.data?.message || "Failed to create event.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -210,10 +232,10 @@ export default function CreateEventPage() {
         <div className="mt-6 flex justify-end">
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isSubmitting}
             className="rounded-2xl bg-[#111827] px-5 py-3 text-sm font-medium text-white disabled:opacity-50"
           >
-            {isLoading ? "Creating..." : "Create event"}
+            {isSubmitting ? "Creating..." : "Create event"}
           </button>
         </div>
       </form>

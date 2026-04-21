@@ -8,6 +8,7 @@ import BuilderTopbar from "@/components/events/builder/BuilderTopbar";
 import SectionConfigPanel from "@/components/events/builder/SectionConfigPanel";
 import SharedEventRenderer from "@/components/events/shared/SharedEventRenderer";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { resolveTemplate } from "@/lib/defaultTemplates";
 
 const btn =
   "inline-flex items-center justify-center rounded-md text-xs font-medium transition-colors focus:outline-none disabled:opacity-40";
@@ -16,11 +17,13 @@ export default function BuilderPage() {
   const params  = useParams();
   const eventId = Array.isArray(params.eventId) ? params.eventId[0] : params.eventId;
 
-  const builder        = useBuilderStore((s) => s.builder);
-  const fetchBuilder   = useBuilderStore((s) => s.fetchBuilder);
-  const reorderSections = useBuilderStore((s) => s.reorderSections);
-  const undo           = useBuilderStore((s) => s.undo);
-  const redo           = useBuilderStore((s) => s.redo);
+  const builder             = useBuilderStore((s) => s.builder);
+  const fetchBuilder        = useBuilderStore((s) => s.fetchBuilder);
+  const batchCreateSections = useBuilderStore((s) => s.batchCreateSections);
+  const updateSection       = useBuilderStore((s) => s.updateSection);
+  const reorderSections     = useBuilderStore((s) => s.reorderSections);
+  const undo                = useBuilderStore((s) => s.undo);
+  const redo                = useBuilderStore((s) => s.redo);
 
   // Track selection by ID — derive actual section from live store data
   const [selectedSectionId, setSelectedSectionId] = useState(null);
@@ -34,10 +37,80 @@ export default function BuilderPage() {
   const [panelWidth,    setPanelWidth]    = useState(340);
   const resizing = useRef(false);
 
+  // Track whether we've already applied the default template for this session
+  const templateApplied = useRef(false);
+
   // Initial load
   useEffect(() => {
     if (eventId) fetchBuilder(eventId);
   }, [eventId, fetchBuilder]);
+
+  // Auto-apply default template when builder loads with no sections
+  useEffect(() => {
+    if (!builder || templateApplied.current) return;
+
+    // Sections already exist — nothing to do
+    if ((builder.sections?.length ?? 0) > 0) {
+      templateApplied.current = true;
+      return;
+    }
+
+    templateApplied.current = true;
+    const event = builder.event;
+    const keys = resolveTemplate(event?.event_type);
+
+    batchCreateSections(eventId, keys).then((newSections) => {
+      if (!newSections?.length || !event) return;
+
+      const prefills = [];
+
+      for (const s of newSections) {
+        switch (s.section_type) {
+          case "HERO":
+            prefills.push(updateSection(eventId, s.id, {
+              title: event.title || s.title,
+              body: event.short_description || event.description || s.body,
+              config: {
+                ...(s.config ?? {}),
+                ...(event.cover_image_url ? { background_image: event.cover_image_url } : {}),
+              },
+            }));
+            break;
+
+          case "VENUE":
+            if (event.venue_name || event.venue_address || event.city) {
+              prefills.push(updateSection(eventId, s.id, {
+                config: {
+                  ...(s.config ?? {}),
+                  venue_name:    event.venue_name    ?? "",
+                  venue_address: event.venue_address ?? "",
+                  city:          event.city          ?? "",
+                  state:         event.state         ?? "",
+                  country:       event.country       ?? "",
+                },
+              }));
+            }
+            break;
+
+          case "COUNTDOWN":
+            if (event.starts_at_utc) {
+              prefills.push(updateSection(eventId, s.id, {
+                config: {
+                  ...(s.config ?? {}),
+                  starts_at: event.starts_at_utc,
+                },
+              }));
+            }
+            break;
+
+          default:
+            break;
+        }
+      }
+
+      Promise.all(prefills);
+    });
+  }, [builder, eventId, batchCreateSections, updateSection]);
 
   // Keyboard shortcuts: Ctrl/Cmd+Z = undo, Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z = redo
   useEffect(() => {

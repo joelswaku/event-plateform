@@ -30,7 +30,29 @@ export default function EventEditor() {
     if (!dashboard?.event) return;
     if (initializedRef.current) return;
 
-    setForm(dashboard.event);
+    const e = dashboard.event;
+    setForm({
+      title:             e.title             ?? "",
+      description:       e.description       ?? "",
+      short_description: e.short_description ?? "",
+      event_type:        e.event_type        ?? "",
+      cover_image_url:   e.cover_image_url   ?? "",
+      venue_name:        e.venue_name        ?? "",
+      venue_address:     e.venue_address     ?? "",
+      city:              e.city              ?? "",
+      state:             e.state             ?? "",
+      country:           e.country           ?? "",
+      // backend stores as starts_at_utc; input sends as starts_at
+      starts_at:         e.starts_at_utc     ?? "",
+      ends_at:           e.ends_at_utc       ?? "",
+      timezone:          e.timezone          ?? "",
+      visibility:        e.visibility        ?? "PRIVATE",
+      allow_rsvp:        e.allow_rsvp        ?? false,
+      allow_plus_ones:   e.allow_plus_ones   ?? false,
+      allow_qr_checkin:  e.allow_qr_checkin  ?? false,
+      allow_ticketing:   e.allow_ticketing    ?? false,
+      allow_donations:   e.allow_donations   ?? false,
+    });
     initializedRef.current = true;
   }, [dashboard]);
 
@@ -41,19 +63,41 @@ export default function EventEditor() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     debounceRef.current = setTimeout(async () => {
-      try {
-        setSaving(true);
-        setSaved(false);
-        setError(null);
+      setSaving(true);
+      setSaved(false);
+      setError(null);
 
-        await updateEvent(eventId, form);
+      const payload = {
+        title:             form.title,
+        description:       form.description,
+        short_description: form.short_description,
+        event_type:        form.event_type,
+        cover_image_url:   form.cover_image_url,
+        venue_name:        form.venue_name,
+        venue_address:     form.venue_address,
+        city:              form.city,
+        state:             form.state,
+        country:           form.country,
+        starts_at:         form.starts_at  || undefined,
+        ends_at:           form.ends_at    || undefined,
+        timezone:          form.timezone,
+        visibility:        form.visibility,
+        allow_rsvp:        form.allow_rsvp,
+        allow_plus_ones:   form.allow_plus_ones,
+        allow_qr_checkin:  form.allow_qr_checkin,
+        allow_ticketing:   form.allow_ticketing,
+        allow_donations:   form.allow_donations,
+      };
 
+      const result = await updateEvent(eventId, payload);
+
+      if (result?.success === false) {
+        setError("Auto-save failed — check your inputs");
+      } else {
         setSaved(true);
-      } catch (err) {
-        setError("Auto-save failed");
-      } finally {
-        setSaving(false);
       }
+
+      setSaving(false);
     }, 800);
 
     return () => clearTimeout(debounceRef.current);
@@ -158,6 +202,10 @@ export default function EventEditor() {
           value={formatDate(form.ends_at)}
           onChange={(v) => handleChange("ends_at", v)}
         />
+
+        {form.starts_at && form.ends_at && new Date(form.ends_at) < new Date(form.starts_at) && (
+          <p className="text-xs text-red-500">End date must be after start date</p>
+        )}
 
         <Input
           label="Timezone"
