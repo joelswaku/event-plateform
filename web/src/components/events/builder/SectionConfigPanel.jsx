@@ -132,6 +132,7 @@ export default function SectionConfigPanel({ section, eventId }) {
               value={localConfig.overlay_opacity ?? 40}
               onChange={(e) => handleConfig("overlay_opacity", Number(e.target.value))}
               className="w-full"
+              style={{ height: 36, cursor: "pointer", accentColor: "#6c6fee" }}
             />
           </Field>
         </>
@@ -183,12 +184,24 @@ export default function SectionConfigPanel({ section, eventId }) {
           {(localConfig.items ?? []).map((item, i) => (
             <div
               key={i}
-              className="mb-3 rounded-md p-3"
-              style={{
-                background: "#1e2026",
-                border: "1px solid rgba(255,255,255,0.07)",
-              }}
+              className="mb-3 flex flex-col gap-2 rounded-xl p-3"
+              style={{ background: "#1e2026", border: "1px solid rgba(255,255,255,0.07)" }}
             >
+              <div className="flex items-center justify-between mb-1">
+                <span style={{ fontSize: 10, color: "#555a66", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                  Q{i + 1}
+                </span>
+                <button
+                  onClick={() => {
+                    const next = (localConfig.items ?? []).filter((_, j) => j !== i);
+                    handleConfigItems(next);
+                  }}
+                  className="flex h-6 w-6 items-center justify-center rounded-lg transition-colors"
+                  style={{ background: "rgba(248,113,113,0.1)", color: "#f87171" }}
+                >
+                  <XMarkIcon className="h-3 w-3" />
+                </button>
+              </div>
               <Input
                 value={item.question}
                 onChange={(e) => {
@@ -197,9 +210,8 @@ export default function SectionConfigPanel({ section, eventId }) {
                   handleConfigItems(next);
                 }}
                 placeholder="Question"
-                className="mb-2"
               />
-              <Input
+              <Textarea
                 value={item.answer}
                 onChange={(e) => {
                   const next = [...(localConfig.items ?? [])];
@@ -207,22 +219,14 @@ export default function SectionConfigPanel({ section, eventId }) {
                   handleConfigItems(next);
                 }}
                 placeholder="Answer"
+                rows={2}
               />
             </div>
           ))}
           <button
-            onClick={() =>
-              handleConfigItems([
-                ...(localConfig.items ?? []),
-                { question: "", answer: "" },
-              ])
-            }
-            className="w-full rounded-md px-3 py-1.5 text-xs"
-            style={{
-              background: "#1e2026",
-              border: "1px dashed rgba(255,255,255,0.12)",
-              color: "#8b8f9a",
-            }}
+            onClick={() => handleConfigItems([...(localConfig.items ?? []), { question: "", answer: "" }])}
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl py-3 text-xs font-semibold transition-colors"
+            style={{ background: "#1e2026", border: "1px dashed rgba(255,255,255,0.12)", color: "#8b8f9a", height: 44 }}
           >
             + Add Question
           </button>
@@ -360,11 +364,8 @@ export default function SectionConfigPanel({ section, eventId }) {
 
 function Field({ label, children }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <label
-        className="text-[11px] font-medium"
-        style={{ color: "#8b8f9a" }}
-      >
+    <div className="flex flex-col gap-2">
+      <label className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#555a66" }}>
         {label}
       </label>
       {children}
@@ -378,12 +379,14 @@ function Input({ value, onChange, placeholder, className = "" }) {
       value={value}
       onChange={onChange}
       placeholder={placeholder}
-      className={`w-full rounded-md px-3 py-2 text-sm ${className}`}
+      className={`w-full rounded-xl px-3.5 text-sm ${className}`}
       style={{
         background: "#1e2026",
         border: "1px solid rgba(255,255,255,0.1)",
         color: "#f0f1f3",
         outline: "none",
+        height: 44,           // 44px min touch target
+        touchAction: "manipulation",
       }}
     />
   );
@@ -396,12 +399,13 @@ function Textarea({ value, onChange, placeholder, rows = 3 }) {
       onChange={onChange}
       placeholder={placeholder}
       rows={rows}
-      className="w-full rounded-md px-3 py-2 text-sm resize-none"
+      className="w-full rounded-xl px-3.5 py-3 text-sm resize-none"
       style={{
         background: "#1e2026",
         border: "1px solid rgba(255,255,255,0.1)",
         color: "#f0f1f3",
         outline: "none",
+        touchAction: "manipulation",
       }}
     />
   );
@@ -412,11 +416,13 @@ function Select({ value, onChange, options }) {
     <select
       value={value}
       onChange={onChange}
-      className="w-full rounded-md px-3 py-2 text-sm"
+      className="w-full rounded-xl px-3.5 text-sm appearance-none"
       style={{
         background: "#1e2026",
         border: "1px solid rgba(255,255,255,0.1)",
         color: "#f0f1f3",
+        height: 44,
+        touchAction: "manipulation",
       }}
     >
       {options.map((o) => (
@@ -428,18 +434,28 @@ function Select({ value, onChange, options }) {
 
 function Toggle({ checked, onChange, label }) {
   return (
-    <label className="flex items-center gap-2 cursor-pointer">
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className="flex items-center gap-3 w-full rounded-xl px-3 transition-colors"
+      style={{
+        background: "transparent",
+        border: "1px solid rgba(255,255,255,0.07)",
+        height: 44,
+        touchAction: "manipulation",
+        cursor: "pointer",
+      }}
+    >
       <div
-        onClick={() => onChange(!checked)}
-        className="relative h-5 w-9 rounded-full transition-colors cursor-pointer"
-        style={{ background: checked ? "#6c6fee" : "#2a2d35" }}
+        className="relative shrink-0 rounded-full transition-colors duration-200"
+        style={{ width: 40, height: 22, background: checked ? "#6c6fee" : "#2a2d35" }}
       >
         <span
-          className="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform"
-          style={{ transform: checked ? "translateX(16px)" : "translateX(2px)" }}
+          className="absolute top-[3px] h-4 w-4 rounded-full bg-white shadow transition-transform duration-200"
+          style={{ transform: checked ? "translateX(20px)" : "translateX(3px)" }}
         />
       </div>
-      <span style={{ fontSize: 12, color: "#8b8f9a" }}>{label}</span>
-    </label>
+      <span style={{ fontSize: 13, color: checked ? "#f0f1f3" : "#8b8f9a", fontWeight: checked ? 500 : 400 }}>{label}</span>
+    </button>
   );
 }
