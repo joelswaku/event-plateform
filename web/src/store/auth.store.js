@@ -72,8 +72,12 @@ export const useAuthStore = create(
           set({ accessToken, isAuthenticated: true });
 
           return accessToken;
-        } catch {
-          await get().logout();
+        } catch (err) {
+          // Only logout when the refresh token itself is rejected (401).
+          // A 429 rate-limit or network error should not clear the session.
+          if (err.response?.status === 401) {
+            await get().logout();
+          }
           return null;
         }
       },
@@ -87,8 +91,12 @@ export const useAuthStore = create(
 
           set({ user, isAuthenticated: true });
           return user;
-        } catch {
-          await get().logout();
+        } catch (err) {
+          // Only logout on 401 — a 429 rate-limit or transient error
+          // must not clear a valid session.
+          if (err.response?.status === 401) {
+            await get().logout();
+          }
           return null;
         }
       },

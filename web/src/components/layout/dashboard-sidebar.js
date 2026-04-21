@@ -8,97 +8,152 @@ import {
   PlusSquare,
   Settings,
   Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  X,
 } from "lucide-react";
+import { useSidebarStore } from "@/store/sidebar.store";
 
 const navItems = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Events", href: "/events", icon: CalendarDays },
+  { label: "Dashboard",    href: "/dashboard",    icon: LayoutDashboard },
+  { label: "Events",       href: "/events",        icon: CalendarDays },
   { label: "Create Event", href: "/events/create", icon: PlusSquare },
 ];
 
-export default function DashboardSidebar({
-  sidebarOpen,
-  setSidebarOpen,
-}) {
+function SidebarItem({ item, showExpanded }) {
   const pathname = usePathname();
+  const Icon = item.icon;
+  const active = pathname === item.href || pathname.startsWith(item.href + "/");
 
   return (
-    <aside
-      className={`hidden border-r border-[#e5e7eb] bg-white transition-all duration-300 md:flex md:flex-col ${
-        sidebarOpen ? "md:w-[260px]" : "md:w-[88px]"
+    <Link
+      href={item.href}
+      title={!showExpanded ? item.label : undefined}
+      className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
+        !showExpanded ? "justify-center" : ""
+      } ${
+        active
+          ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300"
+          : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
       }`}
     >
-      {/* HEADER */}
-      <div className="flex h-20 items-center justify-between px-4">
-        <Link href="/dashboard" className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#eef2ff]">
-            <Sparkles className="h-5 w-5 text-[#4f46e5]" />
-          </div>
+      <Icon className="h-4 w-4 shrink-0" />
+      {showExpanded && <span className="truncate">{item.label}</span>}
+      {!showExpanded && (
+        <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-gray-700">
+          {item.label}
+        </span>
+      )}
+    </Link>
+  );
+}
 
-          {sidebarOpen && (
-            <div>
-              <p className="text-sm font-semibold">MeetCraft</p>
-              <p className="text-xs text-gray-500">Event Platform</p>
-            </div>
+export default function DashboardSidebar() {
+  const { isCollapsed, isMobileOpen, toggleCollapsed, setMobileOpen } =
+    useSidebarStore();
+
+  // On mobile (drawer open) always show expanded layout regardless of isCollapsed
+  const showExpanded = !isCollapsed || isMobileOpen;
+
+  return (
+    <>
+      {/* Mobile backdrop */}
+      {isMobileOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`
+          fixed inset-y-0 left-0 z-40 flex flex-col border-r border-gray-200 bg-white
+          transition-all duration-300 ease-in-out
+          dark:border-gray-800 dark:bg-gray-950
+          md:static md:z-auto
+          ${isCollapsed ? "md:w-20" : "md:w-64"}
+          ${isMobileOpen ? "w-64 translate-x-0" : "-translate-x-full md:translate-x-0"}
+        `}
+      >
+        {/* Logo row */}
+        <div
+          className={`flex h-16 shrink-0 items-center border-b border-gray-200 dark:border-gray-800 ${
+            showExpanded ? "justify-between px-4" : "justify-center px-2"
+          }`}
+        >
+          {showExpanded ? (
+            <Link href="/dashboard" className="flex items-center gap-3 overflow-hidden">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600">
+                <Sparkles className="h-4 w-4 text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  MeetCraft
+                </p>
+                <p className="truncate text-[11px] text-gray-400">Event Platform</p>
+              </div>
+            </Link>
+          ) : (
+            <Link
+              href="/dashboard"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600"
+            >
+              <Sparkles className="h-4 w-4 text-white" />
+            </Link>
           )}
-        </Link>
-      </div>
 
-      {/* NAV */}
-      <nav className="flex-1 px-3 py-3">
-        <div className="space-y-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
+          {/* Desktop collapse toggle */}
+          <button
+            onClick={toggleCollapsed}
+            className="hidden h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 dark:hover:bg-gray-800 md:flex"
+          >
+            {isCollapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
+          </button>
 
-            const active =
-              pathname === item.href ||
-              pathname.startsWith(item.href + "/");
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition ${
-                  active
-                    ? "bg-[#eef2ff] text-[#3730a3]"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-black"
-                }`}
-              >
-                <Icon className="h-5 w-5 shrink-0" />
-                {sidebarOpen && <span>{item.label}</span>}
-              </Link>
-            );
-          })}
+          {/* Mobile close */}
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 dark:hover:bg-gray-800 md:hidden"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
-        {/* UPGRADE */}
-        {sidebarOpen && (
-          <div className="mt-8 rounded-3xl bg-[#f5f3ff] p-4">
-            <p className="text-sm font-semibold text-[#4c1d95]">
-              Upgrade your workspace
-            </p>
-            <p className="mt-1 text-xs text-gray-500">
-              Unlock advanced features.
-            </p>
+        {/* Nav */}
+        <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 py-3">
+          {navItems.map((item) => (
+            <SidebarItem key={item.href} item={item} showExpanded={showExpanded} />
+          ))}
+        </nav>
 
-            <button className="mt-4 w-full rounded-2xl bg-black px-4 py-2 text-sm text-white">
+        {/* Upgrade card — expanded only */}
+        {showExpanded && (
+          <div className="mx-3 mb-4 rounded-2xl bg-linear-to-br from-indigo-50 to-violet-50 p-4 dark:from-indigo-950/40 dark:to-violet-950/40">
+            <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-200">
+              Upgrade plan
+            </p>
+            <p className="mt-1 text-[11px] leading-relaxed text-indigo-700/70 dark:text-indigo-300/60">
+              Unlock custom domains, analytics &amp; more.
+            </p>
+            <button className="mt-3 w-full rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700">
               Upgrade now
             </button>
           </div>
         )}
-      </nav>
 
-      {/* FOOTER */}
-      <div className="border-t border-[#f3f4f6] p-3">
-        <Link
-          href="/settings"
-          className="flex items-center gap-3 rounded-2xl px-3 py-3 text-sm text-gray-600 hover:bg-gray-50 hover:text-black"
-        >
-          <Settings className="h-5 w-5" />
-          {sidebarOpen && <span>Settings</span>}
-        </Link>
-      </div>
-    </aside>
+        {/* Footer */}
+        <div className="border-t border-gray-200 p-2 dark:border-gray-800">
+          <SidebarItem
+            item={{ label: "Settings", href: "/settings", icon: Settings }}
+            showExpanded={showExpanded}
+          />
+        </div>
+      </aside>
+    </>
   );
 }
-

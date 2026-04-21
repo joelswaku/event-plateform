@@ -101,10 +101,12 @@ app.use(cookieParser());
 */
 
 const globalLimiter = rateLimit({
-  windowMs: 158 * 60 * 1000,
-  max: 300,
+  windowMs: 15 * 60 * 1000,
+  max: 500,
   standardHeaders: true,
   legacyHeaders: false,
+  // Never rate-limit in development — avoids lockouts during local work
+  skip: () => env.NODE_ENV === "development",
   message: {
     success: false,
     message: "Too many requests, try again later.",

@@ -1,11 +1,23 @@
+@import "tailwindcss";
 
- @import "tailwindcss";
+/* ── Dark mode: class strategy ───────────────────────────── */
+@custom-variant dark (&:is(.dark, .dark *));
 
-
-
+/* ── CSS variables ───────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f9fafb;
+  --foreground: #111827;
+  --card:        #ffffff;
+  --border:      #e5e7eb;
+  --muted:       #6b7280;
+}
+
+.dark {
+  --background: #030712;
+  --foreground: #f9fafb;
+  --card:        #111827;
+  --border:      #1f2937;
+  --muted:       #9ca3af;
 }
 
 @theme inline {
@@ -13,18 +25,23 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-playfair), Georgia, "Times New Roman", serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* ── Public event page luxury scrollbar ─────────────────── */
+.luxury-page ::-webkit-scrollbar { width: 5px; }
+.luxury-page ::-webkit-scrollbar-track { background: #FAF9F6; }
+.luxury-page ::-webkit-scrollbar-thumb { background: #C9A96E; border-radius: 9999px; }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-} 
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 9999px; }
+.dark ::-webkit-scrollbar-thumb { background: #374151; }

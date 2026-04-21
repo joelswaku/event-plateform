@@ -1,8 +1,7 @@
-
 import { notFound } from "next/navigation";
-
 import SharedEventRenderer from "@/components/events/shared/SharedEventRenderer";
 import { publicApi } from "@/lib/public-api";
+import EventPreviewClient from "./EventPreviewClient";
 
 // ── Data fetching ─────────────────────────────────────────────────────────────
 
@@ -26,8 +25,7 @@ export async function generateMetadata({ params }) {
 
   return {
     title: event.title,
-    description:
-      event.short_description || event.description || "Join this event",
+    description: event.short_description || event.description || "Join this event",
     openGraph: {
       title: event.title,
       description: event.short_description || event.description || "",
@@ -38,10 +36,17 @@ export async function generateMetadata({ params }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default async function PublicEventPage({ params }) {
+export default async function PublicEventPage({ params, searchParams }) {
   const { slug } = await params;
-  const data = await getPageData(slug);
+  const { preview } = await searchParams;
 
+  // Preview mode — requires auth, handled client-side (token is in memory)
+  if (preview === "1") {
+    return <EventPreviewClient slug={slug} />;
+  }
+
+  // Public mode — only PUBLISHED + PUBLIC events served here
+  const data = await getPageData(slug);
   if (!data?.event) notFound();
 
   const enrichedEvent = {

@@ -2,7 +2,7 @@
 import { Router } from "express";
 
 import { authenticate } from "../middleware/auth.middleware.js";
-import { resetLimiter } from "../utils/rateLimite.js";
+import { resetLimiter, loginLimiter } from "../utils/rateLimite.js";
 
 import { register } from "../controllers/auth/register.controller.js";
 import { login } from "../controllers/auth/login.controller.js";
@@ -24,7 +24,7 @@ const router = Router();
 router.post("/register", register);
 
 // Login user
-router.post("/login", login);
+router.post("/login", loginLimiter, login);
 
 // Google OAuth login
 router.post("/google", googleLogin);

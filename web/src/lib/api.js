@@ -44,6 +44,11 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // Rate-limit: surface the error directly — never attempt a token refresh.
+    if (response.status === 429) {
+      return Promise.reject(error);
+    }
+
     if (response.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
