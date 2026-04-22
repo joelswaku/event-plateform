@@ -18,22 +18,11 @@ export const useEventStore = create((set, get) => ({
 
 fetchEvents: async () => {
     try {
-      set({ loading: true });
-  
-      const res = await api.get("/events", {
-        params: {
-          page: 1,
-          limit: 10,
-        },
-      });
-  
-      set({
-        events: res.data.data || [],
-        loading: false,
-      });
+      set({ loading: true, error: null });
+      const res = await api.get("/events", { params: { page: 1, limit: 10 } });
+      set({ events: res.data.data || [], loading: false });
     } catch (err) {
-      //console.error(err.response?.data || err.message);
-      set({ loading: false || err.message});
+      set({ loading: false, error: err?.response?.data?.message || err.message });
     }
   },
   createEvent: async (payload) => {
@@ -182,11 +171,13 @@ deleteEvent: async (id) => {
 },
     
     duplicateEvent: async (id) => {
-      const res = await api.post(`/events/${id}/duplicate`);
-    
-      set((state) => ({
-        events: [res.data.data, ...state.events],
-      }));
+      try {
+        const res = await api.post(`/events/${id}/duplicate`);
+        set((state) => ({ events: [res.data.data, ...state.events] }));
+        toast.success("Event duplicated");
+      } catch {
+        toast.error("Duplicate failed");
+      }
     },
   
   

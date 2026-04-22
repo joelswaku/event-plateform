@@ -15,7 +15,7 @@ const DEVICES = [
   { id: "mobile",  Icon: DevicePhoneMobileIcon,   label: "Mobile"  },
 ];
 
-export default function BuilderTopbar({ eventId, device, onDeviceChange }) {
+export default function BuilderTopbar({ eventId, device, onDeviceChange, onTemplatesOpen }) {
   const router       = useRouter();
   const saveStatus   = useBuilderStore((s) => s.saveStatus);
   const publishPage  = useBuilderStore((s) => s.publishPage);
@@ -109,6 +109,17 @@ export default function BuilderTopbar({ eventId, device, onDeviceChange }) {
       {/* ── Right ───────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 shrink-0">
         <SaveStatusBadge status={saveStatus} />
+
+        {/* Templates button */}
+        <button
+          onClick={onTemplatesOpen}
+          className="flex h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition-colors"
+          style={{ background: "rgba(255,255,255,0.06)", color: "#c9a96e", border: "1px solid rgba(201,169,110,0.25)" }}
+        >
+          <TemplatesIcon />
+          <span className="hidden sm:inline">Templates</span>
+        </button>
+
         <button
           onClick={() => publishPage(eventId)}
           className="flex h-9 items-center gap-1.5 rounded-xl px-4 text-xs font-bold transition-opacity hover:opacity-90 active:scale-95"
@@ -152,6 +163,15 @@ function RedoIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="m15 14 5-5-5-5" /><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
+    </svg>
+  );
+}
+
+function TemplatesIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
     </svg>
   );
 }

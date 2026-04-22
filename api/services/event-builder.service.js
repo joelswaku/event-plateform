@@ -220,6 +220,17 @@ export const SECTION_TEMPLATES = {
       source: "ticket_types",
     },
   },
+
+  RSVP: {
+    section_type: "RSVP",
+    title: "RSVP",
+    body: "Let us know if you can make it.",
+    config: {
+      show_dietary: true,
+      show_plus_one: true,
+      deadline: null,
+    },
+  },
 };
 /* =========================
    NORMALIZERS

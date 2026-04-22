@@ -10,6 +10,7 @@ import MobileBottomBar  from "@/components/events/builder/MobileBottomBar";
 import SharedEventRenderer from "@/components/events/shared/SharedEventRenderer";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { resolveTemplate } from "@/lib/defaultTemplates";
+import TemplatePicker from "@/components/templates/TemplatePicker";
 
 export default function BuilderPage() {
   const params  = useParams();
@@ -29,8 +30,9 @@ export default function BuilderPage() {
     [builder?.sections, selectedSectionId]
   );
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [device,        setDevice]        = useState("desktop");
+  const [isSidebarOpen,     setIsSidebarOpen]     = useState(true);
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [device,             setDevice]             = useState("desktop");
   const [panelWidth,    setPanelWidth]    = useState(340);
   const [mobileSheet,   setMobileSheet]   = useState(null); // 'blocks' | 'layers' | 'edit' | null
   const resizing        = useRef(false);
@@ -156,6 +158,7 @@ export default function BuilderPage() {
           eventId={eventId}
           device={device}
           onDeviceChange={setDevice}
+          onTemplatesOpen={() => setTemplatePickerOpen(true)}
         />
 
         {/* Canvas + config row */}
@@ -254,6 +257,13 @@ export default function BuilderPage() {
             </>
           )}
         </div>
+
+        {/* ── Template Picker ───────────────────────────────────────── */}
+        <TemplatePicker
+          eventId={eventId}
+          isOpen={templatePickerOpen}
+          onClose={() => setTemplatePickerOpen(false)}
+        />
 
         {/* ── Mobile bottom bar ─────────────────────────────────────── */}
         <div className="lg:hidden shrink-0">

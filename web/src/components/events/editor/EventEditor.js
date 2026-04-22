@@ -109,7 +109,7 @@ export default function EventEditor() {
   };
 
   if (!initializedRef.current) {
-    return <div className="p-6">Loading editor...</div>;
+    return <div className="p-6 text-gray-500 dark:text-gray-400">Loading editor...</div>;
   }
 
   return (
@@ -118,16 +118,16 @@ export default function EventEditor() {
       {/* HEADER */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-semibold">Edit Event</h1>
-          <p className="text-gray-500 text-sm">
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Edit Event</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
             Auto-saves changes instantly
           </p>
         </div>
 
         <div className="flex gap-3">
-          {saving && <span>Saving...</span>}
-          {saved && !saving && <span className="text-green-600">Saved ✅</span>}
-          {error && <span className="text-red-500">{error}</span>}
+          {saving && <span className="text-gray-500 dark:text-gray-400 text-sm">Saving...</span>}
+          {saved && !saving && <span className="text-green-600 text-sm">Saved ✅</span>}
+          {error && <span className="text-red-500 text-sm">{error}</span>}
         </div>
       </div>
 
@@ -266,8 +266,8 @@ export default function EventEditor() {
 
 function Section({ title, children }) {
   return (
-    <div className="bg-white p-6 rounded-2xl border space-y-4">
-      <h2 className="font-medium">{title}</h2>
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-6 rounded-2xl space-y-4">
+      <h2 className="font-medium text-gray-900 dark:text-gray-100">{title}</h2>
       {children}
     </div>
   );
@@ -276,12 +276,12 @@ function Section({ title, children }) {
 function Input({ label, value = "", onChange, type = "text" }) {
   return (
     <div>
-      <label className="text-sm">{label}</label>
+      <label className="text-sm text-gray-700 dark:text-gray-300">{label}</label>
       <input
         type={type}
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full border p-3 rounded-xl"
+        className="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 p-3 rounded-xl mt-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
       />
     </div>
   );
@@ -290,11 +290,11 @@ function Input({ label, value = "", onChange, type = "text" }) {
 function Textarea({ label, value = "", onChange }) {
   return (
     <div>
-      <label className="text-sm">{label}</label>
+      <label className="text-sm text-gray-700 dark:text-gray-300">{label}</label>
       <textarea
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full border p-3 rounded-xl"
+        className="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 p-3 rounded-xl mt-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
       />
     </div>
   );
@@ -303,11 +303,11 @@ function Textarea({ label, value = "", onChange }) {
 function Select({ label, value, onChange, options }) {
   return (
     <div>
-      <label className="text-sm">{label}</label>
+      <label className="text-sm text-gray-700 dark:text-gray-300">{label}</label>
       <select
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full border p-3 rounded-xl"
+        className="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-3 rounded-xl mt-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
@@ -321,11 +321,12 @@ function Select({ label, value, onChange, options }) {
 
 function Toggle({ label, checked, onChange }) {
   return (
-    <label className="flex items-center gap-2">
+    <label className="flex items-center gap-2 text-gray-800 dark:text-gray-200 cursor-pointer">
       <input
         type="checkbox"
         checked={checked || false}
         onChange={(e) => onChange(e.target.checked)}
+        className="accent-indigo-500"
       />
       {label}
     </label>

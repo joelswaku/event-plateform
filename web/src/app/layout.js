@@ -5,6 +5,7 @@ import { Toaster } from "react-hot-toast";
 
 import AuthProvider from "@/providers/AuthProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
+import UpgradeModal from "@/components/ui/UpgradeModal";
 
 import "./globals.css";
 
@@ -51,6 +52,7 @@ export default function RootLayout({ children }) {
           <ThemeProvider>
             <AuthProvider>
               {children}
+              <UpgradeModal />
               <Toaster
                 position="top-right"
                 toastOptions={{

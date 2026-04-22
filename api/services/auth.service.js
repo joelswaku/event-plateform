@@ -583,27 +583,35 @@ export async function googleLogin({
     let organizationId = user.default_organization_id;
 
     if (!organizationId) {
+      const orgSlug =
+        googleUser.email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "-") +
+        "-" +
+        crypto.randomBytes(4).toString("hex");
+
       const org = await client.query(
         `
-        INSERT INTO organizations (name, owner_user_id)
-        VALUES ($1,$2)
+        INSERT INTO organizations (name, slug, owner_user_id, is_personal)
+        VALUES ($1,$2,$3,true)
         RETURNING *
         `,
-        [user.full_name + " Org", user.id]
+        [user.full_name + "'s Events", orgSlug, user.id]
       );
 
       organizationId = org.rows[0].id;
 
       await client.query(
         `
-        UPDATE users
-        SET default_organization_id=$1
-        WHERE id=$2
+        INSERT INTO organization_members (organization_id, user_id, role, joined_at)
+        VALUES ($1,$2,'OWNER',now())
         `,
         [organizationId, user.id]
       );
 
-      // 🔥 update in memory too
+      await client.query(
+        `UPDATE users SET default_organization_id=$1 WHERE id=$2`,
+        [organizationId, user.id]
+      );
+
       user.default_organization_id = organizationId;
     }
 

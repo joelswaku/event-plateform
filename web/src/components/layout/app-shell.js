@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import DashboardSidebar from "./dashboard-sidebar";
 import Topbar from "./topbar";
+import BillingBanner from "@/components/ui/BillingBanner";
 
 export default function AppShell({ children }) {
   const pathname = usePathname();
@@ -16,6 +17,7 @@ export default function AppShell({ children }) {
 
         <div className="flex min-h-screen flex-1 flex-col overflow-hidden">
           {!isBuilder && <Topbar />}
+          {!isBuilder && <BillingBanner />}
 
           <main className={`flex-1 ${isBuilder ? "p-0" : "p-4 md:p-6"}`}>
             <div className={isBuilder ? "h-full w-full" : "mx-auto max-w-6xl"}>

@@ -16,7 +16,8 @@ import ticketTypesRoutes from "./ticket-types.routes.js";
 
 import eventBuilderRoutes from "./event-builder.routes.js";
 import engagementRoutes from "./engagement.routes.js";
-import uploadImages from "./media-upload.routes.js"
+import uploadImages from "./media-upload.routes.js";
+import subscriptionRoutes from "./subscription.routes.js";
 
 const router = Router();
 
@@ -48,5 +49,7 @@ router.use("/engagement", engagementRoutes);
 router.use("/builder", eventBuilderRoutes);
 router.use("/upload-image", uploadImages);
 
+// 💳 SUBSCRIPTIONS
+router.use("/subscription", subscriptionRoutes);
 
 export default router;

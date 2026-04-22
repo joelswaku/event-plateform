@@ -96,12 +96,17 @@ export const useBuilderStore = create((set, get) => ({
   },
 
   // ── Apply preset — REPLACES all existing sections atomically ──────────────
-  applyPreset: async (eventId, templateKeys) => {
+  applyPreset: async (eventId, sections) => {
     get()._pushSnapshot();
     try {
       set({ saveStatus: "saving" });
+      const payload = sections.map((s) =>
+        typeof s === "string"
+          ? { template_key: s }
+          : { template_key: s.type, config: s.config || {} }
+      );
       const res = await api.post(`/builder/events/${eventId}/sections/replace`, {
-        sections: templateKeys.map((key) => ({ template_key: key })),
+        sections: payload,
       });
       const newSections = res.data?.data || [];
       set((state) => ({

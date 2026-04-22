@@ -2,7 +2,7 @@
 import { Router } from "express";
 
 import { authenticate } from "../middleware/auth.middleware.js";
-import { resetLimiter, loginLimiter } from "../utils/rateLimite.js";
+import { resetLimiter, loginLimiter, registerLimiter, googleAuthLimiter } from "../utils/rateLimite.js";
 
 import { register } from "../controllers/auth/register.controller.js";
 import { login } from "../controllers/auth/login.controller.js";
@@ -21,13 +21,13 @@ const router = Router();
 ========================= */
 
 // Register new user
-router.post("/register", register);
+router.post("/register", registerLimiter, register);
 
 // Login user
 router.post("/login", loginLimiter, login);
 
 // Google OAuth login
-router.post("/google", googleLogin);
+router.post("/google", googleAuthLimiter, googleLogin);
 
 // Refresh access token
 router.post("/refresh-token", refreshToken);

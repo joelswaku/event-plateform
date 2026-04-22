@@ -11,8 +11,10 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Star,
 } from "lucide-react";
 import { useSidebarStore } from "@/store/sidebar.store";
+import { useSubscriptionStore } from "@/store/subscription.store";
 
 const navItems = [
   { label: "Dashboard",    href: "/dashboard",    icon: LayoutDashboard },
@@ -51,6 +53,8 @@ function SidebarItem({ item, showExpanded }) {
 export default function DashboardSidebar() {
   const { isCollapsed, isMobileOpen, toggleCollapsed, setMobileOpen } =
     useSidebarStore();
+  const isSubscribed    = useSubscriptionStore((s) => s.isSubscribed);
+  const openUpgradeModal = useSubscriptionStore((s) => s.openUpgradeModal);
 
   // On mobile (drawer open) always show expanded layout regardless of isCollapsed
   const showExpanded = !isCollapsed || isMobileOpen;
@@ -131,19 +135,36 @@ export default function DashboardSidebar() {
           ))}
         </nav>
 
-        {/* Upgrade card — expanded only */}
+        {/* Plan card — expanded only */}
         {showExpanded && (
-          <div className="mx-3 mb-4 rounded-2xl bg-linear-to-br from-indigo-50 to-violet-50 p-4 dark:from-indigo-950/40 dark:to-violet-950/40">
-            <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-200">
-              Upgrade plan
-            </p>
-            <p className="mt-1 text-[11px] leading-relaxed text-indigo-700/70 dark:text-indigo-300/60">
-              Unlock custom domains, analytics &amp; more.
-            </p>
-            <button className="mt-3 w-full rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700">
-              Upgrade now
-            </button>
-          </div>
+          isSubscribed ? (
+            <div className="mx-3 mb-4 rounded-2xl bg-linear-to-br from-amber-50 to-yellow-50 border border-amber-100 p-4 dark:from-amber-950/30 dark:to-yellow-950/30 dark:border-amber-800/30">
+              <div className="flex items-center gap-2 mb-1">
+                <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
+                <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                  Premium
+                </p>
+              </div>
+              <p className="text-[11px] leading-relaxed text-amber-700/70 dark:text-amber-300/60">
+                All templates and features unlocked.
+              </p>
+            </div>
+          ) : (
+            <div className="mx-3 mb-4 rounded-2xl bg-linear-to-br from-indigo-50 to-violet-50 p-4 dark:from-indigo-950/40 dark:to-violet-950/40">
+              <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-200">
+                Upgrade plan
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-indigo-700/70 dark:text-indigo-300/60">
+                Unlock custom domains, analytics &amp; more.
+              </p>
+              <button
+                onClick={() => openUpgradeModal()}
+                className="mt-3 w-full rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700"
+              >
+                Upgrade now
+              </button>
+            </div>
+          )
         )}
 
         {/* Footer */}

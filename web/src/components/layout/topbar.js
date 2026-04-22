@@ -1,14 +1,17 @@
 "use client";
 
-import { Menu, Search, Bell, Sun, Moon } from "lucide-react";
+import { Menu, Search, Bell, Sun, Moon, Sparkles, CreditCard } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useAuthStore } from "@/store/auth.store";
 import { useSidebarStore } from "@/store/sidebar.store";
+import { useSubscriptionStore } from "@/store/subscription.store";
 
 export default function Topbar() {
   const { theme, toggle } = useTheme();
   const user = useAuthStore?.((s) => s.user) ?? null;
   const { setMobileOpen, isMobileOpen } = useSidebarStore();
+  const { isSubscribed, plan, subscriptionStatus, openCustomerPortal, openUpgradeModal, isLoading } =
+    useSubscriptionStore();
 
   const initials = user?.name
     ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
@@ -38,6 +41,28 @@ export default function Topbar() {
 
         {/* RIGHT */}
         <div className="flex items-center gap-2">
+
+          {/* Plan badge / upgrade CTA */}
+          {isSubscribed ? (
+            <button
+              onClick={openCustomerPortal}
+              disabled={isLoading}
+              title="Manage billing"
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 text-xs font-semibold hover:bg-amber-100 transition-colors disabled:opacity-60 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-400"
+            >
+              <Sparkles className="w-3 h-3" />
+              Premium
+              <CreditCard className="w-3 h-3 opacity-60" />
+            </button>
+          ) : (
+            <button
+              onClick={() => openUpgradeModal()}
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-linear-to-r from-amber-400 to-yellow-400 hover:from-amber-500 hover:to-yellow-500 text-white text-xs font-semibold transition-all shadow-sm shadow-amber-200 dark:shadow-none"
+            >
+              <Sparkles className="w-3 h-3" />
+              Upgrade
+            </button>
+          )}
 
           {/* Theme toggle */}
           <button

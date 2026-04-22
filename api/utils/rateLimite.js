@@ -16,3 +16,19 @@ export const loginLimiter = rateLimit({
   skip: () => isDev,
   message: { success: false, message: "Too many login attempts, try again in 15 minutes." },
 });
+
+// Register — prevent account creation spam
+export const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  skip: () => isDev,
+  message: { success: false, message: "Too many accounts created from this IP, try again in an hour." },
+});
+
+// Google OAuth — prevent token stuffing
+export const googleAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  skip: () => isDev,
+  message: { success: false, message: "Too many OAuth attempts, try again in 15 minutes." },
+});

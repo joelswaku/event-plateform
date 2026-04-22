@@ -139,7 +139,7 @@ export default function InvitationPage({ params }) {
   const { guest, event } = data;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-linear-to-br from-indigo-100 to-purple-100 flex items-center justify-center p-6">
       <div className="bg-white rounded-3xl shadow-xl max-w-xl w-full p-8 text-center">
 
         {/* TITLE */}

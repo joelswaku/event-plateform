@@ -99,10 +99,10 @@ export default function DashboardPage() {
       </div>
 
       {/* EVENTS */}
-      <div className="rounded-3xl border border-[#e5e7eb] bg-white p-6">
+      <div className="rounded-3xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6">
         <div className="mb-5">
-          <h2 className="text-lg font-semibold">Recent events</h2>
-          <p className="text-sm text-gray-500">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Recent events</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             Click an event to manage everything.
           </p>
         </div>
@@ -114,7 +114,7 @@ export default function DashboardPage() {
             action={
               <Link
                 href="/events/create"
-                className="inline-flex rounded-2xl bg-[#111827] px-4 py-3 text-sm font-medium text-white"
+                className="inline-flex rounded-2xl bg-[#111827] dark:bg-white dark:text-gray-900 px-4 py-3 text-sm font-medium text-white"
               >
                 Create event
               </Link>
@@ -126,39 +126,39 @@ export default function DashboardPage() {
               <Link
                 key={event.id}
                 href={`/events/${event.id}`}
-                className="group rounded-3xl border border-[#e5e7eb] bg-white p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                className="group rounded-3xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
               >
                 {/* TOP */}
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-xs text-indigo-600 uppercase">
+                    <p className="text-xs text-indigo-600 dark:text-indigo-400 uppercase">
                       {event.event_type}
                     </p>
 
-                    <h3 className="mt-2 text-lg font-semibold">
+                    <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
                       {event.title}
                     </h3>
 
                     <div className="flex items-center gap-2 mt-2">
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
                         {event.city || "No city"}
                       </span>
 
-                      <span className="text-xs px-2 py-1 rounded-lg bg-blue-50 text-blue-600">
+                      <span className="text-xs px-2 py-1 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
                         {event.status}
                       </span>
                     </div>
                   </div>
 
-                  {/* 🔥 VISIBILITY BUTTON */}
+                  {/* VISIBILITY BUTTON */}
                   <button
                     onClick={(e) => toggleVisibility(e, event)}
                     disabled={updatingId === event.id}
                     className={`text-xs px-3 py-1 rounded-xl font-medium transition
                       ${
                         event.visibility === "PUBLIC"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-gray-100 text-gray-600"
+                          ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
                       }
                       ${
                         updatingId === event.id
@@ -176,7 +176,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* DATE */}
-                <div className="mt-4 text-sm text-gray-500">
+                <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
                   Starts:{" "}
                   {event.starts_at_local ||
                     event.starts_at_utc ||

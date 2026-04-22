@@ -1,168 +1,169 @@
-
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
-
-import { Eye, EyeOff, Mail, Lock } from "lucide-react";
-
+import { Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import GoogleLoginButton from "@/components/auth/GoogleLoginButton";
+import AuthShell from "@/components/auth/AuthShell";
+
+/* ── Shared field styles ─────────────────────────────────────── */
+const BASE = [
+  "w-full px-4 py-3 rounded-xl text-white text-sm placeholder:text-gray-600",
+  "outline-none transition-all bg-white/4 border",
+].join(" ");
+const NORMAL = `${BASE} border-white/8 focus:border-indigo-500/50 focus:bg-white/6`;
+const ERROR  = `${BASE} border-red-500/50   focus:border-red-500/70`;
+
+function validate(form) {
+  const e = {};
+  if (!form.email)                            e.email    = "Email is required";
+  else if (!/\S+@\S+\.\S+/.test(form.email)) e.email    = "Enter a valid email";
+  if (!form.password)                         e.password = "Password is required";
+  return e;
+}
+
+/* ── Field wrapper ───────────────────────────────────────────── */
+function Field({ label, id, error, touched, children }) {
+  return (
+    <div>
+      <label htmlFor={id} className="block text-[13px] font-medium text-gray-400 mb-1.5">
+        {label}
+      </label>
+      {children}
+      {touched && error && (
+        <p className="flex items-center gap-1.5 text-red-400 text-xs mt-1.5">
+          <AlertCircle className="w-3 h-3 shrink-0" />
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function LoginPage() {
-  const { login, isLoading, error } = useAuthStore();
+  const { login, isLoading } = useAuthStore();
   const router = useRouter();
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [localError, setLocalError] = useState("");
+  const [form,        setForm]        = useState({ email: "", password: "" });
+  const [touched,     setTouched]     = useState({});
+  const [showPass,    setShowPass]    = useState(false);
+  const [serverError, setServerError] = useState("");
 
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-  });
+  const errors = validate(form);
+  const touch  = (f) => setTouched((t) => ({ ...t, [f]: true }));
+  const cls    = (f) => (touched[f] && errors[f] ? ERROR : NORMAL);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLocalError("");
-
-    if (!form.email) {
-      return setLocalError("Email is required");
-    }
-
-    if (!form.password) {
-      return setLocalError("Password is required");
-    }
+    setTouched({ email: true, password: true });
+    setServerError("");
+    if (errors.email || errors.password) return;
 
     const res = await login(form);
-
     if (res.success) {
       router.push("/dashboard");
     } else {
-      setLocalError(res.message);
+      setServerError(res.message || "Invalid credentials. Please try again.");
     }
   };
 
   return (
-    <div className="min-h-screen  bg-[#0B0F19] flex flex-col md:flex-row">
-      {/* LEFT SIDE */}
-      <div className="hidden md:flex w-1/2 md:w-1/2 relative">
-        <Image
-          src="/images/event.jpg"
-          alt="event"
-          fill
-          priority
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          className="object-cover"
-        />
-
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-black/40 flex flex-col justify-end p-10">
-          <h2 className="text-4xl font-bold text-white leading-tight">
-            Manage Your Events <br /> Like a Pro
-          </h2>
-
-          <p className="text-gray-300 mt-3 max-w-md">
-            Create, sell tickets, track guests, and grow your events effortlessly.
-          </p>
-        </div>
+    <AuthShell
+      headline="Manage your events like a pro."
+      subline="Create, sell tickets, track guests, and grow your events effortlessly."
+    >
+      {/* Heading */}
+      <div>
+        <h1 className="text-2xl font-bold text-white tracking-tight">Sign in</h1>
+        <p className="text-gray-500 text-sm mt-1.5">
+          New here?{" "}
+          <Link href="/register" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+            Create an account
+          </Link>
+        </p>
       </div>
 
-      {/* RIGHT SIDE */}
-      <div className="flex w-full md:w-1/2  justify-center items-center px-6 py-10">
-        <div className="max-w-md mx-auto w-full">
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl">
-            <h1 className="text-3xl font-bold text-white mb-2">
-              Welcome Back 👋
-            </h1>
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="mt-8 space-y-5" noValidate>
+        <Field label="Email address" id="email" error={errors.email} touched={touched.email}>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            onBlur={() => touch("email")}
+            className={cls("email")}
+          />
+        </Field>
 
-            <p className="text-gray-400 mb-6">
-              Login to manage your events
-            </p>
-
-            {/* FORM */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* EMAIL */}
-              <div className="relative">
-                <Mail className="absolute left-3 top-3 text-gray-400" size={18} />
-
-                <input
-                  type="email"
-                  placeholder="Email"
-                  required
-                  className="w-full pl-10 p-3 rounded-xl bg-[#111827] text-white outline-none border border-gray-700 focus:border-purple-500 transition"
-                  value={form.email}
-                  onChange={(e) =>
-                    setForm({ ...form, email: e.target.value })
-                  }
-                />
-              </div>
-
-              {/* PASSWORD */}
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 text-gray-400" size={18} />
-
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Password"
-                  required
-                  className="w-full pl-10 pr-10 p-3 rounded-xl bg-[#111827] text-white outline-none border border-gray-700 focus:border-purple-500 transition"
-                  value={form.password}
-                  onChange={(e) =>
-                    setForm({ ...form, password: e.target.value })
-                  }
-                />
-
-                {/* TOGGLE */}
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-gray-400 hover:text-white"
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-
-              {/* ERROR */}
-              {(localError || error) && (
-                <p className="text-red-500 text-sm">
-                  {localError || error}
-                </p>
-              )}
-
-              {/* BUTTON */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold hover:opacity-90 transition disabled:opacity-50"
-              >
-                {isLoading ? "Logging in..." : "Login"}
-              </button>
-            </form>
-
-            {/* LINKS */}
-            <div className="flex justify-between mt-5 text-sm text-gray-400">
-              <Link href="/forgot-password" className="hover:text-white transition">
-                Forgot password?
-              </Link>
-
-              <Link href="/register" className="hover:text-white transition">
-                Sign up
-              </Link>
-            </div>
-
-            {/* DIVIDER */}
-            <div className="flex items-center my-6">
-              <div className="flex-1 h-px bg-gray-700" />
-              <span className="px-3 text-gray-400 text-sm">or</span>
-              <div className="flex-1 h-px bg-gray-700" />
-            </div>
-
-            {/* GOOGLE */}
-            <GoogleLoginButton />
+        <Field label="Password" id="password" error={errors.password} touched={touched.password}>
+          <div className="relative">
+            <input
+              id="password"
+              type={showPass ? "text" : "password"}
+              autoComplete="current-password"
+              placeholder="Enter your password"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              onBlur={() => touch("password")}
+              className={`${cls("password")} pr-11`}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPass(!showPass)}
+              aria-label={showPass ? "Hide password" : "Show password"}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+            >
+              {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
           </div>
+        </Field>
+
+        {/* Forgot password */}
+        <div className="flex justify-end -mt-1">
+          <Link href="/forgot-password" className="text-[13px] text-gray-500 hover:text-gray-300 transition-colors">
+            Forgot password?
+          </Link>
         </div>
+
+        {/* Server error banner */}
+        {serverError && (
+          <div className="flex items-start gap-2.5 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3">
+            <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+            <p className="text-red-400 text-sm">{serverError}</p>
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.99] text-white text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Signing in…
+            </>
+          ) : (
+            "Sign in"
+          )}
+        </button>
+      </form>
+
+      {/* Divider */}
+      <div className="mt-6 flex items-center gap-3">
+        <div className="flex-1 h-px bg-white/6" />
+        <span className="text-gray-600 text-xs uppercase tracking-widest">or</span>
+        <div className="flex-1 h-px bg-white/6" />
       </div>
-    </div>
+
+      <div className="mt-5">
+        <GoogleLoginButton />
+      </div>
+    </AuthShell>
   );
 }
