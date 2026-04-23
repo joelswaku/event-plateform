@@ -15,7 +15,7 @@ const DEVICES = [
   { id: "mobile",  Icon: DevicePhoneMobileIcon,   label: "Mobile"  },
 ];
 
-export default function BuilderTopbar({ eventId, device, onDeviceChange, onTemplatesOpen }) {
+export default function BuilderTopbar({ eventId, device, onDeviceChange, onTemplatesOpen, showDone }) {
   const router       = useRouter();
   const saveStatus   = useBuilderStore((s) => s.saveStatus);
   const publishPage  = useBuilderStore((s) => s.publishPage);
@@ -128,6 +128,16 @@ export default function BuilderTopbar({ eventId, device, onDeviceChange, onTempl
           <span className="hidden xs:inline">Publish</span>
           <PublishIcon />
         </button>
+
+        {showDone && (
+          <button
+            onClick={() => router.push("/events")}
+            className="flex h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition-colors"
+            style={{ background: "rgba(60,207,142,0.12)", color: "#3ecf8e", border: "1px solid rgba(60,207,142,0.25)" }}
+          >
+            Done ✓
+          </button>
+        )}
       </div>
     </div>
   );

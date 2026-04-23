@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useBuilderStore } from "@/store/builder.store";
 import BuilderSidebar   from "@/components/events/builder/BuilderSidebar";
 import BuilderTopbar    from "@/components/events/builder/BuilderTopbar";
@@ -13,7 +13,9 @@ import { resolveTemplate } from "@/lib/defaultTemplates";
 import TemplatePicker from "@/components/templates/TemplatePicker";
 
 export default function BuilderPage() {
-  const params  = useParams();
+  const params       = useParams();
+  const searchParams = useSearchParams();
+  const fromCreate   = searchParams.get("from") === "create";
   const eventId = Array.isArray(params.eventId) ? params.eventId[0] : params.eventId;
 
   const builder             = useBuilderStore((s) => s.builder);
@@ -31,7 +33,7 @@ export default function BuilderPage() {
   );
 
   const [isSidebarOpen,     setIsSidebarOpen]     = useState(true);
-  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(fromCreate);
   const [device,             setDevice]             = useState("desktop");
   const [panelWidth,    setPanelWidth]    = useState(340);
   const [mobileSheet,   setMobileSheet]   = useState(null); // 'blocks' | 'layers' | 'edit' | null
@@ -159,6 +161,7 @@ export default function BuilderPage() {
           device={device}
           onDeviceChange={setDevice}
           onTemplatesOpen={() => setTemplatePickerOpen(true)}
+          showDone={fromCreate}
         />
 
         {/* Canvas + config row */}

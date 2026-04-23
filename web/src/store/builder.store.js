@@ -225,6 +225,39 @@ export const useBuilderStore = create((set, get) => ({
     }
   },
 
+  // ── Set theme — instantly updates all sections' _theme in memory, persists in background ──
+  setTheme: async (eventId, themeId) => {
+    const sections = get().builder?.sections || [];
+    if (!sections.length) return;
+
+    // Optimistic: update config._theme on every section immediately
+    set((state) => ({
+      builder: {
+        ...state.builder,
+        sections: sections.map((s) => ({
+          ...s,
+          config: { ...(s.config || {}), _theme: themeId },
+        })),
+      },
+      saveStatus: "saving",
+    }));
+
+    // Persist each section's config in background
+    try {
+      await Promise.all(
+        sections.map((s) =>
+          api.patch(`/builder/events/${eventId}/sections/${s.id}`, {
+            config: { ...(s.config || {}), _theme: themeId },
+          })
+        )
+      );
+      set({ saveStatus: "saved" });
+      setTimeout(() => { if (get().saveStatus === "saved") set({ saveStatus: "idle" }); }, 2000);
+    } catch {
+      set({ saveStatus: "error" });
+    }
+  },
+
   // ── Publish ────────────────────────────────────────────────────────────────
   publishPage: async (eventId) => {
     try {

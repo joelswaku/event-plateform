@@ -1,37 +1,17 @@
 "use client";
 
 import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
 } from "@dnd-kit/core";
 import {
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable,
-  arrayMove,
+  SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
-  EyeIcon,
-  EyeSlashIcon,
-  TrashIcon,
-  PhotoIcon,
-  InformationCircleIcon,
-  BookOpenIcon,
-  HeartIcon,
-  ClockIcon,
-  MapPinIcon,
-  GiftIcon,
-  CalendarDaysIcon,
-  UserGroupIcon,
-  TicketIcon,
-  CurrencyDollarIcon,
-  QuestionMarkCircleIcon,
-  MegaphoneIcon,
-  Square2StackIcon,
+  EyeIcon, EyeSlashIcon, TrashIcon, PhotoIcon, InformationCircleIcon,
+  BookOpenIcon, HeartIcon, ClockIcon, MapPinIcon, GiftIcon,
+  CalendarDaysIcon, UserGroupIcon, TicketIcon, CurrencyDollarIcon,
+  QuestionMarkCircleIcon, MegaphoneIcon, Square2StackIcon,
 } from "@heroicons/react/24/outline";
 import { useBuilderStore } from "@/store/builder.store";
 
@@ -51,6 +31,21 @@ const SECTION_META = {
   FAQ:       { label: "FAQ",       Icon: QuestionMarkCircleIcon },
   CTA:       { label: "CTA",       Icon: MegaphoneIcon },
 };
+
+// Returns the accent colour for a given _theme key
+const THEME_ACCENTS = {
+  CLASSIC: "#C9A96E",
+  ELEGANT: "#B87355",
+  MODERN:  "#5B5FED",
+  MINIMAL: "#888888",
+  LUXURY:  "#D4AF6F",
+  FUN:     "#F59E0B",
+};
+
+function getAccent(section) {
+  const t = section?.config?._theme;
+  return THEME_ACCENTS[t] || "#6c6fee";
+}
 
 function DragHandle(props) {
   return (
@@ -78,38 +73,20 @@ function SortableItem({ section, eventId, isSelected, onSelect }) {
   const updateSection = useBuilderStore((s) => s.updateSection);
   const deleteSection = useBuilderStore((s) => s.deleteSection);
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: section.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: section.id });
 
-  const meta = SECTION_META[section.section_type] ?? {
-    label: section.section_type,
-    Icon: Square2StackIcon,
-  };
-  const { Icon } = meta;
+  const meta        = SECTION_META[section.section_type] ?? { label: section.section_type, Icon: Square2StackIcon };
+  const { Icon }    = meta;
   const displayName = section.title || meta.label;
-  const isVisible = section.is_visible !== false;
+  const isVisible   = section.is_visible !== false;
+  const accent      = getAccent(section);
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 50 : "auto",
     opacity: isDragging ? 0.5 : 1,
-  };
-
-  const handleVisibilityToggle = (e) => {
-    e.stopPropagation();
-    updateSection(eventId, section.id, { is_visible: !isVisible });
-  };
-
-  const handleDelete = (e) => {
-    e.stopPropagation();
-    deleteSection(eventId, section.id);
   };
 
   return (
@@ -119,20 +96,29 @@ function SortableItem({ section, eventId, isSelected, onSelect }) {
       className="group flex items-center gap-1.5 rounded-md px-1.5 py-1.5 cursor-pointer select-none"
       style={{
         ...style,
-        background: isSelected
-          ? "rgba(99,102,241,0.15)"
-          : isDragging
-          ? "#1e2026"
-          : "transparent",
-        boxShadow: isSelected ? "inset 0 0 0 1px rgba(99,102,241,0.35)" : "none",
+        background: isSelected ? `${accent}18` : isDragging ? "#1e2026" : "transparent",
+        boxShadow: isSelected ? `inset 0 0 0 1px ${accent}45` : "none",
         transition: `${style.transition ?? ""}, background 150ms, box-shadow 150ms`,
       }}
     >
       <DragHandle {...attributes} {...listeners} />
 
+      {/* Theme-accent colour dot — changes with the active style */}
+      <div
+        className="shrink-0 rounded-full"
+        style={{
+          width: 5,
+          height: 5,
+          background: accent,
+          opacity: isSelected ? 1 : 0.45,
+          flexShrink: 0,
+          transition: "background 0.3s, opacity 0.2s",
+        }}
+      />
+
       <Icon
         className="h-3.5 w-3.5 shrink-0"
-        style={{ color: isSelected ? "#818cf8" : "#555a66" }}
+        style={{ color: isSelected ? accent : "#555a66", transition: "color 0.3s" }}
       />
 
       <span
@@ -142,22 +128,17 @@ function SortableItem({ section, eventId, isSelected, onSelect }) {
         {displayName}
       </span>
 
-      {/* Visibility toggle — always shown when hidden, hover-only when visible */}
       <button
-        onClick={handleVisibilityToggle}
-        className={`shrink-0 p-0.5 rounded transition-opacity ${
-          isVisible ? "opacity-0 group-hover:opacity-100" : "opacity-100"
-        }`}
+        onClick={(e) => { e.stopPropagation(); updateSection(eventId, section.id, { is_visible: !isVisible }); }}
+        className={`shrink-0 p-0.5 rounded transition-opacity ${isVisible ? "opacity-0 group-hover:opacity-100" : "opacity-100"}`}
         style={{ color: isVisible ? "#555a66" : "#6b7280" }}
         title={isVisible ? "Hide section" : "Show section"}
       >
-        {isVisible
-          ? <EyeIcon className="h-3.5 w-3.5" />
-          : <EyeSlashIcon className="h-3.5 w-3.5" />}
+        {isVisible ? <EyeIcon className="h-3.5 w-3.5" /> : <EyeSlashIcon className="h-3.5 w-3.5" />}
       </button>
 
       <button
-        onClick={handleDelete}
+        onClick={(e) => { e.stopPropagation(); deleteSection(eventId, section.id); }}
         className="shrink-0 p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400"
         style={{ color: "#555a66" }}
         title="Delete section"
@@ -168,36 +149,23 @@ function SortableItem({ section, eventId, isSelected, onSelect }) {
   );
 }
 
-export default function SortableSectionList({
-  eventId,
-  sections,
-  selectedSectionId,
-  onSectionSelect,
-}) {
+export default function SortableSectionList({ eventId, sections, selectedSectionId, onSectionSelect }) {
   const reorderSections = useBuilderStore((s) => s.reorderSections);
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const handleDragEnd = ({ active, over }) => {
     if (!over || active.id === over.id) return;
     const oldIndex = sections.findIndex((s) => s.id === active.id);
     const newIndex = sections.findIndex((s) => s.id === over.id);
     const reordered = arrayMove(sections, oldIndex, newIndex);
-    reorderSections(
-      eventId,
-      reordered.map((s, i) => ({ id: s.id, position_order: i + 1 }))
-    );
+    reorderSections(eventId, reordered.map((s, i) => ({ id: s.id, position_order: i + 1 })));
   };
 
   if (!sections?.length) {
     return (
       <div
         className="flex flex-col items-center justify-center gap-1 rounded-md px-4 py-6 text-center"
-        style={{
-          border: "1px dashed rgba(255,255,255,0.08)",
-          color: "#3d4150",
-        }}
+        style={{ border: "1px dashed rgba(255,255,255,0.08)", color: "#3d4150" }}
       >
         <Square2StackIcon className="h-5 w-5 opacity-40" />
         <span className="text-[11px]">No sections yet.</span>
@@ -207,15 +175,8 @@ export default function SortableSectionList({
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={handleDragEnd}
-    >
-      <SortableContext
-        items={sections.map((s) => s.id)}
-        strategy={verticalListSortingStrategy}
-      >
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
         <div className="flex flex-col gap-0.5">
           {sections.map((section) => (
             <SortableItem

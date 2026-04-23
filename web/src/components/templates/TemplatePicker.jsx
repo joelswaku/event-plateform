@@ -1,34 +1,87 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { X, Lock, Eye, Check, Sparkles, Search } from "lucide-react";
+import { X, Lock, Check, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { WEDDING_TEMPLATES, canAccessTemplate } from "@/lib/weddingTemplates";
+import { STYLE_TEMPLATES, canAccessTemplate } from "@/lib/styleTemplates";
+import { STYLE_META } from "@/lib/styleThemes";
 import { useSubscriptionStore } from "@/store/subscription.store";
 import { useBuilderStore } from "@/store/builder.store";
 
-const FILTERS = [
-  { key: "all",     label: "All Templates" },
-  { key: "free",    label: "Free" },
-  { key: "premium", label: "Premium" },
-];
+const STYLE_KEYS = ["ALL", "CLASSIC", "ELEGANT", "MODERN", "MINIMAL", "LUXURY", "FUN"];
+const TIER_KEYS  = ["all", "free", "premium"];
 
-// Deduplicate by id once at module level — prevents duplicate-key warnings
-// if the same template is accidentally listed twice in weddingTemplates.js
+// Deduplicate by id once at module level
 const UNIQUE_TEMPLATES = Array.from(
-  new Map(WEDDING_TEMPLATES.map((t) => [t.id, t])).values()
+  new Map(STYLE_TEMPLATES.map((t) => [t.id, t])).values()
 );
 
-const FREE_COUNT    = UNIQUE_TEMPLATES.filter((t) => t.tier === "free").length;
-const PREMIUM_COUNT = UNIQUE_TEMPLATES.filter((t) => t.tier === "premium").length;
+// ── Mini event-page mockup — pure CSS, no images required ────────────────────
+function TemplatePreviewCard({ template, meta }) {
+  const { bg, accent, hero } = meta?.preview || { bg: "#FAF9F6", accent: "#C9A96E", hero: "#1C1917" };
+
+  return (
+    <div className="w-full overflow-hidden" style={{ background: bg, borderRadius: 6 }}>
+      {/* Hero strip */}
+      <div className="relative flex flex-col items-center justify-center px-3 py-6" style={{ background: hero, minHeight: 80 }}>
+        {template.assets?.hero_image && (
+          <div
+            className="absolute inset-0 bg-cover bg-center opacity-40"
+            style={{ backgroundImage: `url(${template.assets.hero_image})` }}
+          />
+        )}
+        <div className="absolute inset-0" style={{ background: `rgba(0,0,0,0.45)` }} />
+        <div className="relative flex flex-col items-center gap-1">
+          {/* Eyebrow dot */}
+          <div className="h-px w-8" style={{ background: accent, opacity: 0.8 }} />
+          {/* Simulated heading */}
+          <div className="h-2 rounded-sm" style={{ background: "#ffffff", width: 72, opacity: 0.9 }} />
+          <div className="h-1.5 rounded-sm mt-0.5" style={{ background: "#ffffff", width: 48, opacity: 0.55 }} />
+          {/* Accent bar */}
+          <div className="flex items-center gap-1 mt-1" style={{ opacity: 0.7 }}>
+            <div className="h-px w-4" style={{ background: accent }} />
+            <div className="h-1 w-1 rotate-45" style={{ background: accent }} />
+            <div className="h-px w-4" style={{ background: accent }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Content rows — simulate sections */}
+      <div className="flex flex-col gap-1.5 px-2.5 py-2.5">
+        {template.sections.slice(1, 5).map((s, i) => {
+          const isAlt = i % 2 === 1;
+          return (
+            <div
+              key={`${template.id}-prev-${i}`}
+              className="flex items-center gap-2 rounded px-2 py-1.5"
+              style={{ background: isAlt ? "rgba(0,0,0,0.04)" : "transparent" }}
+            >
+              <div className="h-1.5 w-1.5 rounded-sm shrink-0" style={{ background: accent, opacity: 0.6 }} />
+              <div className="flex flex-col gap-0.5 flex-1">
+                <div className="h-1.5 rounded-sm" style={{ background: "currentColor", width: "60%", opacity: 0.25 }} />
+                <div className="h-1 rounded-sm" style={{ background: "currentColor", width: "80%", opacity: 0.15 }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* CTA strip */}
+      <div className="flex items-center justify-center px-2.5 pb-2.5">
+        <div className="h-5 w-20 flex items-center justify-center" style={{ border: `1px solid ${accent}`, borderRadius: 2 }}>
+          <div className="h-1 rounded-sm w-10" style={{ background: accent, opacity: 0.7 }} />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function TemplatePicker({ eventId, isOpen, onClose }) {
   const { plan, isSubscribed, openUpgradeModal } = useSubscriptionStore();
   const { applyPreset } = useBuilderStore();
 
-  const [filter,   setFilter]   = useState("all");
-  const [search,   setSearch]   = useState("");
-  const [hovered,  setHovered]  = useState(null);
+  const [styleTab, setStyleTab] = useState("ALL");
+  const [tierTab,  setTierTab]  = useState("all");
   const [applying, setApplying] = useState(null);
   const [preview,  setPreview]  = useState(null);
 
@@ -36,24 +89,23 @@ export default function TemplatePicker({ eventId, isOpen, onClose }) {
 
   const visible = useMemo(() =>
     UNIQUE_TEMPLATES.filter((t) => {
-      if (filter !== "all" && t.tier !== filter) return false;
-      if (search && !t.name.toLowerCase().includes(search.toLowerCase())) return false;
+      if (styleTab !== "ALL" && t.style !== styleTab) return false;
+      if (tierTab  !== "all" && t.tier  !== tierTab)  return false;
       return true;
     }),
-  [filter, search]);
+  [styleTab, tierTab]);
 
   const handleSelect = async (t) => {
     if (!canAccessTemplate(t, userPlan)) { openUpgradeModal(t.name); return; }
     setApplying(t.id);
 
-    // Build enriched sections: merge template section config with asset URLs
     const enrichedSections = t.sections.map((s) => {
       const config = { ...(s.config || {}) };
       if (s.type === "HERO" && t.assets?.hero_image) {
         config.background_image = t.assets.hero_image;
       }
       if (s.type === "GALLERY" && t.assets?.gallery_images?.length) {
-        config.gallery_images = t.assets.gallery_images;
+        config.images = t.assets.gallery_images;
       }
       return { type: s.type, config };
     });
@@ -65,194 +117,208 @@ export default function TemplatePicker({ eventId, isOpen, onClose }) {
 
   if (!isOpen) return null;
 
+  const freeCount    = UNIQUE_TEMPLATES.filter((t) => t.tier === "free").length;
+  const premiumCount = UNIQUE_TEMPLATES.filter((t) => t.tier === "premium").length;
+
   return (
     <AnimatePresence mode="wait">
-      {/* ── Backdrop + main modal ────────────────────────────────── */}
-      <div key="template-picker-root" className="fixed inset-0 z-[9000] flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        key="picker-root"
+        className="fixed inset-0 z-[9000] flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        {/* Backdrop */}
         <motion.div
-          key="template-picker-backdrop"
+          key="picker-backdrop"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/75 backdrop-blur-md"
+          className="absolute inset-0 bg-black/80 backdrop-blur-md"
         />
 
+        {/* Modal */}
         <motion.div
-          key="template-picker-modal"
-          initial={{ opacity: 0, scale: 0.96, y: 16 }}
+          key="picker-modal"
+          initial={{ opacity: 0, scale: 0.96, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: 16 }}
+          exit={{ opacity: 0, scale: 0.96, y: 20 }}
           transition={{ duration: 0.22, ease: "easeOut" }}
-          className="relative w-full max-w-6xl max-h-[92vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+          className="relative w-full max-w-6xl max-h-[92vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+          style={{ background: "#0f0f12", border: "1px solid rgba(255,255,255,0.08)" }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* ── Header ───────────────────────────────────────────── */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+          {/* ── Header ─────────────────────────────────────────────── */}
+          <div
+            className="flex items-center justify-between px-6 py-4 shrink-0"
+            style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
+          >
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Choose Your Template</h2>
-              <p className="text-sm text-gray-400 mt-0.5">
-                {UNIQUE_TEMPLATES.length} templates · {FREE_COUNT} free · {PREMIUM_COUNT} premium
+              <h2 className="text-lg font-bold text-white">Choose Your Style</h2>
+              <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>
+                {UNIQUE_TEMPLATES.length} templates · {freeCount} free · {premiumCount} premium
               </p>
             </div>
             <div className="flex items-center gap-3">
               {!isSubscribed && (
                 <button
                   onClick={() => openUpgradeModal()}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-linear-to-r from-amber-400 to-yellow-400 text-white text-sm font-semibold shadow hover:from-amber-500 hover:to-yellow-500 transition-all"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+                  style={{ background: "linear-gradient(135deg, #c9a96e, #d4b47a)", color: "#1c1917" }}
                 >
                   <Sparkles size={13} /> Unlock All
                 </button>
               )}
-              <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
-                <X size={20} />
+              <button
+                onClick={onClose}
+                className="p-2 rounded-lg transition-colors"
+                style={{ color: "rgba(255,255,255,0.4)" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "#fff"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(255,255,255,0.4)"; }}
+              >
+                <X size={18} />
               </button>
             </div>
           </div>
 
-          {/* ── Controls ─────────────────────────────────────────── */}
-          <div className="flex items-center gap-3 px-6 pt-4 pb-3 shrink-0">
-            <div className="flex gap-1.5">
-              {FILTERS.map((f) => (
+          {/* ── Style tabs ─────────────────────────────────────────── */}
+          <div
+            className="flex items-center gap-1 overflow-x-auto px-6 pt-4 pb-3 shrink-0"
+            style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
+          >
+            {STYLE_KEYS.map((key) => {
+              const meta    = key === "ALL" ? null : STYLE_META[key];
+              const active  = styleTab === key;
+              const accent  = meta?.preview?.accent;
+              return (
                 <button
-                  key={f.key}
-                  onClick={() => setFilter(f.key)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                    filter === f.key ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                  }`}
+                  key={key}
+                  onClick={() => setStyleTab(key)}
+                  className="flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all shrink-0"
+                  style={{
+                    background: active ? (accent || "rgba(255,255,255,0.12)") : "rgba(255,255,255,0.05)",
+                    color: active ? (key === "ALL" ? "#fff" : "#fff") : "rgba(255,255,255,0.45)",
+                    border: active ? `1px solid ${accent || "rgba(255,255,255,0.2)"}` : "1px solid transparent",
+                  }}
                 >
-                  {f.label}
+                  {meta && (
+                    <span
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ background: meta.preview.accent }}
+                    />
+                  )}
+                  {key === "ALL" ? "All Styles" : meta?.label}
+                </button>
+              );
+            })}
+
+            {/* Tier filter on the right */}
+            <div className="ml-auto flex items-center gap-1 shrink-0">
+              {TIER_KEYS.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTierTab(t)}
+                  className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
+                  style={{
+                    background: tierTab === t ? "rgba(255,255,255,0.12)" : "transparent",
+                    color: tierTab === t ? "#fff" : "rgba(255,255,255,0.35)",
+                  }}
+                >
+                  {t === "all" ? "All" : t === "free" ? "Free" : "⭐ Premium"}
                 </button>
               ))}
             </div>
-
-            <div className="ml-auto relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search templates…"
-                className="pl-8 pr-4 py-1.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-amber-400 w-48"
-              />
-            </div>
           </div>
 
-          {/* ── Grid ─────────────────────────────────────────────── */}
-          <div className="overflow-y-auto flex-1 px-6 pb-6">
+          {/* ── Template grid ──────────────────────────────────────── */}
+          <div className="overflow-y-auto flex-1 px-6 py-6">
             {visible.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-40 text-gray-400">
-                <Search size={28} className="mb-2 opacity-30" />
+              <div className="flex flex-col items-center justify-center h-40" style={{ color: "rgba(255,255,255,0.25)" }}>
                 <p className="text-sm">No templates match</p>
               </div>
             ) : (
-              <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 mt-2 space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                 {visible.map((t) => {
                   const accessible = canAccessTemplate(t, userPlan);
                   const isApplying = applying === t.id;
+                  const meta       = STYLE_META[t.style];
+                  const accent     = meta?.preview?.accent || "#C9A96E";
 
                   return (
-                    // KEY: stable template.id — guaranteed unique after dedup above
-                    <div
-                      key={t.id}
-                      className="break-inside-avoid"
-                      onMouseEnter={() => setHovered(t.id)}
-                      onMouseLeave={() => setHovered(null)}
-                    >
+                    <div key={t.id} className="flex flex-col gap-2">
+                      {/* Card */}
                       <div
-                        className={`relative rounded-xl overflow-hidden cursor-pointer border-2 transition-all duration-300 ${
-                          accessible
-                            ? "border-transparent hover:border-amber-400 hover:shadow-xl hover:shadow-amber-100/50"
-                            : "border-transparent hover:border-gray-200"
-                        }`}
+                        className="relative overflow-hidden cursor-pointer transition-all duration-200 group"
+                        style={{ border: `1px solid rgba(255,255,255,0.08)`, borderRadius: 10 }}
+                        onMouseEnter={(e) => { e.currentTarget.style.borderColor = accent; e.currentTarget.style.boxShadow = `0 0 20px ${accent}30`; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.boxShadow = "none"; }}
+                        onClick={() => handleSelect(t)}
                       >
-                        {/* Image */}
-                        <div className="relative overflow-hidden bg-gray-100" style={{ aspectRatio: "3/4" }}>
-                          <img
-                            src={t.assets.cover_image}
-                            alt={t.name}
-                            loading="lazy"
-                            className={`w-full h-full object-cover transition-transform duration-500 ${
-                              hovered === t.id ? "scale-110" : "scale-100"
-                            }`}
-                          />
+                        {/* Preview mockup */}
+                        <TemplatePreviewCard template={t} meta={meta} />
 
-                          <div
-                            className={`absolute inset-0 bg-linear-to-t from-black/80 via-black/10 to-transparent transition-opacity duration-300 ${
-                              hovered === t.id ? "opacity-100" : "opacity-0"
-                            }`}
-                          />
-
-                          {!accessible && (
-                            <div className="absolute inset-0 bg-black/35 flex items-center justify-center">
-                              <div className="bg-white/90 backdrop-blur-sm rounded-full p-3 shadow-lg">
-                                <Lock size={18} className="text-gray-700" />
-                              </div>
+                        {/* Locked overlay */}
+                        {!accessible && (
+                          <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.55)" }}>
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm">
+                              <Lock size={15} className="text-white" />
                             </div>
-                          )}
-
-                          <div className="absolute top-2.5 left-2.5">
-                            <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                t.tier === "premium" ? "bg-amber-500 text-white" : "bg-white/90 text-gray-600"
-                              }`}
-                            >
-                              {t.tier === "premium" ? "⭐ Premium" : "Free"}
-                            </span>
                           </div>
+                        )}
 
-                          <div
-                            className={`absolute bottom-0 left-0 right-0 p-2.5 flex gap-1.5 transition-all duration-300 ${
-                              hovered === t.id ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
-                            }`}
+                        {/* Applying spinner */}
+                        {isApplying && (
+                          <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }}>
+                            <span className="h-5 w-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                          </div>
+                        )}
+
+                        {/* Hover action bar */}
+                        <div
+                          className="absolute bottom-0 inset-x-0 flex items-center justify-between px-2.5 py-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                          style={{ background: "linear-gradient(to top, rgba(0,0,0,0.85), transparent)" }}
+                        >
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setPreview(t); }}
+                            className="text-[10px] font-semibold text-white/70 hover:text-white transition-colors"
                           >
+                            Preview
+                          </button>
+                          {accessible ? (
+                            <div className="flex items-center gap-1 text-[10px] font-bold" style={{ color: accent }}>
+                              <Check size={10} /> Apply
+                            </div>
+                          ) : (
                             <button
-                              onClick={(e) => { e.stopPropagation(); setPreview(t); }}
-                              className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/20 backdrop-blur-sm border border-white/30 text-white text-xs font-medium hover:bg-white/30 transition-colors"
+                              onClick={(e) => { e.stopPropagation(); openUpgradeModal(t.name); }}
+                              className="text-[10px] font-bold"
+                              style={{ color: "#f59e0b" }}
                             >
-                              <Eye size={11} /> Preview
+                              Upgrade
                             </button>
-
-                            {accessible ? (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleSelect(t); }}
-                                disabled={isApplying}
-                                className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white text-xs font-bold transition-colors"
-                              >
-                                {isApplying ? (
-                                  <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                                ) : (
-                                  <><Check size={11} /> Select</>
-                                )}
-                              </button>
-                            ) : (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); openUpgradeModal(t.name); }}
-                                className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-colors"
-                              >
-                                <Lock size={11} /> Upgrade
-                              </button>
-                            )}
-                          </div>
+                          )}
                         </div>
 
-                        {/* Card footer */}
-                        <div className="p-2.5 bg-white">
-                          <p className="font-semibold text-gray-900 text-xs leading-tight">{t.name}</p>
-                          <p className="text-gray-400 text-[10px] mt-0.5 line-clamp-1">{t.description}</p>
-                          <div className="mt-1.5 flex flex-wrap gap-0.5">
-                            {t.sections.slice(0, 4).map((s, sIdx) => (
-                              // KEY: combine template.id + section type + position
-                              // guards against duplicate section types within one template
-                              <span
-                                key={`${t.id}-section-${s.type}-${sIdx}`}
-                                className="text-[9px] px-1.5 py-0.5 rounded bg-gray-50 text-gray-400 border border-gray-100"
-                              >
-                                {s.type}
-                              </span>
-                            ))}
-                            {t.sections.length > 4 && (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-gray-50 text-gray-400 border border-gray-100">
-                                +{t.sections.length - 4}
-                              </span>
-                            )}
-                          </div>
+                        {/* Tier badge */}
+                        <div className="absolute top-2 left-2">
+                          <span
+                            className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                            style={t.tier === "premium"
+                              ? { background: "rgba(245,158,11,0.9)", color: "#1c1407" }
+                              : { background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.8)" }
+                            }
+                          >
+                            {t.tier === "premium" ? "⭐ Pro" : "Free"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Name + style pill */}
+                      <div className="px-0.5">
+                        <p className="text-xs font-semibold text-white leading-tight">{t.name}</p>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span
+                            className="h-1.5 w-1.5 rounded-full"
+                            style={{ background: meta?.preview?.accent || "#C9A96E" }}
+                          />
+                          <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>{meta?.label}</p>
                         </div>
                       </div>
                     </div>
@@ -264,76 +330,96 @@ export default function TemplatePicker({ eventId, isOpen, onClose }) {
         </motion.div>
       </div>
 
-      {/* ── Preview Modal ─────────────────────────────────────────── */}
+      {/* ── Preview modal ───────────────────────────────────────────── */}
       {preview && (
         <div
-          key="template-preview-modal"
+          key="preview-modal"
           className="fixed inset-0 z-[9500] flex items-center justify-center p-4"
           onClick={() => setPreview(null)}
         >
-          <div className="absolute inset-0 bg-black/85 backdrop-blur-md" />
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-md" />
           <motion.div
             initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="relative w-full max-w-2xl bg-white rounded-2xl overflow-hidden shadow-2xl"
+            className="relative w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl"
+            style={{ background: "#16181c", border: "1px solid rgba(255,255,255,0.1)" }}
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={() => setPreview(null)}
-              className="absolute top-3 right-3 z-10 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+              className="absolute top-3 right-3 z-10 p-2 rounded-full transition-colors"
+              style={{ background: "rgba(0,0,0,0.6)", color: "rgba(255,255,255,0.7)" }}
             >
               <X size={15} />
             </button>
 
-            <img
-              src={preview.assets.hero_image}
-              alt={preview.name}
-              className="w-full object-cover max-h-[55vh]"
-            />
-
-            {/* Color swatches — key by hex value, not index */}
-            <div className="absolute top-3 left-3 flex gap-1.5">
-              {Object.entries(preview.design.colors).map(([colorName, colorHex]) => (
-                <div
-                  key={`${preview.id}-color-${colorName}`}
-                  className="w-5 h-5 rounded-full border-2 border-white shadow"
-                  style={{ background: colorHex }}
-                  title={colorName}
+            {/* Hero image or gradient */}
+            <div className="relative overflow-hidden" style={{ height: "50vh", background: STYLE_META[preview.style]?.preview?.hero || "#1C1917" }}>
+              {preview.assets?.hero_image && (
+                <img
+                  src={preview.assets.hero_image}
+                  alt={preview.name}
+                  className="w-full h-full object-cover opacity-80"
                 />
-              ))}
+              )}
+              <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 60%)" }} />
+
+              {/* Color swatches */}
+              <div className="absolute top-3 left-3 flex gap-1.5">
+                {Object.entries(preview.design.colors).map(([name, hex]) => (
+                  <div
+                    key={`${preview.id}-swatch-${name}`}
+                    className="h-5 w-5 rounded-full border-2 border-white/20 shadow"
+                    style={{ background: hex }}
+                    title={name}
+                  />
+                ))}
+              </div>
+
+              {/* Title on image */}
+              <div className="absolute bottom-5 left-6">
+                <p className="text-xs uppercase tracking-[0.25em] mb-1" style={{ color: "var(--t-accent, #C9A96E)", opacity: 0.8 }}>
+                  {STYLE_META[preview.style]?.label}
+                </p>
+                <h3 className="text-2xl font-bold text-white">{preview.name}</h3>
+              </div>
             </div>
 
+            {/* Details */}
             <div className="p-5 flex items-start justify-between gap-4">
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <h3 className="font-bold text-gray-900 text-lg">{preview.name}</h3>
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      preview.tier === "premium" ? "bg-amber-500 text-white" : "bg-gray-100 text-gray-600"
-                    }`}
-                  >
-                    {preview.tier === "premium" ? "⭐ Premium" : "Free"}
-                  </span>
+                <p className="text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>{preview.description}</p>
+                <div className="flex flex-wrap gap-1 mt-3">
+                  {preview.sections.map((s, sIdx) => (
+                    <span
+                      key={`${preview.id}-sec-${s.type}-${sIdx}`}
+                      className="text-[9px] px-2 py-0.5 rounded"
+                      style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}
+                    >
+                      {s.type}
+                    </span>
+                  ))}
                 </div>
-                <p className="text-gray-500 text-sm">{preview.description}</p>
-                <p className="text-gray-400 text-xs mt-1">
-                  {preview.design.fonts.heading_font} · {preview.design.fonts.body_font}
+                <p className="text-[10px] mt-3" style={{ color: "rgba(255,255,255,0.25)" }}>
+                  {preview.design.fonts.heading} · {preview.sections.length} sections
                 </p>
               </div>
 
               {canAccessTemplate(preview, userPlan) ? (
                 <button
                   onClick={() => { setPreview(null); handleSelect(preview); }}
-                  className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm transition-colors"
+                  className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-colors"
+                  style={{ background: STYLE_META[preview.style]?.preview?.accent || "#C9A96E", color: "#fff" }}
                 >
                   <Check size={14} /> Use Template
                 </button>
               ) : (
                 <button
                   onClick={() => { setPreview(null); openUpgradeModal(preview.name); }}
-                  className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm transition-colors"
+                  className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm"
+                  style={{ background: "#f59e0b", color: "#1c1407" }}
                 >
-                  <Lock size={14} /> Upgrade to Use
+                  <Lock size={14} /> Upgrade
                 </button>
               )}
             </div>

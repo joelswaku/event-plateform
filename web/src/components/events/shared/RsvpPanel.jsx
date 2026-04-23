@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   CheckCircle2, XCircle, HelpCircle, Loader2,
-  ChevronUp, ChevronDown, Users, MessageSquare,
+  ChevronUp, ChevronDown, Users, MessageSquare, User,
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
@@ -27,6 +27,7 @@ export default function RsvpPanel({ token }) {
   const [rsvpStatus, setRsvp]   = useState(null);      // current selection
   const [plusOnes, setPlusOnes] = useState(0);
   const [note, setNote]         = useState("");
+  const [guestName, setGuestName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted]   = useState(false);
   const [submitErr, setSubmitErr]   = useState("");
@@ -47,6 +48,7 @@ export default function RsvpPanel({ token }) {
         if (!json.success) { setLoadErr(true); return; }
         const d = json.data;
         setInv(d);
+        setGuestName(d.guest?.full_name ?? "");
         if (d.existing_rsvp) {
           setRsvp(d.existing_rsvp.rsvp_status);
           setPlusOnes(d.existing_rsvp.plus_one_count ?? 0);
@@ -74,6 +76,7 @@ export default function RsvpPanel({ token }) {
           rsvp_status: status,
           plus_one_count: inv?.guest?.plus_one_allowed ? plusOnes : 0,
           note: note.trim() || null,
+          guest_name: guestName.trim() || null,
         }),
       });
       const json = await res.json();
@@ -128,11 +131,11 @@ export default function RsvpPanel({ token }) {
             <div className="flex items-center gap-3">
               {/* Avatar */}
               <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-700 shrink-0">
-                {initials(guest.full_name)}
+                {initials(guestName || guest.full_name)}
               </div>
               <div className="text-left">
                 <p className="text-xs text-stone-400 leading-none">Your invitation</p>
-                <p className="text-sm font-semibold text-stone-900 leading-snug">{guest.full_name}</p>
+                <p className="text-sm font-semibold text-stone-900 leading-snug">{guestName || guest.full_name}</p>
               </div>
               {submitted && statusIcon && (
                 <span className="flex items-center gap-1 text-xs font-medium text-stone-500 ml-1">
@@ -171,7 +174,13 @@ export default function RsvpPanel({ token }) {
                     "bg-amber-50 text-amber-700"
                   }`}>
                     {statusIcon}
-                    {isGoing ? "You're going! See you there 🎉" : isDeclined ? "You declined this event" : "You responded: Maybe"}
+                    <span>
+                      {isGoing
+                        ? `${guestName || guest.full_name} is going! See you there 🎉`
+                        : isDeclined
+                          ? "You declined this event"
+                          : "You responded: Maybe"}
+                    </span>
                   </div>
                   <button
                     onClick={() => { setSubmitted(false); setExpanded(true); }}
@@ -183,6 +192,21 @@ export default function RsvpPanel({ token }) {
               ) : (
                 /* ── RSVP form ── */
                 <div className="space-y-4">
+                  {/* Name confirmation */}
+                  <div>
+                    <label className="flex items-center gap-1.5 text-xs font-medium text-stone-600 mb-1.5">
+                      <User className="w-3.5 h-3.5" />
+                      Your name
+                    </label>
+                    <input
+                      type="text"
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                      placeholder="Full name"
+                      className="w-full text-sm border border-stone-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-400 placeholder:text-stone-300"
+                    />
+                  </div>
+
                   {/* Plus-ones */}
                   {guest.plus_one_allowed && maxPlusOnes > 0 && (
                     <div>
