@@ -286,6 +286,33 @@ export async function sendInvitationsToAllGuests(req, res) {
 
 
 
+export async function manualCheckIn(req, res) {
+  try {
+    const result = await guestsService.manualCheckInGuestService({
+      eventId: req.params.eventId,
+      guestId: req.params.guestId,
+      organizationId: req.organizationId,
+      userId: req.user.id,
+    });
+    res.json({ success: true, message: "Guest checked in", data: result });
+  } catch (e) {
+    handleError(res, e);
+  }
+}
+
+export async function listAttendance(req, res) {
+  try {
+    const result = await guestsService.listGuestAttendanceService({
+      eventId: req.params.eventId,
+      organizationId: req.organizationId,
+      userId: req.user.id,
+    });
+    res.json({ success: true, ...result });
+  } catch (e) {
+    handleError(res, e);
+  }
+}
+
 // import * as guestsService from "../services/guests.service.js";
 
 // /*

@@ -1,5 +1,4 @@
 //utils/sendEmail.js
-import QRCode from "qrcode";
 import nodemailer from "nodemailer";
 import { env } from "../config/env.js";
 
@@ -10,6 +9,10 @@ const transporter = nodemailer.createTransport({
   auth: {
     user: env.smtpUser,
     pass: env.smtpPass,
+  },
+  tls: {
+    // Required for Mailtrap sandbox and self-signed certs in dev
+    rejectUnauthorized: false,
   },
 });
 
@@ -188,91 +191,124 @@ export async function sendEventInvitationEmail({
   guest,
   event,
   invitationUrl,
+  eventPageUrl,
 }) {
-  // ✅ Generate QR Code (base64)
-  const qrCodeBase64 = await QRCode.toDataURL(invitationUrl);
-
-  // ✅ Google Calendar link
-  const googleCalendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE
-&text=${encodeURIComponent(event.title)}
-&dates=${event.start_at}/${event.end_at}
-&details=${encodeURIComponent("You're invited!")}
-&location=${encodeURIComponent(event.location_name || "")}`.replace(/\n/g, "");
+  const ctaUrl  = eventPageUrl || invitationUrl;
+  const dateStr = (() => {
+    const d = event.starts_at || event.start_at;
+    if (!d) return null;
+    return new Date(d).toLocaleDateString("en-US", {
+      weekday: "long", month: "long", day: "numeric", year: "numeric",
+    });
+  })();
+  const venue = event.venue_name || event.location_name || null;
 
   const html = `
-  <div style="font-family:Arial;background:#f4f4f7;padding:20px">
+  <!DOCTYPE html>
+  <html lang="en">
+  <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+  <body style="margin:0;padding:0;background:#f5f4f0;font-family:’Georgia’,serif">
 
-    <div style="max-width:600px;margin:auto;background:#fff;border-radius:12px;overflow:hidden">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f4f0;padding:40px 16px">
+      <tr><td align="center">
+        <table width="100%" style="max-width:560px;background:#ffffff;border-radius:4px;overflow:hidden" cellpadding="0" cellspacing="0">
 
-      <!-- HERO -->
-      <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:40px;text-align:center">
-        <h1>You're Invited 🎉</h1>
-        <p>${event.title}</p>
-      </div>
+          <!-- HEADER BAR -->
+          <tr>
+            <td style="background:#1C1917;padding:10px 32px">
+              <p style="margin:0;font-size:11px;letter-spacing:0.3em;text-transform:uppercase;color:#C9A96E;text-align:center">
+                Private Invitation
+              </p>
+            </td>
+          </tr>
 
-      <!-- BODY -->
-      <div style="padding:30px">
+          <!-- HERO -->
+          <tr>
+            <td style="padding:52px 40px 40px;text-align:center;border-bottom:1px solid #f0ede8">
+              <p style="margin:0 0 16px;font-size:11px;letter-spacing:0.3em;text-transform:uppercase;color:#C9A96E">
+                You are cordially invited to
+              </p>
+              <h1 style="margin:0;font-size:36px;font-weight:700;font-style:italic;color:#1C1917;line-height:1.2">
+                ${event.title}
+              </h1>
+              ${dateStr || venue ? `
+              <div style="margin-top:24px;display:inline-block;text-align:center">
+                ${dateStr ? `<p style="margin:4px 0;font-size:14px;color:#78716c">${dateStr}</p>` : ""}
+                ${venue  ? `<p style="margin:4px 0;font-size:14px;color:#78716c">${venue}</p>` : ""}
+              </div>` : ""}
+            </td>
+          </tr>
 
-        <p>Hello <b>${guest.full_name}</b>,</p>
+          <!-- GREETING -->
+          <tr>
+            <td style="padding:36px 40px 0">
+              <p style="margin:0;font-size:16px;color:#44403c;line-height:1.7">
+                Dear <strong>${guest.full_name}</strong>,
+              </p>
+              <p style="margin:16px 0 0;font-size:15px;color:#78716c;line-height:1.8">
+                We are delighted to extend this personal invitation to you.
+                Your presence would mean a great deal to us.
+              </p>
+              <p style="margin:12px 0 0;font-size:15px;color:#78716c;line-height:1.8">
+                Please let us know whether you will be able to join us by confirming
+                your attendance using the link below.
+              </p>
+            </td>
+          </tr>
 
-        <p>You are invited to <strong>${event.title}</strong>.</p>
+          <!-- DIVIDER -->
+          <tr>
+            <td style="padding:36px 40px">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="border-top:1px solid #e7e5e4"></td>
+                  <td style="padding:0 12px;white-space:nowrap">
+                    <div style="width:6px;height:6px;background:#C9A96E;transform:rotate(45deg);display:inline-block"></div>
+                  </td>
+                  <td style="border-top:1px solid #e7e5e4"></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
 
-        <!-- EVENT INFO -->
-        <div style="background:#f9fafb;padding:15px;border-radius:8px;margin:20px 0">
-          <p><b>📅 Date:</b> ${event.start_at || "TBA"}</p>
-          <p><b>📍 Location:</b> ${event.location_name || "TBA"}</p>
-        </div>
+          <!-- CTA -->
+          <tr>
+            <td style="padding:0 40px 48px;text-align:center">
+              <a href="${ctaUrl}"
+                style="display:inline-block;background:#1C1917;color:#C9A96E;text-decoration:none;font-size:12px;font-weight:600;letter-spacing:0.25em;text-transform:uppercase;padding:16px 40px;border:1px solid #C9A96E">
+                View Invitation &amp; Confirm Attendance
+              </a>
+              <p style="margin:20px 0 0;font-size:11px;color:#a8a29e;line-height:1.6">
+                This invitation is personal and intended solely for
+                <strong style="color:#78716c">${guest.full_name}</strong>.
+              </p>
+            </td>
+          </tr>
 
-        <!-- COUNTDOWN (fallback text) -->
-        <p style="text-align:center;font-size:14px;color:#666;">
-          ⏳ Happening soon — don’t miss it!
-        </p>
+          <!-- FOOTER -->
+          <tr>
+            <td style="background:#faf9f6;padding:20px 40px;border-top:1px solid #f0ede8;text-align:center">
+              <p style="margin:0;font-size:11px;color:#c4bfba;letter-spacing:0.1em">
+                If the button above does not work, copy this link into your browser:<br>
+                <a href="${ctaUrl}" style="color:#C9A96E;word-break:break-all;text-decoration:none">${ctaUrl}</a>
+              </p>
+              <p style="margin:12px 0 0;font-size:10px;color:#d6d3d1;letter-spacing:0.15em;text-transform:uppercase">
+                Powered by Eventos
+              </p>
+            </td>
+          </tr>
 
-        <!-- CTA -->
-        <div style="text-align:center;margin:25px 0">
-          <a href="${invitationUrl}"
-            style="background:#6366f1;color:#fff;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:bold">
-            View Invitation & RSVP
-          </a>
-        </div>
+        </table>
+      </td></tr>
+    </table>
 
-        <!-- QR CODE -->
-        <div style="text-align:center;margin:20px 0">
-          <p style="font-size:14px;color:#666;">Scan for quick access:</p>
-          <img src="${qrCodeBase64}" width="140" />
-        </div>
-
-        <!-- ADD TO CALENDAR -->
-        <div style="text-align:center;margin:20px 0">
-          <a href="${googleCalendarUrl}" target="_blank"
-            style="display:inline-block;padding:10px 18px;border:1px solid #ddd;border-radius:6px;text-decoration:none;color:#333;font-size:14px">
-            📅 Add to Google Calendar
-          </a>
-        </div>
-
-        <!-- FALLBACK LINK -->
-        <p style="font-size:12px;color:#888">
-          Or open manually:
-        </p>
-
-        <p style="font-size:12px;color:#6366f1;word-break:break-all;">
-          ${invitationUrl}
-        </p>
-
-      </div>
-
-      <!-- FOOTER -->
-      <div style="background:#f9fafb;padding:15px;text-align:center;font-size:12px;color:#999">
-        Powered by Eventos
-      </div>
-
-    </div>
-  </div>
+  </body>
+  </html>
   `;
 
-  await sendMail({
+  return await sendMail({
     to,
-    subject: `You're invited to ${event.title} 🎉`,
+    subject: `Your invitation to ${event.title}`,
     html,
   });
 }

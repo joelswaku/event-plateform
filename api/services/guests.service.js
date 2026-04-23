@@ -1,7 +1,7 @@
 
 import { db } from "../config/db.js";
 import crypto from "crypto";
-import { sendMail } from "../utils/sendEmail.js";
+import { sendMail, sendEventInvitationEmail, sendSeatAssignmentEmail } from "../utils/sendEmail.js";
 
 /* =========================
    ERROR CLASS
@@ -241,13 +241,13 @@ async function getActiveQrPassByGuest(client, guestId, eventId) {
   return result.rows[0] || null;
 }
 
-function buildInvitationUrl({ invitationToken, eventId, guestId }) {
+function buildInvitationUrl({ invitationToken }) {
   const baseUrl =
     process.env.APP_FRONTEND_URL ||
     process.env.FRONTEND_URL ||
     "http://localhost:3000";
 
-  return `${baseUrl}/events/${eventId}/guests/${guestId}/respond?token=${invitationToken}`;
+  return `${baseUrl}/invitation/${invitationToken}`;
 }
 
 function mapGuest(row) {
@@ -556,7 +556,7 @@ export async function submitGuestRsvpService({
         responded_at,
         updated_at
       )
-      VALUES ($1,$2,$3,NOW(),NOW())
+      VALUES ($1,$2,$3::rsvp_status,NOW(),NOW())
       ON CONFLICT (guest_id,event_id)
       DO UPDATE SET
         rsvp_status=EXCLUDED.rsvp_status,
@@ -889,17 +889,14 @@ export async function sendInvitationEmailToGuestService({
     const event = await assertEventExists(client, eventId, organizationId);
     const guest = await assertGuestBelongsToEvent(client, guestId, eventId);
 
+    // Always try email first; fall back to manual if guest has no email
+    const effectiveChannel = guest.email ? "EMAIL" : channel === "SMS" || channel === "WHATSAPP" ? channel : "MANUAL";
     let recipientValue = null;
 
-    if (channel === "EMAIL") {
-      if (!guest.email) {
-        throw new AppError("Guest does not have an email address", 400);
-      }
+    if (effectiveChannel === "EMAIL") {
       recipientValue = guest.email.trim().toLowerCase();
-    } else if (channel === "SMS" || channel === "WHATSAPP") {
-      if (!guest.phone) {
-        throw new AppError("Guest does not have a phone number", 400);
-      }
+    } else if (effectiveChannel === "SMS" || effectiveChannel === "WHATSAPP") {
+      if (!guest.phone) throw new AppError("Guest has no phone number", 400);
       recipientValue = guest.phone;
     } else {
       recipientValue = guest.email || guest.phone || guest.full_name;
@@ -907,133 +904,34 @@ export async function sendInvitationEmailToGuestService({
 
     const invitationToken = crypto.randomBytes(32).toString("hex");
 
-    // const insertResult = await client.query(
-    //   `
-    //   INSERT INTO guest_invitations
-    //   (
-    //     guest_id,
-    //     event_id,
-    //     channel,
-    //     recipient_value,
-    //     invitation_token,
-    //     invitation_status,
-    //     created_at,
-    //     updated_at
-    //   )
-    //   VALUES
-    //   (
-    //     $1,$2,$3,$4,$5,'PENDING',NOW(),NOW()
-    //   )
-    //   RETURNING *
-    //   `,
-    //   [guest.id, eventId, channel, recipientValue, invitationToken],
-    // );
     const insertResult = await client.query(
       `
       INSERT INTO guest_invitations
-      (
-        guest_id,
-        event_id,
-        channel,
-        recipient_value,
-        invitation_token,
-        invitation_status,
-        created_at,
-        updated_at
-      )
-      VALUES
-      (
-        $1::uuid,
-        $2::uuid,
-        $3,
-        $4,
-        $5,
-        'PENDING',
-        NOW(),
-        NOW()
-      )
+      (guest_id, event_id, channel, recipient_value, invitation_token, invitation_status, created_at, updated_at)
+      VALUES ($1::uuid, $2::uuid, $3, $4, $5, 'PENDING'::invitation_status, NOW(), NOW())
       RETURNING *
       `,
-      [guest.id, eventId, channel, recipientValue, invitationToken],
+      [guest.id, eventId, effectiveChannel, recipientValue, invitationToken],
     );
     const invitation = insertResult.rows[0];
-    const invitationUrl = buildInvitationUrl({
-      invitationToken,
-      eventId,
-      guestId: guest.id,
-    });
+    const invitationUrl = buildInvitationUrl({ invitationToken });
+    const baseUrl = process.env.APP_FRONTEND_URL || process.env.FRONTEND_URL || "http://localhost:3000";
+    const eventPageUrl = event.slug ? `${baseUrl}/e/${event.slug}?token=${invitationToken}` : null;
 
     let providerMessageId = null;
     let finalStatus = "SENT";
     let failedReason = null;
 
-    if (channel === "EMAIL") {
+    if (effectiveChannel === "EMAIL") {
       try {
-        const html = `
-        <div style="font-family:Arial,Helvetica,sans-serif;background:#f4f4f7;padding:20px">
-          
-          <div style="max-width:600px;margin:auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 5px 20px rgba(0,0,0,0.1)">
-        
-            <!-- HERO -->
-            <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:40px;text-align:center">
-              <h1 style="margin:0;font-size:28px;">You're Invited 🎉</h1>
-              <p style="margin-top:10px;font-size:16px;opacity:0.9;">
-                ${event.title || "Special Event"}
-              </p>
-            </div>
-        
-            <!-- BODY -->
-            <div style="padding:30px">
-        
-              <p style="font-size:16px;">Hello <b>${guest.full_name}</b>,</p>
-        
-              <p style="font-size:15px;color:#555;">
-                You are invited to attend <strong>${event.title}</strong>.
-              </p>
-        
-              <!-- EVENT DETAILS -->
-              <div style="margin:20px 0;padding:15px;background:#f9fafb;border-radius:8px">
-                <p style="margin:5px 0;"><b>📅 Date:</b> ${event.start_at || "TBA"}</p>
-                <p style="margin:5px 0;"><b>📍 Location:</b> ${event.location_name || "TBA"}</p>
-              </div>
-        
-              <!-- CTA BUTTON -->
-              <div style="text-align:center;margin:30px 0">
-                <a href="${invitationUrl}"
-                  style="background:#6366f1;color:#fff;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;display:inline-block">
-                  View Invitation & RSVP
-                </a>
-              </div>
-        
-              <!-- FALLBACK -->
-              <p style="font-size:13px;color:#888;">
-                If the button doesn't work, copy and paste this link:
-              </p>
-        
-              <p style="font-size:12px;color:#6366f1;word-break:break-all;">
-                ${invitationUrl}
-              </p>
-        
-            </div>
-        
-            <!-- FOOTER -->
-            <div style="background:#f9fafb;padding:20px;text-align:center;font-size:12px;color:#888">
-              <p>Powered by Eventos</p>
-            </div>
-        
-          </div>
-        
-        </div>
-        `;
-
-        const mailResult = await sendMail({
+        const mailResult = await sendEventInvitationEmail({
           to: recipientValue,
-          subject: `Invitation to ${event.title || "your event"}`,
-          html,
+          guest,
+          event,
+          invitationUrl,
+          eventPageUrl,
         });
-
-        providerMessageId =
-          mailResult?.messageId || mailResult?.message_id || null;
+        providerMessageId = mailResult?.messageId || mailResult?.message_id || null;
       } catch (error) {
         finalStatus = "FAILED";
         failedReason = error.message || "Failed to send invitation email";
@@ -1046,7 +944,7 @@ export async function sendInvitationEmailToGuestService({
       `
       UPDATE guest_invitations
       SET
-        invitation_status=$1,
+        invitation_status=$1::invitation_status,
         sent_at=CASE WHEN $1='SENT' THEN NOW() ELSE sent_at END,
         failed_reason=$2,
         provider_message_id=$3,
@@ -1230,7 +1128,12 @@ export async function checkInGuestByQrTokenService({
       );
   
       await client.query("COMMIT");
-  
+
+      await maybeSendSeatEmail(client, qrPass.guest_id, eventId, {
+        email: qrPass.email,
+        full_name: qrPass.full_name,
+      });
+
       return {
         checked_in: true,
         guest: {
@@ -1254,6 +1157,94 @@ export async function checkInGuestByQrTokenService({
       client.release();
     }
   }
+
+/* =========================
+   HELPER: send seat email after check-in
+========================= */
+async function maybeSendSeatEmail(client, guestId, eventId, guestData) {
+  try {
+    if (!guestData?.email) return;
+    const seatRes = await client.query(
+      `SELECT sa.seat_number, sl.name AS table_name
+       FROM seating_assignments sa
+       JOIN seating_locations sl ON sl.id = sa.seating_location_id
+       WHERE sa.guest_id = $1 AND sa.event_id = $2
+       LIMIT 1`,
+      [guestId, eventId]
+    );
+    if (!seatRes.rows[0]) return;
+    const { table_name, seat_number } = seatRes.rows[0];
+    const eventRes = await client.query(`SELECT title FROM events WHERE id = $1`, [eventId]);
+    const eventTitle = eventRes.rows[0]?.title || "the event";
+    await sendSeatAssignmentEmail({
+      to: guestData.email,
+      name: guestData.full_name,
+      eventName: eventTitle,
+      tableName: table_name,
+      seatNumber: seat_number,
+    });
+  } catch {
+    // non-fatal — seat email failure should not block check-in
+  }
+}
+
+/* =========================
+   MANUAL CHECK-IN (click, no QR)
+========================= */
+export async function manualCheckInGuestService({ eventId, guestId, organizationId, userId }) {
+  const client = await db.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    await assertOrganizationEventPermission(client, organizationId, userId);
+    await assertEventExists(client, eventId, organizationId);
+    const guest = await assertGuestBelongsToEvent(client, guestId, eventId);
+
+    const attendanceResult = await client.query(
+      `INSERT INTO guest_attendance
+       (guest_id, event_id, attendance_status, marked_by_user_id, marked_via, marked_at, updated_at)
+       VALUES ($1, $2, 'CHECKED_IN', $3, 'MANUAL', NOW(), NOW())
+       ON CONFLICT (guest_id, event_id) DO UPDATE SET
+         attendance_status = 'CHECKED_IN',
+         marked_by_user_id = EXCLUDED.marked_by_user_id,
+         marked_via = 'MANUAL',
+         marked_at = NOW(),
+         updated_at = NOW()
+       RETURNING *`,
+      [guestId, eventId, userId]
+    );
+
+    await client.query("COMMIT");
+
+    await maybeSendSeatEmail(client, guestId, eventId, guest);
+
+    return { checked_in: true, guest: mapGuest(guest), attendance: attendanceResult.rows[0] };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/* =========================
+   LIST ATTENDANCE
+========================= */
+export async function listGuestAttendanceService({ eventId, organizationId, userId }) {
+  const client = await db.connect();
+  try {
+    await assertOrganizationEventPermission(client, organizationId, userId);
+    await assertEventExists(client, eventId, organizationId);
+    const result = await client.query(
+      `SELECT guest_id, attendance_status, marked_via, marked_at FROM guest_attendance WHERE event_id = $1`,
+      [eventId]
+    );
+    return { data: result.rows };
+  } finally {
+    client.release();
+  }
+}
 
 // public functions for guests (no auth required) can be added here, e.g. public RSVP submission, etc.
 export async function getInvitationByTokenService({ token }) {
@@ -1281,13 +1272,19 @@ export async function getInvitationByTokenService({ token }) {
         g.is_vip,
         e.title AS event_title,
         e.description AS event_description,
-        e.start_at,
-        e.end_at,
-        e.location_name,
-        e.location_address
+        e.starts_at,
+        e.ends_at,
+        e.venue_name,
+        e.venue_address,
+        e.city,
+        e.country,
+        gr.rsvp_status AS existing_rsvp_status,
+        gr.plus_one_count AS existing_plus_one_count,
+        gr.note AS existing_note
       FROM guest_invitations gi
       JOIN guests g ON g.id = gi.guest_id
       JOIN events e ON e.id = gi.event_id
+      LEFT JOIN guest_rsvps gr ON gr.guest_id = gi.guest_id AND gr.event_id = gi.event_id
       WHERE gi.invitation_token = $1
         AND gi.deleted_at IS NULL
         AND g.deleted_at IS NULL
@@ -1309,7 +1306,7 @@ export async function getInvitationByTokenService({ token }) {
       SET
         invitation_status = CASE
           WHEN invitation_status IN ('PENDING', 'SENT', 'DELIVERED')
-          THEN 'OPENED'
+          THEN 'OPENED'::invitation_status
           ELSE invitation_status
         END,
         opened_at = COALESCE(opened_at, NOW()),
@@ -1334,13 +1331,20 @@ export async function getInvitationByTokenService({ token }) {
         id: invitation.event_id,
         title: invitation.event_title,
         description: invitation.event_description,
-        start_at: invitation.start_at,
-        end_at: invitation.end_at,
-        location_name: invitation.location_name,
-        location_address: invitation.location_address,
+        start_at: invitation.starts_at,
+        end_at: invitation.ends_at,
+        location_name: invitation.venue_name,
+        location_address: [invitation.venue_address, invitation.city, invitation.country].filter(Boolean).join(", ") || null,
       },
       invitation_status: invitation.invitation_status,
       channel: invitation.channel,
+      existing_rsvp: invitation.existing_rsvp_status
+        ? {
+            rsvp_status: invitation.existing_rsvp_status,
+            plus_one_count: invitation.existing_plus_one_count ?? 0,
+            note: invitation.existing_note ?? null,
+          }
+        : null,
     };
   }
 
@@ -1401,7 +1405,7 @@ export async function getInvitationByTokenService({ token }) {
           responded_at,
           updated_at
         )
-        VALUES ($1,$2,$3,$4,$5,NOW(),NOW())
+        VALUES ($1,$2,$3::rsvp_status,$4,$5,NOW(),NOW())
         ON CONFLICT (guest_id,event_id)
         DO UPDATE SET
           rsvp_status = EXCLUDED.rsvp_status,
@@ -1423,7 +1427,7 @@ export async function getInvitationByTokenService({ token }) {
         `
         UPDATE guest_invitations
         SET
-          invitation_status = 'OPENED',
+          invitation_status = 'OPENED'::invitation_status,
           opened_at = COALESCE(opened_at, NOW()),
           updated_at = NOW()
         WHERE id = $1

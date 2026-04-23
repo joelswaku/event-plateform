@@ -119,13 +119,22 @@ export default function SectionConfigPanel({ section, eventId }) {
               ]}
             />
           </Field>
-          <Field label="CTA Button Text">
-            <Input
-              value={localConfig.cta_text ?? ""}
-              onChange={(e) => handleConfig("cta_text", e.target.value)}
-              placeholder="RSVP Now"
+          <Field label="RSVP Button">
+            <Toggle
+              checked={localConfig.show_cta ?? false}
+              onChange={(v) => handleConfig("show_cta", v)}
+              label="Show RSVP button on hero"
             />
           </Field>
+          {localConfig.show_cta && (
+            <Field label="Button Label">
+              <Input
+                value={localConfig.cta_text ?? ""}
+                onChange={(e) => handleConfig("cta_text", e.target.value)}
+                placeholder="Confirm Attendance"
+              />
+            </Field>
+          )}
           <Field label={`Overlay Opacity: ${localConfig.overlay_opacity ?? 40}%`}>
             <input
               type="range" min={0} max={100}
@@ -135,6 +144,9 @@ export default function SectionConfigPanel({ section, eventId }) {
               style={{ height: 36, cursor: "pointer", accentColor: "#6c6fee" }}
             />
           </Field>
+          <p style={{ fontSize: 11, color: "#555a66", lineHeight: 1.5 }}>
+            ⓘ The RSVP button is only visible to guests who open the event via their personal invitation link.
+          </p>
         </>
       )}
 
@@ -236,20 +248,16 @@ export default function SectionConfigPanel({ section, eventId }) {
       {/* ── CTA ──────────────────────────────────────────────────────── */}
       {section.section_type === "CTA" && (
         <>
-          <Field label="Button Text">
+          <Field label="Button Label">
             <Input
               value={localConfig.button_text ?? ""}
               onChange={(e) => handleConfig("button_text", e.target.value)}
-              placeholder="Get Started"
+              placeholder="Confirm Attendance"
             />
           </Field>
-          <Field label="Button URL">
-            <Input
-              value={localConfig.button_url ?? ""}
-              onChange={(e) => handleConfig("button_url", e.target.value)}
-              placeholder="https://…"
-            />
-          </Field>
+          <p style={{ fontSize: 11, color: "#555a66", lineHeight: 1.5 }}>
+            ⓘ This button is only visible to guests who open the event via their personal invitation link. Clicking it opens their RSVP panel.
+          </p>
         </>
       )}
 

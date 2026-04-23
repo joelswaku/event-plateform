@@ -892,6 +892,16 @@ export function FAQSection({ section, isEditor = false, onEdit }) {
 
 // ─── CTA ──────────────────────────────────────────────────────────────────────
 export function CTASection({ section, isEditor = false, onEdit }) {
+  const [hasToken] = useState(() =>
+    typeof window !== "undefined"
+      ? !!new URLSearchParams(window.location.search).get("token")
+      : false
+  );
+
+  const handleRsvp = () => {
+    window.dispatchEvent(new CustomEvent("open-rsvp-panel"));
+  };
+
   return (
     <section
       className={`relative overflow-hidden bg-[#1C1917] px-6 py-32 text-center sm:py-40 ${isEditor ? "cursor-pointer ring-inset hover:ring-2 hover:ring-indigo-400/60" : ""}`}
@@ -912,9 +922,21 @@ export function CTASection({ section, isEditor = false, onEdit }) {
           {section.body && (
             <p className="mx-auto mt-5 max-w-md text-lg text-white/50">{section.body}</p>
           )}
-          <button className="mt-12 border border-[#C9A96E] bg-transparent px-12 py-4 text-sm font-medium uppercase tracking-[0.25em] text-[#C9A96E] transition hover:bg-[#C9A96E] hover:text-[#1C1917] active:scale-95">
-            {section.config?.button_text || "RSVP Now"}
-          </button>
+
+          {/* RSVP button — only visible to invited guests (token in URL) or in editor */}
+          {(isEditor || hasToken) ? (
+            <button
+              onClick={!isEditor ? handleRsvp : undefined}
+              className="mt-12 border border-[#C9A96E] bg-transparent px-12 py-4 text-sm font-medium uppercase tracking-[0.25em] text-[#C9A96E] transition hover:bg-[#C9A96E] hover:text-[#1C1917] active:scale-95"
+            >
+              {section.config?.button_text || "Confirm Attendance"}
+            </button>
+          ) : (
+            /* Public visitors see a subtle "by invitation only" note instead */
+            <p className="mt-12 text-xs uppercase tracking-[0.3em] text-white/25">
+              By invitation only
+            </p>
+          )}
         </FadeUp>
       </div>
       {isEditor && <EditorBadge label="CTA" />}

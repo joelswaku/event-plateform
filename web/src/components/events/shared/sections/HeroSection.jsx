@@ -1,5 +1,8 @@
+
+
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 
 const ease = [0.22, 1, 0.36, 1];
@@ -9,6 +12,16 @@ export default function HeroSection({ section, isEditor = false, onEdit }) {
   const overlayOpacity  = (config.overlay_opacity ?? 45) / 100;
   const align           = config.headline_align;
   const textAlign       = align === "left" ? "text-left items-start" : align === "right" ? "text-right items-end" : "text-center items-center";
+
+  const [hasToken] = useState(() =>
+    typeof window !== "undefined"
+      ? !!new URLSearchParams(window.location.search).get("token")
+      : false
+  );
+
+  const handleRsvp = () => {
+    window.dispatchEvent(new CustomEvent("open-rsvp-panel"));
+  };
 
   return (
     <section
@@ -93,15 +106,18 @@ export default function HeroSection({ section, isEditor = false, onEdit }) {
           <div className="h-px flex-1 bg-[#C9A96E]/60" />
         </motion.div>
 
-        {config.show_cta && (
+        {config.show_cta && (isEditor || hasToken) && (
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease, delay: 0.65 }}
             className="flex flex-wrap gap-4 mt-2"
           >
-            <button className="rounded-none border border-white bg-transparent px-10 py-3.5 text-sm font-medium uppercase tracking-[0.2em] text-white transition hover:bg-white hover:text-stone-900 active:scale-95">
-              {config.cta_text || "Register Now"}
+            <button
+              onClick={!isEditor ? handleRsvp : undefined}
+              className="rounded-none border border-white bg-transparent px-10 py-3.5 text-sm font-medium uppercase tracking-[0.2em] text-white transition hover:bg-white hover:text-stone-900 active:scale-95"
+            >
+              {config.cta_text || "Confirm Attendance"}
             </button>
             {config.secondary_cta_text && (
               <button className="rounded-none border border-white/30 px-10 py-3.5 text-sm font-medium uppercase tracking-[0.2em] text-white/80 transition hover:border-white/60 hover:text-white">

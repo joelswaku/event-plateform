@@ -1,6 +1,7 @@
 
 // controllers/guests.public.controller.js
 import * as guestsService from "../services/guests.service.js";
+import { db } from "../config/db.js";
 
 function handleControllerError(res, error, fallbackMessage = "Internal server error") {
   console.error(error);
@@ -29,6 +30,20 @@ export async function getInvitationByToken(req, res) {
     });
   } catch (error) {
     return handleControllerError(res, error, "Failed to fetch invitation");
+  }
+}
+
+export async function getPublicEventInfo(req, res) {
+  try {
+    const { eventId } = req.params;
+    const result = await db.query(
+      `SELECT id, title, visibility, status FROM events WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
+      [eventId]
+    );
+    if (!result.rows[0]) return res.status(404).json({ success: false, message: "Event not found" });
+    return res.status(200).json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    return handleControllerError(res, error, "Failed to fetch event");
   }
 }
 

@@ -85,6 +85,53 @@ export async function getPublicEventPageBySlugService({ slug }) {
   }
 }
 
+// ── Invited guest endpoint — PRIVATE events with valid invitation token ───────
+export async function getInvitedEventPageBySlugService({ slug, invitationToken }) {
+  if (!invitationToken) {
+    throw new AppError("Invitation token is required", 400);
+  }
+
+  const client = await db.connect();
+
+  try {
+    const eventRes = await client.query(
+      `SELECT e.*
+       FROM events e
+       INNER JOIN event_pages ep ON ep.event_id = e.id
+       WHERE e.slug = $1
+         AND e.deleted_at IS NULL
+         AND e.status = 'PUBLISHED'
+         AND ep.page_status = 'PUBLISHED'
+       LIMIT 1`,
+      [slug]
+    );
+
+    const event = eventRes.rows[0];
+    if (!event) {
+      throw new AppError("Event not found or not yet published", 404);
+    }
+
+    // Validate the invitation token belongs to this event
+    const tokenRes = await client.query(
+      `SELECT gi.id
+       FROM guest_invitations gi
+       WHERE gi.invitation_token = $1
+         AND gi.event_id = $2
+         AND gi.deleted_at IS NULL
+       LIMIT 1`,
+      [invitationToken, event.id]
+    );
+
+    if (!tokenRes.rows[0]) {
+      throw new AppError("Invalid or expired invitation token", 403);
+    }
+
+    return loadEventPageData(client, event);
+  } finally {
+    client.release();
+  }
+}
+
 // ── Preview endpoint — owner/org member only, any status ─────────────────────
 export async function getPreviewEventPageBySlugService({ slug, userId, organizationId }) {
   const client = await db.connect();

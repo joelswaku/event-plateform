@@ -1,27 +1,42 @@
 import { notFound } from "next/navigation";
-import SharedEventRenderer from "@/components/events/shared/SharedEventRenderer";
 import { publicApi } from "@/lib/public-api";
 import EventPreviewClient from "./EventPreviewClient";
+import EventPageClient from "./EventPageClient";
 
 // ── Data fetching ─────────────────────────────────────────────────────────────
 
-async function getPageData(slug) {
+async function fetchEventData(slug, token) {
+  // Try public endpoint first (works for PUBLIC + PUBLISHED events)
   try {
     const res = await publicApi.get(`/public/pages/${slug}`);
-    return res.data?.data || null;
+    if (res.data?.data) return res.data.data;
   } catch {
-    return null;
+    // fall through
   }
+
+  // If token provided, try the invited endpoint (covers PRIVATE events)
+  if (token) {
+    try {
+      const res = await publicApi.get(
+        `/public/pages/${slug}/invited?token=${encodeURIComponent(token)}`
+      );
+      if (res.data?.data) return res.data.data;
+    } catch {
+      // fall through
+    }
+  }
+
+  return null;
 }
 
 // ── SEO metadata ──────────────────────────────────────────────────────────────
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
-  const data = await getPageData(slug);
+  const data = await fetchEventData(slug, null);
   const event = data?.event;
 
-  if (!event) return { title: "Event Not Found" };
+  if (!event) return { title: "Event" };
 
   return {
     title: event.title,
@@ -37,31 +52,22 @@ export async function generateMetadata({ params }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function PublicEventPage({ params, searchParams }) {
-  const { slug } = await params;
-  const { preview } = await searchParams;
+  const { slug }    = await params;
+  const { preview, token } = await searchParams;
 
-  // Preview mode — requires auth, handled client-side (token is in memory)
+  // Preview mode — authenticated owner only, handled client-side
   if (preview === "1") {
     return <EventPreviewClient slug={slug} />;
   }
 
-  // Public mode — only PUBLISHED + PUBLIC events served here
-  const data = await getPageData(slug);
+  const data = await fetchEventData(slug, token);
   if (!data?.event) notFound();
 
-  const enrichedEvent = {
-    ...data.event,
-    speakers: data.speakers || [],
-    schedule_items: data.schedule_items || [],
-  };
-
   return (
-    <main className="min-h-screen bg-white">
-      <SharedEventRenderer
-        event={enrichedEvent}
-        sections={data.sections || []}
-        isEditor={false}
-      />
-    </main>
+    <EventPageClient
+      event={data.event}
+      sections={data.sections || []}
+      token={token || null}
+    />
   );
 }

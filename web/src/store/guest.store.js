@@ -1,4 +1,3 @@
-
 "use client";
 
 import { create } from "zustand";
@@ -8,60 +7,34 @@ export const useGuestStore = create((set, get) => ({
   guests: [],
   guestGroups: [],
   rsvps: [],
+  attendance: [],
   guestDashboard: null,
   selectedGuestIds: [],
-
   isLoading: false,
   isSubmitting: false,
   error: null,
 
-  /* =========================
-     SELECTION
-  ========================= */
-  toggleGuestSelection: (guestId) => {
-    set((state) => {
-      const exists = state.selectedGuestIds.includes(guestId);
+  /* ── Selection ── */
+  toggleGuestSelection: (guestId) =>
+    set((s) => ({
+      selectedGuestIds: s.selectedGuestIds.includes(guestId)
+        ? s.selectedGuestIds.filter((id) => id !== guestId)
+        : [...s.selectedGuestIds, guestId],
+    })),
+  clearSelection: () => set({ selectedGuestIds: [] }),
+  selectAllGuests: () => set({ selectedGuestIds: get().guests.map((g) => g.id) }),
 
-      return {
-        selectedGuestIds: exists
-          ? state.selectedGuestIds.filter((id) => id !== guestId)
-          : [...state.selectedGuestIds, guestId],
-      };
-    });
-  },
-
-  clearSelection: () => {
-    set({ selectedGuestIds: [] });
-  },
-
-  selectAllGuests: () => {
-    const guests = get().guests || [];
-    set({ selectedGuestIds: guests.map((g) => g.id) });
-  },
-
-  /* =========================
-     GUESTS
-  ========================= */
+  /* ── Guests ── */
   getGuests: async (eventId) => {
     if (!eventId) return { success: false };
-
     try {
       set({ isLoading: true, error: null });
-
       const res = await api.get(`/events/${eventId}/guests`);
-
-      set({
-        guests: res.data?.data || [],
-        isLoading: false,
-      });
-
+      set({ guests: res.data?.data || [], isLoading: false });
       return { success: true, data: res.data?.data || [] };
     } catch (err) {
-      set({
-        isLoading: false,
-        error: err?.response?.data?.message || err.message,
-      });
-      return { success: false, error: err };
+      set({ isLoading: false, error: err?.response?.data?.message || err.message });
+      return { success: false };
     }
   },
 
@@ -69,15 +42,12 @@ export const useGuestStore = create((set, get) => ({
     try {
       const res = await api.get(`/events/${eventId}/guests/${guestId}`);
       return { success: true, data: res.data?.data };
-    } catch (err) {
-      return { success: false, error: err };
-    }
+    } catch { return { success: false }; }
   },
 
   createGuest: async (eventId, payload) => {
     try {
       set({ isSubmitting: true, error: null });
-
       const body = {
         full_name: payload.full_name?.trim(),
         email: payload.email?.trim() || null,
@@ -86,29 +56,19 @@ export const useGuestStore = create((set, get) => ({
         plus_one_count: payload.plus_one_count ?? 0,
         is_vip: payload.is_vip ?? false,
       };
-
       const res = await api.post(`/events/${eventId}/guests`, body);
       const newGuest = res.data?.data;
-
-      set((state) => ({
-        guests: newGuest ? [newGuest, ...state.guests] : state.guests,
-        isSubmitting: false,
-      }));
-
+      set((s) => ({ guests: newGuest ? [newGuest, ...s.guests] : s.guests, isSubmitting: false }));
       return { success: true, data: newGuest };
     } catch (err) {
-      set({
-        isSubmitting: false,
-        error: err?.response?.data?.message || err.message,
-      });
-      return { success: false, error: err };
+      set({ isSubmitting: false, error: err?.response?.data?.message || err.message });
+      return { success: false };
     }
   },
 
   updateGuest: async (eventId, guestId, payload) => {
     try {
       set({ isSubmitting: true, error: null });
-
       const body = {
         full_name: payload.full_name?.trim(),
         email: payload.email?.trim() || null,
@@ -117,342 +77,168 @@ export const useGuestStore = create((set, get) => ({
         plus_one_count: payload.plus_one_count ?? 0,
         is_vip: payload.is_vip ?? false,
       };
-
       const res = await api.patch(`/events/${eventId}/guests/${guestId}`, body);
       const updated = res.data?.data;
-
-      set((state) => ({
-        guests: state.guests.map((g) => (g.id === guestId ? updated : g)),
-        isSubmitting: false,
-      }));
-
+      set((s) => ({ guests: s.guests.map((g) => (g.id === guestId ? updated : g)), isSubmitting: false }));
       return { success: true, data: updated };
     } catch (err) {
-      set({
-        isSubmitting: false,
-        error: err?.response?.data?.message || err.message,
-      });
-      return { success: false, error: err };
+      set({ isSubmitting: false, error: err?.response?.data?.message || err.message });
+      return { success: false };
     }
   },
 
   deleteGuest: async (eventId, guestId) => {
     try {
       await api.delete(`/events/${eventId}/guests/${guestId}`);
-
-      set((state) => ({
-        guests: state.guests.filter((g) => g.id !== guestId),
-        selectedGuestIds: state.selectedGuestIds.filter((id) => id !== guestId),
+      set((s) => ({
+        guests: s.guests.filter((g) => g.id !== guestId),
+        selectedGuestIds: s.selectedGuestIds.filter((id) => id !== guestId),
       }));
-
       return { success: true };
-    } catch (err) {
-      return { success: false, error: err };
-    }
+    } catch { return { success: false }; }
   },
 
   bulkDeleteGuests: async (eventId, guestIds) => {
     try {
-      set({ isSubmitting: true, error: null });
-
-      for (const guestId of guestIds) {
-        await api.delete(`/events/${eventId}/guests/${guestId}`);
-      }
-
-      set((state) => ({
-        guests: state.guests.filter((g) => !guestIds.includes(g.id)),
+      set({ isSubmitting: true });
+      for (const guestId of guestIds) await api.delete(`/events/${eventId}/guests/${guestId}`);
+      set((s) => ({
+        guests: s.guests.filter((g) => !guestIds.includes(g.id)),
         selectedGuestIds: [],
         isSubmitting: false,
       }));
-
       return { success: true };
     } catch (err) {
-      set({
-        isSubmitting: false,
-        error: err?.response?.data?.message || err.message,
-      });
-      return { success: false, error: err };
+      set({ isSubmitting: false, error: err?.response?.data?.message || err.message });
+      return { success: false };
     }
   },
 
-  /* =========================
-     GUEST GROUPS
-  ========================= */
-  getGuestGroups: async (eventId) => {
-    try {
-      const res = await api.get(`/events/${eventId}/guest-groups`);
-
-      set({
-        guestGroups: res.data?.data || [],
-      });
-
-      return { success: true, data: res.data?.data || [] };
-    } catch (err) {
-      return { success: false, error: err };
-    }
-  },
-
-  createGuestGroup: async (eventId, payload) => {
-    try {
-      const res = await api.post(`/events/${eventId}/guest-groups`, payload);
-      const newGroup = res.data?.data;
-
-      set((state) => ({
-        guestGroups: newGroup ? [newGroup, ...state.guestGroups] : state.guestGroups,
-      }));
-
-      return { success: true, data: newGroup };
-    } catch (err) {
-      return { success: false, error: err };
-    }
-  },
-
-  updateGuestGroup: async (eventId, groupId, payload) => {
-    try {
-      const res = await api.patch(`/events/${eventId}/guest-groups/${groupId}`, payload);
-      const updated = res.data?.data;
-
-      set((state) => ({
-        guestGroups: state.guestGroups.map((g) => (g.id === groupId ? updated : g)),
-      }));
-
-      return { success: true, data: updated };
-    } catch (err) {
-      return { success: false, error: err };
-    }
-  },
-
-  deleteGuestGroup: async (eventId, groupId) => {
-    try {
-      await api.delete(`/events/${eventId}/guest-groups/${groupId}`);
-
-      set((state) => ({
-        guestGroups: state.guestGroups.filter((g) => g.id !== groupId),
-      }));
-
-      return { success: true };
-    } catch (err) {
-      return { success: false, error: err };
-    }
-  },
-
-  /* =========================
-     RSVP
-  ========================= */
+  /* ── RSVP ── */
   getRsvps: async (eventId) => {
     try {
       const res = await api.get(`/events/${eventId}/rsvps`);
-
-      set({
-        rsvps: res.data?.data || [],
-      });
-
+      set({ rsvps: res.data?.data || [] });
       return { success: true, data: res.data?.data || [] };
-    } catch (err) {
-      return { success: false, error: err };
-    }
+    } catch { return { success: false }; }
   },
 
   submitGuestRsvp: async (eventId, payload) => {
     try {
       const res = await api.post(`/events/${eventId}/rsvps`, payload);
-      const rsvp = res.data?.data;
-
       await get().getRsvps(eventId);
-
-      return { success: true, data: rsvp };
-    } catch (err) {
-      return { success: false, error: err };
-    }
+      return { success: true, data: res.data?.data };
+    } catch { return { success: false }; }
   },
 
   bulkSubmitRsvp: async (eventId, guestIds, rsvpStatus) => {
     try {
-      set({ isSubmitting: true, error: null });
-
-      for (const guestId of guestIds) {
-        await api.post(`/events/${eventId}/rsvps`, {
-          guest_id: guestId,
-          rsvp_status: rsvpStatus,
-        });
-      }
-
+      set({ isSubmitting: true });
+      for (const guestId of guestIds)
+        await api.post(`/events/${eventId}/rsvps`, { guest_id: guestId, rsvp_status: rsvpStatus });
       await get().getRsvps(eventId);
-
-      set({
-        isSubmitting: false,
-        selectedGuestIds: [],
-      });
-
+      set({ isSubmitting: false, selectedGuestIds: [] });
       return { success: true };
     } catch (err) {
-      set({
-        isSubmitting: false,
-        error: err?.response?.data?.message || err.message,
-      });
-      return { success: false, error: err };
+      set({ isSubmitting: false, error: err?.response?.data?.message || err.message });
+      return { success: false };
     }
   },
 
-  /* =========================
-     ATTENDANCE
-  ========================= */
+  /* ── Attendance ── */
+  getAttendance: async (eventId) => {
+    try {
+      const res = await api.get(`/events/${eventId}/attendance`);
+      set({ attendance: res.data?.data || [] });
+      return { success: true, data: res.data?.data || [] };
+    } catch { return { success: false }; }
+  },
+
   markGuestAttendance: async (eventId, payload) => {
     try {
       const res = await api.post(`/events/${eventId}/attendance`, payload);
       return { success: true, data: res.data?.data };
+    } catch { return { success: false }; }
+  },
+
+  manualCheckIn: async (eventId, guestId) => {
+    try {
+      const res = await api.post(`/events/${eventId}/guests/${guestId}/manual-checkin`);
+      await get().getAttendance(eventId);
+      return { success: true, data: res.data?.data };
     } catch (err) {
-      return { success: false, error: err };
+      return { success: false, error: err?.response?.data?.message || err.message };
     }
   },
 
-  /* =========================
-     QR
-  ========================= */
+  /* ── QR ── */
   generateQrPass: async (eventId, guestId) => {
     try {
       const res = await api.post(`/events/${eventId}/guests/${guestId}/qr-pass`);
       return { success: true, data: res.data?.data };
+    } catch { return { success: false }; }
+  },
+
+  checkInGuestByQr: async (eventId, payload) => {
+    try {
+      const res = await api.post(`/events/${eventId}/check-in`, payload);
+      await get().getAttendance(eventId);
+      return { success: true, data: res.data?.data };
     } catch (err) {
-      return { success: false, error: err };
+      return { success: false, error: err?.response?.data?.message || err.message };
     }
   },
 
-  /* =========================
-     INVITATIONS
-  ========================= */
+  /* ── Invitations ── */
   sendGuestInvitation: async (eventId, guestId, payload = {}) => {
     try {
-      const res = await api.post(
-        `/events/${eventId}/guests/${guestId}/invitations`,
-        payload
-      );
+      const res = await api.post(`/events/${eventId}/guests/${guestId}/invitations`, payload);
       return { success: true, data: res.data?.data };
     } catch (err) {
-      return { success: false, error: err };
+      return { success: false, error: err?.response?.data?.message || err.message };
     }
   },
 
   bulkSendInvitations: async (eventId, guestIds, payload = {}) => {
     try {
-      set({ isSubmitting: true, error: null });
-
-      for (const guestId of guestIds) {
+      set({ isSubmitting: true });
+      for (const guestId of guestIds)
         await api.post(`/events/${eventId}/guests/${guestId}/invitations`, payload);
-      }
-
-      set({
-        isSubmitting: false,
-        selectedGuestIds: [],
-      });
-
+      set({ isSubmitting: false, selectedGuestIds: [] });
       return { success: true };
     } catch (err) {
-      set({
-        isSubmitting: false,
-        error: err?.response?.data?.message || err.message,
-      });
-      return { success: false, error: err };
+      set({ isSubmitting: false, error: err?.response?.data?.message || err.message });
+      return { success: false };
     }
   },
 
-  /* =========================
-     CHECK-IN
-  ========================= */
-  checkInGuestByQr: async (eventId, payload) => {
-    try {
-      const res = await api.post(`/events/${eventId}/check-in`, payload);
-      return { success: true, data: res.data?.data };
-    } catch (err) {
-      return { success: false, error: err };
-    }
-  },
-
-  scannerCheckInGuestByQr: async (eventId, payload) => {
-    try {
-      const res = await api.post(`/scanner/events/${eventId}/check-in/scan`, payload);
-      return { success: true, data: res.data?.data };
-    } catch (err) {
-      return { success: false, error: err };
-    }
-  },
-
-  /* =========================
-     DASHBOARD
-  ========================= */
+  /* ── Dashboard ── */
   getGuestDashboard: async (eventId) => {
     try {
       const res = await api.get(`/events/${eventId}/guest-dashboard`);
-
-      set({
-        guestDashboard: res.data?.data || null,
-      });
-
+      set({ guestDashboard: res.data?.data || null });
       return { success: true, data: res.data?.data || null };
-    } catch (err) {
-      return { success: false, error: err };
-    }
+    } catch { return { success: false }; }
   },
 
-  /* =========================
-     PUBLIC INVITATION / RSVP
-  ========================= */
+  /* ── Public ── */
   getInvitationByToken: async (token) => {
     try {
       const res = await api.get(`/public/invitations/${token}`);
       return { success: true, data: res.data?.data };
-    } catch (err) {
-      return { success: false, error: err };
-    }
+    } catch { return { success: false }; }
   },
-  /* =========================
-   PUBLIC INVITATION
-========================= */
-
-getInvitationByToken: async (token) => {
-  try {
-    const res = await api.get(`/public/invitations/${token}`);
-
-    return {
-      success: true,
-      data: res.data?.data,
-    };
-  } catch (err) {
-    return { success: false };
-  }
-},
-
-submitInvitationRsvp: async (token, payload) => {
-  try {
-    const res = await api.post(
-      `/public/invitations/${token}/rsvp`,
-      payload
-    );
-
-    return { success: true, data: res.data };
-  } catch (err) {
-    return { success: false };
-  }
-},
 
   submitInvitationRsvp: async (token, payload) => {
     try {
       const res = await api.post(`/public/invitations/${token}/rsvp`, payload);
       return { success: true, data: res.data?.data };
-    } catch (err) {
-      return { success: false, error: err };
-    }
+    } catch { return { success: false }; }
   },
+
+  /* ── Guest Groups (stubs) ── */
+  getGuestGroups: async () => ({ success: false }),
+  createGuestGroup: async () => ({ success: false }),
+  updateGuestGroup: async () => ({ success: false }),
+  deleteGuestGroup: async () => ({ success: false }),
 }));
-
-
-
-
-
-
-
-
-
-
-
-

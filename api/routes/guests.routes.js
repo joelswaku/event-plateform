@@ -19,7 +19,9 @@ import {
   sendGuestInvitation,
   checkInGuestByQr,
   getGuestDashboard,
-  sendInvitationsToAllGuests
+  sendInvitationsToAllGuests,
+  manualCheckIn,
+  listAttendance,
 } from "../controllers/guests.controller.js";
 
 const router = express.Router();
@@ -46,6 +48,8 @@ router.post("/events/:eventId/attendance", markGuestAttendance);
 router.post("/events/:eventId/guests/:guestId/qr-pass", generateQrPass);
 router.post("/events/:eventId/guests/:guestId/invitations", sendGuestInvitation);
 
+router.post("/events/:eventId/guests/:guestId/manual-checkin", manualCheckIn);
+router.get("/events/:eventId/attendance", listAttendance);
 router.post("/events/:eventId/check-in", checkInGuestByQr);
 router.post("/scanner/events/:eventId/check-in/scan", checkInGuestByQr);
 
