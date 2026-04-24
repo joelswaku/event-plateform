@@ -12,9 +12,11 @@ import {
   ChevronRight,
   X,
   Star,
+  LogOut,
 } from "lucide-react";
 import { useSidebarStore } from "@/store/sidebar.store";
 import { useSubscriptionStore } from "@/store/subscription.store";
+import { useAuthStore } from "@/store/auth.store";
 
 const navItems = [
   { label: "Dashboard",    href: "/dashboard",    icon: LayoutDashboard },
@@ -53,8 +55,9 @@ function SidebarItem({ item, showExpanded }) {
 export default function DashboardSidebar() {
   const { isCollapsed, isMobileOpen, toggleCollapsed, setMobileOpen } =
     useSidebarStore();
-  const isSubscribed    = useSubscriptionStore((s) => s.isSubscribed);
+  const isSubscribed     = useSubscriptionStore((s) => s.isSubscribed);
   const openUpgradeModal = useSubscriptionStore((s) => s.openUpgradeModal);
+  const logout           = useAuthStore((s) => s.logout);
 
   // On mobile (drawer open) always show expanded layout regardless of isCollapsed
   const showExpanded = !isCollapsed || isMobileOpen;
@@ -168,11 +171,26 @@ export default function DashboardSidebar() {
         )}
 
         {/* Footer */}
-        <div className="border-t border-gray-200 p-2 dark:border-gray-800">
+        <div className="border-t border-gray-200 p-2 dark:border-gray-800 space-y-0.5">
           <SidebarItem
             item={{ label: "Settings", href: "/settings", icon: Settings }}
             showExpanded={showExpanded}
           />
+          <button
+            onClick={logout}
+            title="Log out"
+            className={`group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 text-gray-500 hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-900/20 dark:hover:text-red-400 ${
+              !showExpanded ? "justify-center" : ""
+            }`}
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            {showExpanded && <span className="truncate">Log out</span>}
+            {!showExpanded && (
+              <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-gray-700">
+                Log out
+              </span>
+            )}
+          </button>
         </div>
       </aside>
     </>

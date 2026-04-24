@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 
 const ease = [0.22, 1, 0.36, 1];
@@ -41,11 +41,10 @@ export default function HeroSection({ section, isEditor = false, onEdit }) {
     ? "text-right items-end"
     : "text-center items-center";
 
-  const [hasToken] = useState(() =>
-    typeof window !== "undefined"
-      ? !!new URLSearchParams(window.location.search).get("token")
-      : false
-  );
+  const [hasToken, setHasToken] = useState(false);
+  useEffect(() => {
+    setHasToken(!!new URLSearchParams(window.location.search).get("token"));
+  }, []);
 
   const handleRsvp = () => window.dispatchEvent(new CustomEvent("open-rsvp-panel"));
 

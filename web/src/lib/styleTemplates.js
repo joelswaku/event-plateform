@@ -1,10 +1,16 @@
 // ── Style-based template collection ───────────────────────────────────────────
-// 18 templates across 6 styles (3 per style: 2 free, 1 premium)
-// Each section config carries _theme so the renderer knows which CSS vars to use.
+// Free tier: all CLASSIC style templates (3 total).
+// All other styles (ELEGANT, MODERN, MINIMAL, LUXURY, FUN) require Premium.
+
+export const FREE_STYLE = "CLASSIC";
 
 export function canAccessTemplate(template, userPlan) {
-  return template.tier === "free" || userPlan === "premium";
+  if (userPlan === "premium") return true;
+  return template.style === FREE_STYLE;
 }
+
+// Keep for any legacy import that used the old constant
+export const FREE_STARTER_TEMPLATE_ID = "classic-grand";
 
 export const STYLE_TEMPLATES = [
 
@@ -70,7 +76,7 @@ export const STYLE_TEMPLATES = [
     id: "classic-complete",
     name: "Classic Complete",
     style: "CLASSIC",
-    tier: "premium",
+    tier: "free",
     description: "The full classic experience — couple portraits, story, schedule, gallery, and registry.",
     design: {
       fonts:  { heading: "Georgia, serif",     body: "system-ui, sans-serif" },
@@ -108,7 +114,7 @@ export const STYLE_TEMPLATES = [
     id: "elegant-blossom",
     name: "Blossom",
     style: "ELEGANT",
-    tier: "free",
+    tier: "premium",
     description: "Warm ivory tones and rose terracotta details for a romantically refined event.",
     design: {
       fonts:  { heading: "Garamond, Georgia, serif", body: "system-ui, sans-serif" },
@@ -138,7 +144,7 @@ export const STYLE_TEMPLATES = [
     id: "elegant-rosegarden",
     name: "Rose Garden",
     style: "ELEGANT",
-    tier: "free",
+    tier: "premium",
     description: "A flowing, gallery-forward layout bathed in soft warmth.",
     design: {
       fonts:  { heading: "Garamond, Georgia, serif", body: "system-ui, sans-serif" },
@@ -206,7 +212,7 @@ export const STYLE_TEMPLATES = [
     id: "modern-bold",
     name: "Bold Statement",
     style: "MODERN",
-    tier: "free",
+    tier: "premium",
     description: "Geometric, left-aligned typography with strong indigo accents and a sharp grid layout.",
     design: {
       fonts:  { heading: "system-ui, sans-serif", body: "system-ui, sans-serif" },
@@ -236,7 +242,7 @@ export const STYLE_TEMPLATES = [
     id: "modern-clean",
     name: "Clean Cut",
     style: "MODERN",
-    tier: "free",
+    tier: "premium",
     description: "Stripped-down modern essentials — crisp, purposeful, and fast.",
     design: {
       fonts:  { heading: "system-ui, sans-serif", body: "system-ui, sans-serif" },
@@ -296,7 +302,7 @@ export const STYLE_TEMPLATES = [
     id: "minimal-whitespace",
     name: "White Space",
     style: "MINIMAL",
-    tier: "free",
+    tier: "premium",
     description: "Maximum breathing room, minimum distraction. Let your content speak.",
     design: {
       fonts:  { heading: "system-ui, sans-serif", body: "system-ui, sans-serif" },
@@ -320,7 +326,7 @@ export const STYLE_TEMPLATES = [
     id: "minimal-pureform",
     name: "Pure Form",
     style: "MINIMAL",
-    tier: "free",
+    tier: "premium",
     description: "A structured, schedule-centric layout with subtle graphite tones.",
     design: {
       fonts:  { heading: "system-ui, sans-serif", body: "system-ui, sans-serif" },
@@ -377,7 +383,7 @@ export const STYLE_TEMPLATES = [
     id: "luxury-obsidian",
     name: "Obsidian",
     style: "LUXURY",
-    tier: "free",
+    tier: "premium",
     description: "Deep black canvas with glowing gold details. Immersive and commanding.",
     design: {
       fonts:  { heading: "Georgia, serif",              body: "system-ui, sans-serif" },
@@ -407,7 +413,7 @@ export const STYLE_TEMPLATES = [
     id: "luxury-darkopulence",
     name: "Dark Opulence",
     style: "LUXURY",
-    tier: "free",
+    tier: "premium",
     description: "Dramatic black and gold with countdown timer and gallery showcase.",
     design: {
       fonts:  { heading: "Georgia, serif",              body: "system-ui, sans-serif" },
@@ -475,7 +481,7 @@ export const STYLE_TEMPLATES = [
     id: "fun-partytime",
     name: "Party Time",
     style: "FUN",
-    tier: "free",
+    tier: "premium",
     description: "Warm amber energy with big countdown and bold gallery. Born to celebrate.",
     design: {
       fonts:  { heading: "system-ui, sans-serif", body: "system-ui, sans-serif" },
@@ -506,7 +512,7 @@ export const STYLE_TEMPLATES = [
     id: "fun-celebration",
     name: "Celebration",
     style: "FUN",
-    tier: "free",
+    tier: "premium",
     description: "Schedule-forward fun template for events with an energetic agenda.",
     design: {
       fonts:  { heading: "system-ui, sans-serif", body: "system-ui, sans-serif" },
@@ -569,10 +575,10 @@ export const TEMPLATES_BY_STYLE = STYLE_TEMPLATES.reduce((acc, t) => {
   return acc;
 }, {});
 
-// Legacy export so existing imports from weddingTemplates still resolve
+// Legacy exports so existing imports stay intact
 export const WEDDING_TEMPLATES = STYLE_TEMPLATES;
-export const FREE_TEMPLATES    = STYLE_TEMPLATES.filter((t) => t.tier === "free");
-export const PREMIUM_TEMPLATES = STYLE_TEMPLATES.filter((t) => t.tier === "premium");
+export const FREE_TEMPLATES    = STYLE_TEMPLATES.filter((t) => t.style === FREE_STYLE);
+export const PREMIUM_TEMPLATES = STYLE_TEMPLATES.filter((t) => t.style !== FREE_STYLE);
 
 export function getTemplateById(id) {
   return STYLE_TEMPLATES.find((t) => t.id === id) || null;

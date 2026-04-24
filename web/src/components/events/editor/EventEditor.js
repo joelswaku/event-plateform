@@ -5,6 +5,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useEventStore } from "@/store/event.store";
 import ImageUpload from "./ImageUpload";
+import DateTimePicker from "@/components/ui/DateTimePicker";
 
 export default function EventEditor() {
   const { eventId } = useParams();
@@ -189,19 +190,28 @@ export default function EventEditor() {
 
       {/* TIME */}
       <Section title="Time">
-        <Input
-          label="Start"
-          type="datetime-local"
-          value={formatDate(form.starts_at)}
-          onChange={(v) => handleChange("starts_at", v)}
-        />
+        <div>
+          <label className="text-sm text-gray-700 dark:text-gray-300">Start</label>
+          <div className="mt-1">
+            <DateTimePicker
+              value={formatDate(form.starts_at)}
+              onChange={(v) => handleChange("starts_at", v)}
+              placeholder="Pick start date & time"
+            />
+          </div>
+        </div>
 
-        <Input
-          label="End"
-          type="datetime-local"
-          value={formatDate(form.ends_at)}
-          onChange={(v) => handleChange("ends_at", v)}
-        />
+        <div>
+          <label className="text-sm text-gray-700 dark:text-gray-300">End</label>
+          <div className="mt-1">
+            <DateTimePicker
+              value={formatDate(form.ends_at)}
+              onChange={(v) => handleChange("ends_at", v)}
+              placeholder="Pick end date & time"
+              minValue={formatDate(form.starts_at)}
+            />
+          </div>
+        </div>
 
         {form.starts_at && form.ends_at && new Date(form.ends_at) < new Date(form.starts_at) && (
           <p className="text-xs text-red-500">End date must be after start date</p>

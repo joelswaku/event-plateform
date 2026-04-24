@@ -179,6 +179,15 @@ export const useGuestStore = create((set, get) => ({
     } catch { return { success: false }; }
   },
 
+  sendQrEmail: async (eventId, guestId) => {
+    try {
+      const res = await api.post(`/events/${eventId}/guests/${guestId}/send-qr`);
+      return { success: true, data: res.data?.data };
+    } catch (err) {
+      return { success: false, error: err?.response?.data?.message || err.message };
+    }
+  },
+
   checkInGuestByQr: async (eventId, payload) => {
     try {
       const res = await api.post(`/events/${eventId}/check-in`, payload);

@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Search, Bell, Sun, Moon, Sparkles, CreditCard } from "lucide-react";
+import { Menu, Search, Bell, Sun, Moon, Sparkles, CreditCard, LogOut } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useAuthStore } from "@/store/auth.store";
 import { useSidebarStore } from "@/store/sidebar.store";
@@ -8,7 +8,8 @@ import { useSubscriptionStore } from "@/store/subscription.store";
 
 export default function Topbar() {
   const { theme, toggle } = useTheme();
-  const user = useAuthStore?.((s) => s.user) ?? null;
+  const user   = useAuthStore?.((s) => s.user) ?? null;
+  const logout = useAuthStore?.((s) => s.logout);
   const { setMobileOpen, isMobileOpen } = useSidebarStore();
   const { isSubscribed, plan, subscriptionStatus, openCustomerPortal, openUpgradeModal, isLoading } =
     useSubscriptionStore();
@@ -83,8 +84,8 @@ export default function Topbar() {
             <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-red-500" />
           </button>
 
-          {/* User avatar */}
-          <div className="flex items-center gap-2.5 rounded-xl border border-gray-200 px-2.5 py-1.5 dark:border-gray-800">
+          {/* User avatar + logout */}
+          <div className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-2 py-1.5 dark:border-gray-800">
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
               {initials}
             </div>
@@ -94,6 +95,13 @@ export default function Topbar() {
               </p>
               <p className="text-[11px] text-gray-400">Organizer</p>
             </div>
+            <button
+              onClick={logout}
+              title="Log out"
+              className="ml-1 flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
           </div>
         </div>
       </div>

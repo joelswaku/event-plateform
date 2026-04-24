@@ -2,9 +2,92 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Check, Ticket, Users, Zap, Settings2 } from "lucide-react";
+import { motion } from "framer-motion";
+import { ChevronLeft, Check, Ticket, Users, Zap, Settings2, Lock, Sparkles, ArrowRight, CalendarDays, LayoutTemplate } from "lucide-react";
 import { useEventStore } from "@/store/event.store";
+import { useSubscriptionStore } from "@/store/subscription.store";
 import { EVENT_CATEGORIES, RSVP_DEFAULTS, TICKET_DEFAULTS } from "@/config/event-categories";
+import DateTimePicker from "@/components/ui/DateTimePicker";
+
+// ── Plan limit error card ────────────────────────────────────────────────────
+function EventLimitCard({ onUpgrade }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      className="mb-6 overflow-hidden rounded-2xl"
+      style={{
+        background: "linear-gradient(135deg, #0f0f12 0%, #1a1208 100%)",
+        border: "1px solid rgba(245,158,11,0.25)",
+        boxShadow: "0 8px 32px rgba(245,158,11,0.12)",
+      }}
+    >
+      {/* Amber glow */}
+      <div
+        className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full blur-3xl"
+        style={{ background: "rgba(245,158,11,0.15)" }}
+        aria-hidden
+      />
+
+      <div className="relative flex flex-col gap-5 p-6 sm:flex-row sm:items-center">
+        {/* Icon */}
+        <div
+          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl"
+          style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)" }}
+        >
+          <Lock size={24} style={{ color: "#F59E0B" }} />
+        </div>
+
+        {/* Copy */}
+        <div className="flex-1 min-w-0">
+          <div
+            className="mb-1 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.18em]"
+            style={{ background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.3)", color: "#F59E0B" }}
+          >
+            <Sparkles size={9} />
+            Free plan limit reached
+          </div>
+          <h3 className="text-[15px] font-bold text-white">You&apos;ve used your 1 free event</h3>
+          <p className="mt-0.5 text-[12px]" style={{ color: "rgba(255,255,255,0.45)" }}>
+            Upgrade to Premium for unlimited events, all 18 templates, and every feature — no caps, ever.
+          </p>
+
+          {/* Feature pills */}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[
+              { icon: CalendarDays,   text: "Unlimited events"   },
+              { icon: LayoutTemplate, text: "18 premium templates" },
+              { icon: Users,          text: "Unlimited guests"   },
+            ].map(({ icon: Icon, text }) => (
+              <span
+                key={text}
+                className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)" }}
+              >
+                <Icon size={10} />
+                {text}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* CTA */}
+        <button
+          onClick={onUpgrade}
+          className="group flex shrink-0 items-center gap-2 rounded-xl px-5 py-3 text-[13px] font-black uppercase tracking-[0.1em] transition-all active:scale-95"
+          style={{ background: "linear-gradient(135deg, #F59E0B 0%, #F97316 100%)", color: "#000", boxShadow: "0 4px 20px rgba(245,158,11,0.4)" }}
+          onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 6px 28px rgba(245,158,11,0.6)")}
+          onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 4px 20px rgba(245,158,11,0.4)")}
+        >
+          <Zap size={13} fill="currentColor" />
+          Upgrade — $12/mo
+          <ArrowRight size={13} className="transition-transform group-hover:translate-x-1" />
+        </button>
+      </div>
+    </motion.div>
+  );
+}
 
 const STEPS = ["Category", "Type", "Flow", "Details"];
 
@@ -254,20 +337,21 @@ function StepDetails({ subcategory, isTicketed, onBack, onSubmit, submitting }) 
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Start Date & Time *" error={errors.starts_at}>
-          <input
-            type="datetime-local"
+        <Field label="Start Date & Time *">
+          <DateTimePicker
             value={form.starts_at}
-            onChange={(e) => set("starts_at", e.target.value)}
-            className={inputCls}
+            onChange={(v) => set("starts_at", v)}
+            placeholder="Pick start date & time"
+            error={errors.starts_at}
           />
         </Field>
-        <Field label="End Date & Time *" error={errors.ends_at}>
-          <input
-            type="datetime-local"
+        <Field label="End Date & Time *">
+          <DateTimePicker
             value={form.ends_at}
-            onChange={(e) => set("ends_at", e.target.value)}
-            className={inputCls}
+            onChange={(v) => set("ends_at", v)}
+            placeholder="Pick end date & time"
+            minValue={form.starts_at}
+            error={errors.ends_at}
           />
         </Field>
       </div>
@@ -370,7 +454,8 @@ export default function CreateEventPage() {
   const [subcategory, setSubcategory] = useState(null);
   const [isTicketed, setIsTicketed]   = useState(false);
   const [submitting, setSubmitting]   = useState(false);
-  const [error, setError]             = useState(null);
+  const [error, setError]             = useState(null);   // { type: "limit" | "generic", message }
+  const openUpgradeModal = useSubscriptionStore((s) => s.openUpgradeModal);
 
   const handleSubmit = async (payload) => {
     setSubmitting(true);
@@ -378,17 +463,21 @@ export default function CreateEventPage() {
     try {
       const event = await createEvent(payload);
       if (!event?.id) {
-        setError("Failed to create event. Please try again.");
+        setError({ type: "generic", message: "Failed to create event. Please try again." });
         return;
       }
       if (isTicketed) {
         router.push(`/events/${event.id}/tickets`);
       } else {
-        // RSVP flow: go to builder with templates panel open
         router.push(`/events/${event.id}/builder?from=create`);
       }
     } catch (err) {
-      setError(err?.response?.data?.message || "Something went wrong. Please try again.");
+      const data = err?.response?.data ?? {};
+      if (data.code === "PLAN_LIMIT_EVENTS" || err?.response?.status === 403) {
+        setError({ type: "limit" });
+      } else {
+        setError({ type: "generic", message: data.message || "Something went wrong. Please try again." });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -432,9 +521,15 @@ export default function CreateEventPage() {
           </div>
         </div>
 
-        {error && (
+        {error?.type === "limit" && (
+          <div className="relative">
+            <EventLimitCard onUpgrade={() => openUpgradeModal("events")} />
+          </div>
+        )}
+
+        {error?.type === "generic" && (
           <div className="mb-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400">
-            {error}
+            {error.message}
           </div>
         )}
 

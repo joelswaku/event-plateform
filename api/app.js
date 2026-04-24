@@ -206,13 +206,18 @@ app.use((err, req, res, next) => {
     });
   }
 
-  return res.status(err.status || 500).json({
+  const statusCode = err.statusCode || err.status || 500;
+  const isServerError = statusCode >= 500;
+
+  return res.status(statusCode).json({
     success: false,
     message:
-      env.NODE_ENV === "production"
+      isServerError && env.NODE_ENV === "production"
         ? "Internal server error"
         : err.message || "Internal server error",
-    ...(env.NODE_ENV !== "production" && { stack: err.stack }),
+    ...(err.code    && { code:    err.code    }),
+    ...(err.details && { details: err.details }),
+    ...(env.NODE_ENV !== "production" && isServerError && { stack: err.stack }),
   });
 });
 

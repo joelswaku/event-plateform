@@ -1,5 +1,6 @@
 //utils/sendEmail.js
 import nodemailer from "nodemailer";
+import QRCode from "qrcode";
 import { env } from "../config/env.js";
 
 const transporter = nodemailer.createTransport({
@@ -309,6 +310,138 @@ export async function sendEventInvitationEmail({
   return await sendMail({
     to,
     subject: `Your invitation to ${event.title}`,
+    html,
+  });
+}
+
+export async function sendRsvpConfirmationEmail({
+  to,
+  guestName,
+  eventTitle,
+  eventDate,
+  venueName,
+  qrToken,
+  plusOneCount = 0,
+}) {
+  const dateStr = eventDate
+    ? new Date(eventDate).toLocaleDateString("en-US", {
+        weekday: "long", month: "long", day: "numeric", year: "numeric",
+      })
+    : null;
+
+  // Generate QR code as a base64 PNG data URL
+  const qrDataUrl = await QRCode.toDataURL(qrToken, {
+    width: 240,
+    margin: 2,
+    color: { dark: "#1C1917", light: "#FFFDF9" },
+  });
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f4f0;font-family:'Georgia',serif">
+
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f4f0;padding:40px 16px">
+    <tr><td align="center">
+      <table width="100%" style="max-width:560px;background:#ffffff;border-radius:4px;overflow:hidden" cellpadding="0" cellspacing="0">
+
+        <!-- HEADER BAR -->
+        <tr>
+          <td style="background:#1C1917;padding:10px 32px">
+            <p style="margin:0;font-size:11px;letter-spacing:0.3em;text-transform:uppercase;color:#C9A96E;text-align:center">
+              RSVP Confirmed
+            </p>
+          </td>
+        </tr>
+
+        <!-- HERO -->
+        <tr>
+          <td style="padding:52px 40px 36px;text-align:center;border-bottom:1px solid #f0ede8">
+            <p style="margin:0 0 8px;font-size:32px">🎊</p>
+            <p style="margin:0 0 16px;font-size:11px;letter-spacing:0.3em;text-transform:uppercase;color:#C9A96E">
+              We&apos;ll see you there!
+            </p>
+            <h1 style="margin:0;font-size:30px;font-weight:700;font-style:italic;color:#1C1917;line-height:1.2">
+              ${eventTitle}
+            </h1>
+            ${dateStr ? `<p style="margin:12px 0 0;font-size:14px;color:#78716c">${dateStr}</p>` : ""}
+            ${venueName ? `<p style="margin:4px 0 0;font-size:14px;color:#78716c">📍 ${venueName}</p>` : ""}
+          </td>
+        </tr>
+
+        <!-- GREETING -->
+        <tr>
+          <td style="padding:32px 40px 0">
+            <p style="margin:0;font-size:15px;color:#44403c;line-height:1.7">
+              Dear <strong>${guestName}</strong>,
+            </p>
+            <p style="margin:12px 0 0;font-size:14px;color:#78716c;line-height:1.8">
+              Your attendance has been confirmed. We are so excited to celebrate with you!
+            </p>
+            ${plusOneCount > 0 ? `
+            <p style="margin:12px 0 0;font-size:14px;color:#78716c;line-height:1.8">
+              You will be joining us with <strong style="color:#1C1917">${plusOneCount} companion${plusOneCount > 1 ? "s" : ""}</strong>.
+            </p>` : ""}
+          </td>
+        </tr>
+
+        <!-- DIVIDER -->
+        <tr>
+          <td style="padding:32px 40px">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="border-top:1px solid #e7e5e4"></td>
+                <td style="padding:0 12px;white-space:nowrap">
+                  <div style="width:6px;height:6px;background:#C9A96E;transform:rotate(45deg);display:inline-block"></div>
+                </td>
+                <td style="border-top:1px solid #e7e5e4"></td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- QR CODE -->
+        <tr>
+          <td style="padding:0 40px 48px;text-align:center">
+            <p style="margin:0 0 6px;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#9a8c7e">
+              Your Entry Pass
+            </p>
+            <p style="margin:0 0 24px;font-size:13px;color:#78716c;line-height:1.6">
+              Present this QR code at the entrance for check-in.
+            </p>
+            <div style="display:inline-block;padding:16px;border:1px solid #e8d9c0;border-radius:12px;background:#fffdf9">
+              <img src="${qrDataUrl}" alt="Entry QR Code" width="200" height="200" style="display:block;border-radius:4px" />
+            </div>
+            <p style="margin:16px 0 0;font-size:11px;color:#c4bfba;line-height:1.6;word-break:break-all">
+              Token: ${qrToken}
+            </p>
+          </td>
+        </tr>
+
+        <!-- FOOTER -->
+        <tr>
+          <td style="background:#faf9f6;padding:20px 40px;border-top:1px solid #f0ede8;text-align:center">
+            <p style="margin:0;font-size:11px;color:#c4bfba;line-height:1.7">
+              Please keep this email as your entry pass. Do not share it with others.
+            </p>
+            <p style="margin:12px 0 0;font-size:10px;color:#d6d3d1;letter-spacing:0.15em;text-transform:uppercase">
+              Powered by Eventos
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+
+</body>
+</html>
+  `;
+
+  return sendMail({
+    to,
+    subject: `Your entry pass for ${eventTitle}`,
     html,
   });
 }

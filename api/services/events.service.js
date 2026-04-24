@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { db } from "../config/db.js";
+import { assertCanCreateEvent } from "./planLimits.service.js";
 
 import { getRuntimeEventStatus } from "../utils/eventStatus.js";
 import { convertEventTimeToUTC, convertUTCToEventTime } from "../utils/time.js";
@@ -325,6 +326,9 @@ export async function createEventService({ userId, organizationId, payload }) {
     await client.query("BEGIN");
 
     await assertOrganizationEventPermission(client, organizationId, userId);
+
+    // ── Plan limit: free users can only have 1 event ──────────────────────────
+    await assertCanCreateEvent(client, userId, organizationId);
 
     /* -------------------------------
          EVENT TYPE (SMART VALIDATION)

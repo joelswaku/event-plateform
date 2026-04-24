@@ -1,23 +1,40 @@
 import { stripe } from "../config/stripe.js";
 import { db } from "../config/db.js";
+import { getPlanSummary } from "./planLimits.service.js";
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
 export async function getSubscriptionStatusService(userId) {
-  const res = await db.query(
-    `SELECT stripe_customer_id, subscription_id, subscription_status,
-            subscription_plan, subscription_current_period_end, is_subscribed
-     FROM users WHERE id = $1`,
-    [userId]
-  );
-  const u = res.rows[0];
-  if (!u) throw Object.assign(new Error("User not found"), { statusCode: 404 });
-  return {
-    is_subscribed:       u.is_subscribed              ?? false,
-    plan:                u.subscription_plan           ?? "free",
-    subscription_status: u.subscription_status         ?? null,
-    current_period_end:  u.subscription_current_period_end ?? null,
-  };
+  const client = await db.connect();
+  try {
+    const res = await client.query(
+      `SELECT stripe_customer_id, subscription_id, subscription_status,
+              subscription_plan, subscription_current_period_end, is_subscribed,
+              default_organization_id
+       FROM users WHERE id = $1`,
+      [userId]
+    );
+    const u = res.rows[0];
+    if (!u) throw Object.assign(new Error("User not found"), { statusCode: 404 });
+
+    const organizationId = u.default_organization_id;
+    const summary        = organizationId
+      ? await getPlanSummary(client, userId, organizationId)
+      : { limits: { events: 1, templates: 3, guests: 50 }, usage: { events: 0 }, features: {}, freeTemplateStyle: "CLASSIC" };
+
+    return {
+      is_subscribed:       u.is_subscribed                    ?? false,
+      plan:                u.subscription_plan                ?? "free",
+      subscription_status: u.subscription_status              ?? null,
+      current_period_end:  u.subscription_current_period_end  ?? null,
+      limits:              summary.limits,
+      usage:               summary.usage,
+      features:            summary.features,
+      freeTemplateStyle:   summary.freeTemplateStyle,
+    };
+  } finally {
+    client.release();
+  }
 }
 
 export async function createCheckoutSessionService(userId, priceId) {

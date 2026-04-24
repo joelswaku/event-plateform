@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle, Sparkles, Loader2 } from "lucide-react";
 import { useSubscriptionStore } from "@/store/subscription.store";
 import { api } from "@/lib/api";
 
-export default function BillingSuccessPage() {
+function BillingSuccessContent() {
   const router         = useRouter();
   const searchParams   = useSearchParams();
   const setSubscribed  = useSubscriptionStore((s) => s.setSubscribed);
@@ -89,5 +89,13 @@ export default function BillingSuccessPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function BillingSuccessPage() {
+  return (
+    <Suspense>
+      <BillingSuccessContent />
+    </Suspense>
   );
 }

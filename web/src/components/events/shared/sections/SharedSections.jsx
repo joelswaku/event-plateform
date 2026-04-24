@@ -1339,11 +1339,10 @@ export function FAQSection({ section, isEditor = false, onEdit }) {
 export function CTASection({ section, isEditor = false, onEdit }) {
   const config  = section.config || {};
   const theme   = config._theme || "CLASSIC";
-  const [hasToken] = useState(() =>
-    typeof window !== "undefined"
-      ? !!new URLSearchParams(window.location.search).get("token")
-      : false
-  );
+  const [hasToken, setHasToken] = useState(false);
+  useEffect(() => {
+    setHasToken(!!new URLSearchParams(window.location.search).get("token"));
+  }, []);
   const handleRsvp = () => window.dispatchEvent(new CustomEvent("open-rsvp-panel"));
 
   // ── MODERN: Left-aligned, full-width button ──────────────────────────────

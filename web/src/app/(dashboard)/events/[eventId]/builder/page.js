@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback, Suspense } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useBuilderStore } from "@/store/builder.store";
 import BuilderSidebar   from "@/components/events/builder/BuilderSidebar";
@@ -12,7 +12,7 @@ import { XMarkIcon } from "@heroicons/react/24/outline";
 import { resolveTemplate } from "@/lib/defaultTemplates";
 import TemplatePicker from "@/components/templates/TemplatePicker";
 
-export default function BuilderPage() {
+function BuilderContent() {
   const params       = useParams();
   const searchParams = useSearchParams();
   const fromCreate   = searchParams.get("from") === "create";
@@ -151,6 +151,7 @@ export default function BuilderPage() {
           onToggle={() => setIsSidebarOpen((v) => !v)}
           selectedSectionId={selectedSectionId}
           onSectionSelect={handleSectionClick}
+          onBrowseTemplates={() => setTemplatePickerOpen(true)}
         />
       </div>
 
@@ -266,6 +267,7 @@ export default function BuilderPage() {
           eventId={eventId}
           isOpen={templatePickerOpen}
           onClose={() => setTemplatePickerOpen(false)}
+          eventType={builder.event?.event_type}
         />
 
         {/* ── Mobile bottom bar ─────────────────────────────────────── */}
@@ -279,9 +281,18 @@ export default function BuilderPage() {
             onDeselectSection={() => setSelectedSectionId(null)}
             activeSheet={mobileSheet}
             onSheetChange={setMobileSheet}
+            onBrowseTemplates={() => setTemplatePickerOpen(true)}
           />
         </div>
       </div>
     </div>
+  );
+}
+
+export default function BuilderPage() {
+  return (
+    <Suspense>
+      <BuilderContent />
+    </Suspense>
   );
 }

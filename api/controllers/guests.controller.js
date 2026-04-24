@@ -183,6 +183,20 @@ export async function generateQrPass(req, res) {
   }
 }
 
+export async function sendQrEmail(req, res) {
+  try {
+    const result = await guestsService.sendQrEmailToGuestService({
+      eventId: req.params.eventId,
+      guestId: req.params.guestId,
+      organizationId: req.organizationId,
+      userId: req.user.id,
+    });
+    res.json({ success: true, data: result });
+  } catch (e) {
+    handleError(res, e);
+  }
+}
+
 // /* =========================
 //    INVITATIONS
 // ========================= */

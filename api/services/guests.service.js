@@ -1,7 +1,8 @@
 
 import { db } from "../config/db.js";
 import crypto from "crypto";
-import { sendMail, sendEventInvitationEmail, sendSeatAssignmentEmail } from "../utils/sendEmail.js";
+import { sendMail, sendEventInvitationEmail, sendSeatAssignmentEmail, sendRsvpConfirmationEmail } from "../utils/sendEmail.js";
+import QRCode from "qrcode";
 
 /* =========================
    ERROR CLASS
@@ -979,8 +980,8 @@ export async function checkInGuestByQrTokenService({
     appPlatform = null,
     location = null,
   }) {
-    if (!qrToken || !String(qrToken).trim()) {
-      throw new AppError("qr_token is required", 400);
+    if (!qrToken || !HEX64_RE.test(String(qrToken).trim())) {
+      throw new AppError("Invalid QR token format", 400);
     }
   
     const client = await db.connect();
@@ -1247,9 +1248,22 @@ export async function listGuestAttendanceService({ eventId, organizationId, user
 }
 
 // public functions for guests (no auth required) can be added here, e.g. public RSVP submission, etc.
+const HEX64_RE = /^[0-9a-f]{64}$/i;
+
+// QR passes expire the day after the event ends (or 90 days out if no end date)
+function qrExpiryForEvent(event) {
+  if (event?.ends_at) {
+    const d = new Date(event.ends_at);
+    d.setUTCDate(d.getUTCDate() + 1);
+    d.setUTCHours(23, 59, 59, 0);
+    return d.toISOString();
+  }
+  return null; // fallback: use SQL `NOW() + interval '90 days'`
+}
+
 export async function getInvitationByTokenService({ token }) {
-    if (!token) {
-      throw new AppError("Invitation token is required", 400);
+    if (!token || !HEX64_RE.test(String(token))) {
+      throw new AppError("Invalid invitation token", 400);
     }
   
     const result = await db.query(
@@ -1279,8 +1293,7 @@ export async function getInvitationByTokenService({ token }) {
         e.city,
         e.country,
         gr.rsvp_status AS existing_rsvp_status,
-        gr.plus_one_count AS existing_plus_one_count,
-        gr.note AS existing_note
+        gr.plus_one_count AS existing_plus_one_count
       FROM guest_invitations gi
       JOIN guests g ON g.id = gi.guest_id
       JOIN events e ON e.id = gi.event_id
@@ -1342,15 +1355,17 @@ export async function getInvitationByTokenService({ token }) {
         ? {
             rsvp_status: invitation.existing_rsvp_status,
             plus_one_count: invitation.existing_plus_one_count ?? 0,
-            note: invitation.existing_note ?? null,
           }
         : null,
     };
   }
 
   export async function submitInvitationRsvpService({ token, payload }) {
+    if (!token || !HEX64_RE.test(String(token))) {
+      throw new AppError("Invalid invitation token", 400);
+    }
     validatePublicRsvpPayload(payload);
-  
+
     const client = await db.connect();
   
     try {
@@ -1392,7 +1407,22 @@ export async function getInvitationByTokenService({ token }) {
       const finalPlusOneCount = invitation.plus_one_allowed
         ? (payload.plus_one_count ?? 0)
         : 0;
-  
+
+      // Update guest contact info if provided
+      const guestUpdates = [];
+      const guestVals    = [];
+      let gi = 1;
+      if (payload.guest_name?.trim())  { guestUpdates.push(`full_name = $${gi++}`); guestVals.push(payload.guest_name.trim()); }
+      if (payload.email?.trim())       { guestUpdates.push(`email = $${gi++}`);     guestVals.push(payload.email.trim()); }
+      if (payload.phone?.trim())       { guestUpdates.push(`phone = $${gi++}`);     guestVals.push(payload.phone.trim()); }
+      if (guestUpdates.length) {
+        guestVals.push(invitation.guest_id);
+        await client.query(
+          `UPDATE guests SET ${guestUpdates.join(", ")}, updated_at = NOW() WHERE id = $${gi}`,
+          guestVals
+        );
+      }
+
       await client.query(
         `
         INSERT INTO guest_rsvps
@@ -1401,16 +1431,14 @@ export async function getInvitationByTokenService({ token }) {
           event_id,
           rsvp_status,
           plus_one_count,
-          note,
           responded_at,
           updated_at
         )
-        VALUES ($1,$2,$3::rsvp_status,$4,$5,NOW(),NOW())
+        VALUES ($1,$2,$3::rsvp_status,$4,NOW(),NOW())
         ON CONFLICT (guest_id,event_id)
         DO UPDATE SET
           rsvp_status = EXCLUDED.rsvp_status,
           plus_one_count = EXCLUDED.plus_one_count,
-          note = EXCLUDED.note,
           responded_at = NOW(),
           updated_at = NOW()
         `,
@@ -1419,10 +1447,9 @@ export async function getInvitationByTokenService({ token }) {
           invitation.event_id,
           payload.rsvp_status,
           finalPlusOneCount,
-          payload.note ?? null,
         ]
       );
-  
+
       await client.query(
         `
         UPDATE guest_invitations
@@ -1444,9 +1471,69 @@ export async function getInvitationByTokenService({ token }) {
         `,
         [invitation.guest_id, invitation.event_id]
       );
-  
+
+      // Fetch guest + event details needed for confirmation email
+      const guestEventResult = await client.query(
+        `
+        SELECT
+          g.full_name, g.email, g.phone, g.plus_one_count,
+          e.title AS event_title, e.starts_at, e.ends_at, e.venue_name
+        FROM guests g
+        JOIN events e ON e.id = $2
+        WHERE g.id = $1
+        LIMIT 1
+        `,
+        [invitation.guest_id, invitation.event_id]
+      );
+
       await client.query("COMMIT");
-  
+
+      // Fire-and-forget: generate QR pass and send confirmation email for GOING
+      if (payload.rsvp_status === "GOING") {
+        const guestRow = guestEventResult.rows[0];
+        const recipientEmail = payload.email?.trim() || guestRow?.email;
+        if (recipientEmail && guestRow) {
+          (async () => {
+            try {
+              // Upsert a QR pass for the guest
+              let qrToken;
+              const existingPass = await db.query(
+                `SELECT qr_token FROM guest_qr_passes
+                 WHERE guest_id=$1 AND event_id=$2 AND qr_status='ACTIVE'
+                   AND revoked_at IS NULL
+                   AND (expires_at IS NULL OR expires_at > NOW())
+                 ORDER BY created_at DESC LIMIT 1`,
+                [invitation.guest_id, invitation.event_id]
+              );
+              if (existingPass.rows[0]) {
+                qrToken = existingPass.rows[0].qr_token;
+              } else {
+                qrToken = crypto.randomBytes(32).toString("hex");
+                const expiry = qrExpiryForEvent(guestRow);
+                await db.query(
+                  `INSERT INTO guest_qr_passes
+                   (guest_id, event_id, qr_token, qr_status, expires_at, created_at, updated_at)
+                   VALUES ($1,$2,$3,'ACTIVE',$4,NOW(),NOW())`,
+                  [invitation.guest_id, invitation.event_id, qrToken, expiry]
+                );
+              }
+
+              await sendRsvpConfirmationEmail({
+                to: recipientEmail,
+                guestName: payload.guest_name?.trim() || guestRow.full_name || "Guest",
+                eventTitle: guestRow.event_title,
+                eventDate: guestRow.starts_at,
+                venueName: guestRow.venue_name,
+                qrToken,
+                plusOneCount: finalPlusOneCount,
+              });
+            } catch (emailErr) {
+              console.error("RSVP confirmation email failed:", emailErr.message);
+            }
+          })();
+        }
+      }
+
       return rsvpResult.rows[0];
     } catch (error) {
       await client.query("ROLLBACK");
@@ -1455,6 +1542,53 @@ export async function getInvitationByTokenService({ token }) {
       client.release();
     }
   }
+  export async function sendQrEmailToGuestService({ eventId, guestId, organizationId, userId }) {
+    const client = await db.connect();
+    try {
+      await assertOrganizationEventPermission(client, organizationId, userId);
+      const event = await assertEventExists(client, eventId, organizationId);
+      await assertGuestBelongsToEvent(client, guestId, eventId);
+
+      const guestRes = await client.query(
+        `SELECT full_name, email FROM guests WHERE id=$1 AND deleted_at IS NULL LIMIT 1`,
+        [guestId]
+      );
+      const guest = guestRes.rows[0];
+      if (!guest) throw new AppError("Guest not found", 404);
+      if (!guest.email) throw new AppError("Guest has no email address", 400);
+
+      // Get or create an active QR pass
+      let qrToken;
+      const existing = await getActiveQrPassByGuest(client, guestId, eventId);
+      if (existing) {
+        qrToken = existing.qr_token;
+      } else {
+        qrToken = crypto.randomBytes(32).toString("hex");
+        const expiry = qrExpiryForEvent(event);
+        await client.query(
+          `INSERT INTO guest_qr_passes
+           (guest_id, event_id, qr_token, qr_status, expires_at, created_at, updated_at)
+           VALUES ($1,$2,$3,'ACTIVE',$4,NOW(),NOW())`,
+          [guestId, eventId, qrToken, expiry]
+        );
+      }
+
+      await sendRsvpConfirmationEmail({
+        to: guest.email,
+        guestName: guest.full_name,
+        eventTitle: event.title,
+        eventDate: event.starts_at,
+        venueName: event.venue_name,
+        qrToken,
+        plusOneCount: 0,
+      });
+
+      return { qr_token: qrToken };
+    } finally {
+      client.release();
+    }
+  }
+
   export async function sendInvitationsToAllGuestsService({
     eventId,
     organizationId,

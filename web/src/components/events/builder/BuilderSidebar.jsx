@@ -6,12 +6,14 @@ import {
   RectangleStackIcon, InformationCircleIcon, PhotoIcon,
   QuestionMarkCircleIcon, MegaphoneIcon, UserGroupIcon,
   ClockIcon, MapPinIcon, CalendarDaysIcon,
+  TicketIcon, HeartIcon, BookOpenIcon, LockClosedIcon,
 } from "@heroicons/react/24/outline";
 
 import SortableSectionList from "@/components/builder/SortableSectionList";
 import { PAGE_PRESETS } from "@/builder/page-presets";
 import { STYLE_META } from "@/lib/styleThemes";
 import { useBuilderStore } from "@/store/builder.store";
+import { useSubscriptionStore } from "@/store/subscription.store";
 
 const btn =
   "inline-flex items-center justify-center rounded-md text-xs font-medium transition-colors focus:outline-none disabled:opacity-40";
@@ -26,6 +28,9 @@ const BLOCK_ITEMS = [
   { type: "FAQ",       Icon: QuestionMarkCircleIcon, label: "FAQ"       },
   { type: "CTA",       Icon: MegaphoneIcon,          label: "CTA"       },
   { type: "SPEAKERS",  Icon: UserGroupIcon,          label: "Speakers"  },
+  { type: "TICKETS",   Icon: TicketIcon,             label: "Tickets"   },
+  { type: "COUPLE",    Icon: HeartIcon,              label: "Couple"    },
+  { type: "STORY",     Icon: BookOpenIcon,           label: "Story"     },
 ];
 
 export default function BuilderSidebar({
@@ -35,31 +40,40 @@ export default function BuilderSidebar({
   const applyPreset               = useBuilderStore((s) => s.applyPreset);
   const setTheme                  = useBuilderStore((s) => s.setTheme);
 
+  const isSubscribed    = useSubscriptionStore((s) => s.isSubscribed);
+  const plan            = useSubscriptionStore((s) => s.plan);
+  const openUpgradeModal = useSubscriptionStore((s) => s.openUpgradeModal);
+  const isPremium = isSubscribed && plan === "premium";
+
   const activeTheme = useMemo(() => {
     const first = sections?.find((s) => s?.config?._theme);
     return first?.config?._theme || "CLASSIC";
   }, [sections]);
+
+  const handleThemeChange = (themeId) => {
+    if (themeId !== "CLASSIC" && !isPremium) {
+      openUpgradeModal("templates");
+      return;
+    }
+    if (sections?.length) setTheme(eventId, themeId);
+  };
 
   const handlePresetSelect = async (e) => {
     const presetKey = e.target.value;
     const preset = PAGE_PRESETS[presetKey];
     if (!preset) return;
     e.target.value = "";
-    // Preset key matches theme key — apply both together
-    const themeId = STYLE_META[presetKey] ? presetKey : activeTheme;
+
+    // Free users: always apply CLASSIC theme regardless of chosen preset
+    const themeId = isPremium && STYLE_META[presetKey] ? presetKey : "CLASSIC";
     const sectionsWithTheme = preset.sections.map((s) => ({
       type: s,
       config: { _theme: themeId },
     }));
     const newSections = await applyPreset(eventId, sectionsWithTheme);
-    // If the server strips config, force-apply theme across newly created sections
     if (newSections?.length && newSections[0]?.config?._theme !== themeId) {
       await setTheme(eventId, themeId);
     }
-  };
-
-  const handleThemeChange = (themeId) => {
-    if (sections?.length) setTheme(eventId, themeId);
   };
 
   return (
@@ -120,12 +134,13 @@ export default function BuilderSidebar({
             <SidebarLabel>Style</SidebarLabel>
             <div className="grid grid-cols-3 gap-1.5">
               {Object.entries(STYLE_META).map(([id, meta]) => {
-                const isActive = activeTheme === id;
+                const isActive  = activeTheme === id;
+                const locked    = id !== "CLASSIC" && !isPremium;
                 return (
                   <button
                     key={id}
                     onClick={() => handleThemeChange(id)}
-                    title={meta.description}
+                    title={locked ? `${meta.label} — Premium` : meta.description}
                     style={{
                       border: `1px solid ${isActive ? meta.preview.accent : "rgba(255,255,255,0.06)"}`,
                       borderRadius: 7,
@@ -136,20 +151,30 @@ export default function BuilderSidebar({
                         : "none",
                       transition: "all 0.18s ease",
                       background: "transparent",
+                      opacity: locked ? 0.55 : 1,
+                      position: "relative",
                     }}
                   >
                     {/* Hero preview strip */}
                     <div style={{ height: 28, background: meta.preview.hero, position: "relative", overflow: "hidden" }}>
-                      {/* Simulated bg image texture */}
                       <div style={{
                         position: "absolute", inset: 0,
                         background: `repeating-linear-gradient(135deg, transparent, transparent 4px, ${meta.preview.accent}08 4px, ${meta.preview.accent}08 8px)`,
                       }} />
-                      {/* Simulated heading text */}
                       <div style={{ position: "absolute", bottom: 4, left: 5, right: 5 }}>
                         <div style={{ height: 2.5, background: "rgba(255,255,255,0.6)", borderRadius: 2, width: "72%", marginBottom: 2 }} />
                         <div style={{ height: 1.5, background: meta.preview.accent, opacity: 0.85, borderRadius: 2, width: "44%" }} />
                       </div>
+                      {locked && (
+                        <div style={{
+                          position: "absolute", top: 3, right: 3,
+                          background: "rgba(0,0,0,0.55)",
+                          borderRadius: 4, padding: "1px 3px",
+                          display: "flex", alignItems: "center",
+                        }}>
+                          <LockClosedIcon style={{ width: 8, height: 8, color: "#f0c060" }} />
+                        </div>
+                      )}
                     </div>
 
                     {/* Content preview strip */}
@@ -177,9 +202,9 @@ export default function BuilderSidebar({
                 );
               })}
             </div>
-            {!sections?.length && (
+            {!isPremium && (
               <p style={{ fontSize: 10, color: "#44495a", lineHeight: 1.5, marginTop: 2 }}>
-                Apply a layout first, then switch styles.
+                Classic is free. Upgrade to unlock all styles.
               </p>
             )}
           </div>
@@ -199,9 +224,16 @@ export default function BuilderSidebar({
             >
               <option value="" disabled>Apply a preset layout…</option>
               {Object.entries(PAGE_PRESETS).map(([k, v]) => (
-                <option key={k} value={k}>{v.label}</option>
+                <option key={k} value={k}>
+                  {v.label}{k !== "CLASSIC" && !isPremium ? " (Classic style)" : ""}
+                </option>
               ))}
             </select>
+            {!isPremium && (
+              <p style={{ fontSize: 10, color: "#44495a", lineHeight: 1.5 }}>
+                All layouts available. Premium styles applied only for Pro users.
+              </p>
+            )}
           </div>
 
           {/* ── Add Block ───────────────────────────────────────────── */}
