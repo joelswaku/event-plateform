@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   CalendarDays,
   PlusSquare,
+  Ticket,
   Settings,
   Sparkles,
   ChevronLeft,
@@ -21,6 +22,7 @@ import { useAuthStore } from "@/store/auth.store";
 const navItems = [
   { label: "Dashboard",    href: "/dashboard",    icon: LayoutDashboard },
   { label: "Events",       href: "/events",        icon: CalendarDays },
+  { label: "Tickets",      href: "/tickets",       icon: Ticket },
   { label: "Create Event", href: "/events/create", icon: PlusSquare },
 ];
 

@@ -15,9 +15,8 @@ function handleControllerError(res, error, fallbackMessage = "Internal server er
 
 export async function createTicketOrder(req, res) {
   try {
-    const { eventId } = req.params; 1
+    const { eventId } = req.params;
 
-    
     const result = await ticketsService.createTicketOrderService({
       eventId,
       payload: req.body,

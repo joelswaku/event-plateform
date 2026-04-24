@@ -15,6 +15,20 @@ const UNIQUE_TEMPLATES = Array.from(
 
 const STYLE_ORDER = ["CLASSIC", "ELEGANT", "MODERN", "MINIMAL", "LUXURY", "FUN"];
 
+// Event types from the Ticketed & Entertainment category
+const ENTERTAINMENT_EVENT_TYPES = new Set([
+  "CONCERT", "FESTIVAL", "LIVE_SHOW", "NIGHTCLUB", "THEATER",
+  "COMEDY", "SPORTS", "EXHIBITION",
+]);
+
+// Styles appropriate for entertainment/ticket events (no wedding imagery)
+const ENTERTAINMENT_STYLES = ["MODERN", "MINIMAL", "LUXURY", "FUN"];
+
+function isEntertainmentType(eventType) {
+  if (!eventType) return false;
+  return ENTERTAINMENT_EVENT_TYPES.has(String(eventType).toUpperCase().trim());
+}
+
 const RECOMMENDED_STYLES = {
   WEDDING:         ["CLASSIC", "ELEGANT", "LUXURY"],
   ENGAGEMENT:      ["ELEGANT", "CLASSIC", "LUXURY"],
@@ -357,31 +371,49 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
   const { plan, isSubscribed, openUpgradeModal } = useSubscriptionStore();
   const { applyPreset } = useBuilderStore();
 
-  const [activeStyle, setActiveStyle] = useState("ALL");
+  const isEntertainment = isEntertainmentType(eventType);
+
+  // For entertainment events default to "RECOMMENDED"; otherwise "ALL"
+  const [activeStyle, setActiveStyle] = useState(isEntertainment ? "RECOMMENDED" : "ALL");
   const [applying,    setApplying]    = useState(null);
   const [preview,     setPreview]     = useState(null);
   const bodyRef = useRef(null);
+
+  // Reset active style when event type changes
+  useEffect(() => {
+    setActiveStyle(isEntertainment ? "RECOMMENDED" : "ALL");
+  }, [isEntertainment]);
 
   const userPlan  = isSubscribed ? plan : "free";
   const isPremium = userPlan === "premium";
 
   const recStyleKeys = useMemo(() => getRecommendedStyleKeys(eventType), [eventType]);
 
-  // Template list for each style
+  // For entertainment events, scope ALL templates to non-wedding styles only
+  const scopedTemplates = useMemo(() =>
+    isEntertainment
+      ? UNIQUE_TEMPLATES.filter((t) => ENTERTAINMENT_STYLES.includes(t.style))
+      : UNIQUE_TEMPLATES,
+  [isEntertainment]);
+
+  // Only show style pills that are relevant for the current event scope
+  const visibleStyleOrder = isEntertainment ? ENTERTAINMENT_STYLES : STYLE_ORDER;
+
+  // Template list for each style (based on scoped set)
   const countByStyle = useMemo(() => {
     const m = {};
-    for (const t of UNIQUE_TEMPLATES) m[t.style] = (m[t.style] ?? 0) + 1;
+    for (const t of scopedTemplates) m[t.style] = (m[t.style] ?? 0) + 1;
     return m;
-  }, []);
+  }, [scopedTemplates]);
 
   const filteredTemplates = useMemo(() => {
-    if (activeStyle === "ALL")         return UNIQUE_TEMPLATES;
+    if (activeStyle === "ALL")         return scopedTemplates;
     if (activeStyle === "RECOMMENDED") {
-      if (!recStyleKeys) return UNIQUE_TEMPLATES.filter((t) => t.style === FREE_STYLE);
-      return UNIQUE_TEMPLATES.filter((t) => recStyleKeys.includes(t.style));
+      if (!recStyleKeys) return scopedTemplates.filter((t) => t.style === FREE_STYLE);
+      return scopedTemplates.filter((t) => recStyleKeys.includes(t.style));
     }
-    return UNIQUE_TEMPLATES.filter((t) => t.style === activeStyle);
-  }, [activeStyle, recStyleKeys]);
+    return scopedTemplates.filter((t) => t.style === activeStyle);
+  }, [activeStyle, recStyleKeys, scopedTemplates]);
 
   // Scroll to top when filter changes
   useEffect(() => {
@@ -408,13 +440,13 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
   const cardProps = { userPlan, applying, onSelect: handleSelect, onPreview: setPreview };
 
   const sidebarItems = [
-    ...(recStyleKeys ? [{ key: "RECOMMENDED", label: eventType ? "For You" : "Free", count: filteredTemplates.length }] : []),
-    { key: "ALL", label: "All Templates", count: UNIQUE_TEMPLATES.length },
-    ...STYLE_ORDER.map((s) => ({ key: s, label: STYLE_META[s]?.label ?? s, count: countByStyle[s] ?? 0 })),
+    ...(recStyleKeys ? [{ key: "RECOMMENDED", label: "For You", count: scopedTemplates.filter((t) => recStyleKeys.includes(t.style)).length }] : []),
+    { key: "ALL", label: isEntertainment ? "All Event Templates" : "All Templates", count: scopedTemplates.length },
+    ...visibleStyleOrder.map((s) => ({ key: s, label: STYLE_META[s]?.label ?? s, count: countByStyle[s] ?? 0 })),
   ];
 
-  // Featured (first premium per style, or hero-image ones)
-  const featured = UNIQUE_TEMPLATES.filter((t) => t.assets?.hero_image).slice(0, 3);
+  // Featured (hero-image templates, scoped to current event type)
+  const featured = scopedTemplates.filter((t) => t.assets?.hero_image).slice(0, 3);
 
   return (
     <AnimatePresence>
@@ -470,9 +502,13 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
                     <Sparkles size={15} style={{ color: "#818CF8" }} />
                   </div>
                   <div>
-                    <h2 className="text-[15px] font-bold text-white leading-none">Templates</h2>
+                    <h2 className="text-[15px] font-bold text-white leading-none">
+                      {isEntertainment ? "Event Templates" : "Templates"}
+                    </h2>
                     <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>
-                      {UNIQUE_TEMPLATES.filter(t => t.style === FREE_STYLE).length} free &nbsp;·&nbsp; {UNIQUE_TEMPLATES.filter(t => t.style !== FREE_STYLE).length} premium
+                      {isEntertainment
+                        ? `${scopedTemplates.length} templates for ${eventType?.toLowerCase() ?? "your event"}`
+                        : `${UNIQUE_TEMPLATES.filter(t => t.style === FREE_STYLE).length} free · ${UNIQUE_TEMPLATES.filter(t => t.style !== FREE_STYLE).length} premium`}
                     </p>
                   </div>
                 </div>
@@ -537,7 +573,7 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
 
                   <div className="mb-2" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }} />
 
-                  {STYLE_ORDER.map((s) => (
+                  {visibleStyleOrder.map((s) => (
                     <StylePill
                       key={s}
                       styleKey={s}
@@ -559,7 +595,9 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
                         <span className="text-[11px] font-black text-white">Go Premium</span>
                       </div>
                       <p className="text-[10px] leading-relaxed" style={{ color: "rgba(255,255,255,0.35)" }}>
-                        Unlock all 5 premium styles & {UNIQUE_TEMPLATES.filter(t => t.style !== FREE_STYLE).length} templates.
+                        {isEntertainment
+                          ? `Unlock ${scopedTemplates.filter(t => t.style !== FREE_STYLE).length} premium event templates.`
+                          : `Unlock all 5 premium styles & ${UNIQUE_TEMPLATES.filter(t => t.style !== FREE_STYLE).length} templates.`}
                       </p>
                       <span className="text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-lg self-start" style={{ background: "#F59E0B", color: "#1c1407" }}>$12/mo</span>
                     </button>
@@ -570,8 +608,8 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
                 <div className="sm:hidden absolute top-[57px] left-0 right-0 z-10 flex gap-2 overflow-x-auto px-4 py-2 no-scrollbar" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", background: "#0c0c10" }}>
                   {[
                     ...(recStyleKeys ? [{ key: "RECOMMENDED", label: "For You" }] : []),
-                    { key: "ALL", label: "All" },
-                    ...STYLE_ORDER.map((s) => ({ key: s, label: STYLE_META[s]?.label ?? s })),
+                    { key: "ALL", label: isEntertainment ? "All" : "All" },
+                    ...visibleStyleOrder.map((s) => ({ key: s, label: STYLE_META[s]?.label ?? s })),
                   ].map(({ key, label }) => {
                     const isActive = activeStyle === key;
                     const meta = STYLE_META[key];
@@ -677,7 +715,9 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
                         <div className="flex-1 min-w-0">
                           <p className="text-[12px] font-black text-white">Unlock {UNIQUE_TEMPLATES.filter(t => t.style !== FREE_STYLE).length} Premium Templates</p>
                           <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.38)" }}>
-                            Elegant, Modern, Minimal, Luxury &amp; Fun — all styles included.
+                            {isEntertainment
+                              ? "Modern, Minimal, Luxury & Fun — premium event styles."
+                              : "Elegant, Modern, Minimal, Luxury & Fun — all styles included."}
                           </p>
                         </div>
                         <div

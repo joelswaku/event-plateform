@@ -1128,50 +1128,405 @@ export function RegistrySection({ section, isEditor = false, onEdit }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // TICKETS
 // ══════════════════════════════════════════════════════════════════════════════
-export function TicketsSection({ section, isEditor = false, onEdit }) {
+
+const TICKET_MOCK = [
+  { id: "m1", name: "General", kind: "FREE",  price: 0,   currency: "USD", description: "Full event access", quantity_total: 200, quantity_sold: 47 },
+  { id: "m2", name: "VIP",     kind: "PAID",  price: 150, currency: "USD", description: "Priority seating · Meet & Greet · Gift bag", quantity_total: 30, quantity_sold: 12, tier: "vip" },
+  { id: "m3", name: "Professional", kind: "PAID", price: 350, currency: "USD", description: "All-access · Networking dinner · Recording", quantity_total: 10, quantity_sold: 3, tier: "pro" },
+];
+
+const TIER_STYLES = {
+  vip: { badge: "VIP", accent: "#C9A96E", dark: "#1a1208", glow: "rgba(201,169,110,0.3)" },
+  pro: { badge: "PRO", accent: "#6366F1", dark: "#0f0f1a", glow: "rgba(99,102,241,0.3)" },
+};
+
+function TicketCard({ ticket, theme, onBuy, sold }) {
+  const tier = TIER_STYLES[ticket.tier];
+  const available = ticket.quantity_total != null
+    ? ticket.quantity_total - (ticket.quantity_sold ?? 0)
+    : null;
+  const isSoldOut = available !== null && available <= 0;
+  const pct = ticket.quantity_total
+    ? Math.min(((ticket.quantity_sold ?? 0) / ticket.quantity_total) * 100, 100) : 0;
+
+  const priceLabel = ticket.kind === "FREE"
+    ? "Free"
+    : new Intl.NumberFormat("en-US", { style: "currency", currency: ticket.currency ?? "USD" }).format(ticket.price);
+
+  return (
+    <div
+      className="relative flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1"
+      style={{
+        background: tier ? tier.dark : "var(--t-bg-alt)",
+        border: tier ? `1px solid ${tier.accent}40` : "1px solid var(--t-border)",
+        borderRadius: "var(--t-radius, 12px)",
+        boxShadow: tier ? `0 8px 32px ${tier.glow}, inset 0 1px 0 ${tier.accent}20` : "none",
+      }}
+    >
+      {/* Tier accent top stripe */}
+      {tier && (
+        <div className="h-1 w-full" style={{ background: `linear-gradient(90deg, ${tier.accent}, transparent)` }} />
+      )}
+
+      {/* Perforated edge decoration */}
+      <div className="flex items-center justify-between px-6 pt-5 pb-3">
+        <div>
+          {tier && (
+            <span
+              className="mb-2 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.2em]"
+              style={{ background: `${tier.accent}20`, color: tier.accent, border: `1px solid ${tier.accent}40` }}
+            >
+              ★ {tier.badge}
+            </span>
+          )}
+          <h4
+            className="text-xl font-bold leading-tight"
+            style={{
+              fontFamily: "var(--t-font-heading)",
+              color: tier ? "#fff" : "var(--t-text)",
+            }}
+          >
+            {ticket.name}
+          </h4>
+        </div>
+        <div className="text-right">
+          <p
+            className="text-3xl font-black"
+            style={{ fontFamily: "var(--t-font-heading)", color: tier ? tier.accent : "var(--t-accent)" }}
+          >
+            {priceLabel}
+          </p>
+          {ticket.kind !== "FREE" && (
+            <p className="text-[10px] uppercase tracking-wide" style={{ color: tier ? "rgba(255,255,255,0.4)" : "var(--t-text-muted)" }}>
+              per ticket
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Divider — perforated style */}
+      <div className="mx-6 flex items-center gap-1.5 py-2">
+        <div className="h-px flex-1" style={{ background: tier ? `${tier.accent}20` : "var(--t-border)" }} />
+        <div className="flex gap-1">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-1 w-1 rounded-full" style={{ background: tier ? `${tier.accent}30` : "var(--t-border)" }} />
+          ))}
+        </div>
+        <div className="h-px flex-1" style={{ background: tier ? `${tier.accent}20` : "var(--t-border)" }} />
+      </div>
+
+      {/* Description */}
+      <div className="px-6 pb-4">
+        {ticket.description && (
+          <p className="text-sm leading-relaxed" style={{ color: tier ? "rgba(255,255,255,0.55)" : "var(--t-text-muted)" }}>
+            {ticket.description}
+          </p>
+        )}
+
+        {/* Availability */}
+        {ticket.quantity_total != null && (
+          <div className="mt-4">
+            <div className="mb-1.5 flex items-center justify-between">
+              <p className="text-[11px]" style={{ color: tier ? "rgba(255,255,255,0.4)" : "var(--t-text-muted)" }}>
+                {isSoldOut ? "Sold out" : `${available} left`}
+              </p>
+              {!isSoldOut && (
+                <p className="text-[11px]" style={{ color: tier ? "rgba(255,255,255,0.4)" : "var(--t-text-muted)" }}>
+                  {ticket.quantity_sold} sold
+                </p>
+              )}
+            </div>
+            <div className="h-1 overflow-hidden rounded-full" style={{ background: tier ? "rgba(255,255,255,0.1)" : "var(--t-border)" }}>
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${pct}%`,
+                  background: tier ? tier.accent : "var(--t-accent)",
+                }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* CTA */}
+      <div className="mt-auto px-6 pb-6">
+        <button
+          onClick={() => !isSoldOut && onBuy(ticket)}
+          disabled={isSoldOut}
+          className="w-full py-3.5 text-sm font-bold uppercase tracking-[0.12em] transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{
+            background: isSoldOut
+              ? "transparent"
+              : tier
+                ? `linear-gradient(135deg, ${tier.accent}, ${tier.accent}cc)`
+                : "var(--t-accent)",
+            color: isSoldOut
+              ? (tier ? "rgba(255,255,255,0.3)" : "var(--t-text-muted)")
+              : tier ? tier.dark : "var(--t-dark)",
+            borderRadius: "var(--t-radius, 8px)",
+            border: isSoldOut ? `1px solid ${tier ? tier.accent + "30" : "var(--t-border)"}` : "none",
+            boxShadow: (!isSoldOut && tier) ? `0 4px 20px ${tier.glow}` : "none",
+          }}
+        >
+          {isSoldOut ? "Sold Out" : ticket.kind === "FREE" ? "Get Free Ticket" : "Buy Now"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function TicketCheckoutModal({ ticket, event, onClose, theme }) {
+  const API = process.env.NEXT_PUBLIC_API_URL;
+  const [step, setStep] = useState("form"); // form | success | paid
+  const [qty, setQty] = useState(1);
+  const [form, setForm] = useState({ name: "", email: "", phone: "" });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState(null);
+
+  const priceEach = ticket.kind === "FREE" ? 0 : Number(ticket.price);
+  const total = priceEach * qty;
+  const fmtPrice = (n) => new Intl.NumberFormat("en-US", { style: "currency", currency: ticket.currency ?? "USD" }).format(n);
+  const tier = TIER_STYLES[ticket.tier];
+
+  const available = ticket.quantity_total != null
+    ? ticket.quantity_total - (ticket.quantity_sold ?? 0)
+    : 99;
+
+  async function submit() {
+    if (!form.name.trim() || !form.email.trim()) { setError("Name and email are required"); return; }
+    if (!/\S+@\S+\.\S+/.test(form.email)) { setError("Enter a valid email address"); return; }
+    setSubmitting(true);
+    setError("");
+    try {
+      const res = await fetch(`${API}/public/events/${event.id}/orders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          buyer_name:  form.name.trim(),
+          buyer_email: form.email.trim(),
+          buyer_phone: form.phone.trim() || undefined,
+          items: [{ ticket_type_id: ticket.id, quantity: qty }],
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Order failed");
+      setResult(data.data);
+      setStep(data.data.payment_required ? "paid" : "success");
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)" }}>
+      <motion.div
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 40 }}
+        className="w-full max-w-md overflow-hidden rounded-t-3xl sm:rounded-3xl bg-white shadow-2xl"
+      >
+        {/* Header */}
+        <div
+          className="relative flex items-start justify-between p-6"
+          style={{
+            background: tier ? `linear-gradient(135deg, ${tier.dark}, ${tier.dark}ee)` : "#111827",
+            borderBottom: tier ? `1px solid ${tier.accent}30` : "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <div>
+            {tier && (
+              <span className="mb-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest"
+                style={{ background: `${tier.accent}20`, color: tier.accent }}>★ {tier.badge}</span>
+            )}
+            <p className="text-[11px] text-white/40 uppercase tracking-widest mb-1">{event?.title}</p>
+            <h3 className="text-xl font-bold text-white">{ticket.name}</h3>
+          </div>
+          <button onClick={onClose} className="rounded-xl p-2 text-white/40 hover:text-white hover:bg-white/10 transition">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <AnimatePresence mode="wait">
+          {step === "form" && (
+            <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+
+              {/* Quantity */}
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-2">Quantity</p>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setQty(q => Math.max(1, q - 1))}
+                    className="h-10 w-10 rounded-xl border border-gray-200 text-lg font-bold text-gray-600 hover:bg-gray-50 transition flex items-center justify-center">−</button>
+                  <span className="w-10 text-center text-lg font-bold text-gray-900">{qty}</span>
+                  <button onClick={() => setQty(q => Math.min(available, q + 1))}
+                    className="h-10 w-10 rounded-xl border border-gray-200 text-lg font-bold text-gray-600 hover:bg-gray-50 transition flex items-center justify-center">+</button>
+                  <span className="text-xs text-gray-400 ml-1">{available} available</span>
+                </div>
+              </div>
+
+              {/* Buyer info */}
+              <div className="space-y-3">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Your details</p>
+                {[
+                  { key: "name",  label: "Full name *",    type: "text",  placeholder: "John Doe" },
+                  { key: "email", label: "Email *",        type: "email", placeholder: "you@example.com" },
+                  { key: "phone", label: "Phone (optional)", type: "tel",  placeholder: "+1 555 000 0000" },
+                ].map(({ key, label, type, placeholder }) => (
+                  <div key={key}>
+                    <label className="text-[11px] text-gray-500 font-medium">{label}</label>
+                    <input type={type} value={form[key]} placeholder={placeholder}
+                      onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                      className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 outline-none focus:border-indigo-400 transition"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Total */}
+              <div className="rounded-2xl bg-gray-50 px-4 py-3 flex items-center justify-between">
+                <span className="text-sm text-gray-600">{qty} × {ticket.name}</span>
+                <span className="text-lg font-bold text-gray-900">
+                  {ticket.kind === "FREE" ? "Free" : fmtPrice(total)}
+                </span>
+              </div>
+
+              {error && <p className="text-sm text-red-500">{error}</p>}
+
+              <button onClick={submit} disabled={submitting}
+                className="w-full rounded-2xl py-3.5 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-60"
+                style={{ background: tier ? `linear-gradient(135deg, ${tier.accent}, ${tier.accent}cc)` : "#4F46E5" }}>
+                {submitting ? "Processing…" : ticket.kind === "FREE" ? "Get Free Ticket" : `Pay ${fmtPrice(total)}`}
+              </button>
+            </motion.div>
+          )}
+
+          {step === "success" && result?.issued_tickets?.[0] && (
+            <motion.div key="success" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
+              className="p-6 text-center space-y-5">
+              <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-2xl" style={{ background: tier ? `${tier.accent}15` : "#EEF2FF" }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={tier ? tier.accent : "#4F46E5"} strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">You&apos;re in!</h3>
+                <p className="text-sm text-gray-400 mt-1">Your ticket is confirmed. Show this QR at the door.</p>
+              </div>
+
+              {/* QR code */}
+              <div className="mx-auto w-52 h-52 rounded-2xl overflow-hidden border-4 border-gray-100 shadow-sm">
+                <img
+                  src={`${API}/public/tickets/qr/${result.issued_tickets[0].qr_token}`}
+                  alt="Ticket QR Code"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+
+              <div className="rounded-2xl bg-gray-50 px-4 py-3 text-left space-y-1">
+                <p className="text-xs text-gray-400">Order confirmation sent to</p>
+                <p className="text-sm font-semibold text-gray-800">{form.email}</p>
+              </div>
+
+              <a
+                href={`${process.env.NEXT_PUBLIC_BASE_URL ?? ""}/my-tickets?email=${encodeURIComponent(form.email)}`}
+                className="block w-full rounded-2xl border border-gray-200 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
+              >
+                View all my tickets
+              </a>
+            </motion.div>
+          )}
+
+          {step === "paid" && (
+            <motion.div key="paid" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
+              className="p-6 text-center space-y-5">
+              <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-2xl bg-amber-50">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Order created!</h3>
+                <p className="text-sm text-gray-400 mt-1">A payment link has been sent to <span className="font-medium text-gray-700">{form.email}</span></p>
+              </div>
+              <p className="text-xs text-gray-400">Your ticket QR will be issued after payment confirmation. Order #{result?.order_id?.slice(0, 8)}</p>
+              <button onClick={onClose}
+                className="w-full rounded-2xl bg-gray-900 py-3 text-sm font-bold text-white hover:bg-gray-800 transition">
+                Done
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </div>
+  );
+}
+
+export function TicketsSection({ section, event, isEditor = false, onEdit }) {
   const config = section.config || {};
   const theme  = config._theme || "CLASSIC";
   const pad    = getThemePad(theme);
-  const mock   = [
-    { name: "General",  price: 20, description: "Full event access" },
-    { name: "VIP",      price: 80, description: "Priority seating + gifts", featured: true },
-    { name: "Group ×5", price: 90, description: "Group of five tickets" },
-  ];
+
+  const API = process.env.NEXT_PUBLIC_API_URL;
+  const [tickets, setTickets]       = useState(isEditor ? TICKET_MOCK : []);
+  const [loadingTix, setLoadingTix] = useState(!isEditor && !!event?.id);
+  const [checkout, setCheckout]     = useState(null);
+
+  useEffect(() => {
+    if (isEditor || !event?.id) return;
+    setLoadingTix(true);
+    fetch(`${API}/public/events/${event.id}/tickets`)
+      .then((r) => r.json())
+      .then((d) => setTickets(d.tickets ?? []))
+      .catch(() => {})
+      .finally(() => setLoadingTix(false));
+  }, [event?.id, isEditor, API]);
+
+  const displayTickets = isEditor ? TICKET_MOCK : tickets;
 
   return (
     <SectionWrap bg="var(--t-bg)" isEditor={isEditor} onClick={onEdit} pad={pad}>
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto max-w-5xl">
         <FadeUp className="text-center">
           <SectionEyebrow center>Tickets</SectionEyebrow>
-          <SectionHeading center>{section.title || "Reserve Your Seat"}</SectionHeading>
+          <SectionHeading center>{section.title || "Get Your Ticket"}</SectionHeading>
           {section.body && <SectionBody center>{section.body}</SectionBody>}
           {theme !== "MODERN" && theme !== "MINIMAL" && <Ornament center />}
         </FadeUp>
-        <div className="mt-14 grid gap-4 sm:grid-cols-3">
-          {mock.map((t, i) => (
-            <FadeUp key={i} delay={i * 0.1}>
-              <div className="flex flex-col p-8 transition"
-                style={t.featured
-                  ? { border: `1px solid var(--t-accent)`, background: "var(--t-dark)", color: "#fff", borderRadius: "var(--t-radius, 0px)", boxShadow: theme === "FUN" ? "6px 6px 0 var(--t-accent)" : "none" }
-                  : { border: "1px solid var(--t-border)", background: "var(--t-bg-alt)", borderRadius: "var(--t-radius, 0px)", boxShadow: theme === "FUN" ? "4px 4px 0 rgba(0,0,0,0.2)" : "none" }
-                }>
-                {t.featured && <p className="mb-4 text-[10px] font-medium uppercase tracking-[0.3em]" style={{ color: "var(--t-accent)" }}>Most Popular</p>}
-                <h4 className="text-xl font-bold" style={{ fontFamily: "var(--t-font-heading)", color: t.featured ? "#fff" : "var(--t-text)" }}>{t.name}</h4>
-                <p className="mt-1 text-sm" style={{ color: t.featured ? "rgba(255,255,255,0.5)" : "var(--t-text-muted)" }}>{t.description}</p>
-                <div className="my-6 text-4xl font-bold" style={{ fontFamily: "var(--t-font-heading)", color: t.featured ? "var(--t-accent)" : "var(--t-text)" }}>${t.price}</div>
-                <button className="mt-auto py-3 text-sm font-medium uppercase tracking-[0.15em] transition active:scale-95"
-                  style={t.featured
-                    ? { background: "var(--t-accent)", color: "var(--t-dark)", borderRadius: "var(--t-radius, 0px)" }
-                    : { border: "1px solid var(--t-text)", color: "var(--t-text)", background: "transparent", borderRadius: "var(--t-radius, 0px)" }
-                  }>
-                  Select
-                </button>
-              </div>
-            </FadeUp>
-          ))}
-        </div>
+
+        {loadingTix ? (
+          <div className="mt-14 grid gap-5 sm:grid-cols-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-64 animate-pulse rounded-2xl" style={{ background: "var(--t-bg-alt)" }} />
+            ))}
+          </div>
+        ) : displayTickets.length === 0 ? (
+          <div className="mt-14 rounded-2xl border border-dashed p-12 text-center" style={{ borderColor: "var(--t-border)" }}>
+            <p className="text-sm" style={{ color: "var(--t-text-muted)" }}>Tickets coming soon</p>
+          </div>
+        ) : (
+          <div className={`mt-14 grid gap-5 ${displayTickets.length === 1 ? "max-w-sm mx-auto" : displayTickets.length === 2 ? "sm:grid-cols-2 max-w-2xl mx-auto" : "sm:grid-cols-3"}`}>
+            {displayTickets.map((t, i) => (
+              <FadeUp key={t.id ?? i} delay={i * 0.1}>
+                <TicketCard ticket={t} theme={theme} onBuy={setCheckout} />
+              </FadeUp>
+            ))}
+          </div>
+        )}
       </div>
+
       {isEditor && <EditorBadge label="TICKETS" />}
+
+      {/* Checkout modal */}
+      <AnimatePresence>
+        {checkout && !isEditor && (
+          <TicketCheckoutModal
+            ticket={checkout}
+            event={event}
+            theme={theme}
+            onClose={() => setCheckout(null)}
+          />
+        )}
+      </AnimatePresence>
     </SectionWrap>
   );
 }

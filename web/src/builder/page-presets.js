@@ -26,3 +26,32 @@ export const PAGE_PRESETS = {
     sections: ["HERO", "ABOUT", "COUNTDOWN", "VENUE", "GALLERY", "FAQ", "CTA"],
   },
 };
+
+// Event-type-specific presets — sections ordered to put TICKETS prominently.
+// Used when the event type is concert / conference / festival / fundraiser.
+export const EVENT_TYPE_PRESETS = {
+  CONCERT: {
+    label: "Concert",
+    sections: ["HERO", "ABOUT", "TICKETS", "SCHEDULE", "VENUE", "GALLERY", "FAQ", "CTA"],
+  },
+  CONFERENCE: {
+    label: "Conference",
+    sections: ["HERO", "ABOUT", "TICKETS", "SPEAKERS", "SCHEDULE", "VENUE", "FAQ", "CTA"],
+  },
+  FESTIVAL: {
+    label: "Festival",
+    sections: ["HERO", "ABOUT", "TICKETS", "SCHEDULE", "VENUE", "GALLERY", "FAQ", "CTA"],
+  },
+  FUNDRAISER: {
+    label: "Fundraiser",
+    sections: ["HERO", "ABOUT", "TICKETS", "DONATIONS", "VENUE", "FAQ", "CTA"],
+  },
+  WORKSHOP: {
+    label: "Workshop",
+    sections: ["HERO", "ABOUT", "TICKETS", "SPEAKERS", "SCHEDULE", "VENUE", "FAQ", "CTA"],
+  },
+  SPORTS: {
+    label: "Sports",
+    sections: ["HERO", "ABOUT", "TICKETS", "COUNTDOWN", "VENUE", "FAQ", "CTA"],
+  },
+};

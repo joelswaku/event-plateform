@@ -45,3 +45,7 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 9999px; }
 .dark ::-webkit-scrollbar-thumb { background: #374151; }
+
+/* ── Hide scrollbar visually but keep scroll ─────────────── */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
