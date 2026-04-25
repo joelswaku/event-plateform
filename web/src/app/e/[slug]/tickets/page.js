@@ -37,7 +37,7 @@ function CheckoutModal({ ticket, event, onClose }) {
   const tierKey = resolveTier(ticket);
   const cfg     = TIER[tierKey];
 
-  const [step,       setStep]       = useState("form"); // form | processing | success | paid
+  const [step,       setStep]       = useState("form"); // form | success | redirecting
   const [qty,        setQty]        = useState(1);
   const [form,       setForm]       = useState({ name: "", email: "", phone: "" });
   const [submitting, setSubmitting] = useState(false);
@@ -72,7 +72,12 @@ function CheckoutModal({ ticket, event, onClose }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Order failed");
       setResult(data.data);
-      setStep(data.data.payment_required ? "paid" : "success");
+      if (data.data.payment_required && data.data.checkout_url) {
+        setStep("redirecting");
+        window.location.href = data.data.checkout_url;
+      } else {
+        setStep("success");
+      }
     } catch (e) {
       setError(e.message);
     } finally {
@@ -238,30 +243,19 @@ function CheckoutModal({ ticket, event, onClose }) {
             </motion.div>
           )}
 
-          {/* ── PAID (stripe payment pending) ── */}
-          {step === "paid" && (
-            <motion.div key="paid" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-              className="p-8 text-center space-y-5">
-              <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center bg-amber-500/20">
-                <span className="text-3xl">✉️</span>
+          {/* ── REDIRECTING to Stripe Checkout ── */}
+          {step === "redirecting" && (
+            <motion.div key="redirecting" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+              className="p-8 text-center space-y-4">
+              <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center" style={{ background: `${cfg.accent}20` }}>
+                <svg className="animate-spin" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: cfg.accent }}>
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
               </div>
               <div>
-                <h3 className="text-2xl font-black text-white">Order Created!</h3>
-                <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.5)" }}>
-                  A payment link has been sent to <strong className="text-white">{form.email}</strong>
-                </p>
+                <h3 className="text-xl font-bold text-white">Redirecting to payment…</h3>
+                <p className="text-sm mt-1" style={{ color: cfg.muted }}>You&apos;re being sent to Stripe&apos;s secure checkout.</p>
               </div>
-              <div className="rounded-2xl p-4 text-left space-y-2" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Order reference</p>
-                <p className="text-sm font-mono font-bold text-white">#{result?.order_id?.slice(0, 8).toUpperCase()}</p>
-                <p className="text-xs mt-2" style={{ color: "rgba(255,255,255,0.35)" }}>
-                  Your ticket QR and ticket number will be issued immediately after payment confirmation.
-                </p>
-              </div>
-              <button onClick={onClose} className="w-full py-3 rounded-xl text-sm font-bold text-white transition"
-                style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}>
-                Done
-              </button>
             </motion.div>
           )}
 
@@ -410,10 +404,18 @@ export default function EventTicketsPage() {
   const [tickets,  setTickets] = useState([]);
   const [loading,  setLoading] = useState(true);
   const [checkout, setCheckout]= useState(null);
+  const [banner, setBanner] = useState(() => {
+    if (typeof window === "undefined") return null;
+    const p = new URLSearchParams(window.location.search).get("payment");
+    return p === "success" || p === "cancelled" ? p : null;
+  });
+
+  useEffect(() => {
+    if (banner) window.history.replaceState({}, "", window.location.pathname);
+  }, [banner]);
 
   useEffect(() => {
     if (!slug) return;
-    setLoading(true);
 
     // Fetch event + tickets in parallel
     Promise.all([
@@ -422,8 +424,6 @@ export default function EventTicketsPage() {
       fetch(`${API}/public/events/${slug}/tickets`)
         .then(r => r.json()).then(d => d.tickets ?? []).catch(() => []),
     ]).then(([evt, tix]) => {
-      // If we got event by slug we need eventId for tickets
-      // Try fetching tickets by eventId if we have it
       if (evt?.id && tix.length === 0) {
         return fetch(`${API}/public/events/${evt.id}/tickets`)
           .then(r => r.json())
@@ -466,6 +466,34 @@ export default function EventTicketsPage() {
       </div>
 
       <div className="relative max-w-5xl mx-auto px-4 py-12 space-y-10">
+
+        {/* Payment result banner */}
+        {banner === "success" && (
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-between gap-4 rounded-2xl px-5 py-4"
+            style={{ background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.3)" }}>
+            <div className="flex items-center gap-3">
+              <CheckCircle size={20} style={{ color: "#10b981", flexShrink: 0 }} />
+              <div>
+                <p className="text-sm font-bold text-white">Payment successful!</p>
+                <p className="text-xs" style={{ color: "rgba(167,243,208,0.7)" }}>Your ticket is being issued — check your email for the QR code.</p>
+              </div>
+            </div>
+            <button onClick={() => setBanner(null)} style={{ color: "rgba(255,255,255,0.3)" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </motion.div>
+        )}
+        {banner === "cancelled" && (
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-between gap-4 rounded-2xl px-5 py-4"
+            style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)" }}>
+            <p className="text-sm" style={{ color: "rgba(252,165,165,0.9)" }}>Payment was cancelled — your order has not been charged.</p>
+            <button onClick={() => setBanner(null)} style={{ color: "rgba(255,255,255,0.3)" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </motion.div>
+        )}
 
         {/* Event header */}
         {loading ? (

@@ -51,7 +51,7 @@ export async function createTicketOrderService({
 
     const eventRes = await client.query(
       `
-      SELECT id, title, deleted_at
+      SELECT id, title, slug, deleted_at
       FROM events
       WHERE id=$1
       LIMIT 1
@@ -219,23 +219,37 @@ export async function createTicketOrderService({
       createdItems.push(itemRes.rows[0]);
     }
 
-    let clientSecret = null;
+    let checkoutUrl = null;
     let providerPaymentIntentId = null;
     const paymentRequired = total > 0;
 
     if (paymentRequired) {
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(total * 100),
-        currency: "usd",
-        metadata: {
-          order_id: order.id,
-          event_id: eventId,
+      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+      const eventSlug = event.slug;
+
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        payment_method_types: ["card"],
+        customer_email: order.buyer_email || undefined,
+        line_items: preparedItems.map((item) => ({
+          price_data: {
+            currency: (item.currency || "USD").toLowerCase(),
+            product_data: { name: item.ticket_type_name },
+            unit_amount: Math.round(item.unit_price * 100),
+          },
+          quantity: item.quantity,
+        })),
+        metadata: { order_id: order.id, event_id: eventId },
+        payment_intent_data: {
+          metadata: { order_id: order.id, event_id: eventId },
+          receipt_email: order.buyer_email || undefined,
         },
-        receipt_email: order.buyer_email || undefined,
+        success_url: `${frontendUrl}/e/${eventSlug}/tickets?payment=success&order_id=${order.id}`,
+        cancel_url: `${frontendUrl}/e/${eventSlug}/tickets?payment=cancelled`,
       });
 
-      providerPaymentIntentId = paymentIntent.id;
-      clientSecret = paymentIntent.client_secret;
+      providerPaymentIntentId = session.id;
+      checkoutUrl = session.url;
 
       await client.query(
         `
@@ -269,7 +283,7 @@ export async function createTicketOrderService({
       provider: order.provider,
       provider_payment_intent_id: providerPaymentIntentId,
       payment_required: paymentRequired,
-      client_secret: clientSecret,
+      checkout_url: checkoutUrl,
       items: createdItems,
       issued_tickets: issuedTickets,
     };

@@ -9,7 +9,7 @@
  *    auto-selects the category and starts at step 1 (subcategory picker).
  */
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -456,7 +456,7 @@ function StepDetails({ subcategory, isTicketed, onBack, onSubmit, submitting }) 
 }
 
 /* ── Wizard shell ──────────────────────────────────────────── */
-export default function CreateEventPage() {
+function CreateEventPageInner() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const { createEvent } = useEventStore();
@@ -606,7 +606,13 @@ export default function CreateEventPage() {
   );
 }
 
-
+export default function CreateEventPage() {
+  return (
+    <Suspense>
+      <CreateEventPageInner />
+    </Suspense>
+  );
+}
 
 
 

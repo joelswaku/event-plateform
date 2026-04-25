@@ -3,7 +3,9 @@
     "allow": [
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "Bash(curl -s \"http://localhost:5000/api/public/pages/bebe-11aad649\")",
+      "Bash(python -c ' *)"
     ]
   }
 }

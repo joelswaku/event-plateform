@@ -2,6 +2,12 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null;
 import {
   MapPin, Navigation, Building2, Car, Copy, Check,
   ExternalLink, ChevronDown,
@@ -1277,6 +1283,43 @@ const TIER_STYLES = {
 //   );
 // }
 
+function StripePaymentFormLight({ accentColor, fmtTotal, onSuccess }) {
+  const stripe   = useStripe();
+  const elements = useElements();
+  const [paying, setPaying] = useState(false);
+  const [error,  setError]  = useState("");
+
+  async function handlePay(e) {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+    setPaying(true);
+    setError("");
+    const { error: err, paymentIntent } = await stripe.confirmPayment({
+      elements,
+      redirect: "if_required",
+      confirmParams: { return_url: window.location.href },
+    });
+    if (err) {
+      setError(err.message ?? "Payment failed");
+      setPaying(false);
+    } else if (paymentIntent?.status === "succeeded") {
+      onSuccess();
+    }
+  }
+
+  return (
+    <form onSubmit={handlePay} className="space-y-4">
+      <PaymentElement />
+      {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
+      <button type="submit" disabled={paying || !stripe}
+        className="w-full rounded-2xl py-3.5 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-60"
+        style={{ background: accentColor ? `linear-gradient(135deg,${accentColor},${accentColor}cc)` : "#4F46E5" }}>
+        {paying ? "Processing…" : `Pay ${fmtTotal} →`}
+      </button>
+    </form>
+  );
+}
+
 function TicketCheckoutModal({ ticket, event, onClose, theme }) {
   const API = process.env.NEXT_PUBLIC_API_URL;
   const [step, setStep] = useState("form"); // form | success | paid
@@ -1447,21 +1490,52 @@ function TicketCheckoutModal({ ticket, event, onClose, theme }) {
             </motion.div>
           )}
 
-          {step === "paid" && (
+          {step === "paid" && result?.client_secret && (
             <motion.div key="paid" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
+              className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Complete Payment</h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Order #{result.order_id?.slice(0, 8)} · {fmtPrice(total)}
+                </p>
+              </div>
+              {stripePromise ? (
+                <Elements
+                  stripe={stripePromise}
+                  options={{ clientSecret: result.client_secret, appearance: { theme: "stripe" } }}
+                >
+                  <StripePaymentFormLight
+                    accentColor={tier?.accent}
+                    fmtTotal={fmtPrice(total)}
+                    onSuccess={() => setStep("paid-success")}
+                  />
+                </Elements>
+              ) : (
+                <p className="text-sm text-red-500">
+                  Stripe is not configured. Set NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.
+                </p>
+              )}
+            </motion.div>
+          )}
+
+          {step === "paid-success" && (
+            <motion.div key="paid-success" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
               className="p-6 text-center space-y-5">
-              <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-2xl bg-amber-50">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-2xl" style={{ background: tier ? `${tier.accent}15` : "#EEF2FF" }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={tier ? tier.accent : "#4F46E5"} strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Order created!</h3>
-                <p className="text-sm text-gray-400 mt-1">A payment link has been sent to <span className="font-medium text-gray-700">{form.email}</span></p>
+                <h3 className="text-xl font-bold text-gray-900">Payment Confirmed! 🎉</h3>
+                <p className="text-sm text-gray-400 mt-1">Your ticket is being issued and will be emailed to you.</p>
               </div>
-              <p className="text-xs text-gray-400">Your ticket QR will be issued after payment confirmation. Order #{result?.order_id?.slice(0, 8)}</p>
-              <button onClick={onClose}
-                className="w-full rounded-2xl bg-gray-900 py-3 text-sm font-bold text-white hover:bg-gray-800 transition">
-                Done
-              </button>
+              <div className="rounded-2xl bg-gray-50 px-4 py-3 text-left space-y-1">
+                <p className="text-xs text-gray-400">Ticket sent to</p>
+                <p className="text-sm font-semibold text-gray-800">{form.email}</p>
+              </div>
+              <a href={`/my-tickets?email=${encodeURIComponent(form.email)}`}
+                className="block w-full rounded-2xl border border-gray-200 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
+                View My Ticket Profile →
+              </a>
             </motion.div>
           )}
         </AnimatePresence>
@@ -1928,6 +2002,15 @@ export function TicketsSection({ section, event, isEditor = false, onEdit }) {
   const [checkout,   setCheckout]   = useState(null);
 
   useEffect(() => {
+    if (isEditor || !event?.id || !API) return;
+    fetch(`${API}/public/events/${event.id}/tickets`)
+      .then((r) => r.json())
+      .then((d) => setTickets(d.tickets ?? []))
+      .catch(() => {})
+      .finally(() => setLoadingTix(false));
+  }, [event?.id, isEditor, API]);
+
+  useEffect(() => {
     if (isEditor) return;
     const handler = (e) => setCheckout(e.detail);
     window.addEventListener("open-ticket-checkout", handler);
@@ -2269,8 +2352,7 @@ export function CTASection({ section, event, isEditor = false, onEdit }) {
 
   const handleRsvp       = () => window.dispatchEvent(new CustomEvent("open-rsvp-panel"));
   const handleBuyTickets = () => {
-    const el = document.getElementById("tickets");
-    if (el) el.scrollIntoView({ behavior: "smooth" });
+    if (event?.slug) window.location.href = `/e/${event.slug}/tickets`;
   };
 
   // Price range label

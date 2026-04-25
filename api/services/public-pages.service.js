@@ -56,7 +56,7 @@ async function loadEventPageData(client, event) {
   };
 }
 
-// ── Public endpoint — only PUBLISHED + PUBLIC events ─────────────────────────
+// ── Public endpoint — page must be published; event must be PUBLIC and not deleted ──
 export async function getPublicEventPageBySlugService({ slug }) {
   const client = await db.connect();
 
@@ -67,7 +67,6 @@ export async function getPublicEventPageBySlugService({ slug }) {
        INNER JOIN event_pages ep ON ep.event_id = e.id
        WHERE e.slug = $1
          AND e.deleted_at IS NULL
-         AND e.status = 'PUBLISHED'
          AND e.visibility = 'PUBLIC'
          AND ep.page_status = 'PUBLISHED'
        LIMIT 1`,
@@ -100,7 +99,6 @@ export async function getInvitedEventPageBySlugService({ slug, invitationToken }
        INNER JOIN event_pages ep ON ep.event_id = e.id
        WHERE e.slug = $1
          AND e.deleted_at IS NULL
-         AND e.status = 'PUBLISHED'
          AND ep.page_status = 'PUBLISHED'
        LIMIT 1`,
       [slug]

@@ -306,12 +306,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
 
   const handleRsvp       = () => window.dispatchEvent(new CustomEvent("open-rsvp-panel"));
   const handleBuyTickets = () => {
-    if (pubTickets.length === 1) {
-      window.dispatchEvent(new CustomEvent("open-ticket-checkout", { detail: pubTickets[0] }));
-    } else {
-      const el = document.getElementById("tickets");
-      if (el) el.scrollIntoView({ behavior: "smooth" });
-    }
+    if (event?.slug) window.location.href = `/e/${event.slug}/tickets`;
   };
 
   // const handleBuyTickets = () => {
