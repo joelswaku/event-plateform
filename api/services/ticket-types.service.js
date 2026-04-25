@@ -203,49 +203,118 @@ export async function deleteTicketTypeService(ticketId, organizationId) {
   return { deleted: true };
 }
 
+// export async function getTicketStatsService(eventId, organizationId) {
+//   const [types, orders, issued] = await Promise.all([
+//     db.query(
+//       `SELECT id, name, price, currency, quantity_total, quantity_sold, kind, is_active
+//        FROM ticket_types WHERE event_id=$1 AND deleted_at IS NULL`,
+//       [eventId]
+//     ),
+//     db.query(
+//       `SELECT
+//          COUNT(*)                                                        AS total_orders,
+//          COUNT(*) FILTER (WHERE payment_status='PAID')                  AS paid_orders,
+//          COALESCE(SUM(total) FILTER (WHERE payment_status='PAID'),0)    AS gross_revenue,
+//          COALESCE(SUM(total) FILTER (WHERE payment_status='PENDING'),0) AS pending_revenue,
+//          currency
+//        FROM ticket_orders WHERE event_id=$1
+//        GROUP BY currency LIMIT 1`,
+//       [eventId]
+//     ),
+//     db.query(
+//       `SELECT
+//          COUNT(*)                                            AS total_issued,
+//          COUNT(*) FILTER (WHERE qr_status='ACTIVE')         AS active,
+//          COUNT(*) FILTER (WHERE qr_status='USED')           AS checked_in,
+//          COUNT(*) FILTER (WHERE qr_status='REVOKED')        AS revoked
+//        FROM issued_tickets WHERE event_id=$1`,
+//       [eventId]
+//     ),
+//   ]);
+//   const o = orders.rows[0] ?? {};
+//   const i = issued.rows[0] ?? {};
+//   return {
+//     ticket_types:    types.rows,
+//     total_orders:    Number(o.total_orders    ?? 0),
+//     paid_orders:     Number(o.paid_orders     ?? 0),
+//     gross_revenue:   Number(o.gross_revenue   ?? 0),
+//     pending_revenue: Number(o.pending_revenue ?? 0),
+//     currency:        o.currency ?? "USD",
+//     total_issued:    Number(i.total_issued    ?? 0),
+//     active_tickets:  Number(i.active          ?? 0),
+//     checked_in:      Number(i.checked_in      ?? 0),
+//     revoked:         Number(i.revoked         ?? 0),
+//   };
+// }
+
 export async function getTicketStatsService(eventId, organizationId) {
-  const [types, orders, issued] = await Promise.all([
+  // Run all 3 queries independently — a failure in one won't crash the others
+  const [typesResult, ordersResult, issuedResult] = await Promise.allSettled([
+
+    // ── Ticket types ───────────────────────────────────────────────────────
     db.query(
       `SELECT id, name, price, currency, quantity_total, quantity_sold, kind, is_active
-       FROM ticket_types WHERE event_id=$1 AND deleted_at IS NULL`,
+       FROM ticket_types
+       WHERE event_id = $1
+         AND deleted_at IS NULL
+       ORDER BY created_at ASC`,
       [eventId]
     ),
+
+    // ── Orders
     db.query(
       `SELECT
-         COUNT(*)                                                        AS total_orders,
-         COUNT(*) FILTER (WHERE payment_status='PAID')                  AS paid_orders,
-         COALESCE(SUM(total) FILTER (WHERE payment_status='PAID'),0)    AS gross_revenue,
-         COALESCE(SUM(total) FILTER (WHERE payment_status='PENDING'),0) AS pending_revenue,
-         currency
-       FROM ticket_orders WHERE event_id=$1
-       GROUP BY currency LIMIT 1`,
+         COUNT(*)::int                                                          AS total_orders,
+         COUNT(*) FILTER (WHERE payment_status = 'PAID')::int                 AS paid_orders,
+         COALESCE(SUM(total) FILTER (WHERE payment_status = 'PAID'),    0)    AS gross_revenue,
+         COALESCE(SUM(total) FILTER (WHERE payment_status = 'PENDING'), 0)    AS pending_revenue,
+         COALESCE(
+           (SELECT currency FROM ticket_orders WHERE event_id = $1 LIMIT 1),
+           'USD'
+         ) AS currency
+       FROM ticket_orders
+       WHERE event_id = $1`,
       [eventId]
     ),
+
+    // ── Issued tickets ─────────────────────────────────────────────────────
     db.query(
       `SELECT
-         COUNT(*)                                            AS total_issued,
-         COUNT(*) FILTER (WHERE qr_status='ACTIVE')         AS active,
-         COUNT(*) FILTER (WHERE qr_status='USED')           AS checked_in,
-         COUNT(*) FILTER (WHERE qr_status='REVOKED')        AS revoked
-       FROM issued_tickets WHERE event_id=$1`,
+         COUNT(*)::int                                              AS total_issued,
+         COUNT(*) FILTER (WHERE qr_status = 'ACTIVE')::int        AS active,
+         COUNT(*) FILTER (WHERE qr_status = 'USED')::int          AS checked_in,
+         COUNT(*) FILTER (WHERE qr_status = 'REVOKED')::int       AS revoked
+       FROM issued_tickets
+       WHERE event_id = $1`,
       [eventId]
     ),
   ]);
-  const o = orders.rows[0] ?? {};
-  const i = issued.rows[0] ?? {};
+
+  // ── Extract results with safe fallbacks ───────────────────────────────────
+  const types  = typesResult.status  === "fulfilled" ? typesResult.value.rows   : [];
+  const oRow   = ordersResult.status === "fulfilled" ? (ordersResult.value.rows[0] ?? {}) : {};
+  const iRow   = issuedResult.status === "fulfilled" ? (issuedResult.value.rows[0] ?? {}) : {};
+
+  // Log failures for debugging without crashing
+  if (typesResult.status  === "rejected") console.error("[getTicketStatsService] types query failed:",   typesResult.reason?.message);
+  if (ordersResult.status === "rejected") console.error("[getTicketStatsService] orders query failed:",  ordersResult.reason?.message);
+  if (issuedResult.status === "rejected") console.error("[getTicketStatsService] issued query failed:",  issuedResult.reason?.message);
+
   return {
-    ticket_types:    types.rows,
-    total_orders:    Number(o.total_orders    ?? 0),
-    paid_orders:     Number(o.paid_orders     ?? 0),
-    gross_revenue:   Number(o.gross_revenue   ?? 0),
-    pending_revenue: Number(o.pending_revenue ?? 0),
-    currency:        o.currency ?? "USD",
-    total_issued:    Number(i.total_issued    ?? 0),
-    active_tickets:  Number(i.active          ?? 0),
-    checked_in:      Number(i.checked_in      ?? 0),
-    revoked:         Number(i.revoked         ?? 0),
+    ticket_types:    types,
+    total_orders:    Number(oRow.total_orders    ?? 0),
+    paid_orders:     Number(oRow.paid_orders     ?? 0),
+    gross_revenue:   Number(oRow.gross_revenue   ?? 0),
+    pending_revenue: Number(oRow.pending_revenue ?? 0),
+    currency:        oRow.currency ?? "USD",
+    total_issued:    Number(iRow.total_issued    ?? 0),
+    active_tickets:  Number(iRow.active          ?? 0),
+    checked_in:      Number(iRow.checked_in      ?? 0),
+    revoked:         Number(iRow.revoked         ?? 0),
   };
 }
+
+
 
 export async function listOrdersService(eventId, { limit = 50, offset = 0 } = {}) {
   const result = await db.query(

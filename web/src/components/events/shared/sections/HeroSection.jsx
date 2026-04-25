@@ -306,9 +306,18 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
 
   const handleRsvp       = () => window.dispatchEvent(new CustomEvent("open-rsvp-panel"));
   const handleBuyTickets = () => {
-    const el = document.getElementById("tickets");
-    if (el) el.scrollIntoView({ behavior: "smooth" });
+    if (pubTickets.length === 1) {
+      window.dispatchEvent(new CustomEvent("open-ticket-checkout", { detail: pubTickets[0] }));
+    } else {
+      const el = document.getElementById("tickets");
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+    }
   };
+
+  // const handleBuyTickets = () => {
+  //   const el = document.getElementById("tickets");
+  //   if (el) el.scrollIntoView({ behavior: "smooth" });
+  // };
 
   // Price range + availability
   const paidTickets  = pubTickets.filter((t) => t.price > 0);

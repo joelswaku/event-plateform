@@ -149,42 +149,246 @@ export async function sendSeatAssignmentEmail({
 
 }
 
-export async function sendTicketIssuedEmail({
-  to,
-  buyerName,
-  eventName,
-  tickets,
-}) {
-  const ticketHtml = tickets
-    .map(
-      (ticket, index) => `
-        <div style="padding:12px;border:1px solid #ddd;margin-bottom:12px;border-radius:8px;">
-          <p><strong>Ticket ${index + 1}</strong></p>
-          <p><strong>Holder:</strong> ${ticket.holder_name || buyerName || "Guest"}</p>
-          <p><strong>Ticket Type:</strong> ${ticket.ticket_type_name}</p>
-          <p><strong>QR Token:</strong> ${ticket.qr_token}</p>
-        </div>
-      `
-    )
-    .join("");
+// Replace the sendTicketIssuedEmail function in api/utils/sendEmail.js
+// Keep everything else in the file unchanged
+
+export async function sendTicketIssuedEmail({ to, buyerName, eventName, tickets }) {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.FRONTEND_URL || "http://localhost:3000";
+
+  // Tier colors by ticket name
+  function getTierStyle(ticketTypeName) {
+    const n = (ticketTypeName || "").toLowerCase();
+    if (n.includes("vip") || n.includes("platinum") || n.includes("premium"))
+      return { accent: "#C9A96E", bg: "#1a1200", badge: "VIP", icon: "👑" };
+    if (n.includes("pro") || n.includes("diamond") || n.includes("all-access"))
+      return { accent: "#a78bfa", bg: "#0d0718", badge: "PRO", icon: "💎" };
+    if (n.includes("early") || n.includes("bird"))
+      return { accent: "#f59e0b", bg: "#1c1002", badge: "EARLY BIRD", icon: "⚡" };
+    if (n.includes("free") || n.includes("general"))
+      return { accent: "#10b981", bg: "#022c22", badge: "FREE", icon: "🎁" };
+    return { accent: "#6366f1", bg: "#0f0f1f", badge: "STANDARD", icon: "🎟️" };
+  }
+
+  const ticketBlocks = tickets.map((ticket, idx) => {
+    const tier       = getTierStyle(ticket.ticket_type_name);
+    const ticketNum  = ticket.ticket_number || `TKT-${String(ticket.id).slice(0, 8).toUpperCase()}`;
+    const qrUrl      = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/public/tickets/qr/${ticket.qr_token}`;
+    const portalUrl  = `${baseUrl}/my-tickets?email=${encodeURIComponent(to)}&ticket_number=${encodeURIComponent(ticketNum)}`;
+
+    return `
+    <!-- TICKET CARD ${idx + 1} -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;border-radius:16px;overflow:hidden;border:1px solid ${tier.accent}40;">
+      
+      <!-- Tier header bar -->
+      <tr>
+        <td style="background:${tier.bg};padding:0;height:4px;background:linear-gradient(90deg,${tier.accent},${tier.accent}40,transparent);">
+          <div style="height:4px;"></div>
+        </td>
+      </tr>
+
+      <!-- Ticket header -->
+      <tr>
+        <td style="background:${tier.bg};padding:24px 28px 16px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td>
+                <span style="display:inline-block;background:${tier.accent}20;border:1px solid ${tier.accent}40;color:${tier.accent};font-size:10px;font-weight:900;letter-spacing:0.2em;text-transform:uppercase;padding:3px 10px;border-radius:99px;">
+                  ${tier.icon} ${tier.badge}
+                </span>
+                <h3 style="margin:10px 0 4px;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.02em;font-family:Arial,sans-serif;">
+                  ${ticket.ticket_type_name}
+                </h3>
+                <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.45);font-family:Arial,sans-serif;">
+                  ${eventName}
+                </p>
+              </td>
+              <td style="text-align:right;vertical-align:top;">
+                <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.35);font-family:Arial,sans-serif;letter-spacing:0.08em;text-transform:uppercase;">Ticket No.</p>
+                <p style="margin:4px 0 0;font-size:16px;font-weight:900;color:${tier.accent};font-family:'Courier New',monospace;letter-spacing:0.1em;">
+                  ${ticketNum}
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- Perforation line -->
+      <tr>
+        <td style="background:${tier.bg};padding:0 28px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="height:1px;background:${tier.accent}20;"></td>
+              <td style="width:8px;height:8px;background:${tier.accent}15;border-radius:50%;"></td>
+              <td style="width:8px;height:8px;background:${tier.accent}15;border-radius:50%;"></td>
+              <td style="width:8px;height:8px;background:${tier.accent}15;border-radius:50%;"></td>
+              <td style="width:8px;height:8px;background:${tier.accent}15;border-radius:50%;"></td>
+              <td style="width:8px;height:8px;background:${tier.accent}15;border-radius:50%;"></td>
+              <td style="height:1px;background:${tier.accent}20;"></td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- Holder info + QR -->
+      <tr>
+        <td style="background:${tier.bg};padding:20px 28px 24px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <!-- Left: details -->
+              <td style="vertical-align:top;">
+                <table cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="padding-bottom:12px;">
+                      <p style="margin:0;font-size:10px;color:rgba(255,255,255,0.35);font-family:Arial,sans-serif;letter-spacing:0.1em;text-transform:uppercase;">Ticket Holder</p>
+                      <p style="margin:3px 0 0;font-size:15px;font-weight:700;color:#ffffff;font-family:Arial,sans-serif;">
+                        ${ticket.holder_name || buyerName || "Guest"}
+                      </p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding-bottom:12px;">
+                      <p style="margin:0;font-size:10px;color:rgba(255,255,255,0.35);font-family:Arial,sans-serif;letter-spacing:0.1em;text-transform:uppercase;">Status</p>
+                      <p style="margin:3px 0 0;font-size:13px;font-weight:700;color:#10b981;font-family:Arial,sans-serif;">
+                        ✓ Confirmed &amp; Active
+                      </p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <a href="${portalUrl}"
+                        style="display:inline-block;background:${tier.accent};color:${tier.bg};font-size:12px;font-weight:800;padding:10px 20px;border-radius:8px;text-decoration:none;letter-spacing:0.05em;">
+                        View My Ticket →
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <!-- Right: QR -->
+              <td style="text-align:right;vertical-align:top;">
+                <div style="display:inline-block;background:#ffffff;padding:8px;border-radius:12px;">
+                  <img src="${qrUrl}" width="100" height="100" alt="Ticket QR" style="display:block;border-radius:6px;" />
+                </div>
+                <p style="margin:6px 0 0;font-size:10px;color:rgba(255,255,255,0.3);font-family:Arial,sans-serif;text-align:center;">Scan at entry</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+    </table>
+    `;
+  }).join("");
 
   const html = `
-    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
-      <h2>Your tickets for ${eventName}</h2>
-      <p>Hello ${buyerName || "there"},</p>
-      <p>Your order has been confirmed. Your tickets are ready.</p>
-      ${ticketHtml}
-      <p>Please present your ticket QR at the entrance.</p>
-      <p>Thank you.</p>
-    </div>
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Your Tickets — ${eventName}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#0a0a0f;font-family:Arial,sans-serif;">
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0f;padding:40px 16px;">
+      <tr><td align="center">
+        <table width="100%" style="max-width:580px;" cellpadding="0" cellspacing="0">
+
+          <!-- LOGO / BRAND -->
+          <tr>
+            <td style="text-align:center;padding-bottom:32px;">
+              <div style="display:inline-block;background:linear-gradient(135deg,#6366f1,#a78bfa);padding:12px 24px;border-radius:99px;">
+                <span style="color:#fff;font-size:14px;font-weight:900;letter-spacing:0.15em;text-transform:uppercase;">🎟 EventOS</span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- HERO -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#111827,#1e1b4b);border-radius:20px;padding:40px 32px;text-align:center;margin-bottom:24px;border:1px solid rgba(99,102,241,0.2);">
+              <div style="font-size:48px;margin-bottom:16px;">🎉</div>
+              <h1 style="margin:0;font-size:28px;font-weight:900;color:#ffffff;letter-spacing:-0.03em;">
+                You&apos;re going to<br/>
+                <span style="background:linear-gradient(135deg,#6366f1,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+                  ${eventName}
+                </span>
+              </h1>
+              <p style="margin:12px 0 0;font-size:14px;color:rgba(255,255,255,0.5);">
+                Hi <strong style="color:rgba(255,255,255,0.8);">${buyerName || "there"}</strong> — your ${tickets.length === 1 ? "ticket is" : `${tickets.length} tickets are`} confirmed below.
+              </p>
+            </td>
+          </tr>
+
+          <tr><td style="height:24px;"></td></tr>
+
+          <!-- TICKETS -->
+          <tr>
+            <td>
+              ${ticketBlocks}
+            </td>
+          </tr>
+
+          <!-- HOW TO USE -->
+          <tr>
+            <td style="background:#111827;border-radius:16px;padding:24px 28px;border:1px solid rgba(255,255,255,0.06);">
+              <p style="margin:0 0 16px;font-size:11px;font-weight:900;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.3);">
+                How to use your ticket
+              </p>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                ${[
+                  ["📲", "Show QR at entry", "Present your QR code at the door for instant check-in"],
+                  ["🔑", "Access your profile", `Visit <a href="${baseUrl}/my-tickets" style="color:#6366f1;">my-tickets</a> with your email + ticket number`],
+                  ["📧", "Keep this email", "Your ticket number and QR code are always in this email"],
+                ].map(([icon, title, desc]) => `
+                <tr>
+                  <td style="padding:8px 0;vertical-align:top;width:36px;">
+                    <span style="font-size:20px;">${icon}</span>
+                  </td>
+                  <td style="padding:8px 0 8px 8px;vertical-align:top;">
+                    <p style="margin:0;font-size:13px;font-weight:700;color:#ffffff;">${title}</p>
+                    <p style="margin:2px 0 0;font-size:12px;color:rgba(255,255,255,0.4);">${desc}</p>
+                  </td>
+                </tr>
+                `).join("")}
+              </table>
+            </td>
+          </tr>
+
+          <!-- PORTAL CTA -->
+          <tr>
+            <td style="text-align:center;padding:32px 0 16px;">
+              <a href="${baseUrl}/my-tickets?email=${encodeURIComponent(to)}"
+                style="display:inline-block;background:linear-gradient(135deg,#6366f1,#a78bfa);color:#ffffff;font-size:14px;font-weight:800;padding:14px 32px;border-radius:12px;text-decoration:none;letter-spacing:0.03em;">
+                View All My Tickets
+              </a>
+            </td>
+          </tr>
+
+          <!-- FOOTER -->
+          <tr>
+            <td style="text-align:center;padding:16px 0 40px;">
+              <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.2);">
+                This ticket was issued by EventOS · Questions? Reply to this email<br/>
+                Your ticket is non-transferable and linked to your email address.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td></tr>
+    </table>
+
+  </body>
+  </html>
   `;
 
   return sendMail({
     to,
-    subject: `Your tickets for ${eventName}`,
+    subject: `🎟 Your ${tickets.length === 1 ? "ticket" : "tickets"} for ${eventName}`,
     html,
   });
 }
+
 
 
 export async function sendEventInvitationEmail({

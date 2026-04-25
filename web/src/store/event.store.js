@@ -208,9 +208,13 @@ deleteEvent: async (id) => {
   },
 
   getEventAnalyticsDashboard: async (eventId) => {
-    const res = await api.get(`/events/${eventId}/analytics/dashboard`);
+    const res = await api.get(`/dashboard/events/${eventId}/analytics/dashboard`);
     return res.data?.data;
   },
+
+
+
+
 
   getEventBuilder: async (eventId) => {
     const res = await api.get(`/events/${eventId}/builder`);
