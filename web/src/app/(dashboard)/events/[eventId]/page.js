@@ -224,7 +224,7 @@ export default function EventOverviewPage() {
           subtitle="Issued"
           icon={Ticket}
           color="violet"
-          href={`/events/${eventId}/tickets`}
+          href="/tickets"
         />
         <StatCard
           title="Check-ins"
@@ -275,8 +275,8 @@ export default function EventOverviewPage() {
             />
             <QuickAction
               label="Tickets"
-              description="Create ticket tiers"
-              href={`/events/${eventId}/tickets`}
+              description="Manage ticket tiers & sales"
+              href="/tickets"
               icon={Ticket}
             />
             <QuickAction

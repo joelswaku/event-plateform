@@ -88,7 +88,7 @@ export const SECTION_TEMPLATES = {
     config: {
       headline_align: "center",
       show_cta: true,
-      cta_text: "RSVP Now",
+      cta_text: "Join Now",
       background_style: "image",
       overlay_opacity: 40,
     },

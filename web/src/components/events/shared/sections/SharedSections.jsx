@@ -83,10 +83,11 @@ function getThemePad(theme) {
 }
 
 // ── Base section wrapper ──────────────────────────────────────────────────────
-function SectionWrap({ bg = "var(--t-bg)", children, className = "", onClick, isEditor, pad }) {
+function SectionWrap({ id, bg = "var(--t-bg)", children, className = "", onClick, isEditor, pad }) {
   const paddingCls = pad || "py-24 sm:py-32";
   return (
     <section
+      id={id}
       className={`relative overflow-hidden px-6 ${paddingCls} ${isEditor ? "cursor-pointer ring-inset hover:ring-2 hover:ring-indigo-400/60" : ""} ${className}`}
       style={{ background: bg, color: "var(--t-text)" }}
       onClick={isEditor ? onClick : undefined}
@@ -1484,7 +1485,7 @@ export function TicketsSection({ section, event, isEditor = false, onEdit }) {
   const displayTickets = isEditor ? TICKET_MOCK : tickets;
 
   return (
-    <SectionWrap bg="var(--t-bg)" isEditor={isEditor} onClick={onEdit} pad={pad}>
+    <SectionWrap id="tickets" bg="var(--t-bg)" isEditor={isEditor} onClick={onEdit} pad={pad}>
       <div className="mx-auto max-w-5xl">
         <FadeUp className="text-center">
           <SectionEyebrow center>Tickets</SectionEyebrow>
@@ -1691,14 +1692,62 @@ export function FAQSection({ section, isEditor = false, onEdit }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // CTA
 // ══════════════════════════════════════════════════════════════════════════════
-export function CTASection({ section, isEditor = false, onEdit }) {
+export function CTASection({ section, event, isEditor = false, onEdit }) {
   const config  = section.config || {};
   const theme   = config._theme || "CLASSIC";
-  const [hasToken, setHasToken] = useState(false);
+  const API     = process.env.NEXT_PUBLIC_API_URL;
+
+  const [hasToken, setHasToken]   = useState(false);
+  const [pubTickets, setPubTickets] = useState([]);
+
   useEffect(() => {
     setHasToken(!!new URLSearchParams(window.location.search).get("token"));
   }, []);
-  const handleRsvp = () => window.dispatchEvent(new CustomEvent("open-rsvp-panel"));
+
+  // Fetch public tickets to get pricing info when event has ticketing enabled
+  const isTicketed = !isEditor && !!event?.allow_ticketing;
+  useEffect(() => {
+    if (!isTicketed || !event?.id || !API) return;
+    fetch(`${API}/public/events/${event.id}/tickets`)
+      .then((r) => r.json())
+      .then((d) => setPubTickets(d.tickets ?? []))
+      .catch(() => {});
+  }, [isTicketed, event?.id, API]);
+
+  const handleRsvp       = () => window.dispatchEvent(new CustomEvent("open-rsvp-panel"));
+  const handleBuyTickets = () => {
+    const el = document.getElementById("tickets");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Price range label
+  const paidTickets = pubTickets.filter((t) => t.price > 0);
+  const freeTickets = pubTickets.filter((t) => !t.price || t.price === 0);
+  const minPrice    = paidTickets.length ? Math.min(...paidTickets.map((t) => Number(t.price))) : 0;
+  const maxPrice    = paidTickets.length ? Math.max(...paidTickets.map((t) => Number(t.price))) : 0;
+  const currency    = pubTickets[0]?.currency ?? "USD";
+  const fmt         = (n) => new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
+  const priceLabel  = paidTickets.length === 0
+    ? (freeTickets.length ? "Free entry" : "")
+    : minPrice === maxPrice ? `From ${fmt(minPrice)}`
+    : `${fmt(minPrice)} – ${fmt(maxPrice)}`;
+  const spotsLeft   = pubTickets.reduce((s, t) => {
+    const avail = t.quantity_total != null ? (t.quantity_total - (t.quantity_sold ?? 0)) : null;
+    return avail != null ? s + avail : s;
+  }, 0);
+  const hasLimit    = pubTickets.some((t) => t.quantity_total != null);
+
+  // In editor mode, preview ticketing look if event has allow_ticketing set
+  const showTicketingMode = isEditor
+    ? !!(event?.allow_ticketing)
+    : isTicketed;
+
+  // Ticketing CTA content per theme
+  const ticketCTA = {
+    title:  section.title  || "Secure Your Spot",
+    body:   section.body   || "Limited seats available. Get your tickets before they sell out.",
+    button: config.button_text || "Buy Tickets",
+  };
 
   // ── MODERN: Left-aligned, full-width button ──────────────────────────────
   if (theme === "MODERN") {
@@ -1712,17 +1761,28 @@ export function CTASection({ section, isEditor = false, onEdit }) {
           <FadeUp>
             <div className="h-1 w-16 mb-6" style={{ background: "var(--t-accent)" }} />
             <h2 className="text-5xl font-black uppercase sm:text-7xl leading-none" style={{ fontFamily: "var(--t-font-heading)", color: "#fff", letterSpacing: "-0.03em" }}>
-              {section.title || "Join Us"}
+              {showTicketingMode ? ticketCTA.title : (section.title || "Join Us")}
             </h2>
-            {section.body && <p className="mt-5 max-w-lg text-base text-white/50">{section.body}</p>}
-            {(isEditor || hasToken) && (
-              <button onClick={!isEditor ? handleRsvp : undefined}
+            {showTicketingMode ? (
+              <div className="mt-5 max-w-lg space-y-3">
+                <p className="text-base text-white/50">{ticketCTA.body}</p>
+                {priceLabel && <p className="text-lg font-black" style={{ color: "var(--t-accent)" }}>{priceLabel}</p>}
+                {hasLimit && spotsLeft > 0 && spotsLeft < 50 && (
+                  <p className="text-xs font-bold uppercase tracking-widest text-red-400">⚡ Only {spotsLeft} spots left</p>
+                )}
+              </div>
+            ) : (
+              section.body && <p className="mt-5 max-w-lg text-base text-white/50">{section.body}</p>
+            )}
+            {(showTicketingMode || isEditor || hasToken) && (
+              <button
+                onClick={!isEditor ? (showTicketingMode ? handleBuyTickets : handleRsvp) : undefined}
                 className="mt-10 w-full max-w-sm text-sm font-black uppercase tracking-[0.2em] transition active:scale-95"
                 style={{ background: "var(--t-accent)", color: "#000", padding: "1.25rem 3rem" }}
                 onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.9"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
               >
-                {config.button_text || "Register Now"}
+                {showTicketingMode ? ticketCTA.button : (config.button_text || "Register Now")}
               </button>
             )}
           </FadeUp>
@@ -1743,14 +1803,21 @@ export function CTASection({ section, isEditor = false, onEdit }) {
         <div className="relative mx-auto max-w-xl">
           <FadeUp>
             <h2 className="text-5xl font-light sm:text-6xl text-white" style={{ fontFamily: "var(--t-font-heading)", letterSpacing: "0.01em" }}>
-              {section.title || "Join Us"}
+              {showTicketingMode ? ticketCTA.title : (section.title || "Join Us")}
             </h2>
-            {(isEditor || hasToken) && (
-              <button onClick={!isEditor ? handleRsvp : undefined}
+            {showTicketingMode && priceLabel && (
+              <p className="mt-4 text-sm font-medium tracking-widest uppercase" style={{ color: "var(--t-accent)" }}>{priceLabel}</p>
+            )}
+            {showTicketingMode && hasLimit && spotsLeft > 0 && spotsLeft < 50 && (
+              <p className="mt-2 text-xs uppercase tracking-widest text-red-400/80">Only {spotsLeft} spots remaining</p>
+            )}
+            {(showTicketingMode || isEditor || hasToken) && (
+              <button
+                onClick={!isEditor ? (showTicketingMode ? handleBuyTickets : handleRsvp) : undefined}
                 className="mt-14 border bg-transparent text-xs font-light uppercase tracking-[0.5em] text-white/60 transition hover:text-white hover:border-white/50 px-12 py-5"
                 style={{ border: "1px solid rgba(255,255,255,0.2)" }}
               >
-                {config.button_text || "RSVP"}
+                {showTicketingMode ? ticketCTA.button : (config.button_text || "RSVP")}
               </button>
             )}
           </FadeUp>
@@ -1773,17 +1840,27 @@ export function CTASection({ section, isEditor = false, onEdit }) {
             <div className="inline-block rounded-3xl p-10 sm:p-14"
               style={{ background: "var(--t-accent)", border: "3px solid #fff", boxShadow: "8px 8px 0px rgba(255,255,255,0.4)" }}>
               <h2 className="text-5xl font-extrabold sm:text-6xl text-white" style={{ fontFamily: "var(--t-font-heading)" }}>
-                {section.title || "Let's Party! 🎉"}
+                {showTicketingMode ? ticketCTA.title : (section.title || "Let's Party! 🎉")}
               </h2>
-              {section.body && <p className="mt-4 text-lg text-white/80">{section.body}</p>}
-              {(isEditor || hasToken) && (
-                <button onClick={!isEditor ? handleRsvp : undefined}
+              {showTicketingMode ? (
+                <div className="mt-4 space-y-2">
+                  <p className="text-lg text-white/80">{ticketCTA.body}</p>
+                  {priceLabel && <p className="text-2xl font-black text-white">{priceLabel}</p>}
+                  {hasLimit && spotsLeft > 0 && spotsLeft < 50 && (
+                    <p className="text-sm font-black uppercase tracking-widest text-white/70">⚡ Only {spotsLeft} spots left!</p>
+                  )}
+                </div>
+              ) : (
+                section.body && <p className="mt-4 text-lg text-white/80">{section.body}</p>
+              )}
+              {(showTicketingMode || isEditor || hasToken) && (
+                <button onClick={!isEditor ? (showTicketingMode ? handleBuyTickets : handleRsvp) : undefined}
                   className="mt-8 inline-block bg-white text-sm font-black uppercase tracking-[0.15em] transition active:scale-95 px-10 py-4"
                   style={{ color: "var(--t-accent)", borderRadius: 999, border: "3px solid #1a1a1a", boxShadow: "4px 4px 0 #1a1a1a" }}
                   onMouseEnter={(e) => { e.currentTarget.style.transform = "translate(-2px,-2px)"; e.currentTarget.style.boxShadow = "6px 6px 0 #1a1a1a"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "4px 4px 0 #1a1a1a"; }}
                 >
-                  {config.button_text || "Count Me In! →"}
+                  {showTicketingMode ? ticketCTA.button : (config.button_text || "Count Me In! →")}
                 </button>
               )}
             </div>
@@ -1813,17 +1890,27 @@ export function CTASection({ section, isEditor = false, onEdit }) {
               <div className="h-px w-12" style={{ background: "var(--t-accent)", opacity: 0.4 }} />
             </div>
             <h2 className="text-6xl font-bold italic text-white sm:text-7xl" style={{ fontFamily: "var(--t-font-heading)", letterSpacing: "0.01em" }}>
-              {section.title || "Join Us"}
+              {showTicketingMode ? ticketCTA.title : (section.title || "Join Us")}
             </h2>
-            {section.body && <p className="mx-auto mt-6 max-w-md text-lg text-white/40 italic">{section.body}</p>}
-            {(isEditor || hasToken) && (
-              <button onClick={!isEditor ? handleRsvp : undefined}
+            {showTicketingMode ? (
+              <div className="mt-6 space-y-3">
+                <p className="mx-auto max-w-md text-lg text-white/40 italic">{ticketCTA.body}</p>
+                {priceLabel && <p className="text-xl font-semibold tracking-widest uppercase" style={{ color: "var(--t-accent)" }}>{priceLabel}</p>}
+                {hasLimit && spotsLeft > 0 && spotsLeft < 50 && (
+                  <p className="text-xs uppercase tracking-[0.3em] text-white/30">— Only {spotsLeft} tickets remain —</p>
+                )}
+              </div>
+            ) : (
+              section.body && <p className="mx-auto mt-6 max-w-md text-lg text-white/40 italic">{section.body}</p>
+            )}
+            {(showTicketingMode || isEditor || hasToken) && (
+              <button onClick={!isEditor ? (showTicketingMode ? handleBuyTickets : handleRsvp) : undefined}
                 className="mt-14 bg-transparent text-sm font-medium uppercase tracking-[0.4em] transition active:scale-95 px-12 py-5 text-white"
                 style={{ border: "1px solid var(--t-accent)" }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = "var(--t-accent)"; e.currentTarget.style.color = "#000"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#fff"; }}
               >
-                {config.button_text || "Confirm Attendance"}
+                {showTicketingMode ? ticketCTA.button : (config.button_text || "Confirm Attendance")}
               </button>
             )}
           </FadeUp>
@@ -1849,17 +1936,27 @@ export function CTASection({ section, isEditor = false, onEdit }) {
             <div className="h-px w-12" style={{ background: "var(--t-accent)", opacity: 0.5 }} />
           </div>
           <h2 className="text-5xl font-bold italic leading-tight text-white sm:text-6xl" style={{ fontFamily: "var(--t-font-heading)" }}>
-            {section.title || "Join Us"}
+            {showTicketingMode ? ticketCTA.title : (section.title || "Join Us")}
           </h2>
-          {section.body && <p className="mx-auto mt-5 max-w-md text-lg text-white/50">{section.body}</p>}
-          {(isEditor || hasToken) && (
-            <button onClick={!isEditor ? handleRsvp : undefined}
+          {showTicketingMode ? (
+            <div className="mt-5 space-y-3">
+              <p className="mx-auto max-w-md text-lg text-white/50">{ticketCTA.body}</p>
+              {priceLabel && <p className="text-lg font-semibold tracking-widest uppercase" style={{ color: "var(--t-accent)" }}>{priceLabel}</p>}
+              {hasLimit && spotsLeft > 0 && spotsLeft < 50 && (
+                <p className="text-xs uppercase tracking-[0.3em] text-white/40">· {spotsLeft} tickets remaining ·</p>
+              )}
+            </div>
+          ) : (
+            section.body && <p className="mx-auto mt-5 max-w-md text-lg text-white/50">{section.body}</p>
+          )}
+          {(showTicketingMode || isEditor || hasToken) && (
+            <button onClick={!isEditor ? (showTicketingMode ? handleBuyTickets : handleRsvp) : undefined}
               className="mt-12 bg-transparent px-12 py-4 text-sm font-medium uppercase tracking-[0.25em] transition active:scale-95"
               style={{ border: "1px solid var(--t-accent)", color: "var(--t-accent)" }}
               onMouseEnter={(e) => { e.currentTarget.style.background = "var(--t-accent)"; e.currentTarget.style.color = "var(--t-dark)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--t-accent)"; }}
             >
-              {config.button_text || "Confirm Attendance"}
+              {showTicketingMode ? ticketCTA.button : (config.button_text || "Confirm Attendance")}
             </button>
           )}
         </FadeUp>

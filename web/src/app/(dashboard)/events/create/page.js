@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { ChevronLeft, Check, Ticket, Users, Zap, Settings2, Lock, Sparkles, ArrowRight, CalendarDays, LayoutTemplate } from "lucide-react";
 import { useEventStore } from "@/store/event.store";
@@ -446,15 +446,28 @@ function StepDetails({ subcategory, isTicketed, onBack, onSubmit, submitting }) 
 
 // ── Wizard shell ──────────────────────────────────────────────────────────────
 export default function CreateEventPage() {
-  const router = useRouter();
+  const router       = useRouter();
+  const searchParams = useSearchParams();
   const { createEvent } = useEventStore();
 
-  const [step, setStep]               = useState(0);
-  const [category, setCategory]       = useState(null);
-  const [subcategory, setSubcategory] = useState(null);
+  /* ── pre-select from ticket dashboard query params ── */
+  const catParam  = searchParams.get("category");
+  const subParam  = searchParams.get("sub");
+  const fromParam = searchParams.get("from"); // "tickets" when coming from ticket dashboard
+
+  const preSelected = (() => {
+    if (!catParam || !subParam) return null;
+    const cat = EVENT_CATEGORIES.find((c) => c.id === catParam);
+    const sub = cat?.subcategories.find((s) => s.id === subParam);
+    return cat && sub ? { cat, sub } : null;
+  })();
+
+  const [step, setStep]               = useState(preSelected ? 2 : 0);
+  const [category, setCategory]       = useState(preSelected?.cat ?? null);
+  const [subcategory, setSubcategory] = useState(preSelected?.sub ?? null);
   const [isTicketed, setIsTicketed]   = useState(false);
   const [submitting, setSubmitting]   = useState(false);
-  const [error, setError]             = useState(null);   // { type: "limit" | "generic", message }
+  const [error, setError]             = useState(null);
   const openUpgradeModal = useSubscriptionStore((s) => s.openUpgradeModal);
 
   const handleSubmit = async (payload) => {
@@ -466,7 +479,11 @@ export default function CreateEventPage() {
         setError({ type: "generic", message: "Failed to create event. Please try again." });
         return;
       }
-      if (isTicketed) {
+      /* When coming from the ticket dashboard, always open the builder
+         so the user can pick a template and design their event page first. */
+      if (fromParam === "tickets") {
+        router.push(`/events/${event.id}/builder?from=create`);
+      } else if (isTicketed) {
         router.push(`/events/${event.id}/tickets`);
       } else {
         router.push(`/events/${event.id}/builder?from=create`);
@@ -483,17 +500,20 @@ export default function CreateEventPage() {
     }
   };
 
+  const backLabel = fromParam === "tickets" ? "Back to tickets" : "Back to events";
+  const backPath  = fromParam === "tickets" ? "/tickets" : "/events";
+
   return (
     <div className="flex flex-col h-full min-h-0 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="mx-auto w-full max-w-4xl px-4 py-8">
 
-        {/* Back to events */}
+        {/* Back button */}
         <button
-          onClick={() => router.push("/events")}
+          onClick={() => router.push(backPath)}
           className="mb-6 flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition"
         >
           <ChevronLeft className="w-4 h-4" />
-          Back to events
+          {backLabel}
         </button>
 
         {/* Progress indicator */}

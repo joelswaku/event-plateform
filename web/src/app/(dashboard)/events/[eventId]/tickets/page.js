@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Ticket, Plus, Trash2, Pencil, BarChart3, ShoppingBag,
   DollarSign, Users, CheckCircle2, XCircle, Clock,
   ChevronDown, ChevronUp, X, TrendingUp, AlertCircle,
-  Sparkles, ArrowRight, Zap,
+  Sparkles, ArrowRight, Zap, ChevronLeft, Palette, CalendarDays,
 } from "lucide-react";
 import { useTicketStore } from "@/store/ticket.store";
 import { useEventStore } from "@/store/event.store";
@@ -536,11 +537,13 @@ function OrderRow({ order }) {
 /* ── Main page ───────────────────────────────────────────── */
 export default function TicketsPage() {
   const { eventId } = useParams();
+  const router = useRouter();
   const {
     tickets, orders, stats, loading,
     fetchTickets, createTicket, updateTicket, deleteTicket, fetchStats, fetchOrders,
   } = useTicketStore();
-  const event = useEventStore((s) => s.events.find((e) => e.id === eventId));
+  const { events, fetchEvents } = useEventStore();
+  const event = events.find((e) => e.id === eventId);
 
   const [tab, setTab]           = useState("types");
   const [formOpen, setFormOpen] = useState(false);
@@ -550,6 +553,8 @@ export default function TicketsPage() {
     fetchTickets(eventId);
     fetchStats(eventId);
     fetchOrders(eventId);
+    // Ensure event data is available for the header
+    if (!event) fetchEvents();
   }, [eventId]);
 
   const handleSave = useCallback(async (payload) => {
@@ -559,8 +564,11 @@ export default function TicketsPage() {
 
   const handleDelete = useCallback((id) => deleteTicket(id), []);
   const handleToggle = useCallback((ticket) => updateTicket(ticket.id, { is_active: !ticket.is_active }), []);
+  const openCreate   = useCallback(() => { setEditing(null); setFormOpen(true); }, []);
 
-  const openCreate = useCallback(() => { setEditing(null); setFormOpen(true); }, []);
+  const sub = ENTERTAINMENT_SUBS.find(
+    (s) => s.eventType.toUpperCase() === String(event?.event_type ?? "").toUpperCase()
+  );
 
   const tabs = [
     { id: "types",  label: "Ticket Types", icon: Ticket      },
@@ -568,28 +576,104 @@ export default function TicketsPage() {
     { id: "stats",  label: "Stats",        icon: BarChart3   },
   ];
 
-  /* ── show setup screen when no tickets exist ── */
   const showSetup = !loading && tickets.length === 0 && tab === "types";
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Tickets</h1>
-          <p className="text-sm text-gray-400 mt-0.5">Manage ticket types, track orders &amp; revenue</p>
+
+      {/* ── Rich header ── */}
+      <motion.div
+        initial={{ opacity: 0, y: -6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        {/* back + builder row */}
+        <div className="flex items-center justify-between mb-4">
+          <Link
+            href="/tickets"
+            className="flex items-center gap-1.5 text-sm font-medium text-gray-400 hover:text-gray-700 transition-colors"
+          >
+            <ChevronLeft size={15} />
+            All events
+          </Link>
+
+          <Link
+            href={`/events/${eventId}/builder`}
+            className="flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-bold text-white transition-all hover:opacity-90 active:scale-95"
+            style={{
+              background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+              boxShadow: "0 4px 14px rgba(99,102,241,0.35)",
+            }}
+          >
+            <Palette size={14} />
+            Go to Builder
+          </Link>
         </div>
+
+        {/* event identity */}
+        <div className="flex items-start gap-4">
+          <div
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-2xl leading-none"
+            style={{
+              background: "linear-gradient(135deg,#f59e0b18,#ef444410)",
+              border: "1px solid rgba(245,158,11,0.2)",
+            }}
+          >
+            {sub?.icon ?? "🎟️"}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <span
+                className="rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest"
+                style={{ background: "rgba(245,158,11,0.12)", color: "#f59e0b" }}
+              >
+                {sub?.label ?? event?.event_type ?? "Ticketed"}
+              </span>
+              <span
+                className="rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest"
+                style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}
+              >
+                Ticketed
+              </span>
+            </div>
+            <h1 className="text-xl font-black text-gray-900 truncate">
+              {event?.title ?? "Loading…"}
+            </h1>
+            {event?.starts_at_local && (
+              <p className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-400">
+                <CalendarDays size={11} />
+                {new Date(event.starts_at_local).toLocaleDateString("en-US", {
+                  weekday: "short", month: "short", day: "numeric", year: "numeric",
+                })}
+              </p>
+            )}
+          </div>
+
+          {/* New ticket type button (desktop) */}
+          {!showSetup && tab === "types" && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              onClick={openCreate}
+              className="hidden sm:inline-flex shrink-0 items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 transition active:scale-95"
+            >
+              <Plus size={15} /> New ticket type
+            </motion.button>
+          )}
+        </div>
+
+        {/* mobile new ticket button */}
         {!showSetup && tab === "types" && (
           <motion.button
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             onClick={openCreate}
-            className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 transition active:scale-95"
+            className="mt-3 sm:hidden w-full flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 transition"
           >
             <Plus size={15} /> New ticket type
           </motion.button>
         )}
-      </div>
+      </motion.div>
 
       {/* Stat cards — only when tickets exist */}
       {stats && !showSetup && (

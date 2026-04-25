@@ -154,32 +154,45 @@ export async function getAdminTicketsService(eventId, organizationId) {
   return result.rows;
 }
 
+const ENTERTAINMENT_DASHBOARD_MODES = [
+  "CONCERT", "FESTIVAL", "LIVE_SHOW", "NIGHTCLUB",
+  "THEATER", "COMEDY", "SPORTS", "EXHIBITION",
+];
+
+/* event_type values used by entertainment subcategories */
+const ENTERTAINMENT_EVENT_TYPES = ["CONCERT", "CORPORATE_EVENT"];
+
 export async function getEventsWithTicketsService(organizationId) {
   const result = await db.query(
     `SELECT
        e.id,
        e.title,
        e.event_type,
+       e.dashboard_mode,
        e.status,
-       e.starts_at_local,
+       e.starts_at AS starts_at_local,
        e.venue_name,
-       COUNT(tt.id)::int                                     AS ticket_count,
-       COUNT(tt.id) FILTER (WHERE tt.is_active)::int         AS active_count,
-       COALESCE(SUM(tt.quantity_sold), 0)::int               AS total_sold
+       COUNT(tt.id)::int                                              AS ticket_count,
+       COUNT(tt.id) FILTER (WHERE tt.is_active = true)::int          AS active_count,
+       COALESCE(SUM(tt.quantity_sold), 0)::int                       AS total_sold
      FROM events e
-     JOIN ticket_types tt ON tt.event_id = e.id AND tt.deleted_at IS NULL
+     LEFT JOIN ticket_types tt ON tt.event_id = e.id AND tt.deleted_at IS NULL
      WHERE e.organization_id = $1
        AND e.deleted_at IS NULL
+       AND (
+         UPPER(e.dashboard_mode) = ANY($2)
+         OR UPPER(e.event_type)  = ANY($3)
+       )
      GROUP BY e.id
-     ORDER BY e.starts_at_local DESC NULLS LAST`,
-    [organizationId]
+     ORDER BY e.starts_at DESC NULLS LAST`,
+    [organizationId, ENTERTAINMENT_DASHBOARD_MODES, ENTERTAINMENT_EVENT_TYPES]
   );
   return result.rows;
 }
 
 export async function deleteTicketTypeService(ticketId, organizationId) {
   const result = await db.query(
-    `UPDATE ticket_types SET deleted_at = NOW(), updated_at = NOW()
+    `UPDATE ticket_types SET deleted_at = NOW()
      WHERE id = $1
        AND event_id IN (SELECT id FROM events WHERE organization_id = $2 AND deleted_at IS NULL)
        AND deleted_at IS NULL
@@ -204,7 +217,7 @@ export async function getTicketStatsService(eventId, organizationId) {
          COALESCE(SUM(total) FILTER (WHERE payment_status='PAID'),0)    AS gross_revenue,
          COALESCE(SUM(total) FILTER (WHERE payment_status='PENDING'),0) AS pending_revenue,
          currency
-       FROM ticket_orders WHERE event_id=$1 AND deleted_at IS NULL
+       FROM ticket_orders WHERE event_id=$1
        GROUP BY currency LIMIT 1`,
       [eventId]
     ),
@@ -249,7 +262,7 @@ export async function listOrdersService(eventId, { limit = 50, offset = 0 } = {}
      FROM ticket_orders o
      JOIN ticket_order_items oi ON oi.order_id = o.id
      JOIN ticket_types tt ON tt.id = oi.ticket_type_id
-     WHERE o.event_id = $1 AND o.deleted_at IS NULL
+     WHERE o.event_id = $1
      GROUP BY o.id
      ORDER BY o.created_at DESC
      LIMIT $2 OFFSET $3`,
@@ -322,7 +335,7 @@ export async function updateTicketTypeService(ticketId, payload) {
   const result = await db.query(
     `
     UPDATE ticket_types
-    SET ${fields.join(", ")}, updated_at=NOW()
+    SET ${fields.join(", ")}
     WHERE id=$${index}
     RETURNING *
     `,

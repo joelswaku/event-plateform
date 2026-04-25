@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSyncExternalStore } from "react";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -61,8 +62,18 @@ export default function DashboardSidebar() {
   const openUpgradeModal = useSubscriptionStore((s) => s.openUpgradeModal);
   const logout           = useAuthStore((s) => s.logout);
 
-  // On mobile (drawer open) always show expanded layout regardless of isCollapsed
-  const showExpanded = !isCollapsed || isMobileOpen;
+  // useSyncExternalStore returns false on the server and true on the client,
+  // so both the server render and the first client render use the same safe
+  // defaults — preventing the localStorage-rehydration attribute mismatch.
+  const isClient = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+
+  const safeCollapsed  = isClient ? isCollapsed  : false;
+  const safeSubscribed = isClient ? isSubscribed : false;
+  const showExpanded   = !safeCollapsed || isMobileOpen;
 
   return (
     <>
@@ -142,7 +153,7 @@ export default function DashboardSidebar() {
 
         {/* Plan card — expanded only */}
         {showExpanded && (
-          isSubscribed ? (
+          safeSubscribed ? (
             <div className="mx-3 mb-4 rounded-2xl bg-linear-to-br from-amber-50 to-yellow-50 border border-amber-100 p-4 dark:from-amber-950/30 dark:to-yellow-950/30 dark:border-amber-800/30">
               <div className="flex items-center gap-2 mb-1">
                 <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
