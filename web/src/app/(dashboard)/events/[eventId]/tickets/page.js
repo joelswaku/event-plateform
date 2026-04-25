@@ -95,12 +95,12 @@ function SetupScreen({ event, onStartFresh }) {
             Ticket Setup
           </p>
         </div>
-        <h2 className="text-3xl font-black text-gray-900 leading-tight">
+        <h2 className="text-3xl font-black text-gray-900 dark:text-white leading-tight">
           How do you want to<br />set up?
         </h2>
-        <p className="mt-3 text-sm text-gray-400 max-w-xs mx-auto leading-relaxed">
+        <p className="mt-3 text-sm text-gray-400 dark:text-gray-500 max-w-xs mx-auto leading-relaxed">
           Configure your ticket tiers, pricing, and availability for{" "}
-          <span className="font-semibold text-gray-600">{event?.title ?? "this event"}</span>.
+          <span className="font-semibold text-gray-600 dark:text-gray-300">{event?.title ?? "this event"}</span>.
         </p>
       </motion.div>
 
@@ -132,12 +132,12 @@ function SetupScreen({ event, onStartFresh }) {
               {opt.icon}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-gray-900">{opt.label}</p>
-              <p className="mt-0.5 text-xs text-gray-400 leading-relaxed">{opt.description}</p>
+              <p className="font-bold text-gray-900 dark:text-white">{opt.label}</p>
+              <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500 leading-relaxed">{opt.description}</p>
             </div>
             <ArrowRight
               size={16}
-              className="shrink-0 text-gray-300 transition-transform duration-200 group-hover:translate-x-1"
+              className="shrink-0 transition-transform duration-200 group-hover:translate-x-1"
               style={{ color: opt.accent }}
             />
           </motion.button>
@@ -150,21 +150,21 @@ function SetupScreen({ event, onStartFresh }) {
 /* ── Stat card ───────────────────────────────────────────── */
 function StatCard({ icon: Icon, label, value, sub, color = "indigo" }) {
   const colors = {
-    indigo: { bg: "bg-indigo-50",  icon: "text-indigo-600",  ring: "ring-indigo-100"  },
-    green:  { bg: "bg-green-50",   icon: "text-green-600",   ring: "ring-green-100"   },
-    amber:  { bg: "bg-amber-50",   icon: "text-amber-600",   ring: "ring-amber-100"   },
-    violet: { bg: "bg-violet-50",  icon: "text-violet-600",  ring: "ring-violet-100"  },
+    indigo: { bg: "bg-indigo-50 dark:bg-indigo-900/20",  icon: "text-indigo-600 dark:text-indigo-400",  ring: "ring-indigo-100 dark:ring-indigo-900/30"  },
+    green:  { bg: "bg-green-50 dark:bg-green-900/20",    icon: "text-green-600 dark:text-green-400",    ring: "ring-green-100 dark:ring-green-900/30"    },
+    amber:  { bg: "bg-amber-50 dark:bg-amber-900/20",    icon: "text-amber-600 dark:text-amber-400",    ring: "ring-amber-100 dark:ring-amber-900/30"    },
+    violet: { bg: "bg-violet-50 dark:bg-violet-900/20",  icon: "text-violet-600 dark:text-violet-400",  ring: "ring-violet-100 dark:ring-violet-900/30"  },
   }[color];
 
   return (
-    <div className="flex items-center gap-4 rounded-2xl border border-[#e5e7eb] bg-white p-5">
+    <div className="flex items-center gap-4 rounded-2xl border border-[#e5e7eb] dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
       <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ring-4 ${colors.bg} ${colors.ring}`}>
         <Icon size={18} className={colors.icon} />
       </div>
       <div className="min-w-0">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">{label}</p>
-        <p className="text-xl font-bold text-gray-900 leading-tight">{value}</p>
-        {sub && <p className="text-[11px] text-gray-400">{sub}</p>}
+        <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">{label}</p>
+        <p className="text-xl font-bold text-gray-900 dark:text-white leading-tight">{value}</p>
+        {sub && <p className="text-[11px] text-gray-400 dark:text-gray-500">{sub}</p>}
       </div>
     </div>
   );
@@ -215,27 +215,27 @@ function TicketFormModal({ initial, onSave, onClose }) {
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 40 }}
-        className="w-full max-w-lg rounded-t-3xl sm:rounded-3xl bg-white shadow-2xl overflow-hidden"
+        className="w-full max-w-lg rounded-t-3xl sm:rounded-3xl bg-white dark:bg-gray-800 shadow-2xl overflow-hidden"
       >
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
-          <h2 className="text-base font-bold text-gray-900">
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="text-base font-bold text-gray-900 dark:text-white">
             {initial ? "Edit ticket type" : "New ticket type"}
           </h2>
-          <button onClick={onClose} className="rounded-xl p-2 hover:bg-gray-100 text-gray-400">
+          <button onClick={onClose} className="rounded-xl p-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 dark:text-gray-500">
             <X size={18} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
           {error && (
-            <div className="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="flex items-center gap-2 rounded-xl bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400">
               <AlertCircle size={15} /> {error}
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
-              <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Type</label>
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Type</label>
               <div className="mt-1.5 flex gap-2">
                 {["PAID", "FREE", "DONATION"].map((k) => (
                   <button key={k} type="button"
@@ -243,7 +243,7 @@ function TicketFormModal({ initial, onSave, onClose }) {
                     className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
                       form.kind === k
                         ? "bg-indigo-600 text-white shadow-sm"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                     }`}
                   >
                     {k}
@@ -253,48 +253,48 @@ function TicketFormModal({ initial, onSave, onClose }) {
             </div>
 
             <div className="col-span-2">
-              <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Name *</label>
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Name *</label>
               <input
                 value={form.name}
                 onChange={(e) => set("name", e.target.value)}
                 placeholder="e.g. General Admission"
-                className="mt-1.5 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 outline-none focus:border-indigo-400"
+                className="mt-1.5 w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-indigo-400 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                 required
               />
             </div>
 
             <div className="col-span-2">
-              <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Description</label>
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Description</label>
               <textarea
                 value={form.description}
                 onChange={(e) => set("description", e.target.value)}
                 rows={2}
                 placeholder="Optional details about this ticket…"
-                className="mt-1.5 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 outline-none focus:border-indigo-400 resize-none"
+                className="mt-1.5 w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-indigo-400 resize-none placeholder:text-gray-400 dark:placeholder:text-gray-500"
               />
             </div>
 
             <div>
-              <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Price</label>
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Price</label>
               <div className="relative mt-1.5">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 dark:text-gray-500">$</span>
                 <input
                   type="number" min="0" step="0.01"
                   value={form.price}
                   onChange={(e) => set("price", e.target.value)}
                   placeholder="0.00"
                   disabled={form.kind === "FREE"}
-                  className="w-full rounded-xl border border-gray-200 pl-7 pr-4 py-2.5 text-sm text-gray-900 outline-none focus:border-indigo-400 disabled:bg-gray-50 disabled:text-gray-400"
+                  className="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 pl-7 pr-4 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-indigo-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 disabled:text-gray-400"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Currency</label>
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Currency</label>
               <select
                 value={form.currency}
                 onChange={(e) => set("currency", e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 outline-none focus:border-indigo-400 bg-white"
+                className="mt-1.5 w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-indigo-400"
               >
                 {["USD", "EUR", "GBP", "CAD", "AUD"].map((c) => (
                   <option key={c}>{c}</option>
@@ -303,47 +303,47 @@ function TicketFormModal({ initial, onSave, onClose }) {
             </div>
 
             <div className="col-span-2">
-              <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                 Quantity available{" "}
-                <span className="text-gray-400 normal-case font-normal">(leave blank for unlimited)</span>
+                <span className="text-gray-400 dark:text-gray-500 normal-case font-normal">(leave blank for unlimited)</span>
               </label>
               <input
                 type="number" min="1"
                 value={form.quantity_total}
                 onChange={(e) => set("quantity_total", e.target.value)}
                 placeholder="Unlimited"
-                className="mt-1.5 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 outline-none focus:border-indigo-400"
+                className="mt-1.5 w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-indigo-400 placeholder:text-gray-400 dark:placeholder:text-gray-500"
               />
             </div>
 
             <div>
-              <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Sale starts</label>
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Sale starts</label>
               <input
                 type="datetime-local"
                 value={form.sale_starts_at}
                 onChange={(e) => set("sale_starts_at", e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 outline-none focus:border-indigo-400"
+                className="mt-1.5 w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-indigo-400"
               />
             </div>
             <div>
-              <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Sale ends</label>
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Sale ends</label>
               <input
                 type="datetime-local"
                 value={form.sale_ends_at}
                 onChange={(e) => set("sale_ends_at", e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 outline-none focus:border-indigo-400"
+                className="mt-1.5 w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-indigo-400"
               />
             </div>
 
-            <div className="col-span-2 flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3">
+            <div className="col-span-2 flex items-center justify-between rounded-xl border border-gray-200 dark:border-gray-600 px-4 py-3">
               <div>
-                <p className="text-sm font-medium text-gray-900">Active</p>
-                <p className="text-[11px] text-gray-400">Visible to buyers on the event page</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">Active</p>
+                <p className="text-[11px] text-gray-400 dark:text-gray-500">Visible to buyers on the event page</p>
               </div>
               <button
                 type="button"
                 onClick={() => set("is_active", !form.is_active)}
-                className={`relative h-6 w-11 rounded-full transition-colors ${form.is_active ? "bg-indigo-600" : "bg-gray-200"}`}
+                className={`relative h-6 w-11 rounded-full transition-colors ${form.is_active ? "bg-indigo-600" : "bg-gray-200 dark:bg-gray-600"}`}
               >
                 <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${form.is_active ? "translate-x-5" : "translate-x-0.5"}`} />
               </button>
@@ -351,8 +351,8 @@ function TicketFormModal({ initial, onSave, onClose }) {
           </div>
         </form>
 
-        <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
-          <button onClick={onClose} className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
+        <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 flex gap-3">
+          <button onClick={onClose} className="flex-1 rounded-xl border border-gray-200 dark:border-gray-600 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
             Cancel
           </button>
           <button
@@ -376,10 +376,10 @@ function TicketRow({ ticket, onEdit, onDelete, onToggle }) {
   const pct   = total ? Math.min((sold / total) * 100, 100) : 0;
 
   const kindColor = {
-    PAID:     "bg-indigo-50 text-indigo-700",
-    FREE:     "bg-green-50 text-green-700",
-    DONATION: "bg-amber-50 text-amber-700",
-  }[ticket.kind] ?? "bg-gray-100 text-gray-600";
+    PAID:     "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300",
+    FREE:     "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400",
+    DONATION: "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400",
+  }[ticket.kind] ?? "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300";
 
   async function handleDelete() {
     if (!confirm(`Delete "${ticket.name}"?`)) return;
@@ -388,7 +388,7 @@ function TicketRow({ ticket, onEdit, onDelete, onToggle }) {
   }
 
   return (
-    <div className="group flex flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4 transition hover:border-gray-300 hover:shadow-sm">
+    <div className="group flex flex-col gap-3 rounded-2xl border border-[#e5e7eb] dark:border-gray-700 bg-white dark:bg-gray-800 p-4 transition hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -396,22 +396,22 @@ function TicketRow({ ticket, onEdit, onDelete, onToggle }) {
               {ticket.kind}
             </span>
             {!ticket.is_active && (
-              <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[10px] font-semibold text-gray-500">
+              <span className="rounded-full bg-gray-100 dark:bg-gray-700 px-2.5 py-0.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400">
                 Inactive
               </span>
             )}
           </div>
-          <p className="mt-1.5 text-sm font-semibold text-gray-900">{ticket.name}</p>
+          <p className="mt-1.5 text-sm font-semibold text-gray-900 dark:text-white">{ticket.name}</p>
           {ticket.description && (
-            <p className="text-[12px] text-gray-400 leading-relaxed mt-0.5">{ticket.description}</p>
+            <p className="text-[12px] text-gray-400 dark:text-gray-500 leading-relaxed mt-0.5">{ticket.description}</p>
           )}
         </div>
         <div className="shrink-0 text-right">
-          <p className="text-lg font-bold text-gray-900">
+          <p className="text-lg font-bold text-gray-900 dark:text-white">
             {ticket.kind === "FREE" ? "Free" : fmt(ticket.price, ticket.currency)}
           </p>
           {ticket.currency && ticket.kind === "PAID" && (
-            <p className="text-[10px] text-gray-400">{ticket.currency}</p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500">{ticket.currency}</p>
           )}
         </div>
       </div>
@@ -419,10 +419,10 @@ function TicketRow({ ticket, onEdit, onDelete, onToggle }) {
       {total != null && (
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <p className="text-[11px] text-gray-400">{sold} sold</p>
-            <p className="text-[11px] text-gray-400">{total - sold} left</p>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500">{sold} sold</p>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500">{total - sold} left</p>
           </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
             <div
               className="h-full rounded-full transition-all"
               style={{
@@ -435,7 +435,7 @@ function TicketRow({ ticket, onEdit, onDelete, onToggle }) {
       )}
 
       {(ticket.sale_starts_at || ticket.sale_ends_at) && (
-        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+        <div className="flex items-center gap-1.5 text-[11px] text-gray-400 dark:text-gray-500">
           <Clock size={11} />
           {ticket.sale_starts_at ? fmtDate(ticket.sale_starts_at) : "Now"}
           {" → "}
@@ -443,27 +443,27 @@ function TicketRow({ ticket, onEdit, onDelete, onToggle }) {
         </div>
       )}
 
-      <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
+      <div className="flex items-center gap-2 pt-1 border-t border-gray-100 dark:border-gray-700">
         <button
           onClick={() => onToggle(ticket)}
           className={`flex-1 rounded-xl py-2 text-xs font-semibold transition ${
             ticket.is_active
-              ? "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              : "bg-green-50 text-green-700 hover:bg-green-100"
+              ? "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+              : "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30"
           }`}
         >
           {ticket.is_active ? "Deactivate" : "Activate"}
         </button>
         <button
           onClick={() => onEdit(ticket)}
-          className="flex items-center gap-1.5 rounded-xl bg-indigo-50 px-4 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition"
+          className="flex items-center gap-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 px-4 py-2 text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition"
         >
           <Pencil size={12} /> Edit
         </button>
         <button
           onClick={handleDelete}
           disabled={deleting}
-          className="flex items-center gap-1.5 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-100 transition disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded-xl bg-red-50 dark:bg-red-900/20 px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition disabled:opacity-50"
         >
           <Trash2 size={12} />
         </button>
@@ -475,13 +475,13 @@ function TicketRow({ ticket, onEdit, onDelete, onToggle }) {
 /* ── Order helpers ───────────────────────────────────────── */
 function OrderStatusBadge({ status }) {
   const map = {
-    PAID:     "bg-green-50 text-green-700",
-    PENDING:  "bg-amber-50 text-amber-700",
-    FAILED:   "bg-red-50 text-red-600",
-    REFUNDED: "bg-gray-100 text-gray-600",
+    PAID:     "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400",
+    PENDING:  "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400",
+    FAILED:   "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400",
+    REFUNDED: "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300",
   };
   return (
-    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${map[status] ?? "bg-gray-100 text-gray-600"}`}>
+    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${map[status] ?? "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"}`}>
       {status}
     </span>
   );
@@ -490,19 +490,19 @@ function OrderStatusBadge({ status }) {
 function OrderRow({ order }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="rounded-2xl border border-[#e5e7eb] bg-white overflow-hidden">
+    <div className="rounded-2xl border border-[#e5e7eb] dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-gray-50 transition"
+        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition"
       >
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-gray-900 truncate">{order.buyer_name}</p>
-          <p className="text-[11px] text-gray-400 truncate">{order.buyer_email}</p>
+          <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{order.buyer_name}</p>
+          <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate">{order.buyer_email}</p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <OrderStatusBadge status={order.payment_status} />
-          <p className="text-sm font-bold text-gray-900">{fmt(order.total, order.currency)}</p>
-          {open ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+          <p className="text-sm font-bold text-gray-900 dark:text-white">{fmt(order.total, order.currency)}</p>
+          {open ? <ChevronUp size={14} className="text-gray-400 dark:text-gray-500" /> : <ChevronDown size={14} className="text-gray-400 dark:text-gray-500" />}
         </div>
       </button>
       <AnimatePresence>
@@ -513,17 +513,17 @@ function OrderRow({ order }) {
             exit={{ height: 0 }}
             className="overflow-hidden"
           >
-            <div className="border-t border-gray-100 px-5 py-4 space-y-2">
-              <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[12px] text-gray-500 mb-3">
+            <div className="border-t border-gray-100 dark:border-gray-700 px-5 py-4 space-y-2">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[12px] text-gray-500 dark:text-gray-400 mb-3">
                 {order.buyer_phone && <span>Phone: {order.buyer_phone}</span>}
                 <span>Order: {fmtDateTime(order.created_at)}</span>
                 {order.paid_at && <span>Paid: {fmtDateTime(order.paid_at)}</span>}
               </div>
-              <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-1.5">Items</p>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Items</p>
               {(order.items ?? []).map((item, i) => (
-                <div key={i} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-2">
-                  <span className="text-[12px] font-medium text-gray-700">{item.name} × {item.quantity}</span>
-                  <span className="text-[12px] font-bold text-gray-900">{fmt(item.line_total, order.currency)}</span>
+                <div key={i} className="flex items-center justify-between rounded-xl bg-gray-50 dark:bg-gray-700 px-4 py-2">
+                  <span className="text-[12px] font-medium text-gray-700 dark:text-gray-200">{item.name} × {item.quantity}</span>
+                  <span className="text-[12px] font-bold text-gray-900 dark:text-white">{fmt(item.line_total, order.currency)}</span>
                 </div>
               ))}
             </div>
@@ -553,9 +553,8 @@ export default function TicketsPage() {
     fetchTickets(eventId);
     fetchStats(eventId);
     fetchOrders(eventId);
-    // Ensure event data is available for the header
     if (!event) fetchEvents();
-  }, [eventId]);
+  }, [eventId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSave = useCallback(async (payload) => {
     if (editing) await updateTicket(editing.id, payload);
@@ -591,7 +590,7 @@ export default function TicketsPage() {
         <div className="flex items-center justify-between mb-4">
           <Link
             href="/tickets"
-            className="flex items-center gap-1.5 text-sm font-medium text-gray-400 hover:text-gray-700 transition-colors"
+            className="flex items-center gap-1.5 text-sm font-medium text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
           >
             <ChevronLeft size={15} />
             All events
@@ -636,11 +635,11 @@ export default function TicketsPage() {
                 Ticketed
               </span>
             </div>
-            <h1 className="text-xl font-black text-gray-900 truncate">
+            <h1 className="text-xl font-black text-gray-900 dark:text-white truncate">
               {event?.title ?? "Loading…"}
             </h1>
             {event?.starts_at_local && (
-              <p className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-400">
+              <p className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
                 <CalendarDays size={11} />
                 {new Date(event.starts_at_local).toLocaleDateString("en-US", {
                   weekday: "short", month: "short", day: "numeric", year: "numeric",
@@ -688,7 +687,7 @@ export default function TicketsPage() {
       {/* Tabs — only when tickets exist */}
       {!showSetup && (
         <div className="overflow-x-auto">
-          <div className="inline-flex min-w-max rounded-2xl border border-[#e5e7eb] bg-white p-1.5 gap-1">
+          <div className="inline-flex min-w-max rounded-2xl border border-[#e5e7eb] dark:border-gray-700 bg-white dark:bg-gray-800 p-1.5 gap-1">
             {tabs.map((t) => {
               const Icon = t.icon;
               return (
@@ -697,8 +696,8 @@ export default function TicketsPage() {
                   onClick={() => setTab(t.id)}
                   className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition ${
                     tab === t.id
-                      ? "bg-[#111827] text-white shadow-sm"
-                      : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                      ? "bg-[#111827] dark:bg-white text-white dark:text-gray-900 shadow-sm"
+                      : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
                   }`}
                 >
                   <Icon size={15} /> {t.label}
@@ -729,7 +728,7 @@ export default function TicketsPage() {
               {loading ? (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-48 animate-pulse rounded-2xl bg-gray-100" />
+                    <div key={i} className="h-48 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-700" />
                   ))}
                 </div>
               ) : (
@@ -745,7 +744,7 @@ export default function TicketsPage() {
                   ))}
                   <button
                     onClick={openCreate}
-                    className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gray-200 py-10 text-gray-400 hover:border-indigo-300 hover:text-indigo-500 transition"
+                    className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 py-10 text-gray-400 dark:text-gray-500 hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-500 dark:hover:text-indigo-400 transition"
                   >
                     <Plus size={20} />
                     <span className="text-sm font-medium">Add ticket type</span>
@@ -759,10 +758,10 @@ export default function TicketsPage() {
           {tab === "orders" && (
             <div className="space-y-3">
               {orders.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-gray-200 bg-white py-20 text-center">
-                  <ShoppingBag size={28} className="text-gray-300" />
-                  <p className="text-sm font-semibold text-gray-600">No orders yet</p>
-                  <p className="text-xs text-gray-400">Orders will appear here once guests purchase tickets</p>
+                <div className="flex flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 py-20 text-center">
+                  <ShoppingBag size={28} className="text-gray-300 dark:text-gray-600" />
+                  <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">No orders yet</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">Orders will appear here once guests purchase tickets</p>
                 </div>
               ) : (
                 orders.map((o) => <OrderRow key={o.id} order={o} />)
@@ -772,9 +771,9 @@ export default function TicketsPage() {
 
           {/* ── STATS ── */}
           {tab === "stats" && stats && (
-            <div className="rounded-3xl border border-[#e5e7eb] bg-white p-6 space-y-6">
+            <div className="rounded-3xl border border-[#e5e7eb] dark:border-gray-700 bg-white dark:bg-gray-800 p-6 space-y-6">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-4">By ticket type</p>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-4">By ticket type</p>
                 <div className="space-y-3">
                   {stats.ticket_types.map((t) => {
                     const pct = t.quantity_total
@@ -784,16 +783,16 @@ export default function TicketsPage() {
                       <div key={t.id} className="flex items-center gap-4">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
-                            <p className="text-sm font-medium text-gray-800 truncate">{t.name}</p>
-                            <p className="text-xs text-gray-500 shrink-0 ml-2">
+                            <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{t.name}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 shrink-0 ml-2">
                               {t.quantity_sold ?? 0}{t.quantity_total ? ` / ${t.quantity_total}` : " sold"}
                             </p>
                           </div>
-                          <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                          <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
                             <div className="h-full rounded-full bg-indigo-500 transition-all" style={{ width: `${pct}%` }} />
                           </div>
                         </div>
-                        <p className="w-20 shrink-0 text-right text-sm font-bold text-gray-900">
+                        <p className="w-20 shrink-0 text-right text-sm font-bold text-gray-900 dark:text-white">
                           {t.kind === "FREE" ? "Free" : fmt(t.price, t.currency)}
                         </p>
                       </div>
@@ -801,33 +800,33 @@ export default function TicketsPage() {
                   })}
                 </div>
               </div>
-              <div className="border-t border-gray-100 pt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div className="border-t border-gray-100 dark:border-gray-700 pt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
                 <div className="text-center">
-                  <p className="text-2xl font-black text-gray-900">{stats.active_tickets}</p>
-                  <p className="text-[11px] text-gray-400 mt-1">Active passes</p>
+                  <p className="text-2xl font-black text-gray-900 dark:text-white">{stats.active_tickets}</p>
+                  <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">Active passes</p>
                 </div>
                 <div className="text-center">
                   <CheckCircle2 size={20} className="mx-auto text-green-500 mb-1" />
-                  <p className="text-2xl font-black text-gray-900">{stats.checked_in}</p>
-                  <p className="text-[11px] text-gray-400">Checked in</p>
+                  <p className="text-2xl font-black text-gray-900 dark:text-white">{stats.checked_in}</p>
+                  <p className="text-[11px] text-gray-400 dark:text-gray-500">Checked in</p>
                 </div>
                 <div className="text-center">
                   <XCircle size={20} className="mx-auto text-red-400 mb-1" />
-                  <p className="text-2xl font-black text-gray-900">{stats.revoked}</p>
-                  <p className="text-[11px] text-gray-400">Revoked</p>
+                  <p className="text-2xl font-black text-gray-900 dark:text-white">{stats.revoked}</p>
+                  <p className="text-[11px] text-gray-400 dark:text-gray-500">Revoked</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-black text-gray-900">{stats.total_issued}</p>
-                  <p className="text-[11px] text-gray-400 mt-1">Total issued</p>
+                  <p className="text-2xl font-black text-gray-900 dark:text-white">{stats.total_issued}</p>
+                  <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">Total issued</p>
                 </div>
               </div>
             </div>
           )}
 
           {tab === "stats" && !stats && (
-            <div className="flex flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-gray-200 bg-white py-20">
-              <BarChart3 size={28} className="text-gray-300" />
-              <p className="text-sm text-gray-400">Loading stats…</p>
+            <div className="flex flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 py-20">
+              <BarChart3 size={28} className="text-gray-300 dark:text-gray-600" />
+              <p className="text-sm text-gray-400 dark:text-gray-500">Loading stats…</p>
             </div>
           )}
         </motion.div>

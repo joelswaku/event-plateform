@@ -132,7 +132,7 @@ export default function EventOverviewPage() {
   const formatDate = (d) => {
     if (!d) return null;
     try {
-      return new Date(d).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+      return new Date(d).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
     } catch {
       return d;
     }

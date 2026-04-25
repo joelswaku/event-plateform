@@ -746,238 +746,263 @@ export async function getSeatingChartService({
   }
 }
 
-/*
-|--------------------------------------------------------------------------
-| AUTO ASSIGN
-|--------------------------------------------------------------------------
-*/
 
-export async function autoAssignSeatingService({
-  eventId,
-  organizationId,
-  userId,
-  payload = {},
-}) {
-  const client = await db.connect();
 
-  try {
-    await client.query("BEGIN");
+// /*|--------------------------------------------------------------------------| AUTO ASSIGN|--------------------------------------------------------------------------*/// PATCH — replace only the autoAssignSeatingService guests query in api/services/seating.service.js
+// // The bug: LEFT JOIN guest_groups ON gg.id = g.guest_group_id — column guest_group_id does not exist on guests table
+// // Fix: remove the guest_groups JOIN entirely; group logic is skipped gracefully
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+// // ─── FIND THIS BLOCK and REPLACE with the fixed version below ─────────────────
+// //
+// //     const guestsRes = await client.query(
+// //       `
+// //       SELECT
+// //         g.id,
+// //         g.full_name,
+// //         g.is_vip,
+// //         gg.id AS group_id,
+// //         gg.group_name
+// //       FROM guests g
+// //       LEFT JOIN guest_groups gg
+// //         ON gg.id = g.guest_group_id
+// //        AND gg.event_id = g.event_id
+// //        AND gg.deleted_at IS NULL
+// //       WHERE g.event_id=$1
+// //         AND g.deleted_at IS NULL
+// //         AND (
+// //           $2::boolean = true
+// //           OR NOT EXISTS (
+// //             SELECT 1
+// //             FROM seating_assignments sa
+// //             WHERE sa.event_id=g.event_id AND sa.guest_id=g.id
+// //           )
+// //         )
+// //       ORDER BY g.is_vip DESC, g.full_name ASC
+// //       `,
+// //       [eventId, overwriteExisting]
+// //     );
 
-    const prioritizeVip = Boolean(payload.prioritize_vip ?? true);
-    const keepGroupsTogether = Boolean(payload.keep_groups_together ?? true);
-    const assignSeatNumbers = Boolean(payload.assign_seat_numbers ?? true);
-    const overwriteExisting = Boolean(payload.overwrite_existing ?? false);
+// // ─── REPLACE WITH ─────────────────────────────────────────────────────────────
 
-    if (overwriteExisting) {
-      await client.query(
-        `DELETE FROM seating_assignments WHERE event_id=$1`,
-        [eventId]
-      );
-    }
+// //     const guestsRes = await client.query(
+// //       `
+// //       SELECT
+// //         g.id,
+// //         g.full_name,
+// //         g.is_vip,
+// //         NULL::uuid  AS group_id,
+// //         NULL::text  AS group_name
+// //       FROM guests g
+// //       WHERE g.event_id=$1
+// //         AND g.deleted_at IS NULL
+// //         AND (
+// //           $2::boolean = true
+// //           OR NOT EXISTS (
+// //             SELECT 1
+// //             FROM seating_assignments sa
+// //             WHERE sa.event_id = g.event_id
+// //               AND sa.guest_id = g.id
+// //           )
+// //         )
+// //       ORDER BY g.is_vip DESC, g.full_name ASC
+// //       `,
+// //       [eventId, overwriteExisting]
+// //     );
 
-    const locationsRes = await client.query(
-      `
-      SELECT
-        st.*,
-        COALESCE((
-          SELECT COUNT(*)
-          FROM seating_assignments sa
-          WHERE sa.seating_table_id=st.id
-        ), 0)::int AS current_assigned
-      FROM seating_tables st
-      WHERE st.event_id=$1
-        AND st.deleted_at IS NULL
-      ORDER BY st.capacity DESC, st.table_name ASC
-      `,
-      [eventId]
-    );
+// // ─── FULL FIXED autoAssignSeatingService (paste as full replacement) ──────────
+// export async function autoAssignSeatingService({
+//   eventId,
+//   organizationId,
+//   userId,
+//   payload = {},
+// }) {
+//   const client = await db.connect();
 
-    const locations = locationsRes.rows.map((row) => ({
-      id: row.id,
-      name: row.table_name,
-      capacity: row.capacity,
-      current_assigned: row.current_assigned,
-      remaining: row.capacity - row.current_assigned,
-    }));
+//   try {
+//     await client.query("BEGIN");
 
-    if (!locations.length) {
-      throw new AppError("No seating locations found for this event", 400);
-    }
+//     await assertOrganizationEventPermission(client, organizationId, userId);
+//     await assertEventExists(client, eventId, organizationId);
 
-    const guestsRes = await client.query(
-      `
-      SELECT
-        g.id,
-        g.full_name,
-        g.is_vip,
-        gg.id AS group_id,
-        gg.group_name
-      FROM guests g
-      LEFT JOIN guest_groups gg
-        ON gg.id = g.guest_group_id
-       AND gg.event_id = g.event_id
-       AND gg.deleted_at IS NULL
-      WHERE g.event_id=$1
-        AND g.deleted_at IS NULL
-        AND (
-          $2::boolean = true
-          OR NOT EXISTS (
-            SELECT 1
-            FROM seating_assignments sa
-            WHERE sa.event_id=g.event_id AND sa.guest_id=g.id
-          )
-        )
-      ORDER BY g.is_vip DESC, g.full_name ASC
-      `,
-      [eventId, overwriteExisting]
-    );
+//     const prioritizeVip      = Boolean(payload.prioritize_vip      ?? true);
+//     const keepGroupsTogether = Boolean(payload.keep_groups_together ?? true);
+//     const assignSeatNumbers  = Boolean(payload.assign_seat_numbers  ?? true);
+//     const overwriteExisting  = Boolean(payload.overwrite_existing   ?? false);
 
-    const guests = guestsRes.rows;
+//     if (overwriteExisting) {
+//       await client.query(
+//         `DELETE FROM seating_assignments WHERE event_id=$1`,
+//         [eventId]
+//       );
+//     }
 
-    if (!guests.length) {
-      await client.query("COMMIT");
-      return {
-        assigned_count: 0,
-        unassigned_count: 0,
-        assignments: [],
-        skipped_reason: "No guests to assign",
-      };
-    }
+//     const locationsRes = await client.query(
+//       `
+//       SELECT
+//         st.*,
+//         COALESCE((
+//           SELECT COUNT(*)
+//           FROM seating_assignments sa
+//           WHERE sa.seating_table_id = st.id
+//         ), 0)::int AS current_assigned
+//       FROM seating_tables st
+//       WHERE st.event_id = $1
+//         AND st.deleted_at IS NULL
+//       ORDER BY st.capacity DESC, st.table_name ASC
+//       `,
+//       [eventId]
+//     );
 
-    const totalRemainingCapacity = locations.reduce(
-      (sum, loc) => sum + Math.max(loc.remaining, 0),
-      0
-    );
+//     const locations = locationsRes.rows.map((row) => ({
+//       id:               row.id,
+//       name:             row.table_name,
+//       capacity:         row.capacity,
+//       current_assigned: row.current_assigned,
+//       remaining:        row.capacity - row.current_assigned,
+//     }));
 
-    if (totalRemainingCapacity < guests.length) {
-      throw new AppError(
-        `Not enough seating capacity. Need ${guests.length}, available ${totalRemainingCapacity}`,
-        400
-      );
-    }
+//     if (!locations.length) {
+//       throw new AppError("No seating locations found for this event", 400);
+//     }
 
-    let units = [];
+//     // ── Fixed query: no guest_group_id join ───────────────────────────────
+//     const guestsRes = await client.query(
+//       `
+//       SELECT
+//         g.id,
+//         g.full_name,
+//         g.is_vip,
+//         NULL::uuid AS group_id,
+//         NULL::text AS group_name
+//       FROM guests g
+//       WHERE g.event_id = $1
+//         AND g.deleted_at IS NULL
+//         AND (
+//           $2::boolean = true
+//           OR NOT EXISTS (
+//             SELECT 1
+//             FROM seating_assignments sa
+//             WHERE sa.event_id = g.event_id
+//               AND sa.guest_id = g.id
+//           )
+//         )
+//       ORDER BY g.is_vip DESC, g.full_name ASC
+//       `,
+//       [eventId, overwriteExisting]
+//     );
 
-    if (keepGroupsTogether) {
-      const grouped = new Map();
+//     const guests = guestsRes.rows;
 
-      for (const guest of guests) {
-        const key = guest.group_id || `single:${guest.id}`;
+//     if (!guests.length) {
+//       await client.query("COMMIT");
+//       return {
+//         assigned_count:   0,
+//         unassigned_count: 0,
+//         assignments:      [],
+//         skipped_reason:   "No guests to assign",
+//       };
+//     }
 
-        if (!grouped.has(key)) {
-          grouped.set(key, {
-            key,
-            group_id: guest.group_id || null,
-            group_name: guest.group_name || null,
-            guests: [],
-            vip_count: 0,
-          });
-        }
+//     const totalRemainingCapacity = locations.reduce(
+//       (sum, loc) => sum + Math.max(loc.remaining, 0),
+//       0
+//     );
 
-        const entry = grouped.get(key);
-        entry.guests.push(guest);
-        if (guest.is_vip) entry.vip_count += 1;
-      }
+//     if (totalRemainingCapacity < guests.length) {
+//       throw new AppError(
+//         `Not enough seating capacity. Need ${guests.length} seats but only ${totalRemainingCapacity} available.`,
+//         400
+//       );
+//     }
 
-      units = Array.from(grouped.values());
-    } else {
-      units = guests.map((guest) => ({
-        key: `single:${guest.id}`,
-        group_id: guest.group_id || null,
-        group_name: guest.group_name || null,
-        guests: [guest],
-        vip_count: guest.is_vip ? 1 : 0,
-      }));
-    }
+//     // ── Group guests by group_id (all null → each is own group) ──────────
+//     const groupMap = new Map();
+//     for (const g of guests) {
+//       const key = g.group_id ?? g.id;
+//       if (!groupMap.has(key)) groupMap.set(key, []);
+//       groupMap.get(key).push(g);
+//     }
 
-    units.sort((a, b) => {
-      if (prioritizeVip && b.vip_count !== a.vip_count) {
-        return b.vip_count - a.vip_count;
-      }
+//     // VIP groups first, then alphabetical
+//     const groups = [...groupMap.values()].sort((a, b) => {
+//       const aVip = a.some((g) => g.is_vip);
+//       const bVip = b.some((g) => g.is_vip);
+//       if (prioritizeVip) {
+//         if (aVip && !bVip) return -1;
+//         if (!aVip && bVip) return 1;
+//       }
+//       return (a[0]?.full_name ?? "").localeCompare(b[0]?.full_name ?? "");
+//     });
 
-      if (b.guests.length !== a.guests.length) {
-        return b.guests.length - a.guests.length;
-      }
+//     const createdAssignments = [];
+//     let locIdx = 0;
+//     let startSeat = 1;
 
-      return a.key.localeCompare(b.key);
-    });
+//     for (const group of groups) {
+//       for (const guest of group) {
+//         // Find a location with space
+//         while (locIdx < locations.length && locations[locIdx].remaining <= 0) {
+//           locIdx += 1;
+//           startSeat = 1;
+//         }
+//         if (locIdx >= locations.length) break;
 
-    const createdAssignments = [];
+//         const chosenLocation = locations[locIdx];
 
-    for (const unit of units) {
-      let chosenLocation = null;
+//         // If keepGroupsTogether and group doesn't fit in remaining space → advance
+//         if (keepGroupsTogether && group.length > 1 && chosenLocation.remaining < group.length) {
+//           locIdx += 1;
+//           startSeat = 1;
+//           if (locIdx >= locations.length) break;
+//         }
 
-      for (const location of locations) {
-        if (location.remaining >= unit.guests.length) {
-          chosenLocation = location;
-          break;
-        }
-      }
+//         const seatNumber = assignSeatNumbers ? String(startSeat) : null;
 
-      if (!chosenLocation) {
-        throw new AppError(
-          `Unable to place ${unit.group_name || "some guests"} with current capacity`,
-          400
-        );
-      }
+//         const insertRes = await client.query(
+//           `
+//           INSERT INTO seating_assignments
+//           (event_id, guest_id, seating_table_id, seat_number, created_at, updated_at)
+//           VALUES ($1, $2, $3, $4, NOW(), NOW())
+//           ON CONFLICT (event_id, guest_id)
+//           DO UPDATE SET
+//             seating_table_id = EXCLUDED.seating_table_id,
+//             seat_number      = EXCLUDED.seat_number,
+//             updated_at       = NOW()
+//           RETURNING *
+//           `,
+//           [eventId, guest.id, chosenLocation.id, seatNumber]
+//         );
 
-      let startSeat = chosenLocation.current_assigned + 1;
+//         createdAssignments.push(insertRes.rows[0]);
+//         chosenLocation.current_assigned += 1;
+//         chosenLocation.remaining        -= 1;
+//         startSeat                       += 1;
+//       }
+//     }
 
-      for (const guest of unit.guests) {
-        const seatNumber = assignSeatNumbers ? String(startSeat) : null;
+//     await client.query("COMMIT");
 
-        const insertRes = await client.query(
-          `
-          INSERT INTO seating_assignments
-          (
-            event_id,
-            guest_id,
-            seating_table_id,
-            seat_number,
-            created_at,
-            updated_at
-          )
-          VALUES ($1,$2,$3,$4,NOW(),NOW())
-          ON CONFLICT (event_id, guest_id)
-          DO UPDATE SET
-            seating_table_id=EXCLUDED.seating_table_id,
-            seat_number=EXCLUDED.seat_number,
-            updated_at=NOW()
-          RETURNING *
-          `,
-          [eventId, guest.id, chosenLocation.id, seatNumber]
-        );
+//     return {
+//       assigned_count:   createdAssignments.length,
+//       unassigned_count: 0,
+//       assignments:      createdAssignments,
+//       options: {
+//         prioritize_vip:       prioritizeVip,
+//         keep_groups_together: keepGroupsTogether,
+//         assign_seat_numbers:  assignSeatNumbers,
+//         overwrite_existing:   overwriteExisting,
+//       },
+//     };
+//   } catch (error) {
+//     await client.query("ROLLBACK");
+//     throw error;
+//   } finally {
+//     client.release();
+//   }
+// }
 
-        createdAssignments.push(insertRes.rows[0]);
-        chosenLocation.current_assigned += 1;
-        chosenLocation.remaining -= 1;
-        startSeat += 1;
-      }
-    }
 
-    await client.query("COMMIT");
 
-    return {
-      assigned_count: createdAssignments.length,
-      unassigned_count: 0,
-      assignments: createdAssignments,
-      options: {
-        prioritize_vip: prioritizeVip,
-        keep_groups_together: keepGroupsTogether,
-        assign_seat_numbers: assignSeatNumbers,
-        overwrite_existing: overwriteExisting,
-      },
-    };
-  } catch (error) {
-    await client.query("ROLLBACK");
-    throw error;
-  } finally {
-    client.release();
-  }
-}
 
 export async function clearSeatingAssignmentsService({
   eventId,
@@ -1004,6 +1029,261 @@ export async function clearSeatingAssignmentsService({
 
     return {
       deleted_count: result.rowCount,
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+
+// PATCH — replace only the autoAssignSeatingService guests query in api/services/seating.service.js
+// The bug: LEFT JOIN guest_groups ON gg.id = g.guest_group_id — column guest_group_id does not exist on guests table
+// Fix: remove the guest_groups JOIN entirely; group logic is skipped gracefully
+
+// ─── FIND THIS BLOCK and REPLACE with the fixed version below ─────────────────
+//
+//     const guestsRes = await client.query(
+//       `
+//       SELECT
+//         g.id,
+//         g.full_name,
+//         g.is_vip,
+//         gg.id AS group_id,
+//         gg.group_name
+//       FROM guests g
+//       LEFT JOIN guest_groups gg
+//         ON gg.id = g.guest_group_id
+//        AND gg.event_id = g.event_id
+//        AND gg.deleted_at IS NULL
+//       WHERE g.event_id=$1
+//         AND g.deleted_at IS NULL
+//         AND (
+//           $2::boolean = true
+//           OR NOT EXISTS (
+//             SELECT 1
+//             FROM seating_assignments sa
+//             WHERE sa.event_id=g.event_id AND sa.guest_id=g.id
+//           )
+//         )
+//       ORDER BY g.is_vip DESC, g.full_name ASC
+//       `,
+//       [eventId, overwriteExisting]
+//     );
+
+// ─── REPLACE WITH ─────────────────────────────────────────────────────────────
+
+//     const guestsRes = await client.query(
+//       `
+//       SELECT
+//         g.id,
+//         g.full_name,
+//         g.is_vip,
+//         NULL::uuid  AS group_id,
+//         NULL::text  AS group_name
+//       FROM guests g
+//       WHERE g.event_id=$1
+//         AND g.deleted_at IS NULL
+//         AND (
+//           $2::boolean = true
+//           OR NOT EXISTS (
+//             SELECT 1
+//             FROM seating_assignments sa
+//             WHERE sa.event_id = g.event_id
+//               AND sa.guest_id = g.id
+//           )
+//         )
+//       ORDER BY g.is_vip DESC, g.full_name ASC
+//       `,
+//       [eventId, overwriteExisting]
+//     );
+
+// ─── FULL FIXED autoAssignSeatingService (paste as full replacement) ──────────
+
+export async function autoAssignSeatingService({
+  eventId,
+  organizationId,
+  userId,
+  payload = {},
+}) {
+  const client = await db.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    await assertOrganizationEventPermission(client, organizationId, userId);
+    await assertEventExists(client, eventId, organizationId);
+
+    const prioritizeVip      = Boolean(payload.prioritize_vip      ?? true);
+    const keepGroupsTogether = Boolean(payload.keep_groups_together ?? true);
+    const assignSeatNumbers  = Boolean(payload.assign_seat_numbers  ?? true);
+    const overwriteExisting  = Boolean(payload.overwrite_existing   ?? false);
+
+    if (overwriteExisting) {
+      await client.query(
+        `DELETE FROM seating_assignments WHERE event_id=$1`,
+        [eventId]
+      );
+    }
+
+    const locationsRes = await client.query(
+      `
+      SELECT
+        st.*,
+        COALESCE((
+          SELECT COUNT(*)
+          FROM seating_assignments sa
+          WHERE sa.seating_table_id = st.id
+        ), 0)::int AS current_assigned
+      FROM seating_tables st
+      WHERE st.event_id = $1
+        AND st.deleted_at IS NULL
+      ORDER BY st.capacity DESC, st.table_name ASC
+      `,
+      [eventId]
+    );
+
+    const locations = locationsRes.rows.map((row) => ({
+      id:               row.id,
+      name:             row.table_name,
+      capacity:         row.capacity,
+      current_assigned: row.current_assigned,
+      remaining:        row.capacity - row.current_assigned,
+    }));
+
+    if (!locations.length) {
+      throw new AppError("No seating locations found for this event", 400);
+    }
+
+    // ── Fixed query: no guest_group_id join ───────────────────────────────
+    const guestsRes = await client.query(
+      `
+      SELECT
+        g.id,
+        g.full_name,
+        g.is_vip,
+        NULL::uuid AS group_id,
+        NULL::text AS group_name
+      FROM guests g
+      WHERE g.event_id = $1
+        AND g.deleted_at IS NULL
+        AND (
+          $2::boolean = true
+          OR NOT EXISTS (
+            SELECT 1
+            FROM seating_assignments sa
+            WHERE sa.event_id = g.event_id
+              AND sa.guest_id = g.id
+          )
+        )
+      ORDER BY g.is_vip DESC, g.full_name ASC
+      `,
+      [eventId, overwriteExisting]
+    );
+
+    const guests = guestsRes.rows;
+
+    if (!guests.length) {
+      await client.query("COMMIT");
+      return {
+        assigned_count:   0,
+        unassigned_count: 0,
+        assignments:      [],
+        skipped_reason:   "No guests to assign",
+      };
+    }
+
+    const totalRemainingCapacity = locations.reduce(
+      (sum, loc) => sum + Math.max(loc.remaining, 0),
+      0
+    );
+
+    if (totalRemainingCapacity < guests.length) {
+      throw new AppError(
+        `Not enough seating capacity. Need ${guests.length} seats but only ${totalRemainingCapacity} available.`,
+        400
+      );
+    }
+
+    // ── Group guests by group_id (all null → each is own group) ──────────
+    const groupMap = new Map();
+    for (const g of guests) {
+      const key = g.group_id ?? g.id;
+      if (!groupMap.has(key)) groupMap.set(key, []);
+      groupMap.get(key).push(g);
+    }
+
+    // VIP groups first, then alphabetical
+    const groups = [...groupMap.values()].sort((a, b) => {
+      const aVip = a.some((g) => g.is_vip);
+      const bVip = b.some((g) => g.is_vip);
+      if (prioritizeVip) {
+        if (aVip && !bVip) return -1;
+        if (!aVip && bVip) return 1;
+      }
+      return (a[0]?.full_name ?? "").localeCompare(b[0]?.full_name ?? "");
+    });
+
+    const createdAssignments = [];
+    let locIdx = 0;
+    let startSeat = 1;
+
+    for (const group of groups) {
+      for (const guest of group) {
+        // Find a location with space
+        while (locIdx < locations.length && locations[locIdx].remaining <= 0) {
+          locIdx += 1;
+          startSeat = 1;
+        }
+        if (locIdx >= locations.length) break;
+
+        const chosenLocation = locations[locIdx];
+
+        // If keepGroupsTogether and group doesn't fit in remaining space → advance
+        if (keepGroupsTogether && group.length > 1 && chosenLocation.remaining < group.length) {
+          locIdx += 1;
+          startSeat = 1;
+          if (locIdx >= locations.length) break;
+        }
+
+        const seatNumber = assignSeatNumbers ? String(startSeat) : null;
+
+        const insertRes = await client.query(
+          `
+          INSERT INTO seating_assignments
+          (event_id, guest_id, seating_table_id, seat_number, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, NOW(), NOW())
+          ON CONFLICT (event_id, guest_id)
+          DO UPDATE SET
+            seating_table_id = EXCLUDED.seating_table_id,
+            seat_number      = EXCLUDED.seat_number,
+            updated_at       = NOW()
+          RETURNING *
+          `,
+          [eventId, guest.id, chosenLocation.id, seatNumber]
+        );
+
+        createdAssignments.push(insertRes.rows[0]);
+        chosenLocation.current_assigned += 1;
+        chosenLocation.remaining        -= 1;
+        startSeat                       += 1;
+      }
+    }
+
+    await client.query("COMMIT");
+
+    return {
+      assigned_count:   createdAssignments.length,
+      unassigned_count: 0,
+      assignments:      createdAssignments,
+      options: {
+        prioritize_vip:       prioritizeVip,
+        keep_groups_together: keepGroupsTogether,
+        assign_seat_numbers:  assignSeatNumbers,
+        overwrite_existing:   overwriteExisting,
+      },
     };
   } catch (error) {
     await client.query("ROLLBACK");

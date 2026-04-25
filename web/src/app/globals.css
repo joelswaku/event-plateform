@@ -10,6 +10,13 @@
   --card:        #ffffff;
   --border:      #e5e7eb;
   --muted:       #6b7280;
+
+  /* SVG palette used by the seating table-detail canvas */
+  --svg-fill-subtle:      rgba(0,0,0,0.05);
+  --svg-stroke:           rgba(0,0,0,0.12);
+  --svg-label:            rgba(0,0,0,0.45);
+  --svg-text-secondary:   rgba(0,0,0,0.25);
+  --svg-text-placeholder: rgba(0,0,0,0.30);
 }
 
 .dark {
@@ -18,11 +25,20 @@
   --card:        #111827;
   --border:      #1f2937;
   --muted:       #9ca3af;
+
+  --svg-fill-subtle:      rgba(255,255,255,0.04);
+  --svg-stroke:           rgba(255,255,255,0.10);
+  --svg-label:            rgba(255,255,255,0.22);
+  --svg-text-secondary:   rgba(255,255,255,0.12);
+  --svg-text-placeholder: rgba(255,255,255,0.18);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card:       var(--card);
+  --color-border:     var(--border);
+  --color-muted:      var(--muted);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-serif: var(--font-playfair), Georgia, "Times New Roman", serif;
