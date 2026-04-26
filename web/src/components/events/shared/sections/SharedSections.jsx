@@ -10,7 +10,7 @@ const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   : null;
 import {
   MapPin, Navigation, Building2, Car, Copy, Check,
-  ExternalLink, ChevronDown,
+  ExternalLink, ChevronDown, Heart,
 } from "lucide-react";
 
 const ease = [0.22, 1, 0.36, 1];
@@ -2171,37 +2171,196 @@ export function TicketsSection({ section, event, isEditor = false, onEdit }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // DONATIONS
 // ══════════════════════════════════════════════════════════════════════════════
-export function DonationsSection({ section, isEditor = false, onEdit }) {
-  const theme   = section.config?._theme || "CLASSIC";
-  const amounts = ["$10", "$25", "$50", "$100", "Custom"];
+const PRESET_AMOUNTS = [10, 25, 50, 100];
+const DONATION_API = process.env.NEXT_PUBLIC_API_URL;
+
+export function DonationsSection({ section, event, isEditor = false, onEdit }) {
+  const theme = section.config?._theme || "CLASSIC";
+
+  const [preset,      setPreset]      = useState(25);
+  const [custom,      setCustom]      = useState("");
+  const [form,        setForm]        = useState({ name: "", email: "", message: "" });
+  const [anonymous,   setAnonymous]   = useState(false);
+  const [submitting,  setSubmitting]  = useState(false);
+  const [error,       setError]       = useState("");
+  const [donated,     setDonated]     = useState(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("donation") === "success";
+  });
+
+  useEffect(() => {
+    if (donated) window.history.replaceState({}, "", window.location.pathname);
+  }, [donated]);
+
+  const amount = preset === "custom" ? Number(custom) : preset;
+
+  async function handleDonate(e) {
+    e.preventDefault();
+    if (!form.email.trim()) return setError("Email is required");
+    if (!/\S+@\S+\.\S+/.test(form.email)) return setError("Enter a valid email");
+    if (!amount || amount <= 0) return setError("Enter a valid donation amount");
+    setError("");
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${DONATION_API}/engagement/events/${event?.id}/donations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          donor_name:  anonymous ? null : form.name.trim() || null,
+          donor_email: form.email.trim().toLowerCase(),
+          amount,
+          currency: "USD",
+          message:     form.message.trim() || undefined,
+          is_anonymous: anonymous,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Donation failed");
+      if (data.data?.checkout_url) {
+        window.location.href = data.data.checkout_url;
+      }
+    } catch (err) {
+      setError(err.message);
+      setSubmitting(false);
+    }
+  }
+
+  const showEditor = isEditor;
+  // Hide everywhere (editor included) when donations are disabled
+  if (!event?.allow_donations && !donated) return null;
 
   return (
     <section
-      className={`px-6 py-24 text-center sm:py-32 ${isEditor ? "cursor-pointer ring-inset hover:ring-2 hover:ring-indigo-400/60" : ""}`}
+      id="donations"
+      className={`px-6 py-24 sm:py-32 ${showEditor ? "cursor-pointer ring-inset hover:ring-2 hover:ring-indigo-400/60 relative" : ""}`}
       style={{ background: "var(--t-dark-surface)" }}
-      onClick={isEditor ? onEdit : undefined}
+      onClick={showEditor ? onEdit : undefined}
     >
-      <div className="mx-auto max-w-2xl">
-        <FadeUp>
-          <SectionEyebrow center>Give</SectionEyebrow>
-          <SectionHeading center light>{section.title || "Make a Gift"}</SectionHeading>
-          {section.body && <SectionBody center light>{section.body}</SectionBody>}
-          {theme !== "MODERN" && theme !== "MINIMAL" && <Ornament center />}
-        </FadeUp>
-        <FadeUp delay={0.15} className="mt-12 flex flex-wrap justify-center gap-3">
-          {amounts.map((a) => (
-            <button key={a}
-              className="bg-transparent px-8 py-3 text-sm font-medium uppercase tracking-[0.15em] text-white/80 transition active:scale-95"
-              style={{ border: "1px solid rgba(255,255,255,0.15)", borderRadius: "var(--t-radius, 0px)" }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--t-accent)"; e.currentTarget.style.color = "var(--t-accent)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; e.currentTarget.style.color = "rgba(255,255,255,0.8)"; }}
-            >
-              {a}
+      <div className="mx-auto max-w-xl">
+
+        {/* Thank-you state */}
+        {donated && !showEditor && (
+          <FadeUp className="text-center space-y-4">
+            <div className="text-5xl">💛</div>
+            <SectionHeading center light>Thank you!</SectionHeading>
+            <SectionBody center light>Your generous contribution means the world to us.</SectionBody>
+            <button onClick={() => setDonated(false)}
+              className="mt-4 text-xs uppercase tracking-widest underline"
+              style={{ color: "rgba(255,255,255,0.45)" }}>
+              Make another donation
             </button>
-          ))}
-        </FadeUp>
+          </FadeUp>
+        )}
+
+        {/* Donation form */}
+        {(!donated || showEditor) && (
+          <>
+            <FadeUp className="text-center">
+              <SectionEyebrow center>Give</SectionEyebrow>
+              <SectionHeading center light>{section.title || "Make a Gift"}</SectionHeading>
+              {section.body && <SectionBody center light>{section.body}</SectionBody>}
+              {theme !== "MODERN" && theme !== "MINIMAL" && <Ornament center />}
+            </FadeUp>
+
+            <FadeUp delay={0.15} className="mt-10 space-y-6">
+
+              {/* Preset amounts */}
+              <div>
+                <p className="mb-3 text-center text-[10px] font-semibold uppercase tracking-[0.3em] text-white/40">Select Amount</p>
+                <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+                  {PRESET_AMOUNTS.map((a) => (
+                    <button key={a} type="button"
+                      onClick={showEditor ? undefined : () => { setPreset(a); setCustom(""); }}
+                      className="py-3 text-sm font-semibold transition active:scale-95"
+                      style={{
+                        borderRadius: "var(--t-radius, 6px)",
+                        border: preset === a ? "1.5px solid var(--t-accent)" : "1px solid rgba(255,255,255,0.15)",
+                        background: preset === a ? "var(--t-accent)" : "transparent",
+                        color: preset === a ? "#000" : "rgba(255,255,255,0.75)",
+                      }}>
+                      ${a}
+                    </button>
+                  ))}
+                  <button type="button"
+                    onClick={showEditor ? undefined : () => setPreset("custom")}
+                    className="py-3 text-sm font-semibold transition active:scale-95 col-span-4 sm:col-span-1"
+                    style={{
+                      borderRadius: "var(--t-radius, 6px)",
+                      border: preset === "custom" ? "1.5px solid var(--t-accent)" : "1px solid rgba(255,255,255,0.15)",
+                      background: preset === "custom" ? "var(--t-accent)" : "transparent",
+                      color: preset === "custom" ? "#000" : "rgba(255,255,255,0.75)",
+                    }}>
+                    Custom
+                  </button>
+                </div>
+                {preset === "custom" && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className="text-white/50 text-sm">$</span>
+                    <input type="number" min="1" step="1" value={custom}
+                      onChange={e => setCustom(e.target.value)}
+                      placeholder="Enter amount"
+                      className="flex-1 bg-transparent border-b py-2 text-lg font-semibold text-white placeholder-white/25 outline-none"
+                      style={{ borderColor: "rgba(255,255,255,0.2)" }} />
+                  </div>
+                )}
+              </div>
+
+              {/* Form fields */}
+              <form onSubmit={showEditor ? (e) => e.preventDefault() : handleDonate} className="space-y-4">
+                {[
+                  { key: "name",    label: anonymous ? "Name (hidden)" : "Your Name",  type: "text",  placeholder: "Optional", required: false },
+                  { key: "email",   label: "Email",                                     type: "email", placeholder: "your@email.com", required: true },
+                ].map(({ key, label, type, placeholder, required }) => (
+                  <div key={key}>
+                    <label className="block text-[10px] font-semibold uppercase tracking-[0.25em] mb-1.5 text-white/40">{label}</label>
+                    <input type={type} value={form[key]} placeholder={placeholder}
+                      onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                      required={required}
+                      className="w-full bg-transparent border-b py-2.5 text-sm text-white placeholder-white/25 outline-none transition"
+                      style={{ borderColor: "rgba(255,255,255,0.18)" }}
+                      onFocus={e => e.target.style.borderColor = "var(--t-accent)"}
+                      onBlur={e  => e.target.style.borderColor = "rgba(255,255,255,0.18)"} />
+                  </div>
+                ))}
+
+                <div>
+                  <label className="block text-[10px] font-semibold uppercase tracking-[0.25em] mb-1.5 text-white/40">Message (optional)</label>
+                  <textarea rows={2} value={form.message} placeholder="Leave a kind word…"
+                    onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
+                    className="w-full bg-transparent border-b py-2.5 text-sm text-white placeholder-white/25 outline-none resize-none transition"
+                    style={{ borderColor: "rgba(255,255,255,0.18)" }}
+                    onFocus={e => e.target.style.borderColor = "var(--t-accent)"}
+                    onBlur={e  => e.target.style.borderColor = "rgba(255,255,255,0.18)"} />
+                </div>
+
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <div onClick={() => !showEditor && setAnonymous(v => !v)}
+                    className="w-10 h-6 rounded-full transition-colors flex items-center px-1"
+                    style={{ background: anonymous ? "var(--t-accent)" : "rgba(255,255,255,0.12)" }}>
+                    <div className="w-4 h-4 rounded-full bg-white shadow transition-transform"
+                      style={{ transform: anonymous ? "translateX(16px)" : "translateX(0)" }} />
+                  </div>
+                  <span className="text-xs text-white/50">Donate anonymously</span>
+                </label>
+
+                {error && <p className="text-sm text-rose-400">{error}</p>}
+
+                <button type="submit" disabled={submitting || showEditor}
+                  className="w-full py-4 text-sm font-bold uppercase tracking-[0.15em] transition active:scale-[0.98] disabled:opacity-50 mt-2"
+                  style={{
+                    background: "var(--t-accent)",
+                    color: "var(--t-accent-fg, #000)",
+                    borderRadius: "var(--t-radius, 6px)",
+                  }}>
+                  {submitting ? "Redirecting…" : `Give ${ preset === "custom" ? (custom ? `$${custom}` : "…") : `$${preset}` } →`}
+                </button>
+              </form>
+
+            </FadeUp>
+          </>
+        )}
       </div>
-      {isEditor && <EditorBadge label="DONATIONS" />}
+      {showEditor && <EditorBadge label="DONATIONS" />}
     </section>
   );
 }
@@ -2328,6 +2487,150 @@ export function FAQSection({ section, isEditor = false, onEdit }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // CTA
 // ══════════════════════════════════════════════════════════════════════════════
+// DONATION CHECKOUT CARD — shown inside CTASection when allow_donations is on
+// ══════════════════════════════════════════════════════════════════════════════
+const DONATION_PRESETS_CTA = [10, 25, 50, 100];
+
+function DonationCheckoutCard({ event, isEditor }) {
+  const API = process.env.NEXT_PUBLIC_API_URL;
+  const [preset,     setPreset]     = useState(25);
+  const [custom,     setCustom]     = useState("");
+  const [email,      setEmail]      = useState("");
+  const [name,       setName]       = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error,      setError]      = useState("");
+
+  const amount = preset === "custom" ? Number(custom) : preset;
+
+  async function handleDonate(e) {
+    e.preventDefault();
+    if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) return setError("Valid email required");
+    if (!amount || amount <= 0) return setError("Select or enter an amount");
+    setError("");
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${API}/engagement/events/${event?.id}/donations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          donor_name:  name.trim() || null,
+          donor_email: email.trim().toLowerCase(),
+          amount,
+          currency: "USD",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Donation failed");
+      if (data.data?.checkout_url) window.location.href = data.data.checkout_url;
+    } catch (err) {
+      setError(err.message);
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="mx-auto mt-10 w-full max-w-sm">
+      <div
+        className="overflow-hidden rounded-2xl"
+        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", backdropFilter: "blur(16px)" }}
+      >
+        {/* Card header */}
+        <div className="flex items-center gap-3 border-b px-5 py-4" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: "rgba(244,114,182,0.15)" }}>
+            <Heart className="h-4 w-4" style={{ color: "#f472b6" }} />
+          </div>
+          <div>
+            <p className="text-sm font-bold leading-tight text-white">Support this event</p>
+            <p className="mt-0.5 text-[11px] text-white/40">Any amount makes a difference</p>
+          </div>
+        </div>
+
+        {/* Card body */}
+        <form
+          onSubmit={isEditor ? (e) => e.preventDefault() : handleDonate}
+          className="space-y-3 px-5 py-5"
+        >
+          {/* Preset amounts */}
+          <div className="grid grid-cols-4 gap-1.5">
+            {DONATION_PRESETS_CTA.map((a) => (
+              <button
+                key={a}
+                type="button"
+                onClick={isEditor ? undefined : () => { setPreset(a); setCustom(""); }}
+                className="py-2 text-xs font-bold transition active:scale-95"
+                style={{
+                  borderRadius: "10px",
+                  border: preset === a ? "1.5px solid var(--t-accent)" : "1px solid rgba(255,255,255,0.12)",
+                  background: preset === a ? "var(--t-accent)" : "rgba(255,255,255,0.03)",
+                  color: preset === a ? "#000" : "rgba(255,255,255,0.65)",
+                }}
+              >
+                ${a}
+              </button>
+            ))}
+          </div>
+
+          {/* Custom amount */}
+          <div
+            className="flex items-center gap-2 rounded-xl px-3 py-2.5"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)" }}
+          >
+            <span className="text-sm font-medium text-white/35">$</span>
+            <input
+              type="number"
+              min="1"
+              value={preset === "custom" ? custom : ""}
+              placeholder={preset !== "custom" ? String(preset) : "Custom amount"}
+              onFocus={isEditor ? undefined : () => setPreset("custom")}
+              onChange={(e) => { setPreset("custom"); setCustom(e.target.value); }}
+              className="flex-1 bg-transparent text-sm text-white placeholder-white/25 outline-none"
+            />
+            <span className="text-[10px] text-white/25 uppercase tracking-widest">USD</span>
+          </div>
+
+          {/* Name (optional) */}
+          <input
+            type="text"
+            value={name}
+            placeholder="Your name (optional)"
+            onChange={(e) => setName(e.target.value)}
+            className="w-full rounded-xl px-3 py-2.5 text-sm text-white placeholder-white/25 outline-none"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)" }}
+          />
+
+          {/* Email */}
+          <input
+            type="email"
+            required
+            value={email}
+            placeholder="your@email.com"
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full rounded-xl px-3 py-2.5 text-sm text-white placeholder-white/25 outline-none"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)" }}
+          />
+
+          {error && <p className="text-xs text-rose-400">{error}</p>}
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={submitting || isEditor}
+            className="w-full rounded-xl py-3 text-sm font-black uppercase tracking-[0.12em] transition active:scale-[0.98] disabled:opacity-60"
+            style={{ background: "var(--t-accent)", color: "var(--t-accent-fg, #000)" }}
+          >
+            {submitting
+              ? "Redirecting…"
+              : `Give ${preset === "custom" ? (custom ? `$${custom}` : "…") : `$${preset}`} →`}
+          </button>
+
+          <p className="text-center text-[10px] text-white/25">Secure checkout via Stripe</p>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 export function CTASection({ section, event, isEditor = false, onEdit }) {
   const config  = section.config || {};
   const theme   = config._theme || "CLASSIC";
@@ -2377,6 +2680,8 @@ export function CTASection({ section, event, isEditor = false, onEdit }) {
     ? !!(event?.allow_ticketing)
     : isTicketed;
 
+  const showDonation = !!event?.allow_donations;
+
   // Ticketing CTA content per theme
   const ticketCTA = {
     title:  section.title  || "Secure Your Spot",
@@ -2420,6 +2725,16 @@ export function CTASection({ section, event, isEditor = false, onEdit }) {
                 {showTicketingMode ? ticketCTA.button : (config.button_text || "Register Now")}
               </button>
             )}
+            {showDonation && (
+              <div className="mt-12 max-w-sm">
+                <div className="mb-5 flex items-center gap-3">
+                  <div className="h-px flex-1" style={{ background: "rgba(255,255,255,0.1)" }} />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/25">or donate</span>
+                  <div className="h-px flex-1" style={{ background: "rgba(255,255,255,0.1)" }} />
+                </div>
+                <DonationCheckoutCard event={event} isEditor={isEditor} />
+              </div>
+            )}
           </FadeUp>
         </div>
         {isEditor && <EditorBadge label="CTA" />}
@@ -2454,6 +2769,16 @@ export function CTASection({ section, event, isEditor = false, onEdit }) {
               >
                 {showTicketingMode ? ticketCTA.button : (config.button_text || "RSVP")}
               </button>
+            )}
+            {showDonation && (
+              <>
+                <div className="mt-16 flex items-center justify-center gap-4">
+                  <div className="h-px w-16" style={{ background: "rgba(255,255,255,0.08)" }} />
+                  <span className="text-[10px] font-light uppercase tracking-[0.4em] text-white/20">or donate</span>
+                  <div className="h-px w-16" style={{ background: "rgba(255,255,255,0.08)" }} />
+                </div>
+                <DonationCheckoutCard event={event} isEditor={isEditor} />
+              </>
             )}
           </FadeUp>
         </div>
@@ -2499,6 +2824,16 @@ export function CTASection({ section, event, isEditor = false, onEdit }) {
                 </button>
               )}
             </div>
+            {showDonation && (
+              <>
+                <div className="mt-10 flex items-center justify-center gap-3">
+                  <div className="h-0.5 w-12 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
+                  <span className="text-xs font-black uppercase tracking-[0.25em] text-white/30">or donate</span>
+                  <div className="h-0.5 w-12 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
+                </div>
+                <DonationCheckoutCard event={event} isEditor={isEditor} />
+              </>
+            )}
           </FadeUp>
         </div>
         {isEditor && <EditorBadge label="CTA" />}
@@ -2548,6 +2883,16 @@ export function CTASection({ section, event, isEditor = false, onEdit }) {
                 {showTicketingMode ? ticketCTA.button : (config.button_text || "Confirm Attendance")}
               </button>
             )}
+            {showDonation && (
+              <>
+                <div className="mt-14 flex items-center justify-center gap-5">
+                  <div className="h-px w-10" style={{ background: "var(--t-accent)", opacity: 0.2 }} />
+                  <span className="text-[10px] font-medium uppercase tracking-[0.4em] italic text-white/20">or donate</span>
+                  <div className="h-px w-10" style={{ background: "var(--t-accent)", opacity: 0.2 }} />
+                </div>
+                <DonationCheckoutCard event={event} isEditor={isEditor} />
+              </>
+            )}
           </FadeUp>
         </div>
         {isEditor && <EditorBadge label="CTA" />}
@@ -2593,6 +2938,16 @@ export function CTASection({ section, event, isEditor = false, onEdit }) {
             >
               {showTicketingMode ? ticketCTA.button : (config.button_text || "Confirm Attendance")}
             </button>
+          )}
+          {showDonation && (
+            <>
+              <div className="mt-14 flex items-center justify-center gap-5">
+                <div className="h-px w-12" style={{ background: "var(--t-accent)", opacity: 0.25 }} />
+                <span className="text-[10px] font-medium uppercase tracking-[0.35em] italic text-white/25">or donate</span>
+                <div className="h-px w-12" style={{ background: "var(--t-accent)", opacity: 0.25 }} />
+              </div>
+              <DonationCheckoutCard event={event} isEditor={isEditor} />
+            </>
           )}
         </FadeUp>
       </div>

@@ -9,6 +9,7 @@ import {
   BarChart3,
   WandSparkles,
   Armchair,
+  Heart,
   Settings,
 } from "lucide-react";
 
@@ -47,6 +48,11 @@ export default function EventSubnav() {
       label: "Seating",
       href: `/events/${eventId}/seating`,
       icon: Armchair,
+    },
+    {
+      label: "Donations",
+      href: `/events/${eventId}/donations`,
+      icon: Heart,
     },
     {
       label: "Settings",

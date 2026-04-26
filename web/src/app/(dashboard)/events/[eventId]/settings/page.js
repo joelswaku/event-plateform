@@ -196,7 +196,8 @@ export default function EventSettingsPage() {
 
   useEffect(() => {
     const e = dashboard?.event;
-    if (!e || initialRef.current) return;
+    if (!e) return;
+    if (dirty) return; // preserve unsaved local edits
     const init = {
       title: e.title ?? "",
       description: e.description ?? "",
@@ -218,7 +219,7 @@ export default function EventSettingsPage() {
     };
     setForm(init);
     initialRef.current = JSON.stringify(init);
-  }, [dashboard]);
+  }, [dashboard, dirty]);
 
   const set = useCallback((key, value) => {
     setForm((prev) => {

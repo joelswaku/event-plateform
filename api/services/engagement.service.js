@@ -214,7 +214,7 @@ export async function createDonationIntentService({
 
     const eventRes = await client.query(
       `
-      SELECT *
+      SELECT id, title, slug, allow_donations, deleted_at
       FROM events
       WHERE id = $1
         AND deleted_at IS NULL
@@ -266,15 +266,36 @@ export async function createDonationIntentService({
 
     const donation = insertResult.rows[0];
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(normalized.amount * 100),
-      currency: normalized.currency.toLowerCase(),
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      customer_email: normalized.donor_email || undefined,
+      line_items: [
+        {
+          price_data: {
+            currency: normalized.currency.toLowerCase(),
+            product_data: { name: `Donation to ${event.title}` },
+            unit_amount: Math.round(normalized.amount * 100),
+          },
+          quantity: 1,
+        },
+      ],
       metadata: {
         donation_id: donation.id,
         event_id: eventId,
         kind: "event_donation",
       },
-      receipt_email: normalized.donor_email || undefined,
+      payment_intent_data: {
+        metadata: {
+          donation_id: donation.id,
+          event_id: eventId,
+          kind: "event_donation",
+        },
+        receipt_email: normalized.donor_email || undefined,
+      },
+      success_url: `${frontendUrl}/e/${event.slug}?donation=success`,
+      cancel_url: `${frontendUrl}/e/${event.slug}?donation=cancelled`,
     });
 
     await client.query(
@@ -285,15 +306,14 @@ export async function createDonationIntentService({
         updated_at = NOW()
       WHERE id = $2
       `,
-      [paymentIntent.id, donation.id]
+      [session.id, donation.id]
     );
 
     await client.query("COMMIT");
 
     return {
       donation_id: donation.id,
-      client_secret: paymentIntent.client_secret,
-      payment_intent_id: paymentIntent.id,
+      checkout_url: session.url,
       amount: donation.amount,
       currency: donation.currency,
     };

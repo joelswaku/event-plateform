@@ -15,6 +15,7 @@ import { motion } from "framer-motion";
 import {
   ChevronLeft, Check, Ticket, Users, Zap, Settings2,
   Lock, Sparkles, ArrowRight, CalendarDays, LayoutTemplate,
+  QrCode, Heart,
 } from "lucide-react";
 import { useEventStore } from "@/store/event.store";
 import { useSubscriptionStore } from "@/store/subscription.store";
@@ -153,78 +154,119 @@ function StepSubcategory({ category, onSelect, onBack }) {
   );
 }
 
-/* ── Step 3: RSVP vs Ticketed ──────────────────────────────── */
-function StepFlow({ subcategory, onSelect, onBack }) {
+/* ── Step 3: Feature picker ────────────────────────────────── */
+const FEATURE_OPTIONS = [
+  {
+    key:   "rsvp",
+    icon:  Users,
+    label: "RSVP",
+    desc:  "Collect guest names and emails to track attendance.",
+    detail: ["Guest list & invitations", "RSVP confirmations", "Attendance tracking"],
+    activeBorder: "border-indigo-400 dark:border-indigo-500",
+    activeBg:     "bg-indigo-50 dark:bg-indigo-900/20",
+    iconBg:       "bg-indigo-100 dark:bg-indigo-900/30",
+    iconColor:    "text-indigo-600 dark:text-indigo-400",
+    badge:        "bg-indigo-600",
+  },
+  {
+    key:   "ticketing",
+    icon:  Ticket,
+    label: "Stripe Ticketing",
+    desc:  "Sell tickets online with Stripe. Multiple tiers supported.",
+    detail: ["Multiple ticket tiers", "Stripe payments", "E-ticket with QR code"],
+    activeBorder: "border-amber-400 dark:border-amber-500",
+    activeBg:     "bg-amber-50 dark:bg-amber-900/20",
+    iconBg:       "bg-amber-100 dark:bg-amber-900/30",
+    iconColor:    "text-amber-600 dark:text-amber-400",
+    badge:        "bg-amber-500",
+  },
+  {
+    key:   "qr",
+    icon:  QrCode,
+    label: "Express Entry",
+    desc:  "Mobile QR scanning for fast, contactless check-in at the door.",
+    detail: ["Mobile QR scanner", "Instant check-in", "Entry analytics"],
+    activeBorder: "border-cyan-400 dark:border-cyan-500",
+    activeBg:     "bg-cyan-50 dark:bg-cyan-900/20",
+    iconBg:       "bg-cyan-100 dark:bg-cyan-900/30",
+    iconColor:    "text-cyan-600 dark:text-cyan-400",
+    badge:        "bg-cyan-500",
+  },
+  {
+    key:   "donations",
+    icon:  Heart,
+    label: "Donations",
+    desc:  "Accept tips and contributions from supporters via Stripe.",
+    detail: ["Custom amounts", "Anonymous giving", "Contribution dashboard"],
+    activeBorder: "border-pink-400 dark:border-pink-500",
+    activeBg:     "bg-pink-50 dark:bg-pink-900/20",
+    iconBg:       "bg-pink-100 dark:bg-pink-900/30",
+    iconColor:    "text-pink-600 dark:text-pink-400",
+    badge:        "bg-pink-500",
+  },
+];
+
+function StepFeatures({ subcategory, features, onChange, onNext, onBack }) {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mx-auto mb-3"
-        >
+        <button onClick={onBack}
+          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mx-auto mb-3">
           <ChevronLeft className="w-4 h-4" /> Back
         </button>
         <span className="text-3xl">{subcategory.icon}</span>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mt-2">{subcategory.label}</h2>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">How will guests attend?</p>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mt-2">Choose your features</h2>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          Select which modules to enable. You can change these anytime in Settings.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* RSVP */}
-        <button
-          onClick={() => onSelect(false)}
-          className="group flex flex-col items-start gap-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 text-left transition hover:border-indigo-400 hover:shadow-lg"
-        >
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-900/30">
-            <Users className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-          </div>
-          <div>
-            <p className="font-bold text-gray-900 dark:text-white text-base">Free RSVP</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
-              Guests RSVP to confirm attendance. No payment required.
-            </p>
-          </div>
-          <ul className="space-y-1.5 text-xs text-gray-500 dark:text-gray-400">
-            {["Guest list & invitations", "RSVP tracking", "QR check-in", "Private or public"].map((f) => (
-              <li key={f} className="flex items-center gap-1.5">
-                <Check className="w-3.5 h-3.5 text-green-500" />{f}
-              </li>
-            ))}
-          </ul>
-          <span className="mt-auto text-xs font-semibold text-indigo-600 dark:text-indigo-400 group-hover:underline">
-            Choose RSVP →
-          </span>
-        </button>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {FEATURE_OPTIONS.map((opt) => {
+          const Icon = opt.icon;
+          const active = features[opt.key];
+          return (
+            <button key={opt.key} type="button"
+              onClick={() => onChange(opt.key, !active)}
+              className={`relative flex flex-col gap-3 rounded-2xl border-2 p-5 text-left transition hover:shadow-md ${
+                active
+                  ? `${opt.activeBorder} ${opt.activeBg}`
+                  : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300"
+              }`}>
+              {active && (
+                <span className={`absolute right-3 top-3 h-5 w-5 rounded-full flex items-center justify-center ${opt.badge}`}>
+                  <Check className="w-3 h-3 text-white" />
+                </span>
+              )}
+              <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${active ? opt.iconBg : "bg-gray-100 dark:bg-gray-700"}`}>
+                <Icon className={`w-5 h-5 ${active ? opt.iconColor : "text-gray-400 dark:text-gray-500"}`} />
+              </div>
+              <div>
+                <p className={`font-bold text-sm ${active ? "text-gray-900 dark:text-white" : "text-gray-600 dark:text-gray-400"}`}>
+                  {opt.label}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">{opt.desc}</p>
+              </div>
+              <ul className="space-y-1">
+                {opt.detail.map((d) => (
+                  <li key={d} className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+                    <Check className={`w-3 h-3 shrink-0 ${active ? "text-emerald-500" : "text-gray-300 dark:text-gray-600"}`} /> {d}
+                  </li>
+                ))}
+              </ul>
+            </button>
+          );
+        })}
+      </div>
 
-        {/* Ticketed */}
-        <button
-          onClick={() => onSelect(true)}
-          className="group relative flex flex-col items-start gap-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 text-left transition hover:border-amber-400 hover:shadow-lg"
-        >
-          {subcategory.ticketDefault && (
-            <span className="absolute right-4 top-4 text-[10px] bg-amber-400 text-amber-950 px-2 py-0.5 rounded-full font-bold uppercase tracking-wide">
-              Recommended
-            </span>
-          )}
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 dark:bg-amber-900/30">
-            <Ticket className="w-6 h-6 text-amber-600 dark:text-amber-400" />
-          </div>
-          <div>
-            <p className="font-bold text-gray-900 dark:text-white text-base">Sell Tickets</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
-              Guests purchase tickets online. Receive professional e-tickets with QR codes by email.
-            </p>
-          </div>
-          <ul className="space-y-1.5 text-xs text-gray-500 dark:text-gray-400">
-            {["Multiple ticket tiers", "Stripe payments", "E-ticket with QR code", "Sales dashboard"].map((f) => (
-              <li key={f} className="flex items-center gap-1.5">
-                <Check className="w-3.5 h-3.5 text-green-500" />{f}
-              </li>
-            ))}
-          </ul>
-          <span className="mt-auto text-xs font-semibold text-amber-600 dark:text-amber-400 group-hover:underline">
-            Choose Ticketing →
-          </span>
+      <div className="flex items-center justify-between pt-2">
+        <p className="text-xs text-gray-400">
+          {Object.values(features).filter(Boolean).length} module{Object.values(features).filter(Boolean).length !== 1 ? "s" : ""} selected
+        </p>
+        <button onClick={onNext}
+          className="flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold text-white transition active:scale-95"
+          style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)", boxShadow: "0 4px 14px rgba(99,102,241,0.35)" }}>
+          Continue <ArrowRight className="w-4 h-4" />
         </button>
       </div>
     </div>
@@ -232,13 +274,13 @@ function StepFlow({ subcategory, onSelect, onBack }) {
 }
 
 /* ── Step 4: Details form ──────────────────────────────────── */
-function StepDetails({ subcategory, isTicketed, onBack, onSubmit, submitting }) {
+function StepDetails({ subcategory, features, onBack, onSubmit, submitting }) {
   const [mode, setMode] = useState(null);
   const [form, setForm] = useState({
     title: "", starts_at: "", ends_at: "", timezone: "UTC",
     venue_name: "", venue_address: "", city: "", country: "",
     description: "", short_description: "",
-    visibility: isTicketed ? "PUBLIC" : "PRIVATE",
+    visibility: features.ticketing ? "PUBLIC" : "PRIVATE",
   });
   const [errors, setErrors] = useState({});
 
@@ -258,7 +300,7 @@ function StepDetails({ subcategory, isTicketed, onBack, onSubmit, submitting }) 
     const e = validate();
     if (Object.keys(e).length) { setErrors(e); return; }
 
-    const defaults = isTicketed ? TICKET_DEFAULTS : RSVP_DEFAULTS;
+    const defaults = features.ticketing ? TICKET_DEFAULTS : RSVP_DEFAULTS;
     onSubmit({
       ...defaults,
       event_type:        subcategory.eventType,
@@ -274,7 +316,10 @@ function StepDetails({ subcategory, isTicketed, onBack, onSubmit, submitting }) 
       description:       form.description || undefined,
       short_description: form.short_description || undefined,
       visibility:        form.visibility,
-      allow_ticketing:   isTicketed,
+      allow_rsvp:        features.rsvp,
+      allow_ticketing:   features.ticketing,
+      allow_qr_checkin:  features.qr,
+      allow_donations:   features.donations,
     });
   };
 
@@ -482,10 +527,22 @@ function CreateEventPageInner() {
   const [step, setStep]               = useState(preSelected ? 2 : preCategory ? 1 : 0);
   const [category, setCategory]       = useState(preSelected?.cat ?? preCategory ?? null);
   const [subcategory, setSubcategory] = useState(preSelected?.sub ?? null);
-  const [isTicketed, setIsTicketed]   = useState(false);
+  const [features, setFeatures]       = useState({ rsvp: true, ticketing: false, qr: false, donations: false });
   const [submitting, setSubmitting]   = useState(false);
   const [error, setError]             = useState(null);
   const openUpgradeModal = useSubscriptionStore((s) => s.openUpgradeModal);
+
+  // When a subcategory is chosen, seed smart defaults
+  const selectSubcategory = (sub) => {
+    setSubcategory(sub);
+    setFeatures({
+      rsvp:      true,
+      ticketing: !!sub.ticketDefault,
+      qr:        !!sub.ticketDefault,
+      donations: false,
+    });
+    setStep(2);
+  };
 
   const handleSubmit = async (payload) => {
     setSubmitting(true);
@@ -498,7 +555,7 @@ function CreateEventPageInner() {
       }
       if (fromParam === "tickets") {
         router.push(`/events/${event.id}/builder?from=create`);
-      } else if (isTicketed) {
+      } else if (features.ticketing) {
         router.push(`/events/${event.id}/tickets`);
       } else {
         router.push(`/events/${event.id}/builder?from=create`);
@@ -579,21 +636,23 @@ function CreateEventPageInner() {
           {step === 1 && category && (
             <StepSubcategory
               category={category}
-              onSelect={(sub) => { setSubcategory(sub); setStep(2); }}
+              onSelect={selectSubcategory}
               onBack={() => setStep(0)}
             />
           )}
           {step === 2 && subcategory && (
-            <StepFlow
+            <StepFeatures
               subcategory={subcategory}
-              onSelect={(ticketed) => { setIsTicketed(ticketed); setStep(3); }}
+              features={features}
+              onChange={(key, val) => setFeatures((f) => ({ ...f, [key]: val }))}
+              onNext={() => setStep(3)}
               onBack={() => setStep(1)}
             />
           )}
           {step === 3 && subcategory && (
             <StepDetails
               subcategory={subcategory}
-              isTicketed={isTicketed}
+              features={features}
               onBack={() => setStep(2)}
               onSubmit={handleSubmit}
               submitting={submitting}
