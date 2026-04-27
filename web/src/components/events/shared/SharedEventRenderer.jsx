@@ -119,6 +119,7 @@ export default function SharedEventRenderer({
       <EditorCanvas
         event={event}
         sections={orderedSections}
+        themeKey={themeKey}
         timeLeft={timeLeft}
         onSectionClick={onSectionClick}
         onReorder={onReorder}
@@ -150,7 +151,7 @@ export default function SharedEventRenderer({
 // ─────────────────────────────────────────────────────────────────────────────
 // EDITOR CANVAS — drag-and-drop reordering
 // ─────────────────────────────────────────────────────────────────────────────
-function EditorCanvas({ event, sections, timeLeft, onSectionClick, onReorder, selectedSectionId }) {
+function EditorCanvas({ event, sections, themeKey, timeLeft, onSectionClick, onReorder, selectedSectionId }) {
   const handleDragEnd = ({ active, over }) => {
     if (!over || active.id === over.id || !onReorder) return;
     const oldIdx = sections.findIndex((s) => s.id === active.id);
@@ -162,6 +163,7 @@ function EditorCanvas({ event, sections, timeLeft, onSectionClick, onReorder, se
     <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
         <div className="min-h-screen" style={{ background: "var(--t-bg)" }}>
+          <ThemedNav event={event} sections={sections} themeKey={themeKey} isEditor />
           {sections.map((section) => (
             <SectionErrorBoundary key={section.id} sectionType={section.section_type} isEditor>
               <SortableSection

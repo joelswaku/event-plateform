@@ -29,13 +29,14 @@ const ease = [0.22, 1, 0.36, 1];
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared scroll hook
 // ─────────────────────────────────────────────────────────────────────────────
-function useScrollState() {
+function useScrollState(disabled = false) {
   const [scrolled,   setScrolled]   = useState(false);
   const [visible,    setVisible]    = useState(true);
   const [atTop,      setAtTop]      = useState(true);
   const lastY = useRef(0);
 
   useEffect(() => {
+    if (disabled) return;
     const handler = () => {
       const y = window.scrollY;
       setScrolled(y > 48);
@@ -45,8 +46,9 @@ function useScrollState() {
     };
     window.addEventListener("scroll", handler, { passive: true });
     return () => window.removeEventListener("scroll", handler);
-  }, []);
+  }, [disabled]);
 
+  if (disabled) return { scrolled: true, visible: true, atTop: false };
   return { scrolled, visible, atTop };
 }
 
@@ -70,9 +72,16 @@ function useLockScroll(locked) {
 function scrollTo(id) {
   const el = document.getElementById(id);
   if (!el) return;
-  const offset = 80;
-  const top = el.getBoundingClientRect().top + window.scrollY - offset;
-  window.scrollTo({ top, behavior: "smooth" });
+  const offset = 60;
+  // In the builder the canvas is an overflow-auto div, not the window
+  const scrollParent = el.closest("[data-canvas-scroll]") || null;
+  if (scrollParent) {
+    const top = el.offsetTop - scrollParent.offsetTop - offset;
+    scrollParent.scrollTo({ top, behavior: "smooth" });
+  } else {
+    const top = el.getBoundingClientRect().top + window.scrollY - offset;
+    window.scrollTo({ top, behavior: "smooth" });
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -428,12 +437,12 @@ function OverlayMenuFun({ open, links, onClose }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // CLASSIC ── Centered 2-row, cream glass, diamond separators
-function ClassicDesktopNav({ event, links, scrolled, visible, mobileBtn }) {
+function ClassicDesktopNav({ event, links, scrolled, visible, mobileBtn, isEditor }) {
   return (
     <motion.header
       animate={{ y: visible ? 0 : -90, opacity: visible ? 1 : 0 }}
       transition={{ duration: 0.4, ease }}
-      className="fixed inset-x-0 top-0 z-50"
+      className={isEditor ? "sticky top-0 z-50" : "fixed inset-x-0 top-0 z-50"}
       style={{
         background: scrolled
           ? "color-mix(in srgb, var(--t-bg) 88%, transparent)"
@@ -498,13 +507,13 @@ function ClassicDesktopNav({ event, links, scrolled, visible, mobileBtn }) {
   );
 }
 
-// ELEGANT ── Asymmetric, thin underline hover, airy
-function ElegantDesktopNav({ event, links, scrolled, visible, mobileBtn }) {
+// ELEGANT ─�� Asymmetric, thin underline hover, airy
+function ElegantDesktopNav({ event, links, scrolled, visible, mobileBtn, isEditor }) {
   return (
     <motion.header
       animate={{ y: visible ? 0 : -72, opacity: visible ? 1 : 0 }}
       transition={{ duration: 0.45, ease }}
-      className="fixed inset-x-0 top-0 z-50"
+      className={isEditor ? "sticky top-0 z-50" : "fixed inset-x-0 top-0 z-50"}
       style={{
         background: scrolled
           ? "color-mix(in srgb, var(--t-bg) 90%, transparent)"
@@ -555,10 +564,10 @@ function ElegantDesktopNav({ event, links, scrolled, visible, mobileBtn }) {
 }
 
 // MODERN ── Always dark, no glass, accent underline bar on hover
-function ModernDesktopNav({ event, links, mobileBtn }) {
+function ModernDesktopNav({ event, links, mobileBtn, isEditor }) {
   return (
     <header
-      className="fixed inset-x-0 top-0 z-50"
+      className={isEditor ? "sticky top-0 z-50" : "fixed inset-x-0 top-0 z-50"}
       style={{
         background: "var(--t-dark)",
         borderBottom: "1px solid rgba(255,255,255,0.05)",
@@ -601,17 +610,17 @@ function ModernDesktopNav({ event, links, mobileBtn }) {
 }
 
 // MINIMAL ── Appears only on scroll, ultra-thin, near invisible
-function MinimalDesktopNav({ event, links, scrolled, mobileBtn }) {
+function MinimalDesktopNav({ event, links, scrolled, mobileBtn, isEditor }) {
   return (
     <motion.header
-      animate={{ opacity: scrolled ? 1 : 0, y: scrolled ? 0 : -12 }}
+      animate={{ opacity: isEditor || scrolled ? 1 : 0, y: isEditor || scrolled ? 0 : -12 }}
       transition={{ duration: 0.5, ease }}
-      className="fixed inset-x-0 top-0 z-50"
+      className={isEditor ? "sticky top-0 z-50" : "fixed inset-x-0 top-0 z-50"}
       style={{
         background: "rgba(249,249,249,0.97)",
         backdropFilter: "blur(16px)",
         borderBottom: "1px solid #ebebeb",
-        pointerEvents: scrolled ? "auto" : "none",
+        pointerEvents: isEditor || scrolled ? "auto" : "none",
       }}
     >
       <div className="mx-auto flex h-10 max-w-4xl items-center justify-between px-8">
@@ -648,8 +657,36 @@ function MinimalDesktopNav({ event, links, scrolled, mobileBtn }) {
 }
 
 // LUXURY ── Fixed left vertical sidebar (desktop), hamburger on mobile
-function LuxuryDesktopNav({ event, links, mobileBtn }) {
+function LuxuryDesktopNav({ event, links, mobileBtn, isEditor }) {
   const [hovered, setHovered] = useState(null);
+
+  // In editor, render a compact horizontal sticky bar — vertical sidebar can't live inside canvas
+  if (isEditor) {
+    return (
+      <div
+        className="sticky top-0 z-50 flex h-14 items-center justify-between px-5"
+        style={{ background: "rgba(13,12,10,0.95)", borderBottom: "1px solid rgba(212,175,111,0.15)" }}
+      >
+        <p className="text-[10px] font-light italic tracking-[0.2em]" style={{ color: "var(--t-accent)", fontFamily: "var(--t-font-heading)" }}>
+          {event?.title || ""}
+        </p>
+        <nav className="flex items-center gap-6">
+          {links.map((link, i) => (
+            <button
+              key={link.id}
+              onClick={() => scrollTo(link.id)}
+              className="text-[7.5px] uppercase tracking-[0.4em] transition-colors duration-300"
+              style={{ color: hovered === i ? "var(--t-accent)" : "rgba(212,175,111,0.4)" }}
+              onMouseEnter={() => setHovered(i)}
+              onMouseLeave={() => setHovered(null)}
+            >
+              {link.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -716,12 +753,12 @@ function LuxuryDesktopNav({ event, links, mobileBtn }) {
 }
 
 // FUN ── Colorful pill nav, neo-brutalism, bold
-function FunDesktopNav({ event, links, scrolled, visible, mobileBtn }) {
+function FunDesktopNav({ event, links, scrolled, visible, mobileBtn, isEditor }) {
   return (
     <motion.header
       animate={{ y: visible ? 0 : -80 }}
       transition={{ duration: 0.35, ease }}
-      className="fixed inset-x-0 top-0 z-50"
+      className={isEditor ? "sticky top-0 z-50" : "fixed inset-x-0 top-0 z-50"}
       style={{
         background: scrolled ? "#ffffff" : "transparent",
         borderBottom: scrolled ? "2px solid #1a1a1a" : "none",
@@ -790,9 +827,9 @@ function FunDesktopNav({ event, links, scrolled, visible, mobileBtn }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN EXPORT — Dispatches to the correct nav + mobile overlay per theme
 // ─────────────────────────────────────────────────────────────────────────────
-export default function ThemedNav({ event, sections, themeKey }) {
+export default function ThemedNav({ event, sections, themeKey, isEditor = false }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { scrolled, visible, atTop } = useScrollState();
+  const { scrolled, visible, atTop } = useScrollState(isEditor);
 
   const navLinks = useMemo(
     () =>
@@ -805,7 +842,6 @@ export default function ThemedNav({ event, sections, themeKey }) {
   const openMenu  = useCallback(() => setMenuOpen(true),  []);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
 
-  // Returns a hamburger button, bound to open the mobile menu
   const mobileBtn = useCallback(
     (color) => (
       <Hamburger
@@ -818,10 +854,11 @@ export default function ThemedNav({ event, sections, themeKey }) {
     [menuOpen, themeKey]
   );
 
-  const sharedDesktopProps = { event, links: navLinks, scrolled, visible, atTop, mobileBtn };
+  const sharedDesktopProps = { event, links: navLinks, scrolled, visible, atTop, mobileBtn, isEditor };
 
-  // Mobile overlay component per theme
+  // Mobile overlay — not rendered in editor (canvas scroll ≠ window scroll)
   const MobileOverlay = () => {
+    if (isEditor) return null;
     if (themeKey === "CLASSIC" || themeKey === "ELEGANT") {
       return <OverlayMenuClassic open={menuOpen} links={navLinks} onClose={closeMenu} theme={themeKey} />;
     }
@@ -839,7 +876,7 @@ export default function ThemedNav({ event, sections, themeKey }) {
       {themeKey === "ELEGANT"  && <ElegantDesktopNav  {...sharedDesktopProps} />}
       {themeKey === "MODERN"   && <ModernDesktopNav   {...sharedDesktopProps} />}
       {themeKey === "MINIMAL"  && <MinimalDesktopNav  {...sharedDesktopProps} />}
-      {themeKey === "LUXURY"   && <LuxuryDesktopNav   event={event} links={navLinks} mobileBtn={mobileBtn} />}
+      {themeKey === "LUXURY"   && <LuxuryDesktopNav   event={event} links={navLinks} mobileBtn={mobileBtn} isEditor={isEditor} />}
       {themeKey === "FUN"      && <FunDesktopNav      {...sharedDesktopProps} />}
 
       {/* Fallback for unknown themes */}

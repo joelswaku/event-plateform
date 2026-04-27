@@ -1659,3 +1659,77 @@ export async function getInvitationByTokenService({ token }) {
       client.release();
     }
   }
+
+// ── Open RSVP (no invitation token required) ─────────────────────────────────
+
+export async function submitOpenRsvpService({ eventId, payload }) {
+  const name   = String(payload.guest_name  ?? "").trim();
+  const email  = String(payload.email       ?? "").trim().toLowerCase();
+  const phone  = String(payload.phone       ?? "").trim() || null;
+  const status = String(payload.rsvp_status ?? "GOING").toUpperCase();
+
+  if (!name)  throw new AppError("guest_name is required", 400);
+  if (!email || !email.includes("@")) throw new AppError("A valid email is required", 400);
+  if (!["GOING", "DECLINED", "MAYBE"].includes(status)) {
+    throw new AppError("rsvp_status must be GOING, DECLINED, or MAYBE", 400);
+  }
+
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Verify event exists and allows open RSVP
+    const evtRes = await client.query(
+      `SELECT id, allow_rsvp, open_rsvp FROM events
+       WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
+      [eventId]
+    );
+    const event = evtRes.rows[0];
+    if (!event)            throw new AppError("Event not found", 404);
+    if (!event.allow_rsvp) throw new AppError("RSVP is not enabled for this event", 400);
+    if (!event.open_rsvp)  throw new AppError("This event requires an invitation to RSVP", 403);
+
+    // Find or create a guest for this event by email
+    let guest;
+    const existingGuest = await client.query(
+      `SELECT id FROM guests
+       WHERE email = $1 AND event_id = $2 AND deleted_at IS NULL LIMIT 1`,
+      [email, eventId]
+    );
+
+    if (existingGuest.rows[0]) {
+      guest = existingGuest.rows[0];
+      // Update name/phone if provided
+      await client.query(
+        `UPDATE guests SET full_name = $1, phone = COALESCE($2, phone), updated_at = NOW() WHERE id = $3`,
+        [name, phone, guest.id]
+      );
+    } else {
+      const ins = await client.query(
+        `INSERT INTO guests (event_id, full_name, email, phone, plus_one_allowed, plus_one_count, is_vip, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, false, 0, false, NOW(), NOW()) RETURNING id`,
+        [eventId, name, email, phone]
+      );
+      guest = ins.rows[0];
+    }
+
+    // Upsert RSVP
+    await client.query(
+      `INSERT INTO guest_rsvps (guest_id, event_id, rsvp_status, responded_at, updated_at)
+       VALUES ($1, $2, $3::rsvp_status, NOW(), NOW())
+       ON CONFLICT (guest_id, event_id)
+       DO UPDATE SET rsvp_status = EXCLUDED.rsvp_status,
+                     responded_at = NOW(),
+                     updated_at = NOW()`,
+      [guest.id, eventId, status]
+    );
+
+    await client.query("COMMIT");
+    return { rsvp_status: status, guest_name: name, email };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}

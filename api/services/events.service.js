@@ -296,6 +296,7 @@ function mapEvent(row) {
     ends_at_local: endsAtLocal,
 
     allow_rsvp: row.allow_rsvp,
+    open_rsvp: row.open_rsvp ?? false,
     allow_plus_ones: row.allow_plus_ones,
     allow_manual_attendance: row.allow_manual_attendance,
     allow_qr_checkin: row.allow_qr_checkin,
@@ -418,6 +419,7 @@ export async function createEventService({ userId, organizationId, payload }) {
           starts_at,
           ends_at,
           allow_rsvp,
+          open_rsvp,
           allow_plus_ones,
           allow_manual_attendance,
           allow_qr_checkin,
@@ -433,14 +435,14 @@ export async function createEventService({ userId, organizationId, payload }) {
           'DRAFT',
           $10,$11,$12,$13,$14,$15,$16,$17,
           $18,$19,$20,
-          $21,$22,$23,$24,$25,$26,$27,$28,$29,$30
+          $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31
         )
         RETURNING *
         `,
       [
         organizationId,
         userId,
-        eventType, // ✅ FIXED
+        eventType,
         payload.title.trim(),
         slug,
         payload.description ?? null,
@@ -461,6 +463,7 @@ export async function createEventService({ userId, organizationId, payload }) {
         endsAtUTC ?? null,
 
         payload.allow_rsvp ?? true,
+        payload.open_rsvp ?? false,
         payload.allow_plus_ones ?? false,
         payload.allow_manual_attendance ?? true,
         payload.allow_qr_checkin ?? false,
@@ -738,6 +741,7 @@ export async function updateEventService({
       starts_at: startsAtUTC,
       ends_at: endsAtUTC,
       allow_rsvp: payload.allow_rsvp ?? existing.allow_rsvp,
+      open_rsvp: payload.open_rsvp ?? existing.open_rsvp ?? false,
       allow_plus_ones: payload.allow_plus_ones ?? existing.allow_plus_ones,
       allow_manual_attendance:
         payload.allow_manual_attendance ?? existing.allow_manual_attendance,
@@ -794,18 +798,19 @@ export async function updateEventService({
           starts_at = $18,
           ends_at = $19,
           allow_rsvp = $20,
-          allow_plus_ones = $21,
-          allow_manual_attendance = $22,
-          allow_qr_checkin = $23,
-          allow_ticketing = $24,
-          allow_donations = $25,
-          require_creator_verification = $26,
-          creator_verified = $27,
-          dashboard_mode = $28,
-          custom_domain = $29,
+          open_rsvp = $21,
+          allow_plus_ones = $22,
+          allow_manual_attendance = $23,
+          allow_qr_checkin = $24,
+          allow_ticketing = $25,
+          allow_donations = $26,
+          require_creator_verification = $27,
+          creator_verified = $28,
+          dashboard_mode = $29,
+          custom_domain = $30,
           updated_at = NOW()
-        WHERE id = $30
-          AND organization_id = $31
+        WHERE id = $31
+          AND organization_id = $32
           AND deleted_at IS NULL
         RETURNING *
         `,
@@ -830,6 +835,7 @@ export async function updateEventService({
         merged.starts_at,
         merged.ends_at,
         merged.allow_rsvp,
+        merged.open_rsvp,
         merged.allow_plus_ones,
         merged.allow_manual_attendance,
         merged.allow_qr_checkin,

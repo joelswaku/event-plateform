@@ -212,6 +212,7 @@ export default function EventSettingsPage() {
       state: e.state ?? "",
       country: e.country ?? "",
       allow_rsvp: e.allow_rsvp ?? false,
+      open_rsvp: e.open_rsvp ?? false,
       allow_plus_ones: e.allow_plus_ones ?? false,
       allow_qr_checkin: e.allow_qr_checkin ?? false,
       allow_ticketing: e.allow_ticketing ?? false,
@@ -354,11 +355,32 @@ export default function EventSettingsPage() {
                 description="Extend your event functionality with pre-built modules."
               />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Toggle icon={Users} label="RSVP Flow" description="Collect guest names and emails" checked={form.allow_rsvp} onChange={v => set("allow_rsvp", v)} />
+                <Toggle icon={Users} label="RSVP Flow" description="Collect guest names and emails" checked={form.allow_rsvp} onChange={v => { set("allow_rsvp", v); if (!v) set("open_rsvp", false); }} />
                 <Toggle icon={Ticket} label="Stripe Ticketing" colorClass="text-amber-500" description="Secure payment processing" checked={form.allow_ticketing} onChange={v => set("allow_ticketing", v)} />
                 <Toggle icon={QrCode} label="Express Entry" colorClass="text-cyan-500" description="Mobile QR scanning at door" checked={form.allow_qr_checkin} onChange={v => set("allow_qr_checkin", v)} />
                 <Toggle icon={Heart} label="Donation Portal" colorClass="text-pink-500" description="Accept tips and contributions" checked={form.allow_donations} onChange={v => set("allow_donations", v)} />
               </div>
+              <AnimatePresence>
+                {form.allow_rsvp && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden mt-4"
+                  >
+                    <div className="pl-4 border-l-2 border-indigo-500/20">
+                      <Toggle
+                        icon={Globe}
+                        label="Open RSVP"
+                        colorClass="text-emerald-500"
+                        description="Allow anyone to RSVP without an invitation link"
+                        checked={form.open_rsvp}
+                        onChange={v => set("open_rsvp", v)}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </GlassCard>
 
             {/* Critical Actions */}

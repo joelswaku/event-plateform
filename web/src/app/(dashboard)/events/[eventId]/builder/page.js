@@ -169,7 +169,7 @@ function BuilderContent() {
         <div className="flex flex-1 overflow-hidden">
 
           {/* Canvas area */}
-          <div className="flex flex-1 overflow-auto" style={{ background: "#1a1b1f" }}>
+          <div className="flex flex-1 overflow-auto" data-canvas-scroll style={{ background: "#1a1b1f" }}>
 
             {/* ── Mobile canvas: full-width, no device frame ── */}
             <div className="flex w-full flex-col lg:hidden">

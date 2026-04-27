@@ -1,72 +1,37 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import { X, Lock, Check, Sparkles, Crown, Star, ArrowRight, Zap, Eye } from "lucide-react";
+import { X, Lock, Check, Sparkles, Crown, ArrowRight, Zap, Eye } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { STYLE_TEMPLATES, canAccessTemplate, FREE_STYLE } from "@/lib/styleTemplates";
+import {
+  STYLE_TEMPLATES,
+  canAccessTemplate,
+  FREE_STYLE,
+  TEMPLATE_CATEGORIES,
+  getCategoryForType,
+  getTemplatesForEventType,
+} from "@/lib/styleTemplates";
 import { STYLE_META } from "@/lib/styleThemes";
 import { useSubscriptionStore } from "@/store/subscription.store";
 import { useBuilderStore } from "@/store/builder.store";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
-const UNIQUE_TEMPLATES = Array.from(
+const ALL_TEMPLATES = Array.from(
   new Map(STYLE_TEMPLATES.map((t) => [t.id, t])).values()
 );
 
 const STYLE_ORDER = ["CLASSIC", "ELEGANT", "MODERN", "MINIMAL", "LUXURY", "FUN"];
+const CATEGORY_ORDER = ["SOCIAL", "CORPORATE", "ENTERTAINMENT", "LIFE", "RELIGIOUS"];
 
-// Event types from the Ticketed & Entertainment category
-const ENTERTAINMENT_EVENT_TYPES = new Set([
-  "CONCERT", "FESTIVAL", "LIVE_SHOW", "NIGHTCLUB", "THEATER",
-  "COMEDY", "SPORTS", "EXHIBITION",
-]);
-
-// Styles appropriate for entertainment/ticket events (no wedding imagery)
-const ENTERTAINMENT_STYLES = ["MODERN", "MINIMAL", "LUXURY", "FUN"];
-
-function isEntertainmentType(eventType) {
-  if (!eventType) return false;
-  return ENTERTAINMENT_EVENT_TYPES.has(String(eventType).toUpperCase().trim());
+function formatEventTypeName(type) {
+  if (!type) return "Your Event";
+  return String(type)
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-const RECOMMENDED_STYLES = {
-  WEDDING:         ["CLASSIC", "ELEGANT", "LUXURY"],
-  ENGAGEMENT:      ["ELEGANT", "CLASSIC", "LUXURY"],
-  BIRTHDAY:        ["FUN", "ELEGANT", "CLASSIC"],
-  ANNIVERSARY:     ["ELEGANT", "CLASSIC"],
-  BABY_SHOWER:     ["FUN", "ELEGANT"],
-  GENDER_REVEAL:   ["FUN", "MODERN"],
-  GRADUATION:      ["CLASSIC", "MODERN"],
-  FUNERAL:         ["MINIMAL", "CLASSIC"],
-  PRIVATE_PARTY:   ["FUN", "MODERN"],
-  FAMILY_REUNION:  ["CLASSIC", "FUN"],
-  MEETING:         ["MINIMAL", "MODERN"],
-  CONFERENCE:      ["MODERN", "MINIMAL"],
-  SEMINAR:         ["MODERN", "MINIMAL"],
-  WORKSHOP:        ["MODERN", "CLASSIC"],
-  NETWORKING:      ["MODERN", "ELEGANT"],
-  PRODUCT_LAUNCH:  ["MODERN", "LUXURY"],
-  COMPANY_PARTY:   ["FUN", "MODERN"],
-  TRAINING:        ["MINIMAL", "MODERN"],
-  CONCERT:         ["LUXURY", "FUN", "MODERN"],
-  FESTIVAL:        ["FUN", "MODERN"],
-  LIVE_SHOW:       ["MODERN", "LUXURY"],
-  NIGHTCLUB:       ["LUXURY", "MODERN"],
-  THEATER:         ["ELEGANT", "LUXURY"],
-  COMEDY:          ["FUN", "MODERN"],
-  SPORTS:          ["MODERN", "FUN"],
-  EXHIBITION:      ["MINIMAL", "MODERN"],
-  CHURCH:          ["CLASSIC", "ELEGANT"],
-  CORPORATE_EVENT: ["MODERN", "MINIMAL"],
-  OTHER:           ["CLASSIC", "MODERN"],
-};
-
-function getRecommendedStyleKeys(eventType) {
-  if (!eventType) return null;
-  return RECOMMENDED_STYLES[String(eventType).toUpperCase().trim()] ?? null;
-}
-
-// ── Large immersive template card ─────────────────────────────────────────────
+// ── Template Card ─────────────────────────────────────────────────────────────
 function TemplateCard({ t, userPlan, applying, onSelect, onPreview }) {
   const accessible = canAccessTemplate(t, userPlan);
   const isApplying = applying === t.id;
@@ -101,13 +66,11 @@ function TemplateCard({ t, userPlan, applying, onSelect, onPreview }) {
             loading="lazy"
           />
         )}
-        {/* Cinematic overlay */}
         <div
           className="absolute inset-0"
           style={{ background: "linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.22) 55%, transparent 100%)" }}
         />
 
-        {/* Lock overlay for premium */}
         {!accessible && (
           <div className="absolute inset-0 flex items-end pb-3 justify-center" style={{ background: "rgba(0,0,0,0.28)" }}>
             <div
@@ -119,7 +82,6 @@ function TemplateCard({ t, userPlan, applying, onSelect, onPreview }) {
           </div>
         )}
 
-        {/* Tier badge */}
         <div className="absolute top-2.5 left-2.5">
           {isFree ? (
             <span
@@ -138,14 +100,12 @@ function TemplateCard({ t, userPlan, applying, onSelect, onPreview }) {
           )}
         </div>
 
-        {/* Applying spinner */}
         {isApplying && (
           <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }}>
             <span className="h-6 w-6 rounded-full border-2 border-white/30 border-t-white animate-spin" />
           </div>
         )}
 
-        {/* Bottom hero text */}
         <div className="absolute bottom-0 inset-x-0 px-3 pb-3">
           <p className="text-[9px] font-bold uppercase tracking-[0.2em] mb-0.5" style={{ color: accent, opacity: 0.9 }}>
             {meta.label}
@@ -153,7 +113,6 @@ function TemplateCard({ t, userPlan, applying, onSelect, onPreview }) {
           <h3 className="text-[14px] font-bold text-white leading-snug">{t.name}</h3>
         </div>
 
-        {/* Hover actions */}
         <div
           className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200"
           style={{ background: "rgba(0,0,0,0.45)" }}
@@ -198,13 +157,13 @@ function TemplateCard({ t, userPlan, applying, onSelect, onPreview }) {
   );
 }
 
-// ── Cinematic full-screen preview ─────────────────────────────────────────────
+// ── Preview Modal ─────────────────────────────────────────────────────────────
 function PreviewModal({ template, userPlan, onClose, onUse, onUpgrade }) {
-  const meta    = STYLE_META[template.style] ?? STYLE_META.CLASSIC;
-  const accent  = meta.preview.accent;
-  const heroImg = template.assets?.hero_image;
+  const meta      = STYLE_META[template.style] ?? STYLE_META.CLASSIC;
+  const accent    = meta.preview.accent;
+  const heroImg   = template.assets?.hero_image;
   const accessible = canAccessTemplate(template, userPlan);
-  const colors  = template.design?.colors ?? {};
+  const colors    = template.design?.colors ?? {};
 
   return (
     <motion.div
@@ -225,7 +184,6 @@ function PreviewModal({ template, userPlan, onClose, onUse, onUpgrade }) {
         style={{ background: "#111", border: "1px solid rgba(255,255,255,0.08)", boxShadow: `0 40px 120px rgba(0,0,0,0.9), 0 0 0 1px ${accent}22` }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 z-20 flex h-8 w-8 items-center justify-center rounded-full text-white/60 hover:text-white transition-colors"
@@ -234,26 +192,16 @@ function PreviewModal({ template, userPlan, onClose, onUse, onUpgrade }) {
           <X size={15} />
         </button>
 
-        {/* Hero */}
         <div className="relative" style={{ height: "clamp(200px,40vw,320px)", background: meta.preview.hero }}>
-          {heroImg && (
-            <img src={heroImg} alt={template.name} className="w-full h-full object-cover" />
-          )}
+          {heroImg && <img src={heroImg} alt={template.name} className="w-full h-full object-cover" />}
           <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #111 0%, rgba(0,0,0,0.5) 50%, transparent 100%)" }} />
 
-          {/* Color swatches */}
           <div className="absolute top-4 left-4 flex gap-1.5">
             {Object.entries(colors).map(([name, hex]) => (
-              <div
-                key={name}
-                title={name}
-                className="h-5 w-5 rounded-full border-2 border-white/20"
-                style={{ background: hex }}
-              />
+              <div key={name} title={name} className="h-5 w-5 rounded-full border-2 border-white/20" style={{ background: hex }} />
             ))}
           </div>
 
-          {/* Tier */}
           <div className="absolute top-4 right-14">
             {template.style === FREE_STYLE ? (
               <span className="rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider" style={{ background: "rgba(16,185,129,0.9)", color: "#fff" }}>Free</span>
@@ -264,20 +212,17 @@ function PreviewModal({ template, userPlan, onClose, onUse, onUpgrade }) {
             )}
           </div>
 
-          {/* Template name */}
           <div className="absolute bottom-5 left-6">
             <p className="text-[10px] font-bold uppercase tracking-[0.25em] mb-1" style={{ color: accent }}>{meta.label}</p>
             <h2 className="text-2xl font-bold text-white leading-tight">{template.name}</h2>
           </div>
         </div>
 
-        {/* Body */}
         <div className="p-6">
           <p className="text-[13px] leading-relaxed mb-5" style={{ color: "rgba(255,255,255,0.5)" }}>
             {template.description}
           </p>
 
-          {/* Section pills */}
           <div className="flex flex-wrap gap-1.5 mb-6">
             {template.sections.map((s, i) => (
               <span
@@ -290,14 +235,10 @@ function PreviewModal({ template, userPlan, onClose, onUse, onUpgrade }) {
             ))}
           </div>
 
-          {/* Footer meta + CTA */}
           <div className="flex items-center justify-between gap-4 pt-4" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-            <div>
-              <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.25)" }}>
-                {template.design?.fonts?.heading ?? "System font"} · {template.sections.length} sections
-              </p>
-            </div>
-
+            <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.25)" }}>
+              {template.design?.fonts?.heading ?? "System font"} · {template.sections.length} sections
+            </p>
             {accessible ? (
               <button
                 onClick={onUse}
@@ -322,12 +263,8 @@ function PreviewModal({ template, userPlan, onClose, onUse, onUpgrade }) {
   );
 }
 
-// ── Style sidebar pill ────────────────────────────────────────────────────────
-function StylePill({ styleKey, active, count, onClick }) {
-  const meta   = STYLE_META[styleKey];
-  const accent = meta?.preview?.accent ?? "#888";
-  const isFree = styleKey === FREE_STYLE;
-
+// ── Sidebar nav pill ──────────────────────────────────────────────────────────
+function NavPill({ label, count, active, accent = "#818CF8", isFree = false, onClick }) {
   return (
     <button
       onClick={onClick}
@@ -341,21 +278,20 @@ function StylePill({ styleKey, active, count, onClick }) {
         className="h-2.5 w-2.5 rounded-full shrink-0 transition-all"
         style={{ background: active ? accent : "rgba(255,255,255,0.2)", boxShadow: active ? `0 0 8px ${accent}88` : "none" }}
       />
-      <span
-        className="flex-1 text-[12px] font-semibold transition-colors"
-        style={{ color: active ? "#fff" : "rgba(255,255,255,0.45)" }}
-      >
-        {meta?.label ?? styleKey}
+      <span className="flex-1 text-[12px] font-semibold transition-colors" style={{ color: active ? "#fff" : "rgba(255,255,255,0.45)" }}>
+        {label}
       </span>
-      <span
-        className="text-[10px] font-bold rounded-full px-1.5 py-0.5 transition-all"
-        style={{
-          background: active ? `${accent}30` : "rgba(255,255,255,0.06)",
-          color: active ? accent : "rgba(255,255,255,0.25)",
-        }}
-      >
-        {count}
-      </span>
+      {count != null && (
+        <span
+          className="text-[10px] font-bold rounded-full px-1.5 py-0.5 transition-all"
+          style={{
+            background: active ? `${accent}30` : "rgba(255,255,255,0.06)",
+            color: active ? accent : "rgba(255,255,255,0.25)",
+          }}
+        >
+          {count}
+        </span>
+      )}
       {isFree && (
         <span className="text-[8px] font-black uppercase tracking-wider rounded-full px-1.5 py-0.5"
           style={{ background: "rgba(16,185,129,0.15)", color: "#10B981" }}>
@@ -371,54 +307,68 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
   const { plan, isSubscribed, openUpgradeModal } = useSubscriptionStore();
   const { applyPreset } = useBuilderStore();
 
-  const isEntertainment = isEntertainmentType(eventType);
+  const categoryKey = useMemo(() => getCategoryForType(eventType), [eventType]);
+  const hasEventType = Boolean(eventType);
 
-  // For entertainment events default to "RECOMMENDED"; otherwise "ALL"
-  const [activeStyle, setActiveStyle] = useState(isEntertainment ? "RECOMMENDED" : "ALL");
-  const [applying,    setApplying]    = useState(null);
-  const [preview,     setPreview]     = useState(null);
+  const defaultFilter = hasEventType ? "FOR_YOU" : "ALL";
+  const [activeFilter, setActiveFilter] = useState(defaultFilter);
+  const [applying, setApplying] = useState(null);
+  const [preview,  setPreview]  = useState(null);
   const bodyRef = useRef(null);
 
-  // Reset active style when event type changes
   useEffect(() => {
-    setActiveStyle(isEntertainment ? "RECOMMENDED" : "ALL");
-  }, [isEntertainment]);
+    setActiveFilter(hasEventType ? "FOR_YOU" : "ALL");
+  }, [eventType, hasEventType]);
 
   const userPlan  = isSubscribed ? plan : "free";
   const isPremium = userPlan === "premium";
 
-  const recStyleKeys = useMemo(() => getRecommendedStyleKeys(eventType), [eventType]);
+  // Templates sorted by relevance for this event type
+  const forYouTemplates = useMemo(
+    () => (hasEventType ? getTemplatesForEventType(eventType) : ALL_TEMPLATES),
+    [eventType, hasEventType]
+  );
 
-  // For entertainment events, scope ALL templates to non-wedding styles only
-  const scopedTemplates = useMemo(() =>
-    isEntertainment
-      ? UNIQUE_TEMPLATES.filter((t) => ENTERTAINMENT_STYLES.includes(t.style))
-      : UNIQUE_TEMPLATES,
-  [isEntertainment]);
+  // Exact-match templates (same eventTypes[])
+  const exactMatchTemplates = useMemo(() => {
+    if (!eventType) return [];
+    const t = String(eventType).toLowerCase().trim();
+    return ALL_TEMPLATES.filter((tmpl) => tmpl.eventTypes?.includes(t));
+  }, [eventType]);
 
-  // Only show style pills that are relevant for the current event scope
-  const visibleStyleOrder = isEntertainment ? ENTERTAINMENT_STYLES : STYLE_ORDER;
+  // Count by category
+  const countByCategory = useMemo(() => {
+    const m = {};
+    for (const t of ALL_TEMPLATES) {
+      const c = t.category ?? "OTHER";
+      m[c] = (m[c] ?? 0) + 1;
+    }
+    return m;
+  }, []);
 
-  // Template list for each style (based on scoped set)
+  // Count by style
   const countByStyle = useMemo(() => {
     const m = {};
-    for (const t of scopedTemplates) m[t.style] = (m[t.style] ?? 0) + 1;
+    for (const t of ALL_TEMPLATES) m[t.style] = (m[t.style] ?? 0) + 1;
     return m;
-  }, [scopedTemplates]);
+  }, []);
 
   const filteredTemplates = useMemo(() => {
-    if (activeStyle === "ALL")         return scopedTemplates;
-    if (activeStyle === "RECOMMENDED") {
-      if (!recStyleKeys) return scopedTemplates.filter((t) => t.style === FREE_STYLE);
-      return scopedTemplates.filter((t) => recStyleKeys.includes(t.style));
+    if (activeFilter === "FOR_YOU") return forYouTemplates;
+    if (activeFilter === "ALL")     return ALL_TEMPLATES;
+    if (CATEGORY_ORDER.includes(activeFilter)) {
+      return ALL_TEMPLATES.filter((t) => t.category === activeFilter);
     }
-    return scopedTemplates.filter((t) => t.style === activeStyle);
-  }, [activeStyle, recStyleKeys, scopedTemplates]);
+    if (STYLE_ORDER.includes(activeFilter)) {
+      return ALL_TEMPLATES.filter((t) => t.style === activeFilter);
+    }
+    return ALL_TEMPLATES;
+  }, [activeFilter, forYouTemplates]);
 
   // Scroll to top when filter changes
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-  }, [activeStyle]);
+  }, [activeFilter]);
 
   const handleSelect = async (t) => {
     if (!canAccessTemplate(t, userPlan)) { openUpgradeModal(t.name); return; }
@@ -438,21 +388,27 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
   if (!isOpen) return null;
 
   const cardProps = { userPlan, applying, onSelect: handleSelect, onPreview: setPreview };
+  const eventTypeName = formatEventTypeName(eventType);
 
-  const sidebarItems = [
-    ...(recStyleKeys ? [{ key: "RECOMMENDED", label: "For You", count: scopedTemplates.filter((t) => recStyleKeys.includes(t.style)).length }] : []),
-    { key: "ALL", label: isEntertainment ? "All Event Templates" : "All Templates", count: scopedTemplates.length },
-    ...visibleStyleOrder.map((s) => ({ key: s, label: STYLE_META[s]?.label ?? s, count: countByStyle[s] ?? 0 })),
+  // Featured: first 3 templates with hero images from current view
+  const featured = filteredTemplates.filter((t) => t.assets?.hero_image).slice(0, 3);
+
+  // Mobile filter pills
+  const mobilePills = [
+    ...(hasEventType ? [{ key: "FOR_YOU", label: `For You`, accent: "#818CF8" }] : []),
+    { key: "ALL", label: "All", accent: "#818CF8" },
+    ...CATEGORY_ORDER.filter((c) => countByCategory[c] > 0).map((c) => ({
+      key: c,
+      label: TEMPLATE_CATEGORIES[c]?.emoji + " " + TEMPLATE_CATEGORIES[c]?.label?.split(" & ")[0],
+      accent: "#818CF8",
+    })),
   ];
-
-  // Featured (hero-image templates, scoped to current event type)
-  const featured = scopedTemplates.filter((t) => t.assets?.hero_image).slice(0, 3);
 
   return (
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* ── Backdrop ── */}
+          {/* Backdrop */}
           <motion.div
             key="tp-bg"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -460,7 +416,7 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
             onClick={onClose}
           />
 
-          {/* ── Modal shell ── */}
+          {/* Modal shell */}
           <motion.div
             key="tp-shell"
             initial={{ opacity: 0, scale: 0.97, y: 32 }}
@@ -480,16 +436,15 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
                 boxShadow: "0 48px 120px rgba(0,0,0,0.95)",
               }}
             >
-              {/* sm+: full rounded */}
               <style>{`@media(min-width:640px){.tp-shell{border-radius:20px!important}}`}</style>
               <div className="tp-shell absolute inset-0 pointer-events-none" style={{ borderRadius: "24px 24px 0 0", border: "inherit" }} />
 
-              {/* Drag handle mobile */}
+              {/* Mobile drag handle */}
               <div className="sm:hidden flex justify-center pt-3 shrink-0">
                 <div className="h-1 w-10 rounded-full" style={{ background: "rgba(255,255,255,0.12)" }} />
               </div>
 
-              {/* ── Top bar ── */}
+              {/* Top bar */}
               <div
                 className="flex items-center justify-between px-5 sm:px-6 py-4 shrink-0"
                 style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
@@ -503,12 +458,12 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
                   </div>
                   <div>
                     <h2 className="text-[15px] font-bold text-white leading-none">
-                      {isEntertainment ? "Event Templates" : "Templates"}
+                      {hasEventType ? `Templates for ${eventTypeName}` : "Templates"}
                     </h2>
                     <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>
-                      {isEntertainment
-                        ? `${scopedTemplates.length} templates for ${eventType?.toLowerCase() ?? "your event"}`
-                        : `${UNIQUE_TEMPLATES.filter(t => t.style === FREE_STYLE).length} free · ${UNIQUE_TEMPLATES.filter(t => t.style !== FREE_STYLE).length} premium`}
+                      {hasEventType
+                        ? `${exactMatchTemplates.length} exact match · ${ALL_TEMPLATES.length} total`
+                        : `${ALL_TEMPLATES.filter((t) => t.style === FREE_STYLE).length} free · ${ALL_TEMPLATES.filter((t) => t.style !== FREE_STYLE).length} premium`}
                     </p>
                   </div>
                 </div>
@@ -535,59 +490,111 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
                 </div>
               </div>
 
-              {/* ── Body: sidebar + grid ── */}
+              {/* Body: sidebar + grid */}
               <div className="flex flex-1 min-h-0">
 
-                {/* Sidebar (desktop) */}
+                {/* ── Sidebar (desktop) ── */}
                 <aside
                   className="hidden sm:flex flex-col gap-0.5 shrink-0 overflow-y-auto p-3"
-                  style={{ width: 188, borderRight: "1px solid rgba(255,255,255,0.05)" }}
+                  style={{ width: 200, borderRight: "1px solid rgba(255,255,255,0.05)" }}
                 >
-                  <p className="px-3 pt-1 pb-2 text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: "rgba(255,255,255,0.2)" }}>
+                  {/* For You — shown when event type is known */}
+                  {hasEventType && (
+                    <>
+                      <p className="px-3 pt-1 pb-2 text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: "rgba(255,255,255,0.2)" }}>
+                        Recommended
+                      </p>
+                      <NavPill
+                        label={`For ${eventTypeName}`}
+                        count={forYouTemplates.length}
+                        active={activeFilter === "FOR_YOU"}
+                        accent="#818CF8"
+                        onClick={() => setActiveFilter("FOR_YOU")}
+                      />
+                      <div className="my-2" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }} />
+                    </>
+                  )}
+
+                  {/* All */}
+                  <p className="px-3 pt-1 pb-1 text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: "rgba(255,255,255,0.2)" }}>
+                    Browse
+                  </p>
+                  <NavPill
+                    label="All Templates"
+                    count={ALL_TEMPLATES.length}
+                    active={activeFilter === "ALL"}
+                    accent="#818CF8"
+                    onClick={() => setActiveFilter("ALL")}
+                  />
+
+                  <div className="my-2" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }} />
+
+                  {/* By Category */}
+                  <p className="px-3 pt-1 pb-1 text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: "rgba(255,255,255,0.2)" }}>
+                    Category
+                  </p>
+                  {CATEGORY_ORDER.map((catKey) => {
+                    const cat = TEMPLATE_CATEGORIES[catKey];
+                    const cnt = countByCategory[catKey] ?? 0;
+                    if (cnt === 0) return null;
+                    const isActive = activeFilter === catKey;
+                    const isCurrentCat = catKey === categoryKey;
+                    return (
+                      <button
+                        key={catKey}
+                        onClick={() => setActiveFilter(catKey)}
+                        className="group flex items-center gap-2 w-full rounded-xl px-3 py-2.5 text-left transition-all"
+                        style={{
+                          background: isActive ? "rgba(99,102,241,0.15)" : "transparent",
+                          border: isActive ? "1px solid rgba(99,102,241,0.3)" : "1px solid transparent",
+                        }}
+                      >
+                        <span className="text-base leading-none" style={{ fontSize: 13 }}>{cat.emoji}</span>
+                        <span className="flex-1 text-[12px] font-semibold truncate transition-colors" style={{ color: isActive ? "#fff" : "rgba(255,255,255,0.45)" }}>
+                          {cat.label.split(" & ")[0]}
+                        </span>
+                        <span
+                          className="text-[10px] font-bold rounded-full px-1.5 py-0.5 shrink-0"
+                          style={{
+                            background: isActive ? "rgba(99,102,241,0.3)" : "rgba(255,255,255,0.06)",
+                            color: isActive ? "#818CF8" : "rgba(255,255,255,0.25)",
+                          }}
+                        >
+                          {cnt}
+                        </span>
+                        {isCurrentCat && (
+                          <span className="text-[8px] font-black uppercase tracking-wider rounded-full px-1.5 py-0.5 shrink-0"
+                            style={{ background: "rgba(99,102,241,0.2)", color: "#818CF8" }}>
+                            Yours
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+
+                  <div className="my-2" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }} />
+
+                  {/* By Style */}
+                  <p className="px-3 pt-1 pb-1 text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: "rgba(255,255,255,0.2)" }}>
                     Style
                   </p>
-
-                  {/* ALL + RECOMMENDED */}
-                  {recStyleKeys && (
-                    <StylePill
-                      styleKey="RECOMMENDED"
-                      active={activeStyle === "RECOMMENDED"}
-                      count={UNIQUE_TEMPLATES.filter(t => recStyleKeys.includes(t.style)).length}
-                      onClick={() => setActiveStyle("RECOMMENDED")}
-                    />
-                  )}
-                  <button
-                    onClick={() => setActiveStyle("ALL")}
-                    className="flex items-center gap-2.5 w-full rounded-xl px-3 py-2.5 text-left transition-all mb-2"
-                    style={{
-                      background: activeStyle === "ALL" ? "rgba(99,102,241,0.15)" : "transparent",
-                      border: activeStyle === "ALL" ? "1px solid rgba(99,102,241,0.3)" : "1px solid transparent",
-                    }}
-                  >
-                    <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: activeStyle === "ALL" ? "#818CF8" : "rgba(255,255,255,0.2)" }} />
-                    <span className="flex-1 text-[12px] font-semibold" style={{ color: activeStyle === "ALL" ? "#fff" : "rgba(255,255,255,0.45)" }}>All</span>
-                    <span className="text-[10px] font-bold rounded-full px-1.5 py-0.5" style={{ background: activeStyle === "ALL" ? "rgba(99,102,241,0.3)" : "rgba(255,255,255,0.06)", color: activeStyle === "ALL" ? "#818CF8" : "rgba(255,255,255,0.25)" }}>
-                      {UNIQUE_TEMPLATES.length}
-                    </span>
-                  </button>
-
-                  <div className="mb-2" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }} />
-
-                  {visibleStyleOrder.map((s) => (
-                    <StylePill
+                  {STYLE_ORDER.map((s) => (
+                    <NavPill
                       key={s}
-                      styleKey={s}
-                      active={activeStyle === s}
+                      label={STYLE_META[s]?.label ?? s}
                       count={countByStyle[s] ?? 0}
-                      onClick={() => setActiveStyle(s)}
+                      active={activeFilter === s}
+                      accent={STYLE_META[s]?.preview?.accent ?? "#888"}
+                      isFree={s === FREE_STYLE}
+                      onClick={() => setActiveFilter(s)}
                     />
                   ))}
 
-                  {/* Upgrade CTA in sidebar */}
+                  {/* Upgrade CTA */}
                   {!isPremium && (
                     <button
                       onClick={() => openUpgradeModal("templates")}
-                      className="mt-auto mx-1 flex flex-col gap-1.5 rounded-2xl p-3 text-left transition-all hover:scale-[1.02]"
+                      className="mx-1 flex flex-col gap-1.5 rounded-2xl p-3 text-left transition-all hover:scale-[1.02]"
                       style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", marginTop: 16 }}
                     >
                       <div className="flex items-center gap-1.5">
@@ -595,9 +602,7 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
                         <span className="text-[11px] font-black text-white">Go Premium</span>
                       </div>
                       <p className="text-[10px] leading-relaxed" style={{ color: "rgba(255,255,255,0.35)" }}>
-                        {isEntertainment
-                          ? `Unlock ${scopedTemplates.filter(t => t.style !== FREE_STYLE).length} premium event templates.`
-                          : `Unlock all 5 premium styles & ${UNIQUE_TEMPLATES.filter(t => t.style !== FREE_STYLE).length} templates.`}
+                        Unlock all {ALL_TEMPLATES.filter((t) => t.style !== FREE_STYLE).length} premium templates.
                       </p>
                       <span className="text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-lg self-start" style={{ background: "#F59E0B", color: "#1c1407" }}>$12/mo</span>
                     </button>
@@ -605,19 +610,16 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
                 </aside>
 
                 {/* ── Mobile top filter pills ── */}
-                <div className="sm:hidden absolute top-[57px] left-0 right-0 z-10 flex gap-2 overflow-x-auto px-4 py-2 no-scrollbar" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", background: "#0c0c10" }}>
-                  {[
-                    ...(recStyleKeys ? [{ key: "RECOMMENDED", label: "For You" }] : []),
-                    { key: "ALL", label: isEntertainment ? "All" : "All" },
-                    ...visibleStyleOrder.map((s) => ({ key: s, label: STYLE_META[s]?.label ?? s })),
-                  ].map(({ key, label }) => {
-                    const isActive = activeStyle === key;
-                    const meta = STYLE_META[key];
-                    const accent = meta?.preview?.accent ?? "#818CF8";
+                <div
+                  className="sm:hidden absolute left-0 right-0 z-10 flex gap-2 overflow-x-auto px-4 py-2 no-scrollbar"
+                  style={{ top: "57px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "#0c0c10" }}
+                >
+                  {mobilePills.map(({ key, label, accent }) => {
+                    const isActive = activeFilter === key;
                     return (
                       <button
                         key={key}
-                        onClick={() => setActiveStyle(key)}
+                        onClick={() => setActiveFilter(key)}
                         className="shrink-0 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all"
                         style={{
                           background: isActive ? `${accent}22` : "rgba(255,255,255,0.05)",
@@ -631,25 +633,40 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
                   })}
                 </div>
 
-                {/* Main grid */}
-                <div
-                  ref={bodyRef}
-                  className="flex-1 overflow-y-auto overscroll-contain"
-                  style={{ paddingTop: "0" }}
-                >
-                  <div className="sm:hidden h-10" /> {/* mobile filter offset */}
+                {/* ── Main grid ── */}
+                <div ref={bodyRef} className="flex-1 overflow-y-auto overscroll-contain">
+                  <div className="sm:hidden h-10" />
 
-                  {/* Featured banner — only on "ALL" or "RECOMMENDED" */}
-                  {(activeStyle === "ALL" || activeStyle === "RECOMMENDED") && featured.length > 0 && (
+                  {/* "For You" exact-match banner */}
+                  {activeFilter === "FOR_YOU" && exactMatchTemplates.length > 0 && (
+                    <div className="px-4 sm:px-5 pt-5 mb-2">
+                      <div
+                        className="flex items-center gap-2 rounded-2xl px-4 py-3 mb-4"
+                        style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)" }}
+                      >
+                        <Sparkles size={14} style={{ color: "#818CF8", flexShrink: 0 }} />
+                        <div>
+                          <p className="text-[12px] font-bold text-white leading-none">
+                            {exactMatchTemplates.length} template{exactMatchTemplates.length !== 1 ? "s" : ""} made for {eventTypeName} events
+                          </p>
+                          <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>
+                            Showing best matches first — more styles below
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Featured banner — show on "ALL" filter */}
+                  {activeFilter === "ALL" && featured.length > 0 && (
                     <div className="px-4 sm:px-5 pt-5 mb-6">
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-3" style={{ color: "rgba(255,255,255,0.3)" }}>
                         ✦ Featured
                       </p>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {featured.map((t) => {
-                          const m      = STYLE_META[t.style] ?? STYLE_META.CLASSIC;
-                          const acc    = m.preview.accent;
-                          const free   = t.style === FREE_STYLE;
+                          const m   = STYLE_META[t.style] ?? STYLE_META.CLASSIC;
+                          const acc = m.preview.accent;
                           const locked = !canAccessTemplate(t, userPlan);
                           return (
                             <div
@@ -667,19 +684,17 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
                                 <img src={t.assets.hero_image} alt={t.name} className="absolute inset-0 w-full h-full object-cover opacity-70 transition-transform duration-500 group-hover:scale-105" loading="lazy" />
                               )}
                               <div className="absolute inset-0" style={{ background: "linear-gradient(120deg,rgba(0,0,0,0.75) 0%,rgba(0,0,0,0.3) 100%)" }} />
-
                               <div className="absolute top-2.5 left-3 flex items-center gap-1.5">
-                                <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full" style={{ background: free ? "rgba(16,185,129,0.9)" : "rgba(245,158,11,0.9)", color: free ? "#fff" : "#1c1407" }}>
-                                  {free ? "Free" : "Pro"}
+                                <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full"
+                                  style={{ background: t.style === FREE_STYLE ? "rgba(16,185,129,0.9)" : "rgba(245,158,11,0.9)", color: t.style === FREE_STYLE ? "#fff" : "#1c1407" }}>
+                                  {t.style === FREE_STYLE ? "Free" : "Pro"}
                                 </span>
                                 <span className="text-[9px] font-bold uppercase tracking-wide" style={{ color: acc }}>{m.label}</span>
                               </div>
-
                               <div className="absolute bottom-3 left-3 right-3">
                                 <h3 className="text-[13px] font-bold text-white leading-tight">{t.name}</h3>
                                 <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{t.sections.length} sections</p>
                               </div>
-
                               <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "rgba(0,0,0,0.4)" }}>
                                 <button onClick={(e) => { e.stopPropagation(); setPreview(t); }} className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-[10px] font-bold text-white backdrop-blur-sm" style={{ background: "rgba(255,255,255,0.15)" }}>
                                   <Eye size={10} /> Preview
@@ -701,8 +716,8 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
                     </div>
                   )}
 
-                  {/* Premium upgrade strip for free users */}
-                  {!isPremium && activeStyle !== FREE_STYLE && (
+                  {/* Premium upgrade strip */}
+                  {!isPremium && activeFilter !== FREE_STYLE && (
                     <div className="px-4 sm:px-5 mb-5">
                       <button
                         onClick={() => openUpgradeModal("templates")}
@@ -713,19 +728,18 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
                           <Crown size={18} style={{ color: "#F59E0B" }} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[12px] font-black text-white">Unlock {UNIQUE_TEMPLATES.filter(t => t.style !== FREE_STYLE).length} Premium Templates</p>
+                          <p className="text-[12px] font-black text-white">
+                            Unlock {ALL_TEMPLATES.filter((t) => t.style !== FREE_STYLE).length} Premium Templates
+                          </p>
                           <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.38)" }}>
-                            {isEntertainment
-                              ? "Modern, Minimal, Luxury & Fun — premium event styles."
-                              : "Elegant, Modern, Minimal, Luxury & Fun — all styles included."}
+                            Elegant, Modern, Minimal, Luxury & Fun — all styles included.
                           </p>
                         </div>
                         <div
                           className="shrink-0 flex items-center gap-1.5 rounded-xl px-4 py-2 text-[11px] font-black uppercase tracking-wide transition-all group-hover:scale-105"
                           style={{ background: "linear-gradient(135deg,#F59E0B,#F97316)", color: "#1c1407" }}
                         >
-                          <Zap size={10} /> Upgrade
-                          <ArrowRight size={10} />
+                          <Zap size={10} /> Upgrade <ArrowRight size={10} />
                         </div>
                       </button>
                     </div>
@@ -733,15 +747,24 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
 
                   {/* Template grid */}
                   <div className="px-4 sm:px-5 pb-6">
-                    {/* Section label */}
-                    {activeStyle !== "ALL" && activeStyle !== "RECOMMENDED" && (
+                    {/* Section label for style or category filters */}
+                    {(STYLE_ORDER.includes(activeFilter) || CATEGORY_ORDER.includes(activeFilter)) && (
                       <div className="flex items-center gap-3 mb-4">
-                        <span
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{ background: STYLE_META[activeStyle]?.preview?.accent ?? "#888", boxShadow: `0 0 8px ${STYLE_META[activeStyle]?.preview?.accent ?? "#888"}88` }}
-                        />
-                        <span className="text-[12px] font-bold text-white">{STYLE_META[activeStyle]?.label} Style</span>
-                        <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>{STYLE_META[activeStyle]?.description}</span>
+                        {STYLE_ORDER.includes(activeFilter) ? (
+                          <>
+                            <span
+                              className="h-2.5 w-2.5 rounded-full"
+                              style={{ background: STYLE_META[activeFilter]?.preview?.accent ?? "#888", boxShadow: `0 0 8px ${STYLE_META[activeFilter]?.preview?.accent ?? "#888"}88` }}
+                            />
+                            <span className="text-[12px] font-bold text-white">{STYLE_META[activeFilter]?.label} Style</span>
+                            <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>{STYLE_META[activeFilter]?.description}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-base">{TEMPLATE_CATEGORIES[activeFilter]?.emoji}</span>
+                            <span className="text-[12px] font-bold text-white">{TEMPLATE_CATEGORIES[activeFilter]?.label}</span>
+                          </>
+                        )}
                         <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.05)" }} />
                         <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>{filteredTemplates.length} templates</span>
                       </div>
@@ -749,7 +772,7 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
 
                     {filteredTemplates.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-16 text-center">
-                        <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.3)" }}>No templates in this style yet.</p>
+                        <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.3)" }}>No templates in this category yet.</p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
@@ -764,7 +787,7 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
             </div>
           </motion.div>
 
-          {/* ── Preview modal ── */}
+          {/* Preview modal */}
           <AnimatePresence>
             {preview && (
               <PreviewModal

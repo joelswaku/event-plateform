@@ -28,7 +28,6 @@ router.use("/public", guestPublicRoutes);
 
 // 🔐 CORE FEATURES
 router.use("/events", eventsRoutes);
-router.use("/", guestsRoutes);
 router.use("/seating", seatRoutes);
 
 // 🎟️ TICKETING
@@ -51,5 +50,9 @@ router.use("/upload-image", uploadImages);
 
 // 💳 SUBSCRIPTIONS
 router.use("/subscription", subscriptionRoutes);
+
+// 👥 GUESTS — mounted last because it uses router.use(authenticate) globally
+// and is mounted at "/" which matches all paths
+router.use("/", guestsRoutes);
 
 export default router;

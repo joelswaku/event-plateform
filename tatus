@@ -1,0 +1,158 @@
+warning: in the working copy of 'web/src/app/(public)/my-tickets/page.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'web/src/components/events/shared/sections/HeroSection.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'web/src/components/events/shared/sections/SharedSections.jsx', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/web/src/app/(public)/my-tickets/page.js b/web/src/app/(public)/my-tickets/page.js[m
+[1mindex a9def66..c35d7c9 100644[m
+[1m--- a/web/src/app/(public)/my-tickets/page.js[m
+[1m+++ b/web/src/app/(public)/my-tickets/page.js[m
+[36m@@ -23,6 +23,9 @@[m [mimport { motion, AnimatePresence }                     from "framer-motion";[m
+ import { useAuthStore }                                from "@/store/auth.store";[m
+ import { api }                                         from "@/lib/api";[m
+ [m
+[32m+[m[32mimport SmartTicketCard from "@/components/events/shared/my-tickets-page";[m
+[32m+[m
+[32m+[m
+ const API = process.env.NEXT_PUBLIC_API_URL;[m
+ [m
+ // ─────────────────────────────────────────────────────────────────────────────[m
+[1mdiff --git a/web/src/components/events/TicketGateModal.jsx b/web/src/components/events/TicketGateModal.jsx[m
+[1mindex c8f57e7..9e6b6eb 100644[m
+[1m--- a/web/src/components/events/TicketGateModal.jsx[m
+[1m+++ b/web/src/components/events/TicketGateModal.jsx[m
+[36m@@ -156,413 +156,3 @@[m [mexport default function TicketGateModal({ open, onClose, event }) {[m
+   );[m
+ }[m
+ [m
+[31m-[m
+[31m-// "use client";[m
+[31m-[m
+[31m-// /**[m
+[31m-//  * web/src/components/events/TicketGateModal.jsx  ← NEW FILE[m
+[31m-//  *[m
+[31m-//  * Shown when user clicks "Tickets" quick action on a non-Ticketed event.[m
+[31m-//  * Clicking the CTA navigates to /events/create?category=entertainment&from=tickets[m
+[31m-//  * which pre-selects the Ticketed & Entertainment category in the wizard.[m
+[31m-//  */[m
+[31m-[m
+[31m-// import { useEffect, useRef } from "react";[m
+[31m-// import { useRouter } from "next/navigation";[m
+[31m-// import { motion, AnimatePresence } from "framer-motion";[m
+[31m-// import { X, ArrowRight, Lock } from "lucide-react";[m
+[31m-[m
+[31m-// export default function TicketGateModal({ open, onClose, event }) {[m
+[31m-//   const overlayRef = useRef(null);[m
+[31m-//   const router = useRouter();[m
+[31m-[m
+[31m-//   // Close on Escape[m
+[31m-//   useEffect(() => {[m
+[31m-//     if (!open) return;[m
+[31m-//     const handler = (e) => {[m
+[31m-//       if (e.key === "Escape") onClose();[m
+[31m-//     };[m
+[31m-//     window.addEventListener("keydown", handler);[m
+[31m-//     return () => window.removeEventListener("keydown", handler);[m
+[31m-//   }, [open, onClose]);[m
+[31m-[m
+[31m-//   // Close on backdrop click[m
+[31m-//   const handleBackdrop = (e) => {[m
+[31m-//     if (e.target === overlayRef.current) onClose();[m
+[31m-//   };[m
+[31m-[m
+[31m-//   const handleCreate = () => {[m
+[31m-//     onClose();[m
+[31m-//     router.push("/events/create?category=entertainment&from=tickets");[m
+[31m-//   };[m
+[31m-[m
+[31m-//   return ([m
+[31m-//     <AnimatePresence>[m
+[31m-//       {open && ([m
+[31m-//         <motion.div[m
+[31m-//           ref={overlayRef}[m
+[31m-//           initial={{ opacity: 0 }}[m
+[31m-//           animate={{ opacity: 1 }}[m
+[31m-//           exit={{ opacity: 0 }}[m
+[31m-//           transition={{ duration: 0.18 }}[m
+[31m-//           onClick={handleBackdrop}[m
+[31m-//           className="fixed inset-0 z-50 flex items-center justify-center px-4"[m
+[31m-//           style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(6px)" }}[m
+[31m-//         >[m
+[31m-//           <motion.div[m
+[31m-//             initial={{ opacity: 0, scale: 0.94, y: 14 }}[m
+[31m-//             animate={{ opacity: 1, scale: 1, y: 0 }}[m
+[31m-//             exit={{ opacity: 0, scale: 0.94, y: 8 }}[m
+[31m-//             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}[m
+[31m-//             className="relative w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl"[m
+[31m-//             style={{ background: "#fff" }}[m
+[31m-//           >[m
+[31m-//             {/* Accent bar */}[m
+[31m-//             <div[m
+[31m-//               className="h-1 w-full"[m
+[31m-//               style={{[m
+[31m-//                 background: "linear-gradient(90deg, #f59e0b, #ef4444, #a855f7)",[m
+[31m-//               }}[m
+[31m-//             />[m
+[31m-[m
+[31m-//             {/* Close button */}[m
+[31m-//             <button[m
+[31m-//               onClick={onClose}[m
+[31m-//               className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"[m
+[31m-//             >[m
+[31m-//               <X size={14} />[m
+[31m-//             </button>[m
+[31m-[m
+[31m-//             {/* Body */}[m
+[31m-//             <div className="px-6 pt-6 pb-7 space-y-5">[m
+[31m-[m
+[31m-//               {/* Icon + title */}[m
+[31m-//               <div className="flex flex-col items-center text-center gap-3">[m
+[31m-//                 <div[m
+[31m-//                   className="flex h-14 w-14 items-center justify-center rounded-2xl"[m
+[31m-//                   style={{[m
+[31m-//                     background: "linear-gradient(135deg, #fef3c720, #f59e0b15)",[m
+[31m-//                     border: "1px solid rgba(245,158,11,0.25)",[m
+[31m-//                   }}[m
+[31m-//                 >[m
+[31m-//                   <Lock size={22} style={{ color: "#f59e0b" }} />[m
+[31m-//                 </div>[m
+[31m-[m
+[31m-//                 <div>[m
+[31m-//                   <h2 className="text-lg font-black text-gray-900">[m
+[31m-//                     Ticketing not available[m
+[31m-//                   </h2>[m
+[31m-//                   <p className="mt-1 text-sm text-gray-500 leading-relaxed">[m
+[31m-//                     <span className="font-semibold text-gray-700">[m
+[31m-//                       {event?.title ?? "This event"}[m
+[31m-//                     </span>{" "}[m
+[31m-//                     is not in the{" "}[m
+[31m-//                     <span className="font-semibold text-amber-600">[m
+[31m-//                       Ticketed &amp; Entertainment[m
+[31m-//                     </span>{" "}[m
+[31m-//                     category. Ticket management is only available for concerts,[m
+[31m-//                     festivals, live shows, and similar events.[m
+[31m-//                   </p>[m
+[31m-//                 </div>[m
+[31m-//               </div>[m
+[31m-[m
+[31m-//               {/* Divider */}[m
+[31m-//               <div className="h-px bg-gray-100" />[m
+[31m-[m
+[31m-//               {/* Category preview chips */}[m
+[31m-//               <div[m
+[31m-//                 className="rounded-xl p-4 space-y-3"[m
+[31m-//                 style={{[m
+[31m-//                   background: "linear-gradient(135deg, #fef3c710, #f59e0b08)",[m
+[31m-//                   border: "1px solid rgba(245,158,11,0.18)",[m
+[31m-//                 }}[m
+[31m-//               >[m
+[31m-//                 <p className="text-[11px] font-black uppercase tracking-widest text-amber-500">[m
+[31m-//                   🎟️ Ticketed &amp; Entertainment[m
+[31m-//                 </p>[m
+[31m-//                 <div className="flex flex-wrap gap-1.5">[m
+[31m-//                   {[[m
+[31m-//                     "Concert", "Festival", "Live Show",[m
+[31m-//                     "Nightclub", "Theater", "Comedy",[m
+[31m-//                     "Sports", "Exhibition",[m
+[31m-//                   ].map((t) => ([m
+[31m-//                     <span[m
+[31m-//                       key={t}[m
+[31m-//                       className="rounded-full 

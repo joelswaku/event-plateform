@@ -266,37 +266,72 @@ export async function createDonationIntentService({
 
     const donation = insertResult.rows[0];
 
+    if (!stripe) {
+      throw new AppError("Payment processing is not configured. Please contact the event organizer.", 503);
+    }
+
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      payment_method_types: ["card"],
-      customer_email: normalized.donor_email || undefined,
-      line_items: [
-        {
-          price_data: {
-            currency: normalized.currency.toLowerCase(),
-            product_data: { name: `Donation to ${event.title}` },
-            unit_amount: Math.round(normalized.amount * 100),
+
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        payment_method_types: ["card"],
+        customer_email: normalized.donor_email || undefined,
+        line_items: [
+          {
+            price_data: {
+              currency: normalized.currency.toLowerCase(),
+              product_data: { name: `Donation to ${event.title}` },
+              unit_amount: Math.round(normalized.amount * 100),
+            },
+            quantity: 1,
           },
-          quantity: 1,
-        },
-      ],
-      metadata: {
-        donation_id: donation.id,
-        event_id: eventId,
-        kind: "event_donation",
-      },
-      payment_intent_data: {
+        ],
         metadata: {
           donation_id: donation.id,
           event_id: eventId,
           kind: "event_donation",
         },
-        receipt_email: normalized.donor_email || undefined,
-      },
-      success_url: `${frontendUrl}/e/${event.slug}?donation=success`,
-      cancel_url: `${frontendUrl}/e/${event.slug}?donation=cancelled`,
-    });
+        payment_intent_data: {
+          metadata: {
+            donation_id: donation.id,
+            event_id: eventId,
+            kind: "event_donation",
+          },
+          receipt_email: normalized.donor_email || undefined,
+        },
+        success_url: `${frontendUrl}/e/${event.slug}?donation=success`,
+        cancel_url: `${frontendUrl}/e/${event.slug}?donation=cancelled`,
+      });
+    }
+   catch (stripeErr) {
+    console.log("REAL STRIPE ERROR:", stripeErr);
+  
+    const isAuthErr =
+      stripeErr?.type === "authentication_error" ||
+      stripeErr?.statusCode === 401 ||
+      stripeErr?.status === 401;
+  
+    throw new AppError(
+      isAuthErr
+        ? "Payment gateway is misconfigured. Please contact the event organizer."
+        : stripeErr.message || "Failed to create payment session",
+      isAuthErr ? 503 : 502
+    );
+  }
+    //  catch (stripeErr) {
+    //   const isAuthErr =
+    //     stripeErr?.type === "authentication_error" ||
+    //     stripeErr?.statusCode === 401 ||
+    //     stripeErr?.status === 401;
+    //   throw new AppError(
+    //     isAuthErr
+    //       ? "Payment gateway is misconfigured. Please contact the event organizer."
+    //       : stripeErr.message || "Failed to create payment session",
+    //     isAuthErr ? 503 : 502
+    //   );
+    // }
 
     await client.query(
       `

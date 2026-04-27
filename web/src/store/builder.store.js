@@ -262,13 +262,19 @@ export const useBuilderStore = create((set, get) => ({
   publishPage: async (eventId) => {
     try {
       const res = await api.post(`/builder/events/${eventId}/page/publish`);
+      const { page, event } = res.data?.data ?? {};
       set((state) => ({
         builder: {
           ...state.builder,
-          page: { ...state.builder?.page, ...res.data?.data },
+          // update page status
+          page: page ? { ...state.builder?.page, ...page } : state.builder?.page,
+          // update event status/visibility so the builder header reflects it
+          event: event
+            ? { ...state.builder?.event, ...event }
+            : state.builder?.event,
         },
       }));
-      toast.success("Page published!");
+      toast.success("Page published! 🚀");
       return true;
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to publish");

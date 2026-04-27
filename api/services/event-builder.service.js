@@ -1268,8 +1268,28 @@ export async function publishEventPageService({
       [page.id]
     );
 
+    // Also publish the event itself and make it public so the live URL works
+    // and the dashboard card reflects the correct status immediately.
+    const eventResult = await client.query(
+      `
+      UPDATE events
+      SET
+        status     = CASE WHEN status = 'DRAFT' THEN 'PUBLISHED' ELSE status END,
+        visibility = 'PUBLIC',
+        updated_at = NOW()
+      WHERE id = $1
+        AND organization_id = $2
+        AND deleted_at IS NULL
+      RETURNING *
+      `,
+      [eventId, organizationId]
+    );
+
     await client.query("COMMIT");
-    return mapPage(result.rows[0]);
+    return {
+      page: mapPage(result.rows[0]),
+      event: eventResult.rows[0] ?? null,
+    };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

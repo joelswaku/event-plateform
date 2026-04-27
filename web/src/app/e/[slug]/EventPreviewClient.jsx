@@ -61,6 +61,8 @@ export default function EventPreviewClient({ slug }) {
 
   const enrichedEvent = {
     ...data.event,
+    starts_at_utc: data.event.starts_at_utc ?? data.event.starts_at ?? null,
+    ends_at_utc:   data.event.ends_at_utc   ?? data.event.ends_at   ?? null,
     speakers: data.speakers || [],
     schedule_items: data.schedule_items || [],
   };

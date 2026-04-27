@@ -238,6 +238,16 @@ function HeroDonationCard({ event, isEditor, delay, centered }) {
             />
           </div>
 
+          {/* Name */}
+          <input
+            type="text"
+            value={name}
+            placeholder="Your name (optional)"
+            onChange={(e) => setName(e.target.value)}
+            className="w-full rounded-xl px-3 py-2 text-sm text-white placeholder-white/25 outline-none"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)" }}
+          />
+
           {/* Email */}
           <input
             type="email"

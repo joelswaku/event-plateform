@@ -413,17 +413,16 @@ function calcTimeLeft(targetISO) {
   };
 }
 
-export function CountdownSection({ section, isEditor = false, onEdit }) {
+export function CountdownSection({ section, event, isEditor = false, onEdit }) {
   const config = section.config || {};
   const theme  = config._theme || "CLASSIC";
-  const target = config.starts_at;
+  const target = config.starts_at || event?.starts_at_utc || event?.starts_at || null;
   const [timeLeft, setTimeLeft] = useState(() => calcTimeLeft(target));
 
   useEffect(() => {
-    const tick = () => setTimeLeft(calcTimeLeft(target));
-    tick();
+    setTimeLeft(calcTimeLeft(target));
     if (!target) return;
-    const id = setInterval(tick, 1000);
+    const id = setInterval(() => setTimeLeft(calcTimeLeft(target)), 1000);
     return () => clearInterval(id);
   }, [target]);
 
@@ -2382,9 +2381,12 @@ function FAQItem({ question, answer, index, theme }) {
           onMouseLeave={(e) => { e.currentTarget.style.color = "var(--t-text)"; }}
         >
           <span className="text-lg font-semibold" style={{ fontFamily: "var(--t-font-heading)" }}>{question}</span>
-          <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.3, ease }} className="shrink-0">
+          <span
+            className="shrink-0 transition-transform duration-300"
+            style={{ transform: `rotate(${open ? 180 : 0}deg)` }}
+          >
             <ChevronDown className="h-5 w-5" style={{ color: "var(--t-accent)" }} />
-          </motion.span>
+          </span>
         </button>
         <AnimatePresence initial={false}>
           {open && (
@@ -2636,12 +2638,12 @@ export function CTASection({ section, event, isEditor = false, onEdit }) {
   const theme   = config._theme || "CLASSIC";
   const API     = process.env.NEXT_PUBLIC_API_URL;
 
-  const [hasToken, setHasToken]   = useState(false);
+  const [hasToken] = useState(() =>
+    typeof window !== "undefined"
+      ? !!new URLSearchParams(window.location.search).get("token")
+      : false
+  );
   const [pubTickets, setPubTickets] = useState([]);
-
-  useEffect(() => {
-    setHasToken(!!new URLSearchParams(window.location.search).get("token"));
-  }, []);
 
   // Fetch public tickets to get pricing info when event has ticketing enabled
   const isTicketed = !isEditor && !!event?.allow_ticketing;

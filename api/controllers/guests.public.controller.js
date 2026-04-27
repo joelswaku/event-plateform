@@ -65,3 +65,13 @@ export async function submitInvitationRsvp(req, res) {
     return handleControllerError(res, error, "Failed to submit RSVP");
   }
 }
+
+export async function submitOpenRsvp(req, res) {
+  try {
+    const { eventId } = req.params;
+    const result = await guestsService.submitOpenRsvpService({ eventId, payload: req.body });
+    return res.status(200).json({ success: true, message: "RSVP submitted", data: result });
+  } catch (error) {
+    return handleControllerError(res, error, "Failed to submit RSVP");
+  }
+}
