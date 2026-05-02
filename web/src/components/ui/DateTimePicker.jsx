@@ -371,13 +371,15 @@ export default function DateTimePicker({
 
         {/* clear / clock */}
         {value && !disabled ? (
-          <button
-            type="button"
+          <div
+            role="button"
+            tabIndex={0}
             onClick={clear}
+            onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && clear(e)}
             className="ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-gray-300 transition hover:bg-red-50 hover:text-red-400"
           >
             <X size={11} />
-          </button>
+          </div>
         ) : (
           !label && <Clock size={13} className="shrink-0 text-gray-300" />
         )}
