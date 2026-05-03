@@ -6,7 +6,21 @@
       "Bash(xargs grep *)",
       "Bash(curl -s \"http://localhost:5000/api/public/pages/bebe-11aad649\")",
       "Bash(python -c ' *)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\joels\\\\OneDrive\\\\Desktop\\\\projet\\\\event-plateform\\\\eventapp-mobile\" -Recurse -Force)",
+      "Bash(Select-Object -First 100)",
+      "Bash(Format-Table -Property FullName)",
+      "Bash(npx expo *)",
+      "Bash(npm --version)",
+      "Bash(npx tsc *)",
+      "Bash(Get-Content \"C:\\\\Users\\\\joels\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-joels-OneDrive-Desktop-projet-event-plateform\\\\59606d70-1cc9-4d19-9f1c-aab4fe432587\\\\tasks\\\\b16dm3yf2.output\")",
+      "Bash(Select-Object -First 60)",
+      "Bash(npm ls *)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(npm install *)",
+      "Bash(taskkill /F /IM node.exe /T)",
+      "Bash(exit 0)",
+      "PowerShell(Stop-Process -Name \"node\" -Force -ErrorAction SilentlyContinue)"
     ]
   }
 }

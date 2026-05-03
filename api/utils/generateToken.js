@@ -62,10 +62,12 @@ export function signAccessToken({ userId, organizationId, role }) {
 /*
 Generate refresh token
 */
-export function signRefreshToken({ userId }) {
+export function signRefreshToken({ userId, organizationId, role }) {
   return jwt.sign(
     {
-      sub: userId,
+      sub:  userId,
+      org:  organizationId,
+      role,
     },
     process.env.JWT_REFRESH_SECRET,
     { expiresIn: REFRESH_EXPIRES },
@@ -84,6 +86,8 @@ export function generateTokens({ userId, organizationId, role }) {
 
   const refreshToken = signRefreshToken({
     userId,
+    organizationId,
+    role,
   });
 
   return { accessToken, refreshToken };

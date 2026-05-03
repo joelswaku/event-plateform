@@ -8,7 +8,7 @@ export const registerSchema = z.object({
 
 export const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email("invalid email address"),
-  password: z.string().trim().min(8, "Password must be at least 8 characters").max(100),
+  password: z.string().min(8, "Password must be at least 8 characters").max(100),
 });
 
 

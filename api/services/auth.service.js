@@ -363,6 +363,9 @@ export async function loginUser({
     if (user.status !== "ACTIVE")
       throw new Error("Account disabled");
 
+    if (!user.password_hash)
+      throw new Error("This account uses social login. Please sign in with Google.");
+
     const valid = await bcrypt.compare(
       password,
       user.password_hash
@@ -405,8 +408,11 @@ export async function loginUser({
     setAuthCookies(res, tokens);
 
     return {
-      user,
-      ...tokens,
+      data: {
+        user,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      },
     };
   } finally {
     client.release();
@@ -649,6 +655,7 @@ export async function googleLogin({
       data: {
         user,
         accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
       },
     };
 

@@ -126,7 +126,7 @@ export const useAuthStore = create(
 
           if (!token || !newPassword) throw new Error("Token and password required");
 
-          const res = await api.post("/auth/reset-password", { token, newPassword });
+          const res = await api.post("/auth/reset-password", { token, password: newPassword });
 
           if (res.data?.success === false) {
             throw new Error(res.data.message || "Reset failed");

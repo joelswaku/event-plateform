@@ -2,7 +2,7 @@ import { refreshTokenSchema } from "../../validators/auth.validator.js";
 import * as authService from "../../services/auth.service.js";
 
 export async function refreshToken(req, res) {
-  const incomingRefreshToken = req.cookies?.refreshToken || null;
+  const incomingRefreshToken = req.cookies?.refreshToken || req.body?.refreshToken || null;
  
   const parsed = refreshTokenSchema.safeParse({
     refresh_token: incomingRefreshToken,
