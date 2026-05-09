@@ -852,6 +852,11 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
         style={{ background: bg }}
         onClick={isEditor ? onEdit : undefined}
       >
+        {config.background_image && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={config.background_image} alt="" aria-hidden="true" fetchPriority="high"
+            style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
+        )}
         {config.background_image ? (
           <motion.div className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: `url(${config.background_image})`, transformOrigin: "center center" }}
@@ -901,6 +906,11 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
         onClick={isEditor ? onEdit : undefined}
       >
         {config.background_image && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={config.background_image} alt="" aria-hidden="true" fetchPriority="high"
+            style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
+        )}
+        {config.background_image && (
           <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${config.background_image})` }} aria-hidden="true" />
         )}
         <div className="absolute inset-0" style={{ background: overlayGrad }} aria-hidden="true" />
@@ -945,6 +955,11 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
         onClick={isEditor ? onEdit : undefined}
       >
         {config.background_image && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={config.background_image} alt="" aria-hidden="true" fetchPriority="high"
+            style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
+        )}
+        {config.background_image && (
           <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${config.background_image})` }} aria-hidden="true" />
         )}
         <div className="absolute inset-0" style={{ background: overlayGrad }} aria-hidden="true" />
@@ -982,6 +997,11 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
         onClick={isEditor ? onEdit : undefined}
       >
         {config.background_image && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={config.background_image} alt="" aria-hidden="true" fetchPriority="high"
+            style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
+        )}
+        {config.background_image && (
           <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${config.background_image})` }} aria-hidden="true" />
         )}
         <div className="absolute inset-0" style={{ background: overlayGrad }} aria-hidden="true" />
@@ -1017,6 +1037,11 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
       style={{ background: bg }}
       onClick={isEditor ? onEdit : undefined}
     >
+      {config.background_image && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={config.background_image} alt="" aria-hidden="true" fetchPriority="high"
+          style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
+      )}
       {config.background_image && (
         <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${config.background_image})` }} aria-hidden="true" />
       )}

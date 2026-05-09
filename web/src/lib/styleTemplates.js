@@ -177,8 +177,8 @@ export const STYLE_TEMPLATES = [
       colors: { bg: "#FAF9F6", accent: "#C9A96E", dark: "#1C1917", text: "#1C1917" },
     },
     assets: {
-      hero_image:    "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1400&q=85",
-      cover_image:   "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=640&q=80",
+      hero_image:    "https://images.unsplash.com/photo-1627556592933-cbe61e0f47ac?w=1400&q=85",
+      cover_image:   "https://images.unsplash.com/photo-1627556592933-cbe61e0f47ac?w=640&q=80",
       gallery_images: [],
     },
     sections: [
