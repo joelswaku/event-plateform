@@ -11,9 +11,9 @@ const TX  = 'rgba(255,255,255,0.85)';
 const BD  = 'rgba(255,255,255,0.1)';
 const ACC = '#6c6fee';
 
-interface Props { section: BuilderSection; eventId: string }
+interface Props { section: BuilderSection; eventId: string; iosKeyboardInsets?: boolean }
 
-export default function CoupleConfigFields({ section, eventId }: Props) {
+export default function CoupleConfigFields({ section, eventId, iosKeyboardInsets }: Props) {
   const updateSection = useBuilderStore(s => s.updateSection);
   const cfgRef  = useRef<Record<string, unknown>>(section.config ?? {});
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -44,7 +44,7 @@ export default function CoupleConfigFields({ section, eventId }: Props) {
   };
 
   const pickPhoto = async (partner: 1 | 2) => {
-    const url = await pickAndUploadImage();
+    const url = await pickAndUploadImage(eventId);
     if (!url) return;
     if (partner === 1) { setP1Photo(url); saveField('partner1_photo', url); }
     else               { setP2Photo(url); saveField('partner2_photo', url); }
@@ -55,6 +55,7 @@ export default function CoupleConfigFields({ section, eventId }: Props) {
       style={{ flex: 1, backgroundColor: BG }}
       contentContainerStyle={s.scroll}
       keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets={iosKeyboardInsets}
       showsVerticalScrollIndicator={false}
     >
       <View style={s.partners}>

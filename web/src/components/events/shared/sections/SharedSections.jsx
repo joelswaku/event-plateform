@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import {
   MapPin, Navigation, Building2, Car, Copy, Check,
   ExternalLink, ChevronDown, Heart,
+  ChevronLeft, ChevronRight, X, Download, ZoomIn,
 } from "lucide-react";
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
@@ -721,16 +722,242 @@ export function VenueSection({ section, isEditor = false, onEdit }) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// GALLERY
+// GALLERY — lightbox + carousel + themed grids
 // ══════════════════════════════════════════════════════════════════════════════
-export function GallerySection({ section, isEditor = false, onEdit }) {
-  const config  = section.config || {};
-  const theme   = config._theme || "CLASSIC";
-  const pad     = getThemePad(theme);
-  const images  = Array.isArray(config.images) ? config.images : [];
-  const display = images.length > 0 ? images : isEditor ? Array(6).fill(null) : [];
 
-  // FUN: Zig-zag (alternating left/right pairs)
+/* ── Lightbox ────────────────────────────────────────────────────────────────── */
+function GalleryLightbox({ images, startIndex, onClose }) {
+  const [idx, setIdx] = useState(startIndex);
+  const total = images.length;
+  const prev = () => setIdx(i => (i - 1 + total) % total);
+  const next = () => setIdx(i => (i + 1) % total);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === "Escape")      onClose();
+      if (e.key === "ArrowRight")  next();
+      if (e.key === "ArrowLeft")   prev();
+    };
+    document.addEventListener("keydown", handler);
+    document.body.style.overflow = "hidden";
+    return () => { document.removeEventListener("keydown", handler); document.body.style.overflow = ""; };
+  }, [total]);
+
+  const handleDownload = async () => {
+    try {
+      const res  = await fetch(images[idx]);
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = Object.assign(document.createElement("a"), { href: url, download: `image-${idx + 1}.jpg` });
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* cross-origin — open tab instead */ window.open(images[idx], "_blank"); }
+  };
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        key="lb-backdrop"
+        className="fixed inset-0 z-[9999] flex items-center justify-center"
+        style={{ background: "rgba(0,0,0,0.92)", backdropFilter: "blur(6px)" }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        transition={{ duration: 0.22 }}
+        onClick={onClose}
+      >
+        {/* Image */}
+        <motion.div
+          key={idx}
+          className="relative max-w-[92vw] max-h-[88vh] flex items-center justify-center"
+          initial={{ opacity: 0, scale: 0.94 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.94 }}
+          transition={{ duration: 0.28, ease }}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={images[idx]} alt={`Photo ${idx + 1}`}
+            className="max-w-full max-h-[88vh] object-contain rounded-lg shadow-2xl"
+            style={{ userSelect: "none" }}
+          />
+        </motion.div>
+
+        {/* Controls row */}
+        <div className="fixed top-4 right-4 flex gap-2" onClick={e => e.stopPropagation()}>
+          <button onClick={handleDownload}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm hover:bg-white/20 transition-colors">
+            <Download size={15} />
+          </button>
+          <button onClick={onClose}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm hover:bg-white/20 transition-colors">
+            <X size={15} />
+          </button>
+        </div>
+
+        {/* Prev / Next */}
+        {total > 1 && <>
+          <button
+            onClick={e => { e.stopPropagation(); prev(); }}
+            className="fixed left-3 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm hover:bg-white/20 transition-colors">
+            <ChevronLeft size={22} />
+          </button>
+          <button
+            onClick={e => { e.stopPropagation(); next(); }}
+            className="fixed right-3 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm hover:bg-white/20 transition-colors">
+            <ChevronRight size={22} />
+          </button>
+        </>}
+
+        {/* Counter + dots */}
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2" onClick={e => e.stopPropagation()}>
+          <span className="text-xs font-medium text-white/50">{idx + 1} / {total}</span>
+          {total <= 12 && (
+            <div className="flex gap-1.5">
+              {images.map((_, i) => (
+                <button key={i} onClick={() => setIdx(i)}
+                  className={`h-1.5 rounded-full transition-all ${i === idx ? "w-5 bg-white" : "w-1.5 bg-white/30"}`} />
+              ))}
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+/* ── Carousel strip ──────────────────────────────────────────────────────────── */
+function GalleryCarousel({ images, accentColor, onImageClick }) {
+  const [current, setCurrent]   = useState(0);
+  const trackRef                = useRef(null);
+  const total                   = images.length;
+
+  const scrollTo = (i) => {
+    const clamped = Math.max(0, Math.min(i, total - 1));
+    setCurrent(clamped);
+    trackRef.current?.children[clamped]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" });
+  };
+
+  const onScroll = useCallback(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    const idx = Math.round(el.scrollLeft / el.clientWidth);
+    setCurrent(Math.max(0, Math.min(idx, total - 1)));
+  }, [total]);
+
+  return (
+    <div className="relative select-none">
+      {/* Track */}
+      <div
+        ref={trackRef}
+        className="flex overflow-x-auto snap-x snap-mandatory gap-2"
+        style={{ scrollbarWidth: "none" }}
+        onScroll={onScroll}
+      >
+        {images.map((img, i) => (
+          <div key={i} className="snap-center shrink-0 w-full sm:w-[85%] overflow-hidden rounded-xl cursor-pointer group relative"
+            style={{ aspectRatio: "16/9" }}
+            onClick={() => onImageClick(i)}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {img && <img src={img} alt={`Gallery ${i + 1}`}
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />}
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ background: "rgba(0,0,0,0.25)" }}>
+              <ZoomIn size={28} color="white" />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Arrows */}
+      {total > 1 && <>
+        <button onClick={() => scrollTo(current - 1)} disabled={current === 0}
+          className="absolute left-2 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 transition-colors disabled:opacity-0">
+          <ChevronLeft size={18} />
+        </button>
+        <button onClick={() => scrollTo(current + 1)} disabled={current >= total - 1}
+          className="absolute right-2 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 transition-colors disabled:opacity-0">
+          <ChevronRight size={18} />
+        </button>
+      </>}
+
+      {/* Dots */}
+      {total > 1 && total <= 15 && (
+        <div className="mt-4 flex justify-center gap-1.5">
+          {images.map((_, i) => (
+            <button key={i} onClick={() => scrollTo(i)}
+              className="rounded-full transition-all duration-300"
+              style={{
+                width: i === current ? 20 : 6, height: 6,
+                background: i === current ? accentColor : `${accentColor}40`,
+              }} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function GallerySection({ section, isEditor = false, onEdit }) {
+  const config   = section.config || {};
+  const theme    = config._theme  || "CLASSIC";
+  const layout   = config.layout  || "grid";
+  const pad      = getThemePad(theme);
+  const images   = Array.isArray(config.images) ? config.images : [];
+  const display  = images.length > 0 ? images : isEditor ? Array(6).fill(null) : [];
+  const hasReal  = images.length > 0;
+  const [lbIdx, setLbIdx] = useState(null);
+
+  const openLb = (i) => { if (hasReal) setLbIdx(i); };
+
+  /* ── CAROUSEL layout ─────────────────────────────────────────────── */
+  if (layout === "carousel") {
+    const Header = () => (
+      theme === "MODERN" ? (
+        <FadeUp className="mb-8">
+          <div className="h-1 w-10 mb-4" style={{ background: "var(--t-accent)" }} />
+          <h2 className="text-4xl font-black uppercase sm:text-5xl leading-none"
+            style={{ fontFamily: "var(--t-font-heading)", color: "var(--t-text)", letterSpacing: "-0.02em" }}>
+            {section.title || "Gallery"}
+          </h2>
+        </FadeUp>
+      ) : theme === "FUN" ? (
+        <FadeUp className="mb-8 text-center">
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.25em]" style={{ color: "var(--t-accent)" }}>✦ Gallery</p>
+          <h2 className="text-4xl font-extrabold" style={{ fontFamily: "var(--t-font-heading)", color: "var(--t-text)" }}>
+            {section.title || "Our Moments"}
+          </h2>
+        </FadeUp>
+      ) : (
+        <FadeUp className="mb-8">
+          <SectionEyebrow center>Gallery</SectionEyebrow>
+          <SectionHeading center>{section.title || "Our Moments"}</SectionHeading>
+          {theme !== "MINIMAL" && <Ornament center />}
+        </FadeUp>
+      )
+    );
+
+    return (
+      <SectionWrap bg="var(--t-bg-alt)" isEditor={isEditor} onClick={onEdit} pad={pad}>
+        <div className="mx-auto max-w-5xl">
+          <Header />
+          {display.length === 0
+            ? <p className="py-16 text-center text-sm" style={{ color: "var(--t-text-muted)" }}>Upload images to display the gallery</p>
+            : hasReal
+              ? <GalleryCarousel images={display} accentColor="var(--t-accent)" onImageClick={openLb} />
+              : <div className="flex gap-3 overflow-hidden">
+                  {display.slice(0, 3).map((_, i) => (
+                    <div key={i} className="flex-1 rounded-xl" style={{ aspectRatio:"16/9", background:"var(--t-bg)" }} />
+                  ))}
+                </div>
+          }
+        </div>
+        {hasReal && lbIdx !== null && <GalleryLightbox images={images} startIndex={lbIdx} onClose={() => setLbIdx(null)} />}
+        {isEditor && <EditorBadge label="GALLERY" />}
+      </SectionWrap>
+    );
+  }
+
+  /* ── FUN: staggered grid with bold shadows ───────────────────────── */
   if (theme === "FUN") {
     return (
       <SectionWrap bg="var(--t-bg-alt)" isEditor={isEditor} onClick={onEdit} pad={pad}>
@@ -741,48 +968,71 @@ export function GallerySection({ section, isEditor = false, onEdit }) {
               {section.title || "Our Moments"}
             </h2>
           </FadeUp>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            {display.map((img, i) => (
-              <FadeUp key={i} delay={i * 0.05}>
-                <div className="overflow-hidden rounded-2xl" style={{ aspectRatio: i % 3 === 1 ? "1/1.3" : "4/3", background: "var(--t-bg)", boxShadow: "4px 4px 0px var(--t-accent)" }}>
-                  {img && <img src={img} alt={`Gallery ${i + 1}`} className="h-full w-full object-cover" />}
-                </div>
-              </FadeUp>
-            ))}
-          </div>
+          {display.length === 0
+            ? <p className="py-16 text-center text-sm" style={{ color: "var(--t-text-muted)" }}>Upload images to display the gallery</p>
+            : (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                {display.map((img, i) => (
+                  <FadeUp key={i} delay={i * 0.04}>
+                    <div className="overflow-hidden rounded-2xl cursor-pointer group relative"
+                      style={{ aspectRatio: i % 3 === 1 ? "1/1.3" : "4/3", background: "var(--t-bg)", boxShadow: "4px 4px 0px var(--t-accent)" }}
+                      onClick={() => openLb(i)}>
+                      {img && <img src={img} alt={`Gallery ${i + 1}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />}
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{ background: "rgba(0,0,0,0.2)" }}>
+                        <ZoomIn size={22} color="white" />
+                      </div>
+                    </div>
+                  </FadeUp>
+                ))}
+              </div>
+            )}
         </div>
+        {hasReal && lbIdx !== null && <GalleryLightbox images={images} startIndex={lbIdx} onClose={() => setLbIdx(null)} />}
         {isEditor && <EditorBadge label="GALLERY" />}
       </SectionWrap>
     );
   }
 
-  // MODERN: Strict uniform 4-col grid
+  /* ── MODERN: tight uniform grid ─────────────────────────────────── */
   if (theme === "MODERN") {
     return (
       <SectionWrap bg="var(--t-bg-alt)" isEditor={isEditor} onClick={onEdit} pad={pad}>
         <div className="mx-auto max-w-6xl">
           <FadeUp className="mb-10">
             <div className="h-1 w-10 mb-4" style={{ background: "var(--t-accent)" }} />
-            <h2 className="text-4xl font-black uppercase sm:text-5xl leading-none" style={{ fontFamily: "var(--t-font-heading)", color: "var(--t-text)", letterSpacing: "-0.02em" }}>
+            <h2 className="text-4xl font-black uppercase sm:text-5xl leading-none"
+              style={{ fontFamily: "var(--t-font-heading)", color: "var(--t-text)", letterSpacing: "-0.02em" }}>
               {section.title || "Gallery"}
             </h2>
           </FadeUp>
-          <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 md:grid-cols-4">
-            {display.map((img, i) => (
-              <FadeUp key={i} delay={i * 0.04}>
-                <div className="aspect-square overflow-hidden" style={{ background: "var(--t-bg)" }}>
-                  {img && <img src={img} alt={`Gallery ${i + 1}`} className="h-full w-full object-cover transition-transform duration-500 hover:scale-105" />}
-                </div>
-              </FadeUp>
-            ))}
-          </div>
+          {display.length === 0
+            ? <p className="py-16 text-center text-sm" style={{ color: "var(--t-text-muted)" }}>Upload images to display the gallery</p>
+            : (
+              <div className="grid grid-cols-2 gap-0.5 sm:grid-cols-3 md:grid-cols-4">
+                {display.map((img, i) => (
+                  <FadeUp key={i} delay={i * 0.03}>
+                    <div className="aspect-square overflow-hidden cursor-pointer group relative"
+                      style={{ background: "var(--t-bg)" }}
+                      onClick={() => openLb(i)}>
+                      {img && <img src={img} alt={`Gallery ${i + 1}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />}
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{ background: "rgba(0,0,0,0.35)" }}>
+                        <ZoomIn size={20} color="white" />
+                      </div>
+                    </div>
+                  </FadeUp>
+                ))}
+              </div>
+            )}
         </div>
+        {hasReal && lbIdx !== null && <GalleryLightbox images={images} startIndex={lbIdx} onClose={() => setLbIdx(null)} />}
         {isEditor && <EditorBadge label="GALLERY" />}
       </SectionWrap>
     );
   }
 
-  // MINIMAL: Clean 2-col, pure negative space
+  /* ── MINIMAL: airy 2-col alternating aspect ratios ──────────────── */
   if (theme === "MINIMAL") {
     return (
       <SectionWrap bg="var(--t-bg)" isEditor={isEditor} onClick={onEdit} pad={pad}>
@@ -793,22 +1043,33 @@ export function GallerySection({ section, isEditor = false, onEdit }) {
               {section.title || "Our Moments"}
             </h2>
           </FadeUp>
-          <div className="grid grid-cols-2 gap-6">
-            {display.map((img, i) => (
-              <FadeUp key={i} delay={i * 0.06}>
-                <div className="overflow-hidden" style={{ aspectRatio: i % 2 === 0 ? "4/5" : "4/3", background: "var(--t-bg-alt)" }}>
-                  {img && <img src={img} alt={`Gallery ${i + 1}`} className="h-full w-full object-cover" />}
-                </div>
-              </FadeUp>
-            ))}
-          </div>
+          {display.length === 0
+            ? <p className="py-16 text-center text-sm" style={{ color: "var(--t-text-muted)" }}>Upload images to display the gallery</p>
+            : (
+              <div className="grid grid-cols-2 gap-4 sm:gap-6">
+                {display.map((img, i) => (
+                  <FadeUp key={i} delay={i * 0.05}>
+                    <div className="overflow-hidden cursor-pointer group relative"
+                      style={{ aspectRatio: i % 2 === 0 ? "4/5" : "4/3", background: "var(--t-bg-alt)" }}
+                      onClick={() => openLb(i)}>
+                      {img && <img src={img} alt={`Gallery ${i + 1}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />}
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{ background: "rgba(0,0,0,0.2)" }}>
+                        <ZoomIn size={20} color="white" />
+                      </div>
+                    </div>
+                  </FadeUp>
+                ))}
+              </div>
+            )}
         </div>
+        {hasReal && lbIdx !== null && <GalleryLightbox images={images} startIndex={lbIdx} onClose={() => setLbIdx(null)} />}
         {isEditor && <EditorBadge label="GALLERY" />}
       </SectionWrap>
     );
   }
 
-  // Default (CLASSIC / ELEGANT / LUXURY): Masonry columns
+  /* ── CLASSIC / ELEGANT / LUXURY: masonry columns ────────────────── */
   return (
     <SectionWrap bg="var(--t-bg-alt)" isEditor={isEditor} onClick={onEdit} pad={pad}>
       <div className="mx-auto max-w-6xl">
@@ -817,23 +1078,32 @@ export function GallerySection({ section, isEditor = false, onEdit }) {
           <SectionHeading>{section.title || "Our Moments"}</SectionHeading>
           {theme !== "MINIMAL" && <Ornament />}
         </FadeUp>
-        {display.length === 0 ? (
-          <p className="py-16 text-center" style={{ color: "var(--t-text-muted)" }}>Upload images to display the gallery</p>
-        ) : (
-          <div className="columns-2 gap-4 sm:columns-3 lg:columns-4">
-            {display.map((img, i) => (
-              <FadeUp key={i} delay={i * 0.04}>
-                <div className="mb-4 overflow-hidden break-inside-avoid" style={{ background: "var(--t-bg)" }}>
-                  {img
-                    ? <img src={img} alt={`Gallery ${i + 1}`} className="w-full object-cover transition-transform duration-500 hover:scale-105" />
-                    : <div className="aspect-square" style={{ background: "var(--t-bg)" }} />
-                  }
-                </div>
-              </FadeUp>
-            ))}
-          </div>
-        )}
+        {display.length === 0
+          ? <p className="py-16 text-center text-sm" style={{ color: "var(--t-text-muted)" }}>Upload images to display the gallery</p>
+          : (
+            <div className="columns-2 gap-3 sm:columns-3 lg:columns-4">
+              {display.map((img, i) => (
+                <FadeUp key={i} delay={i * 0.03}>
+                  <div className="mb-3 overflow-hidden break-inside-avoid cursor-pointer group relative"
+                    style={{ background: "var(--t-bg)" }}
+                    onClick={() => openLb(i)}>
+                    {img
+                      ? <img src={img} alt={`Gallery ${i + 1}`} className="w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      : <div className="aspect-square" style={{ background: "var(--t-bg)" }} />
+                    }
+                    {img && (
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{ background: "rgba(0,0,0,0.28)" }}>
+                        <ZoomIn size={22} color="white" />
+                      </div>
+                    )}
+                  </div>
+                </FadeUp>
+              ))}
+            </div>
+          )}
       </div>
+      {hasReal && lbIdx !== null && <GalleryLightbox images={images} startIndex={lbIdx} onClose={() => setLbIdx(null)} />}
       {isEditor && <EditorBadge label="GALLERY" />}
     </SectionWrap>
   );

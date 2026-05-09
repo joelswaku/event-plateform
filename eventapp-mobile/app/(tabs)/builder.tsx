@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter }      from 'expo-router';
-import { Feather }        from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEventStore }  from '@/store/event.store';
 import { useDrawerStore } from '@/store/drawer.store';
@@ -99,23 +99,13 @@ export default function BuilderTabScreen() {
                 start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
               />
 
-              {/* Builder icon — matches web sidebar block-icon */}
+              {/* Builder icon — matches web WandSparkles */}
               <View style={s.cardIcon}>
                 <LinearGradient
-                  colors={['rgba(108,111,238,0.18)', 'rgba(108,111,238,0.08)']}
+                  colors={['rgba(108,111,238,0.22)', 'rgba(108,111,238,0.08)']}
                   style={StyleSheet.absoluteFill}
                 />
-                {/* 2×2 grid mark — mirrors the web LogoMark */}
-                <View style={s.gridMark}>
-                  <View style={s.gridRow}>
-                    <View style={[s.gridDot, { opacity: 0.9 }]} />
-                    <View style={[s.gridDot, { opacity: 0.55 }]} />
-                  </View>
-                  <View style={s.gridRow}>
-                    <View style={[s.gridDot, { opacity: 0.55 }]} />
-                    <View style={[s.gridDot, { opacity: 0.25 }]} />
-                  </View>
-                </View>
+                <Ionicons name="sparkles" size={18} color={Colors.accent.indigo} />
               </View>
 
               {/* Info */}
@@ -195,17 +185,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
           style={StyleSheet.absoluteFill}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
         />
-        {/* 2×2 grid */}
-        <View style={s.gridMark}>
-          <View style={s.gridRow}>
-            <View style={[s.gridDot, { opacity: 0.9, backgroundColor: '#fff' }]} />
-            <View style={[s.gridDot, { opacity: 0.55, backgroundColor: '#fff' }]} />
-          </View>
-          <View style={s.gridRow}>
-            <View style={[s.gridDot, { opacity: 0.55, backgroundColor: '#fff' }]} />
-            <View style={[s.gridDot, { opacity: 0.25, backgroundColor: '#fff' }]} />
-          </View>
-        </View>
+        <Ionicons name="sparkles" size={28} color="#fff" />
       </View>
 
       <Text style={es.title}>No events yet</Text>
@@ -275,11 +255,6 @@ const s = StyleSheet.create({
   statusTxt:{ fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
   dot:      { fontSize: 10, color: '#44495a' },
   cardSub:  { fontSize: 10, color: '#44495a', fontWeight: '600' },
-
-  /* 2×2 grid logomark */
-  gridMark: { gap: 3 },
-  gridRow:  { flexDirection: 'row', gap: 3 },
-  gridDot:  { width: 7, height: 7, borderRadius: 1.5, backgroundColor: '#6c6fee' },
 
   /* Quick create card */
   createCard: {

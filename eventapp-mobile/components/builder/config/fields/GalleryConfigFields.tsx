@@ -13,9 +13,9 @@ const ACC = '#6c6fee';
 
 const MAX_IMAGES = 9;
 
-interface Props { section: BuilderSection; eventId: string }
+interface Props { section: BuilderSection; eventId: string; iosKeyboardInsets?: boolean }
 
-export default function GalleryConfigFields({ section, eventId }: Props) {
+export default function GalleryConfigFields({ section, eventId, iosKeyboardInsets }: Props) {
   const updateSection = useBuilderStore(s => s.updateSection);
   const cfgRef  = useRef<Record<string, unknown>>(section.config ?? {});
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -41,7 +41,7 @@ export default function GalleryConfigFields({ section, eventId }: Props) {
       Alert.alert('Limit reached', `Maximum ${MAX_IMAGES} images allowed.`);
       return;
     }
-    const url = await pickAndUploadImage();
+    const url = await pickAndUploadImage(eventId);
     if (url) {
       const next = [...images, url];
       setImages(next);
@@ -59,6 +59,8 @@ export default function GalleryConfigFields({ section, eventId }: Props) {
     <ScrollView
       style={{ flex: 1, backgroundColor: BG }}
       contentContainerStyle={s.scroll}
+      keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets={iosKeyboardInsets}
       showsVerticalScrollIndicator={false}
     >
       <Text style={s.label}>GALLERY IMAGES ({images.length}/{MAX_IMAGES})</Text>

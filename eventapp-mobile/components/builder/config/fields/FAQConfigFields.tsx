@@ -13,9 +13,9 @@ const ACC  = '#6c6fee';
 
 interface FaqItem { question: string; answer: string }
 
-interface Props { section: BuilderSection; eventId: string }
+interface Props { section: BuilderSection; eventId: string; iosKeyboardInsets?: boolean }
 
-export default function FAQConfigFields({ section, eventId }: Props) {
+export default function FAQConfigFields({ section, eventId, iosKeyboardInsets }: Props) {
   const updateSection = useBuilderStore(s => s.updateSection);
   const cfgRef  = useRef<Record<string, unknown>>(section.config ?? {});
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -61,6 +61,7 @@ export default function FAQConfigFields({ section, eventId }: Props) {
       style={{ flex: 1, backgroundColor: BG }}
       contentContainerStyle={s.scroll}
       keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets={iosKeyboardInsets}
       showsVerticalScrollIndicator={false}
     >
       <Text style={s.sectionLabel}>FAQ ITEMS ({faqs.length})</Text>

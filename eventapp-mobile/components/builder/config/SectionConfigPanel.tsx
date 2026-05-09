@@ -9,10 +9,14 @@ import CoupleConfigFields    from './fields/CoupleConfigFields';
 import StoryConfigFields     from './fields/StoryConfigFields';
 import GenericConfigFields   from './fields/GenericConfigFields';
 
-interface Props { section: BuilderSection; eventId: string }
+interface Props {
+  section: BuilderSection;
+  eventId: string;
+  iosKeyboardInsets?: boolean;
+}
 
-export default function SectionConfigPanel({ section, eventId }: Props) {
-  const p = { section, eventId };
+export default function SectionConfigPanel({ section, eventId, iosKeyboardInsets }: Props) {
+  const p = { section, eventId, iosKeyboardInsets };
   switch (section.section_type) {
     case 'HERO':      return <HeroConfigFields      {...p} />;
     case 'GALLERY':   return <GalleryConfigFields   {...p} />;

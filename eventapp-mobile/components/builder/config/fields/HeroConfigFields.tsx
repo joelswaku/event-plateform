@@ -11,9 +11,9 @@ const TX  = 'rgba(255,255,255,0.85)';
 const BD  = 'rgba(255,255,255,0.1)';
 const ACC = '#6c6fee';
 
-interface Props { section: BuilderSection; eventId: string }
+interface Props { section: BuilderSection; eventId: string; iosKeyboardInsets?: boolean }
 
-export default function HeroConfigFields({ section, eventId }: Props) {
+export default function HeroConfigFields({ section, eventId, iosKeyboardInsets }: Props) {
   const updateSection = useBuilderStore(s => s.updateSection);
   const cfgRef = useRef<Record<string, unknown>>(section.config ?? {});
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -41,7 +41,7 @@ export default function HeroConfigFields({ section, eventId }: Props) {
   };
 
   const handlePickImage = async () => {
-    const url = await pickAndUploadImage();
+    const url = await pickAndUploadImage(eventId);
     if (url) { setBgImage(url); saveField('background_image', url); }
   };
 
@@ -50,6 +50,7 @@ export default function HeroConfigFields({ section, eventId }: Props) {
       style={{ flex: 1, backgroundColor: BG }}
       contentContainerStyle={s.scroll}
       keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets={iosKeyboardInsets}
       showsVerticalScrollIndicator={false}
     >
       <Field label="Eyebrow Text">

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import {
   View, Text, Pressable, StyleSheet, StatusBar,
   Animated, Alert, SafeAreaView, ActivityIndicator,
+  Keyboard, Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -47,7 +48,21 @@ export default function BuilderScreen() {
   const [activeTab,          setActiveTab]           = useState<TabKey | null>(null);
   const [showTemplatePicker, setShowTemplatePicker]  = useState(false);
   const [publishLoading,     setPublishLoading]      = useState(false);
+  const [kbOffset,           setKbOffset]            = useState(0);
   const defaultApplied = useRef(false);
+
+  /* Push the bottom sheet above the keyboard */
+  useEffect(() => {
+    const show = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      e => setKbOffset(e.endCoordinates.height),
+    );
+    const hide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKbOffset(0),
+    );
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   const sheetAnim = useRef(new Animated.Value(SHEET_H)).current;
 
@@ -152,7 +167,7 @@ export default function BuilderScreen() {
         <BuilderTopBar
           eventId={eventId}
           saveStatus={saveStatus}
-          onTemplatesOpen={() => setShowTemplatePicker(true)}
+          onTemplates={() => setShowTemplatePicker(true)}
           onPublish={handlePublish}
           publishLoading={publishLoading}
           eventTitle={builder?.event?.title}
@@ -185,7 +200,7 @@ export default function BuilderScreen() {
       {activeTab !== null && <Pressable style={s.backdrop} onPress={closeSheet} />}
 
       {activeTab !== null && (
-        <Animated.View style={[s.sheet, { transform: [{ translateY: sheetAnim }] }]}>
+        <Animated.View style={[s.sheet, { transform: [{ translateY: sheetAnim }], bottom: kbOffset }]}>
           <Pressable style={s.handleWrap} onPress={closeSheet}>
             <View style={s.handle} />
           </Pressable>
