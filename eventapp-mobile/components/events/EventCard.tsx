@@ -13,13 +13,15 @@ import { useEventStore } from '@/store/event.store';
 import { fmtDate } from '@/lib/format';
 
 interface EventCardProps {
-  event: Event;
-  onRefresh?: () => void;
+  event:        Event;
+  onRefresh?:   () => void;
+  isActive?:    boolean;
+  onSetActive?: () => void;
 }
 
 type ActionKey = 'publish' | 'unpublish' | 'archive' | 'restore' | 'delete';
 
-export function EventCard({ event, onRefresh }: EventCardProps) {
+export function EventCard({ event, onRefresh, isActive, onSetActive }: EventCardProps) {
   const router = useRouter();
   const { publishEvent, unpublishEvent, archiveEvent, restoreEvent, deleteEvent } = useEventStore();
   const [loading, setLoading] = useState<ActionKey | null>(null);
@@ -50,7 +52,7 @@ export function EventCard({ event, onRefresh }: EventCardProps) {
   return (
     <>
       <Pressable
-        style={styles.card}
+        style={[styles.card, isActive && styles.cardActive]}
         onPress={() => router.push(`/events/${event.id}`)}
       >
         {/* Cover image */}
@@ -73,6 +75,20 @@ export function EventCard({ event, onRefresh }: EventCardProps) {
           <View style={styles.imageFooter}>
             <StatusBadge status={status} />
           </View>
+          {/* Active / set-active toggle */}
+          <Pressable
+            style={styles.activeToggle}
+            onPress={e => { e.stopPropagation?.(); onSetActive?.(); }}
+            hitSlop={8}
+          >
+            {isActive ? (
+              <View style={styles.activeOn}>
+                <Feather name="check" size={10} color="#fff" />
+              </View>
+            ) : (
+              <View style={styles.activeOff} />
+            )}
+          </Pressable>
           {/* Accent top bar */}
           <View style={[styles.accentBar, { backgroundColor: accentColor }]} />
         </View>
@@ -231,6 +247,44 @@ const styles = StyleSheet.create({
     borderColor:     Colors.border.DEFAULT,
     overflow:        'hidden',
     marginBottom:    12,
+  },
+  cardActive: {
+    borderColor:   `${Colors.accent.indigo}70`,
+    borderWidth:   2,
+    shadowColor:   Colors.accent.indigo,
+    shadowOffset:  { width: 0, height: 0 },
+    shadowOpacity: 0.30,
+    shadowRadius:  14,
+    elevation:     8,
+  },
+  activeToggle: {
+    position: 'absolute',
+    top:      10,
+    right:    10,
+    zIndex:   10,
+  },
+  activeOn: {
+    width:           24,
+    height:          24,
+    borderRadius:    12,
+    backgroundColor: Colors.accent.indigo,
+    alignItems:      'center',
+    justifyContent:  'center',
+    borderWidth:     2,
+    borderColor:     '#fff',
+    shadowColor:     Colors.accent.indigo,
+    shadowOffset:    { width: 0, height: 0 },
+    shadowOpacity:   0.9,
+    shadowRadius:    8,
+    elevation:       6,
+  },
+  activeOff: {
+    width:           24,
+    height:          24,
+    borderRadius:    12,
+    borderWidth:     2,
+    borderColor:     'rgba(255,255,255,0.42)',
+    backgroundColor: 'rgba(0,0,0,0.28)',
   },
   accentBar: {
     position: 'absolute',

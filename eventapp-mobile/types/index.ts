@@ -92,9 +92,35 @@ export interface Guest {
   status: GuestStatus;
   rsvp_status: string | null;
   is_vip: boolean;
+  plus_one_allowed: boolean;
+  plus_one_count: number;
   checked_in_at: string | null;
   group_id: string | null;
   created_at: string;
+}
+
+export interface GuestGroup {
+  id: string;
+  event_id: string;
+  name: string;
+  created_at: string;
+}
+
+export interface GuestRsvp {
+  id: string;
+  guest_id: string;
+  event_id: string;
+  rsvp_status: string;
+  responded_at: string | null;
+  notes: string | null;
+}
+
+export interface GuestAttendance {
+  id: string;
+  guest_id: string;
+  event_id: string;
+  checked_in_at: string;
+  checked_in_by: string | null;
 }
 
 export interface GuestDashboard {
@@ -222,4 +248,84 @@ export interface SubscriptionStatus {
   current_period_end: string | null;
   usage: { events: number };
   limits: { events: number; templates: number; guests: number };
+}
+
+export interface PlanLimits {
+  events: number;
+  templates: number;
+  guests: number;
+}
+
+export interface PlanUsage {
+  events: number;
+}
+
+// ─── Seating ──────────────────────────────────────────────────────────────────
+export interface SeatingLocation {
+  id: string;
+  event_id: string;
+  name: string;
+  capacity: number;
+  location_type: string;
+  position_x: number | null;
+  position_y: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SeatingAssignment {
+  id: string;
+  event_id: string;
+  guest_id: string;
+  seating_table_id: string;
+  seat_number: number | null;
+  created_at: string;
+}
+
+export interface SeatingChartEntry extends SeatingLocation {
+  assignments: SeatingAssignment[];
+}
+
+export interface SeatingStats {
+  totalCapacity: number;
+  assigned: number;
+  unassigned: number;
+  fillRate: number;
+  tableCount: number;
+}
+
+// ─── Builder ──────────────────────────────────────────────────────────────────
+export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+export type SectionType =
+  | 'HERO' | 'ABOUT' | 'STORY' | 'COUPLE' | 'COUNTDOWN' | 'VENUE'
+  | 'REGISTRY' | 'GALLERY' | 'SCHEDULE' | 'SPEAKERS' | 'TICKETS'
+  | 'DONATIONS' | 'FAQ' | 'CTA';
+
+export interface BuilderSection {
+  id: string;
+  event_id: string;
+  section_type: SectionType | string;
+  template_key: string;
+  config: Record<string, unknown>;
+  is_visible: boolean;
+  position_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BuilderPage {
+  id: string;
+  event_id: string;
+  status: string;
+  slug: string | null;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BuilderData {
+  event: Event;
+  page: BuilderPage | null;
+  sections: BuilderSection[];
 }

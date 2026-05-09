@@ -21,6 +21,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     infoPlist: {
       NSCameraUsageDescription:
         'EventApp uses your camera to scan QR codes at event check-in.',
+      NSAppTransportSecurity: {
+        NSAllowsArbitraryLoads: true,
+      },
     },
   },
   android: {

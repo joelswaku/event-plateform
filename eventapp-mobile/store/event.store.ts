@@ -3,16 +3,18 @@ import api from '@/lib/api';
 import { Event, EventDashboard, EventCreatePayload } from '@/types';
 
 interface EventState {
-  events:       Event[];
-  currentEvent: Event | null;
-  dashboard:    EventDashboard | null;
-  loading:      boolean;
-  error:        string | null;
+  events:        Event[];
+  currentEvent:  Event | null;
+  dashboard:     EventDashboard | null;
+  activeEventId: string | null;
+  loading:       boolean;
+  error:         string | null;
 
-  fetchEvents:        () => Promise<void>;
-  fetchEventById:     (id: string) => Promise<Event | null>;
-  fetchEventDashboard:(id: string) => Promise<void>;
-  createEvent:        (payload: EventCreatePayload) => Promise<{ success: boolean; event?: Event; message?: string; code?: string }>;
+  fetchEvents:         () => Promise<void>;
+  fetchEventById:      (id: string) => Promise<Event | null>;
+  fetchEventDashboard: (id: string) => Promise<void>;
+  setActiveEvent:      (id: string) => void;
+  createEvent:         (payload: EventCreatePayload) => Promise<{ success: boolean; event?: Event; message?: string; code?: string }>;
   updateEvent:        (id: string, payload: Partial<EventCreatePayload>) => Promise<{ success: boolean; message?: string }>;
   publishEvent:       (id: string) => Promise<{ success: boolean }>;
   unpublishEvent:     (id: string) => Promise<{ success: boolean }>;
@@ -39,17 +41,25 @@ function patchStatus(events: Event[], id: string, status: Event['status']): Even
 }
 
 export const useEventStore = create<EventState>((set, get) => ({
-  events:       [],
-  currentEvent: null,
-  dashboard:    null,
-  loading:      false,
-  error:        null,
+  events:        [],
+  currentEvent:  null,
+  dashboard:     null,
+  activeEventId: null,
+  loading:       false,
+  error:         null,
+
+  setActiveEvent: (id) => set({ activeEventId: id }),
 
   fetchEvents: async () => {
     set({ loading: true, error: null });
     try {
-      const res = await api.get<{ data: Event[] }>('/events');
-      set({ events: res.data?.data ?? [], loading: false });
+      const res    = await api.get<{ data: Event[] }>('/events');
+      const events = res.data?.data ?? [];
+      set(s => ({
+        events,
+        loading:       false,
+        activeEventId: s.activeEventId ?? events[0]?.id ?? null,
+      }));
     } catch (err) {
       set({ error: extractMsg(err, 'Failed to load events'), loading: false });
     }
@@ -83,7 +93,11 @@ export const useEventStore = create<EventState>((set, get) => ({
     try {
       const res   = await api.post<{ data: Event }>('/events', payload);
       const event = res.data?.data;
-      if (event) set(s => ({ events: [event, ...s.events], loading: false }));
+      if (event) set(s => ({
+        events:        [event, ...s.events],
+        activeEventId: s.activeEventId ?? event.id,
+        loading:       false,
+      }));
       return { success: true, event };
     } catch (err) {
       const message = extractMsg(err, 'Failed to create event');

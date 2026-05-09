@@ -20,7 +20,9 @@
       "Bash(npm install *)",
       "Bash(taskkill /F /IM node.exe /T)",
       "Bash(exit 0)",
-      "PowerShell(Stop-Process -Name \"node\" -Force -ErrorAction SilentlyContinue)"
+      "PowerShell(Stop-Process -Name \"node\" -Force -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-ChildItem -Recurse \"c:\\\\projects\\\\event-plateform\\\\eventapp-mobile\\\\components\\\\builder\" | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Replace\\(\"c:\\\\projects\\\\event-plateform\\\\eventapp-mobile\\\\\", \"\"\\) })",
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('date-fns:', p.dependencies['date-fns'] || 'NOT FOUND'\\)\")"
     ]
   }
 }

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  View, Text, TextInput, Pressable, ScrollView, StyleSheet, FlatList,
+  View, Text, TextInput, Pressable, StyleSheet,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,17 +21,18 @@ import { ScanResult } from '@/types';
 
 export default function ScannerTab() {
   const [permission, requestPermission] = useCameraPermissions();
-  const [torch,       setTorch]         = useState(false);
-  const [manualInput, setManualInput]   = useState('');
-  const [lastResult,  setLastResult]    = useState<ScanResult | null>(null);
-  const [selectedEventId, setEventId]  = useState<string | null>(null);
+  const [torch,       setTorch]      = useState(false);
+  const [manualInput, setManualInput]= useState('');
+  const [lastResult,  setLastResult] = useState<ScanResult | null>(null);
 
-  const isFocused    = useIsFocused();
-  const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastScanRef  = useRef(0);
+  const isFocused   = useIsFocused();
+  const lastScanRef = useRef(0);
 
   const { scanTicket, syncOffline, offlineQueue, stats, fetchStats, online } = useScannerStore();
-  const { events, fetchEvents } = useEventStore();
+  const { events, fetchEvents, activeEventId } = useEventStore();
+
+  const eventId      = activeEventId ?? events[0]?.id ?? '';
+  const activeEvent  = events.find(e => e.id === eventId) ?? null;
 
   // Animated scan line
   const scanY = useSharedValue(0);
@@ -52,31 +53,30 @@ export default function ScannerTab() {
   // Auto-sync on reconnect
   useEffect(() => {
     const unsub = NetInfo.addEventListener(state => {
-      if (state.isConnected && offlineQueue.length > 0 && selectedEventId) {
-        syncOffline(selectedEventId);
+      if (state.isConnected && offlineQueue.length > 0 && eventId) {
+        syncOffline(eventId);
       }
     });
     return unsub;
-  }, [offlineQueue.length, selectedEventId]);
+  }, [offlineQueue.length, eventId]);
 
   useEffect(() => {
-    if (selectedEventId) fetchStats(selectedEventId);
-  }, [selectedEventId]);
+    if (eventId) fetchStats(eventId);
+  }, [eventId]);
 
   const handleScan = useCallback(async (data: string) => {
     const now = Date.now();
     if (now - lastScanRef.current < 1500) return;
     lastScanRef.current = now;
 
-    const eventId = selectedEventId ?? events[0]?.id;
     if (!eventId) {
-      Toast.show({ type: 'info', text1: 'Select an event first' });
+      Toast.show({ type: 'info', text1: 'No active event', text2: 'Set an active event from the Events tab' });
       return;
     }
 
     const result = await scanTicket(eventId, data.trim());
     setLastResult(result);
-  }, [selectedEventId, events, scanTicket]);
+  }, [eventId, scanTicket]);
 
   const handleManualScan = () => {
     if (!manualInput.trim()) return;
@@ -85,7 +85,6 @@ export default function ScannerTab() {
   };
 
   const pendingCount = offlineQueue.length;
-  const eventId      = selectedEventId ?? events[0]?.id ?? '';
   const checkinPct   = stats
     ? stats.total_issued > 0 ? Math.round((stats.checked_in / stats.total_issued) * 100) : 0
     : 0;
@@ -113,9 +112,19 @@ export default function ScannerTab() {
 
         {/* Header */}
         <View style={styles.header}>
-          <View>
+          <View style={{ flex: 1, minWidth: 0, gap: 6 }}>
             <Text style={styles.headerTitle}>QR Scanner</Text>
-            <Text style={styles.headerSub}>Scan tickets at the door</Text>
+            {activeEvent ? (
+              <View style={styles.activeEventChip}>
+                <View style={[styles.activeEventDot, { backgroundColor: Colors.accent.emerald }]} />
+                <Text style={styles.activeEventName} numberOfLines={1}>{activeEvent.title}</Text>
+              </View>
+            ) : (
+              <View style={styles.noEventChip}>
+                <Feather name="alert-circle" size={10} color={Colors.accent.red} />
+                <Text style={styles.noEventText}>No active event — set one in Events tab</Text>
+              </View>
+            )}
           </View>
           <View style={styles.headerRight}>
             {/* Online/Offline badge */}
@@ -208,36 +217,6 @@ export default function ScannerTab() {
           </Pressable>
         </View>
 
-        {/* Event selector */}
-        {events.length > 1 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.eventPicker}
-          >
-            {events.filter(e => e.allow_qr_checkin || e.allow_ticketing).map(e => (
-              <Pressable
-                key={e.id}
-                style={[
-                  styles.eventChip,
-                  selectedEventId === e.id && {
-                    backgroundColor: `${Colors.accent.indigo}25`,
-                    borderColor:     `${Colors.accent.indigo}50`,
-                  },
-                ]}
-                onPress={() => setEventId(e.id)}
-              >
-                <Text style={[
-                  styles.eventChipText,
-                  selectedEventId === e.id && { color: Colors.accent.indigo },
-                ]} numberOfLines={1}>
-                  {e.title}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        )}
-
       </View>
     </SafeAreaView>
   );
@@ -265,8 +244,46 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   headerTitle: { fontSize: 20, fontWeight: '900', color: '#fff' },
-  headerSub:   { fontSize: 11, color: Colors.text.muted, marginTop: 1 },
   headerRight: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+
+  activeEventChip: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               5,
+    alignSelf:         'flex-start',
+    paddingHorizontal: 9,
+    paddingVertical:   4,
+    borderRadius:      99,
+    backgroundColor:   `${Colors.accent.emerald}12`,
+    borderWidth:       1,
+    borderColor:       `${Colors.accent.emerald}30`,
+  },
+  activeEventDot: { width: 5, height: 5, borderRadius: 3 },
+  activeEventName: {
+    fontSize:   11,
+    fontWeight: '700',
+    color:      Colors.accent.emerald,
+    flexShrink: 1,
+  },
+
+  noEventChip: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               5,
+    alignSelf:         'flex-start',
+    paddingHorizontal: 9,
+    paddingVertical:   4,
+    borderRadius:      99,
+    backgroundColor:   `${Colors.accent.red}12`,
+    borderWidth:       1,
+    borderColor:       `${Colors.accent.red}30`,
+  },
+  noEventText: {
+    fontSize:   11,
+    fontWeight: '700',
+    color:      Colors.accent.red,
+    flexShrink: 1,
+  },
 
   onlineBadge: {
     flexDirection:     'row',
@@ -357,22 +374,6 @@ const styles = StyleSheet.create({
     alignItems:      'center',
     justifyContent:  'center',
   },
-
-  eventPicker: {
-    paddingHorizontal: 16,
-    gap:               8,
-    paddingBottom:     8,
-  },
-  eventChip: {
-    paddingHorizontal: 12,
-    paddingVertical:   7,
-    borderRadius:      99,
-    borderWidth:       1,
-    borderColor:       Colors.border.DEFAULT,
-    backgroundColor:   Colors.bg.elevated,
-    maxWidth:          160,
-  },
-  eventChipText: { fontSize: 12, fontWeight: '600', color: Colors.text.muted },
 
   // Permission screen
   permissionWrap: {

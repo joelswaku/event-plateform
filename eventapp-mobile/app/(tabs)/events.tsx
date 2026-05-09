@@ -8,6 +8,7 @@ import { Feather } from '@expo/vector-icons';
 import { useEventStore }  from '@/store/event.store';
 import { useDrawerStore } from '@/store/drawer.store';
 import { EventCard }      from '@/components/events/EventCard';
+import Toast from 'react-native-toast-message';
 import { Colors }         from '@/constants/colors';
 import { EventStatus }    from '@/types';
 
@@ -17,7 +18,7 @@ const FILTERS: Filter[] = ['ALL', 'DRAFT', 'PUBLISHED', 'ARCHIVED', 'CANCELLED']
 export default function EventsTab() {
   const router     = useRouter();
   const openDrawer = useDrawerStore(s => s.open);
-  const { events, fetchEvents, loading } = useEventStore();
+  const { events, fetchEvents, loading, activeEventId, setActiveEvent } = useEventStore();
   const [query,  setQuery]  = useState('');
   const [filter, setFilter] = useState<Filter>('ALL');
 
@@ -96,7 +97,16 @@ export default function EventsTab() {
             </View>
           ) : (
             filtered.map(event => (
-              <EventCard key={event.id} event={event} onRefresh={fetchEvents} />
+              <EventCard
+                key={event.id}
+                event={event}
+                onRefresh={fetchEvents}
+                isActive={event.id === activeEventId}
+                onSetActive={() => {
+                  setActiveEvent(event.id);
+                  Toast.show({ type: 'success', text1: '✓ Active event set', text2: event.title, visibilityTime: 1800 });
+                }}
+              />
             ))
           )}
         </ScrollView>

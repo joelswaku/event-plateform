@@ -158,6 +158,7 @@ export default function EventDetailScreen() {
 
           {/* Quick links */}
           <View style={styles.linksGrid}>
+            <LinkCard icon="layout"      label="Builder"   sub="Design event page"   onPress={() => router.push(`/events/${id}/builder` as never)}   accent={'#6c6fee'}             />
             <LinkCard icon="users"       label="Guests"    sub="Manage attendees"    onPress={() => router.push(`/events/${id}/guests` as never)}    accent={Colors.accent.indigo}  />
             <LinkCard icon="credit-card" label="Tickets"   sub="Types & orders"      onPress={() => router.push(`/events/${id}/tickets` as never)}   accent={Colors.accent.amber}   />
             <LinkCard icon="camera"      label="Scanner"   sub="QR check-in"         onPress={() => router.push(`/events/${id}/scanner` as never)}   accent={Colors.accent.emerald} />
