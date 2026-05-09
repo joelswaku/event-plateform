@@ -11,7 +11,8 @@ const TX  = 'rgba(255,255,255,0.85)';
 const BD  = 'rgba(255,255,255,0.1)';
 const ACC = '#6c6fee';
 
-const MAX_IMAGES = 12;
+const MAX_IMAGES  = 12;
+const MIN_VISIBLE = 6; // always show at least this many slots
 
 interface Props { section: BuilderSection; eventId: string; iosKeyboardInsets?: boolean }
 
@@ -48,17 +49,20 @@ export default function GalleryConfigFields({ section, eventId, iosKeyboardInset
     save({ layout: l });
   };
 
-  const addImage = async () => {
-    if (images.length >= MAX_IMAGES) {
-      Alert.alert('Limit reached', `Maximum ${MAX_IMAGES} images allowed.`);
-      return;
-    }
+  // Tap an empty slot → pick image for that slot index
+  const fillSlot = async (slotIdx: number) => {
     const url = await pickAndUploadImage(eventId);
-    if (url) {
-      const next = [...images, url];
-      setImages(next);
-      save({ images: next });
+    if (!url) return;
+    const next = [...images];
+    if (slotIdx < next.length) {
+      next[slotIdx] = url; // replace existing
+    } else {
+      // fill up to slotIdx with empty (shouldn't normally happen)
+      while (next.length < slotIdx) next.push('');
+      next.push(url);
     }
+    setImages(next);
+    save({ images: next });
   };
 
   const removeImage = (idx: number) => {
@@ -66,6 +70,10 @@ export default function GalleryConfigFields({ section, eventId, iosKeyboardInset
     setImages(next);
     save({ images: next });
   };
+
+  // Build slot array: real images + empty slots up to MIN_VISIBLE (or +1 to add more)
+  const slotCount = Math.max(MIN_VISIBLE, images.length < MAX_IMAGES ? images.length + 1 : images.length);
+  const slots: (string | null)[] = Array.from({ length: Math.min(slotCount, MAX_IMAGES) }, (_, i) => images[i] ?? null);
 
   return (
     <ScrollView
@@ -105,39 +113,40 @@ export default function GalleryConfigFields({ section, eventId, iosKeyboardInset
       <View style={s.field}>
         <Text style={s.label}>LAYOUT</Text>
         <View style={s.segRow}>
-          <Pressable
-            style={[s.seg, layout === 'grid' && s.segActive]}
-            onPress={() => pickLayout('grid')}
-          >
+          <Pressable style={[s.seg, layout === 'grid' && s.segActive]} onPress={() => pickLayout('grid')}>
             <Feather name="grid" size={13} color={layout === 'grid' ? '#fff' : MT} />
             <Text style={[s.segTxt, layout === 'grid' && s.segTxtActive]}>Grid</Text>
           </Pressable>
-          <Pressable
-            style={[s.seg, layout === 'carousel' && s.segActive]}
-            onPress={() => pickLayout('carousel')}
-          >
+          <Pressable style={[s.seg, layout === 'carousel' && s.segActive]} onPress={() => pickLayout('carousel')}>
             <Feather name="layers" size={13} color={layout === 'carousel' ? '#fff' : MT} />
             <Text style={[s.segTxt, layout === 'carousel' && s.segTxtActive]}>Carousel</Text>
           </Pressable>
         </View>
       </View>
 
-      {/* Images */}
+      {/* Images — slot-based grid */}
       <View style={s.field}>
         <Text style={s.label}>IMAGES ({images.length}/{MAX_IMAGES})</Text>
         <View style={s.grid}>
-          {images.map((uri, idx) => (
-            <View key={idx} style={s.cell}>
-              <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-              <Pressable style={s.removeBtn} onPress={() => removeImage(idx)} hitSlop={4}>
-                <Feather name="x" size={10} color="#fff" />
+          {slots.map((uri, idx) =>
+            uri ? (
+              // Filled slot: show image + replace on tap + remove button
+              <Pressable key={idx} style={s.cell} onPress={() => fillSlot(idx)}>
+                <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                {/* Replace hint */}
+                <View style={s.replaceHint}>
+                  <Feather name="refresh-cw" size={10} color="rgba(255,255,255,0.7)" />
+                </View>
+                <Pressable style={s.removeBtn} onPress={() => removeImage(idx)} hitSlop={6}>
+                  <Feather name="x" size={10} color="#fff" />
+                </Pressable>
               </Pressable>
-            </View>
-          ))}
-          {images.length < MAX_IMAGES && (
-            <Pressable style={s.addCell} onPress={addImage}>
-              <Feather name="plus" size={22} color={ACC} />
-            </Pressable>
+            ) : (
+              // Empty slot: tap to add
+              <Pressable key={idx} style={s.emptySlot} onPress={() => fillSlot(idx)}>
+                <Feather name="plus" size={18} color={`${ACC}99`} />
+              </Pressable>
+            )
           )}
         </View>
       </View>
@@ -155,7 +164,6 @@ const s = StyleSheet.create({
     fontSize: 14, color: TX,
   },
   textarea: { minHeight: 80, textAlignVertical: 'top' },
-  // layout toggle
   segRow:   { flexDirection: 'row', gap: 8 },
   seg: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -163,11 +171,10 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.04)',
     borderWidth: 1, borderColor: BD,
   },
-  segActive: { backgroundColor: 'rgba(108,111,238,0.2)', borderColor: ACC },
-  segTxt:    { fontSize: 13, color: MT, fontWeight: '500' },
+  segActive:    { backgroundColor: 'rgba(108,111,238,0.2)', borderColor: ACC },
+  segTxt:       { fontSize: 13, color: MT, fontWeight: '500' },
   segTxtActive: { color: '#fff' },
-  // image grid
-  grid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   cell: {
     width: '30%', aspectRatio: 1, borderRadius: 10,
     backgroundColor: 'rgba(255,255,255,0.06)', overflow: 'hidden',
@@ -176,13 +183,20 @@ const s = StyleSheet.create({
   removeBtn: {
     position: 'absolute', top: 4, right: 4,
     width: 18, height: 18, borderRadius: 9,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.75)',
     alignItems: 'center', justifyContent: 'center',
   },
-  addCell: {
+  replaceHint: {
+    position: 'absolute', bottom: 4, right: 4,
+    width: 18, height: 18, borderRadius: 9,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  emptySlot: {
     width: '30%', aspectRatio: 1, borderRadius: 10,
-    backgroundColor: 'rgba(108,111,238,0.1)',
-    borderWidth: 1, borderColor: 'rgba(108,111,238,0.35)',
+    backgroundColor: 'rgba(108,111,238,0.06)',
+    borderWidth: 1, borderColor: 'rgba(108,111,238,0.2)',
+    borderStyle: 'dashed',
     alignItems: 'center', justifyContent: 'center',
   },
 });

@@ -22,6 +22,7 @@ import { useRouter }      from 'expo-router';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEventStore }  from '@/store/event.store';
+import { useAuthStore }   from '@/store/auth.store';
 import { useDrawerStore } from '@/store/drawer.store';
 import { Colors }         from '@/constants/colors';
 
@@ -39,8 +40,11 @@ export default function BuilderTabScreen() {
   const insets     = useSafeAreaInsets();
   const openDrawer = useDrawerStore(s => s.open);
   const { events, fetchEvents, loading } = useEventStore();
+  const { isHydrated, isAuthenticated }  = useAuthStore(s => ({ isHydrated: s.isHydrated, isAuthenticated: s.isAuthenticated }));
 
-  useEffect(() => { fetchEvents(); }, []);
+  useEffect(() => {
+    if (isHydrated && isAuthenticated) fetchEvents();
+  }, [isHydrated, isAuthenticated]);
 
   const handleSelect = (eventId: string) => {
     router.push(`/events/${eventId}/builder` as never);
