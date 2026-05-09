@@ -691,70 +691,117 @@ function GalleryBlock({ cfg, theme }: any) {
   const images: string[] = cfg.images || cfg.media_ids || [];
   const layout: 'grid' | 'carousel' = cfg.layout ?? 'grid';
   const [lbIdx, setLbIdx] = useState<number | null>(null);
+  const hPad = 20;
+  const innerW = SW - hPad * 2;
+
+  const Header = () => {
+    if (th === 'FUN') return (
+      <MotiView from={{ opacity: 0, translateY: 6 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}>
+        <Text style={[gl.eyebrowFun, { color: t.accent }]}>✦ Gallery</Text>
+        <Text style={[gl.headingFun, { color: t.text }]}>{cfg.title || 'Our Moments'}</Text>
+      </MotiView>
+    );
+    if (th === 'MODERN') return (
+      <MotiView from={{ opacity: 0, translateY: 6 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}>
+        <View style={[gl.modernBar, { backgroundColor: t.accent }]} />
+        <Text style={[gl.headingModern, { color: t.text }]}>{cfg.title || 'Gallery'}</Text>
+      </MotiView>
+    );
+    if (th === 'MINIMAL') return (
+      <MotiView from={{ opacity: 0, translateY: 6 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }} style={{ alignItems: 'center' }}>
+        <Text style={[gl.eyebrowMinimal, { color: t.muted }]}>Gallery</Text>
+        <Text style={[gl.headingMinimal, { color: t.text }]}>{cfg.title || 'Our Moments'}</Text>
+      </MotiView>
+    );
+    // CLASSIC / ELEGANT / LUXURY
+    return (
+      <MotiView from={{ opacity: 0, translateY: 6 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}>
+        <Text style={[gl.eyebrow, { color: t.muted }]}>GALLERY</Text>
+        <Text style={[gl.heading, { color: t.text, fontWeight: t.fontWeightHeading, fontStyle: t.headingStyle }]}>
+          {cfg.title || 'Our Moments'}
+        </Text>
+        <View style={[gl.ornament, { backgroundColor: t.accent }]} />
+      </MotiView>
+    );
+  };
+
+  const emptyNode = (
+    <View style={gl.empty}>
+      <Feather name="image" size={24} color={`${t.accent}50`} />
+      <Text style={[gl.emptyTxt, { color: t.muted }]}>No images yet</Text>
+    </View>
+  );
 
   return (
     <View style={[gl.wrap, { backgroundColor: t.bg }]}>
-      <MotiView
-        from={{ opacity: 0, translateY: 6 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 300 }}
-      >
-        <Text style={[gl.eyebrow, { color: t.muted }]}>GALLERY</Text>
-        <Text style={[gl.heading, { color: t.text, fontWeight: t.fontWeightHeading, fontStyle: t.headingStyle,
-          textTransform: th === 'MODERN' ? 'uppercase' : 'none', letterSpacing: th === 'MODERN' ? -0.5 : 0 }]}>
-          {cfg.title || 'Gallery'}
-        </Text>
-      </MotiView>
-
-      {images.length === 0 ? (
-        <View style={gl.empty}>
-          <Feather name="image" size={24} color={`${t.accent}50`} />
-          <Text style={[gl.emptyTxt, { color: t.muted }]}>No images yet</Text>
-        </View>
-      ) : layout === 'carousel' ? (
-        <GalleryCarouselPreview images={images} accent={t.accent} onTap={setLbIdx} />
-      ) : (
-        <GalleryGridPreview images={images} theme={t} th={th} onTap={setLbIdx} />
-      )}
-
+      <Header />
+      {images.length === 0 ? emptyNode
+        : layout === 'carousel' ? (
+          <GalleryCarouselPreview images={images} accent={t.accent} innerW={innerW} onTap={setLbIdx} />
+        ) : th === 'FUN' ? (
+          <GalleryGridFun images={images} accent={t.accent} innerW={innerW} onTap={setLbIdx} />
+        ) : th === 'MODERN' ? (
+          <GalleryGridModern images={images} innerW={innerW} onTap={setLbIdx} />
+        ) : th === 'MINIMAL' ? (
+          <GalleryGridMinimal images={images} innerW={innerW} onTap={setLbIdx} />
+        ) : (
+          <GalleryGridClassic images={images} innerW={innerW} onTap={setLbIdx} />
+        )
+      }
       {lbIdx !== null && (
-        <GalleryLightboxModal
-          images={images}
-          startIndex={lbIdx}
-          accent={t.accent}
-          onClose={() => setLbIdx(null)}
-        />
+        <GalleryLightboxModal images={images} startIndex={lbIdx} accent={t.accent} onClose={() => setLbIdx(null)} />
       )}
     </View>
   );
 }
 
-/* ── Gallery grid ──────────────────────────────────────────────── */
-function GalleryGridPreview({ images, theme: t, th, onTap }: {
-  images: string[]; theme: ThemeDef; th: string; onTap: (i: number) => void;
+/* ── FUN: 2-col, mixed aspect ratios, bold offset accent shadow ── */
+function GalleryGridFun({ images, accent, innerW, onTap }: {
+  images: string[]; accent: string; innerW: number; onTap: (i: number) => void;
 }) {
-  const cols  = th === 'MODERN' ? 3 : 2;
-  const gap   = th === 'MODERN' ? 3 : 5;
-  const hPad  = 20;
-  const cellW = (SW - hPad * 2 - gap * (cols - 1)) / cols;
-  const cellH = th === 'MODERN' ? cellW : cellW * 0.75;
-  const radius = th === 'MINIMAL' ? 0 : th === 'MODERN' ? 4 : 8;
+  const gap  = 8;
+  const cols = 2;
+  const cellW = (innerW - gap * (cols - 1)) / cols;
+
+  return (
+    <View style={[gl.grid, { gap }]}>
+      {images.map((uri, i) => {
+        const isPortrait = i % 3 === 1;
+        const cellH = isPortrait ? cellW * 1.3 : cellW * 0.75;
+        return (
+          <MotiView key={i} from={{ opacity: 0, scale: 0.93 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'timing', duration: 260, delay: i * 40 }} style={{ width: cellW }}>
+            {/* Offset accent shadow layer */}
+            <View style={{ width: cellW, height: cellH + 4 }}>
+              <View style={[gl.funShadow, { width: cellW, height: cellH, backgroundColor: accent, top: 4, left: 4, borderRadius: 16 }]} />
+              <Pressable style={[gl.funCell, { width: cellW, height: cellH }]}
+                onPress={() => onTap(i)} onLongPress={() => downloadImageToLibrary(uri)} delayLongPress={500}>
+                <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                <View style={gl.tapHint} pointerEvents="none">
+                  <Feather name="maximize-2" size={9} color="rgba(255,255,255,0.8)" />
+                </View>
+              </Pressable>
+            </View>
+          </MotiView>
+        );
+      })}
+    </View>
+  );
+}
+
+/* ── MODERN: tight 3-col square grid, no radius ─────────────────── */
+function GalleryGridModern({ images, innerW, onTap }: {
+  images: string[]; innerW: number; onTap: (i: number) => void;
+}) {
+  const gap   = 2;
+  const cols  = 3;
+  const cellW = (innerW - gap * (cols - 1)) / cols;
 
   return (
     <View style={[gl.grid, { gap }]}>
       {images.map((uri, i) => (
-        <MotiView
-          key={i}
-          from={{ opacity: 0, scale: 0.94 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: 'timing', duration: 260, delay: i * 35 }}
-        >
-          <Pressable
-            style={[gl.cell, { width: cellW, height: cellH, borderRadius: radius }]}
-            onPress={() => onTap(i)}
-            onLongPress={() => downloadImageToLibrary(uri)}
-            delayLongPress={500}
-          >
+        <MotiView key={i} from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ type: 'timing', duration: 220, delay: i * 25 }} style={{ width: cellW }}>
+          <Pressable style={[gl.cell, { width: cellW, height: cellW, borderRadius: 0 }]}
+            onPress={() => onTap(i)} onLongPress={() => downloadImageToLibrary(uri)} delayLongPress={500}>
             <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
             <View style={gl.tapHint} pointerEvents="none">
               <Feather name="maximize-2" size={9} color="rgba(255,255,255,0.7)" />
@@ -766,12 +813,70 @@ function GalleryGridPreview({ images, theme: t, th, onTap }: {
   );
 }
 
+/* ── MINIMAL: 2-col, alternating portrait/landscape, no radius ── */
+function GalleryGridMinimal({ images, innerW, onTap }: {
+  images: string[]; innerW: number; onTap: (i: number) => void;
+}) {
+  const gap   = 6;
+  const cols  = 2;
+  const cellW = (innerW - gap * (cols - 1)) / cols;
+
+  return (
+    <View style={[gl.grid, { gap }]}>
+      {images.map((uri, i) => {
+        const cellH = i % 2 === 0 ? cellW * 1.25 : cellW * 0.75;
+        return (
+          <MotiView key={i} from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 280, delay: i * 50 }} style={{ width: cellW }}>
+            <Pressable style={[gl.cell, { width: cellW, height: cellH, borderRadius: 0 }]}
+              onPress={() => onTap(i)} onLongPress={() => downloadImageToLibrary(uri)} delayLongPress={500}>
+              <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+              <View style={gl.tapHint} pointerEvents="none">
+                <Feather name="maximize-2" size={9} color="rgba(255,255,255,0.7)" />
+              </View>
+            </Pressable>
+          </MotiView>
+        );
+      })}
+    </View>
+  );
+}
+
+/* ── CLASSIC / ELEGANT / LUXURY: masonry-style alternating heights */
+function GalleryGridClassic({ images, innerW, onTap }: {
+  images: string[]; innerW: number; onTap: (i: number) => void;
+}) {
+  const gap   = 5;
+  const cols  = 2;
+  const cellW = (innerW - gap * (cols - 1)) / cols;
+  // Masonry illusion: alternate tall/short across rows
+  const heights = [cellW * 1.1, cellW * 0.75, cellW * 0.75, cellW * 1.1, cellW * 0.9, cellW * 1.0];
+
+  return (
+    <View style={[gl.grid, { gap }]}>
+      {images.map((uri, i) => {
+        const cellH = heights[i % heights.length];
+        return (
+          <MotiView key={i} from={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'timing', duration: 270, delay: i * 40 }} style={{ width: cellW }}>
+            <Pressable style={[gl.cell, { width: cellW, height: cellH, borderRadius: 6 }]}
+              onPress={() => onTap(i)} onLongPress={() => downloadImageToLibrary(uri)} delayLongPress={500}>
+              <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+              <View style={gl.tapHint} pointerEvents="none">
+                <Feather name="maximize-2" size={9} color="rgba(255,255,255,0.7)" />
+              </View>
+            </Pressable>
+          </MotiView>
+        );
+      })}
+    </View>
+  );
+}
+
 /* ── Gallery carousel ──────────────────────────────────────────── */
-function GalleryCarouselPreview({ images, accent, onTap }: {
-  images: string[]; accent: string; onTap: (i: number) => void;
+function GalleryCarouselPreview({ images, accent, innerW, onTap }: {
+  images: string[]; accent: string; innerW: number; onTap: (i: number) => void;
 }) {
   const [current, setCurrent] = useState(0);
-  const slideW = SW - 40;
+  const slideW = innerW;
   const scrollRef = useRef<ScrollView>(null);
 
   const goTo = (idx: number) => {
@@ -907,10 +1012,25 @@ function GalleryLightboxModal({ images, startIndex, accent, onClose }: {
 
 const gl = StyleSheet.create({
   wrap:    { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 16 },
+  // CLASSIC header
   eyebrow: { fontSize: 9, fontWeight: '500', letterSpacing: 4, textTransform: 'uppercase', marginBottom: 4 },
-  heading: { fontSize: 28, letterSpacing: 0, marginBottom: 14 },
+  heading: { fontSize: 26, letterSpacing: 0, marginBottom: 8 },
+  ornament: { width: 32, height: 2, marginBottom: 14, borderRadius: 1 },
+  // FUN header
+  eyebrowFun:  { fontSize: 10, fontWeight: '700', letterSpacing: 4, textTransform: 'uppercase', textAlign: 'center', marginBottom: 4 },
+  headingFun:  { fontSize: 28, fontWeight: '800', textAlign: 'center', marginBottom: 14 },
+  // MODERN header
+  modernBar:   { width: 32, height: 3, marginBottom: 8, borderRadius: 1 },
+  headingModern: { fontSize: 26, fontWeight: '900', textTransform: 'uppercase', letterSpacing: -0.5, marginBottom: 12 },
+  // MINIMAL header
+  eyebrowMinimal: { fontSize: 10, letterSpacing: 8, textTransform: 'uppercase', marginBottom: 6 },
+  headingMinimal: { fontSize: 24, fontWeight: '300', marginBottom: 14 },
+  // grids
   grid:    { flexDirection: 'row', flexWrap: 'wrap' },
   cell:    { overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.06)' },
+  // FUN cell with offset shadow
+  funShadow: { position: 'absolute' },
+  funCell:   { overflow: 'hidden', borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.06)' },
   tapHint: { position: 'absolute', bottom: 5, right: 5, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 4, padding: 3 },
   empty:   { alignItems: 'center', justifyContent: 'center', height: 80, gap: 6 },
   emptyTxt:{ fontSize: 11 },
