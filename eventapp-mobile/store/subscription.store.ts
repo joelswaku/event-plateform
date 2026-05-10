@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Linking } from 'react-native';
 import api from '@/lib/api';
+import { openStripeCheckout, STRIPE_SUCCESS_URL, STRIPE_CANCEL_URL } from '@/lib/stripe';
 import { PlanLimits, PlanUsage } from '@/types';
 
 // Grace period: 5 min after payment before trusting DB over optimistic state
@@ -39,7 +39,8 @@ interface SubscriptionState {
 
   // API
   fetchSubscription:    () => Promise<void>;
-  createCheckoutSession:(priceId: string) => Promise<{ success: boolean; message?: string }>;
+  createCheckoutSession:(priceId: string) => Promise<{ success: boolean; canceled?: boolean; message?: string }>;
+  verifyAndActivate:    (sessionId: string) => Promise<boolean>;
   openCustomerPortal:   () => Promise<void>;
   setSubscribed:        (plan?: 'free' | 'premium') => void;
   setUnsubscribed:      () => void;
@@ -144,19 +145,65 @@ export const useSubscriptionStore = create<SubscriptionState>()(
         }
       },
 
-      // ── Stripe checkout ────────────────────────────────────────────────────────────
+      // ── Stripe checkout (in-app browser via expo-web-browser) ─────────────────────
       createCheckoutSession: async (priceId) => {
         try {
           set({ isLoading: true });
-          const res = await api.post<{ data: { url: string } }>('/subscription/checkout', { priceId });
+          // Ask the backend to build a Stripe session with mobile deep-link redirects
+          const res = await api.post<{ data: { url: string; sessionId: string } }>(
+            '/subscription/checkout',
+            {
+              priceId,
+              successUrl: STRIPE_SUCCESS_URL,
+              cancelUrl:  STRIPE_CANCEL_URL,
+            },
+          );
           const { url } = res.data?.data ?? {};
           set({ isLoading: false });
-          if (url) await Linking.openURL(url);
-          return { success: true };
+          if (!url) return { success: false, message: 'No checkout URL returned' };
+
+          // Open Stripe in-app (Safari View Controller / Chrome Custom Tab)
+          const result = await openStripeCheckout(url);
+
+          if (result.type === 'subscription_success') {
+            // Optimistically mark as premium while webhook lands
+            get().setSubscribed('premium');
+            // Then verify with the API (retries handled by caller if needed)
+            await get().verifyAndActivate(result.sessionId);
+            return { success: true };
+          }
+          if (result.type === 'cancel') return { success: false, canceled: true };
+          return { success: false, message: (result as { type: 'error'; message: string }).message };
         } catch (err: unknown) {
           set({ isLoading: false });
           const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Checkout failed';
           return { success: false, message };
+        }
+      },
+
+      // Verify a completed Stripe checkout session and hard-set subscription state
+      verifyAndActivate: async (sessionId) => {
+        try {
+          const res = await api.get<{ data: {
+            is_subscribed: boolean;
+            plan?: string;
+            subscription_status?: string;
+            current_period_end?: string | null;
+          } }>('/subscription/verify-session', { params: { session_id: sessionId } });
+          const data = res.data?.data ?? {};
+          if (data.is_subscribed) {
+            _paidAt = null; // clear grace — DB is authoritative now
+            set({
+              plan:               (data.plan as 'free' | 'premium') ?? 'premium',
+              isSubscribed:       true,
+              subscriptionStatus: (data.subscription_status as SubscriptionState['subscriptionStatus']) ?? 'active',
+              currentPeriodEnd:   data.current_period_end ?? null,
+            });
+            return true;
+          }
+          return false;
+        } catch {
+          return false;
         }
       },
 
@@ -166,7 +213,11 @@ export const useSubscriptionStore = create<SubscriptionState>()(
           const res = await api.post<{ data: { url: string } }>('/subscription/portal');
           const { url } = res.data?.data ?? {};
           set({ isLoading: false });
-          if (url) await Linking.openURL(url);
+          // Portal is a full browser experience — open externally (it has its own return_url)
+          if (url) {
+            const { Linking } = await import('react-native');
+            await Linking.openURL(url);
+          }
         } catch {
           set({ isLoading: false });
         }

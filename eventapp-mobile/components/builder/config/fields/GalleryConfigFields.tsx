@@ -126,7 +126,23 @@ export default function GalleryConfigFields({ section, eventId, iosKeyboardInset
 
       {/* Images — slot-based grid */}
       <View style={s.field}>
-        <Text style={s.label}>IMAGES ({images.length}/{MAX_IMAGES})</Text>
+        <View style={s.imagesHeader}>
+          <Text style={s.label}>IMAGES ({images.length}/{MAX_IMAGES})</Text>
+          {images.length > 0 && (
+            <Pressable
+              style={s.clearBtn}
+              onPress={() => {
+                Alert.alert('Clear all photos?', 'This will remove all gallery images.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Clear', style: 'destructive', onPress: () => { setImages([]); save({ images: [] }); } },
+                ]);
+              }}
+            >
+              <Feather name="trash-2" size={11} color="#ef4444" />
+              <Text style={s.clearBtnTxt}>Clear all</Text>
+            </Pressable>
+          )}
+        </View>
         <View style={s.grid}>
           {slots.map((uri, idx) =>
             uri ? (
@@ -137,8 +153,8 @@ export default function GalleryConfigFields({ section, eventId, iosKeyboardInset
                 <View style={s.replaceHint}>
                   <Feather name="refresh-cw" size={10} color="rgba(255,255,255,0.7)" />
                 </View>
-                <Pressable style={s.removeBtn} onPress={() => removeImage(idx)} hitSlop={6}>
-                  <Feather name="x" size={10} color="#fff" />
+                <Pressable style={s.removeBtn} onPress={() => removeImage(idx)} hitSlop={4}>
+                  <Feather name="x" size={13} color="#fff" />
                 </Pressable>
               </Pressable>
             ) : (
@@ -174,6 +190,9 @@ const s = StyleSheet.create({
   segActive:    { backgroundColor: 'rgba(108,111,238,0.2)', borderColor: ACC },
   segTxt:       { fontSize: 13, color: MT, fontWeight: '500' },
   segTxtActive: { color: '#fff' },
+  imagesHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  clearBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: 'rgba(239,68,68,0.12)' },
+  clearBtnTxt:  { fontSize: 11, fontWeight: '700', color: '#ef4444' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   cell: {
     width: '30%', aspectRatio: 1, borderRadius: 10,
@@ -181,9 +200,9 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: BD,
   },
   removeBtn: {
-    position: 'absolute', top: 4, right: 4,
-    width: 18, height: 18, borderRadius: 9,
-    backgroundColor: 'rgba(0,0,0,0.75)',
+    position: 'absolute', top: 5, right: 5,
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: '#ef4444',
     alignItems: 'center', justifyContent: 'center',
   },
   replaceHint: {

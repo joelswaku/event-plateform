@@ -2,6 +2,7 @@
 import { db } from "../config/db.js";
 import crypto from "crypto";
 import { sendMail, sendEventInvitationEmail, sendSeatAssignmentEmail, sendRsvpConfirmationEmail } from "../utils/sendEmail.js";
+import { createNotificationService, getEventOwnerIdService } from "./notifications.service.js";
 import QRCode from "qrcode";
 
 /* =========================
@@ -570,7 +571,25 @@ export async function submitGuestRsvpService({
 
     await client.query("COMMIT");
 
-    return result.rows[0];
+    const rsvp = result.rows[0];
+
+    // Fire-and-forget notification to event owner
+    getEventOwnerIdService(eventId).then((ownerId) => {
+      if (!ownerId) return;
+      const status = payload.rsvp_status;
+      const guestName = guest.full_name || guest.email || "A guest";
+      const statusLabel = status === "GOING" ? "is going" : status === "MAYBE" ? "might attend" : "declined";
+      createNotificationService({
+        userId: ownerId,
+        type: "new_rsvp",
+        title: `${guestName} ${statusLabel}`,
+        body: `RSVP update for your event.`,
+        link: `/events/${eventId}/guests`,
+        metadata: { eventId, guestId: guest.id, rsvpStatus: status },
+      });
+    }).catch(() => {});
+
+    return rsvp;
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

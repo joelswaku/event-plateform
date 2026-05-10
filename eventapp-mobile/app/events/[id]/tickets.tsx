@@ -115,6 +115,10 @@ export default function EventTicketsScreen() {
               ticket={t}
               onEdit={() => openEdit(t)}
               onDelete={() => setDeleteTarget(t)}
+              onToggle={async () => {
+                await updateTicketType(t.id, { is_active: !t.is_active });
+                fetchTicketTypes(eventId!);
+              }}
             />
           ))
         )}

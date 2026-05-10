@@ -3,6 +3,7 @@
 import { db } from "../config/db.js";
 import { stripe } from "../config/stripe.js";
 import { issueTicketsForOrderService } from "./ticket-issuance.service.js";
+import { createNotificationService, getEventOwnerIdService } from "./notifications.service.js";
 
 class AppError extends Error {
   constructor(message, statusCode = 400, details = null) {
@@ -244,8 +245,10 @@ export async function createTicketOrderService({
           metadata: { order_id: order.id, event_id: eventId },
           receipt_email: order.buyer_email || undefined,
         },
-        success_url: `${frontendUrl}/e/${eventSlug}/tickets?payment=success&order_id=${order.id}`,
-        cancel_url: `${frontendUrl}/e/${eventSlug}/tickets?payment=cancelled`,
+        // Support {ORDER_ID} placeholder so mobile callers can embed the real order ID
+        success_url: (payload.success_url || `${frontendUrl}/e/${eventSlug}/tickets?payment=success&order_id=${order.id}`)
+          .replace('{ORDER_ID}', order.id),
+        cancel_url: payload.cancel_url || `${frontendUrl}/e/${eventSlug}/tickets?payment=cancelled`,
       });
 
       providerPaymentIntentId = session.id;
@@ -268,6 +271,19 @@ export async function createTicketOrderService({
 
     if (!paymentRequired) {
       issuedTickets = await issueTicketsForOrderService(order.id);
+      // Notify event owner of free/comp ticket issuance
+      getEventOwnerIdService(order.event_id).then((ownerId) => {
+        if (!ownerId) return;
+        const qty = createdItems.reduce((s, it) => s + (it.quantity || 1), 0);
+        createNotificationService({
+          userId: ownerId,
+          type: "ticket_sold",
+          title: `${qty} ticket${qty !== 1 ? "s" : ""} issued`,
+          body: `${payload.buyer_email} · ${event.title}`,
+          link: `/events/${order.event_id}/tickets`,
+          metadata: { eventId: order.event_id, orderId: order.id, quantity: qty, total: Number(order.total) },
+        });
+      }).catch(() => {});
     }
 
     return {

@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator, Linking,
+  View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BottomSheet } from '@/components/ui/BottomSheet';
-import { Button }      from '@/components/ui/Button';
-import { Colors }      from '@/constants/colors';
-import { getTierConfig } from '@/lib/tier';
-import { fmtCurrency }   from '@/lib/format';
+import { BottomSheet }    from '@/components/ui/BottomSheet';
+import { Button }         from '@/components/ui/Button';
+import { Colors }         from '@/constants/colors';
+import { getTierConfig }  from '@/lib/tier';
+import { fmtCurrency }    from '@/lib/format';
 import { useTicketStore } from '@/store/ticket.store';
+import { openStripeCheckout, TICKET_SUCCESS_URL, TICKET_CANCEL_URL } from '@/lib/stripe';
 import { TicketType }     from '@/types';
 
 interface PurchaseSheetProps {
@@ -43,22 +44,39 @@ export function PurchaseSheet({ open, onClose, ticket, eventId }: PurchaseSheetP
   };
 
   const submit = async () => {
-    if (!form.name.trim())             return setError('Full name is required');
-    if (!form.email.includes('@'))     return setError('Enter a valid email address');
+    if (!form.name.trim())         return setError('Full name is required');
+    if (!form.email.includes('@')) return setError('Enter a valid email address');
     setError('');
     setLoading(true);
+
     const result = await purchaseTicket(eventId, {
       buyer_name:  form.name.trim(),
       buyer_email: form.email.trim().toLowerCase(),
       buyer_phone: form.phone.trim() || undefined,
       items:       [{ ticket_type_id: ticket.id, quantity: qty }],
+      // Mobile deep-link redirects — backend substitutes {ORDER_ID} with real ID
+      success_url: TICKET_SUCCESS_URL,
+      cancel_url:  TICKET_CANCEL_URL,
     });
+
     setLoading(false);
-    if (!result.success) { setError(result.message ?? 'Purchase failed'); return; }
+
+    if (!result.success) {
+      setError(result.message ?? 'Purchase failed');
+      return;
+    }
+
     if (result.data?.payment_required && result.data.checkout_url) {
-      Linking.openURL(result.data.checkout_url);
-      onClose();
+      // Open Stripe in an in-app browser (Safari View Controller / Chrome Custom Tab)
+      const stripeResult = await openStripeCheckout(result.data.checkout_url);
+      if (stripeResult.type === 'ticket_success') {
+        setSuccess(true);
+      } else if (stripeResult.type === 'error') {
+        setError(stripeResult.message ?? 'Payment failed');
+      }
+      // type === 'cancel': do nothing — sheet stays open so user can retry
     } else {
+      // Free ticket — issued immediately
       setSuccess(true);
     }
   };

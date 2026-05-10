@@ -8,12 +8,13 @@ import { getTierConfig } from '@/lib/tier';
 import { fmtCurrency } from '@/lib/format';
 
 interface TicketTypeCardProps {
-  ticket:   TicketType;
-  onEdit?:  () => void;
+  ticket:    TicketType;
+  onEdit?:   () => void;
   onDelete?: () => void;
+  onToggle?: () => void;
 }
 
-export function TicketTypeCard({ ticket, onEdit, onDelete }: TicketTypeCardProps) {
+export function TicketTypeCard({ ticket, onEdit, onDelete, onToggle }: TicketTypeCardProps) {
   const tier      = getTierConfig(ticket);
   const sold      = ticket.quantity_sold;
   const total     = ticket.quantity_total;
@@ -70,15 +71,26 @@ export function TicketTypeCard({ ticket, onEdit, onDelete }: TicketTypeCardProps
 
         {/* Active badge */}
         <View style={styles.footer}>
-          <View style={[
-            styles.statusDot,
-            { backgroundColor: ticket.is_active ? `${Colors.accent.emerald}20` : `${Colors.accent.red}15` },
-          ]}>
+          <Pressable
+            onPress={onToggle}
+            disabled={!onToggle}
+            style={[
+              styles.statusDot,
+              { backgroundColor: ticket.is_active ? `${Colors.accent.emerald}20` : `${Colors.accent.red}15` },
+            ]}
+          >
             <View style={[styles.dot, { backgroundColor: ticket.is_active ? Colors.accent.emerald : Colors.accent.red }]} />
             <Text style={[styles.statusText, { color: ticket.is_active ? Colors.accent.emerald : Colors.accent.red }]}>
               {ticket.is_active ? 'Active' : 'Inactive'}
             </Text>
-          </View>
+            {onToggle && (
+              <Feather
+                name={ticket.is_active ? 'toggle-right' : 'toggle-left'}
+                size={14}
+                color={ticket.is_active ? Colors.accent.emerald : Colors.accent.red}
+              />
+            )}
+          </Pressable>
 
           <View style={styles.actions}>
             {onEdit && (

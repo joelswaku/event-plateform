@@ -8,41 +8,42 @@ import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
 import { useEventStore }    from '@/store/event.store';
-import { Input }            from '@/components/ui/Input';
+import { useTicketStore }   from '@/store/ticket.store';
+import { Input }             from '@/components/ui/Input';
 import { Button }           from '@/components/ui/Button';
 import { DateTimePicker }   from '@/components/ui/DateTimePicker';
 import { Colors }           from '@/constants/colors';
 
 const { width: SW } = Dimensions.get('window');
 
-/* ─── Full category tree (mirrors web) ────────────────────────────────────── */
+/* ─── Full category tree ────────────────────────────────────── */
 const CATEGORIES = [
   {
     id: 'social', label: 'Social Events', icon: '🎉', color: '#8b5cf6',
     subcategories: [
       { id: 'WEDDING',       label: 'Wedding',         icon: '💍', eventType: 'WEDDING'         },
       { id: 'ENGAGEMENT',    label: 'Engagement',      icon: '💒', eventType: 'WEDDING'         },
-      { id: 'BIRTHDAY',      label: 'Birthday',        icon: '🎂', eventType: 'BIRTHDAY'        },
-      { id: 'ANNIVERSARY',   label: 'Anniversary',     icon: '🥂', eventType: 'BIRTHDAY'        },
-      { id: 'BABY_SHOWER',   label: 'Baby Shower',     icon: '🍼', eventType: 'BIRTHDAY'        },
+      { id: 'BIRTHDAY',      label: 'Birthday',         icon: '🎂', eventType: 'BIRTHDAY'        },
+      { id: 'ANNIVERSARY',   label: 'Anniversary',      icon: '🥂', eventType: 'BIRTHDAY'        },
+      { id: 'BABY_SHOWER',   label: 'Baby Shower',      icon: '🍼', eventType: 'BIRTHDAY'        },
       { id: 'GENDER_REVEAL', label: 'Gender Reveal',   icon: '🎀', eventType: 'BIRTHDAY'        },
       { id: 'GRADUATION',    label: 'Graduation',      icon: '🎓', eventType: 'OTHER'           },
-      { id: 'FUNERAL',       label: 'Funeral',         icon: '🕊️', eventType: 'FUNERAL'        },
-      { id: 'PRIVATE_PARTY', label: 'Private Party',   icon: '🎈', eventType: 'BIRTHDAY'        },
-      { id: 'FAMILY_REUNION',label: 'Family Reunion',  icon: '👨‍👩‍👧‍👦', eventType: 'OTHER' },
+      { id: 'FUNERAL',       label: 'Funeral',          icon: '🕊️', eventType: 'FUNERAL'        },
+      { id: 'PRIVATE_PARTY', label: 'Private Party',    icon: '🎈', eventType: 'BIRTHDAY'        },
+      { id: 'FAMILY_REUNION',label: 'Family Reunion',   icon: '👨‍👩‍👧‍👦', eventType: 'OTHER' },
     ],
   },
   {
     id: 'corporate', label: 'Corporate & Professional', icon: '💼', color: '#0ea5e9',
     subcategories: [
-      { id: 'MEETING',        label: 'Meeting',          icon: '📋', eventType: 'MEETING'         },
-      { id: 'CONFERENCE',     label: 'Conference',       icon: '🎤', eventType: 'CORPORATE_EVENT' },
-      { id: 'SEMINAR',        label: 'Seminar',          icon: '📚', eventType: 'CORPORATE_EVENT' },
-      { id: 'WORKSHOP',       label: 'Workshop',         icon: '🛠️', eventType: 'MEETING'        },
-      { id: 'NETWORKING',     label: 'Networking',       icon: '🤝', eventType: 'CORPORATE_EVENT' },
-      { id: 'PRODUCT_LAUNCH', label: 'Product Launch',   icon: '🚀', eventType: 'CORPORATE_EVENT' },
-      { id: 'COMPANY_PARTY',  label: 'Company Party',    icon: '🥳', eventType: 'CORPORATE_EVENT' },
-      { id: 'TRAINING',       label: 'Training',         icon: '📝', eventType: 'MEETING'         },
+      { id: 'MEETING',         label: 'Meeting',           icon: '📋', eventType: 'MEETING'          },
+      { id: 'CONFERENCE',      label: 'Conference',        icon: '🎤', eventType: 'CORPORATE_EVENT' },
+      { id: 'SEMINAR',         label: 'Seminar',           icon: '📚', eventType: 'CORPORATE_EVENT' },
+      { id: 'WORKSHOP',        label: 'Workshop',          icon: '🛠️', eventType: 'MEETING'         },
+      { id: 'NETWORKING',      label: 'Networking',        icon: '🤝', eventType: 'CORPORATE_EVENT' },
+      { id: 'PRODUCT_LAUNCH', label: 'Product Launch',    icon: '🚀', eventType: 'CORPORATE_EVENT' },
+      { id: 'COMPANY_PARTY',   label: 'Company Party',     icon: '🥳', eventType: 'CORPORATE_EVENT' },
+      { id: 'TRAINING',        label: 'Training',          icon: '📝', eventType: 'MEETING'          },
     ],
   },
   {
@@ -50,8 +51,8 @@ const CATEGORIES = [
     subcategories: [
       { id: 'CONCERT',    label: 'Concert',         icon: '🎵', eventType: 'CONCERT' },
       { id: 'FESTIVAL',   label: 'Festival',        icon: '🎪', eventType: 'CONCERT' },
-      { id: 'LIVE_SHOW',  label: 'Live Show',       icon: '🎭', eventType: 'CONCERT' },
-      { id: 'NIGHTCLUB',  label: 'Nightclub Event', icon: '🌙', eventType: 'CONCERT' },
+      { id: 'LIVE_SHOW',   label: 'Live Show',       icon: '🎭', eventType: 'CONCERT' },
+      { id: 'NIGHTCLUB',   label: 'Nightclub Event', icon: '🌙', eventType: 'CONCERT' },
       { id: 'THEATER',    label: 'Theater',         icon: '🎬', eventType: 'CONCERT' },
       { id: 'COMEDY',     label: 'Comedy Show',     icon: '😂', eventType: 'CONCERT' },
       { id: 'SPORTS',     label: 'Sports Event',    icon: '🏟️', eventType: 'CONCERT' },
@@ -78,7 +79,7 @@ const CATEGORIES = [
       { id: 'BOOTCAMP',     label: 'Bootcamp',            icon: '⚡', eventType: 'MEETING'  },
       { id: 'COMMUNITY',    label: 'Community Gathering', icon: '🏘️', eventType: 'OTHER'  },
       { id: 'CHARITY',      label: 'Charity Event',       icon: '❤️', eventType: 'OTHER'  },
-      { id: 'FUNDRAISER',   label: 'Fundraiser',          icon: '💰', eventType: 'OTHER'   },
+      { id: 'FUNDRAISER',   label: 'Fundraiser',           icon: '💰', eventType: 'OTHER'   },
     ],
   },
   {
@@ -124,10 +125,11 @@ const INITIAL: FormState = {
 
 export default function CreateEventScreen() {
   const router = useRouter();
-  const { createEvent } = useEventStore();
+  const { createEvent }       = useEventStore();
+  const { createTicketType }  = useTicketStore();
 
-  const [step,        setStep]       = useState(0);
-  const [form,        setForm]       = useState<FormState>(INITIAL);
+  const [step,         setStep]       = useState(0);
+  const [form,         setForm]       = useState<FormState>(INITIAL);
   const [expandedCat, setExpandedCat]= useState<string | null>(null);
   const [saving,      setSaving]     = useState(false);
 
@@ -170,7 +172,13 @@ export default function CreateEventScreen() {
       return;
     }
     Toast.show({ type: 'success', text1: '🎉 Event created!' });
-    router.replace(`/events/${result.event!.id}` as never);
+    const eventId = result.event!.id;
+    if (form.allow_ticketing) {
+      createTicketType(eventId, {
+        name: 'General Admission', kind: 'FREE', price: 0, is_active: true,
+      }).catch(() => {});
+    }
+    router.replace(`/events/${eventId}` as never);
   };
 
   const selectedSub = CATEGORIES.flatMap(c => c.subcategories).find(s => s.id === form.subcategory);
@@ -219,7 +227,7 @@ export default function CreateEventScreen() {
           showsVerticalScrollIndicator={false}
         >
 
-          {/* ── STEP 0: Category picker ─────────────────────────────── */}
+          {/* ── STEP 0: Category picker ── */}
           {step === 0 && (
             <View style={styles.catWrap}>
               <Text style={styles.stepHint}>What kind of event are you hosting?</Text>
@@ -286,7 +294,7 @@ export default function CreateEventScreen() {
             </View>
           )}
 
-          {/* ── STEP 1: Details ─────────────────────────────────────── */}
+          {/* ── STEP 1: Details ── */}
           {step === 1 && (
             <View style={styles.fields}>
               <Text style={styles.stepHint}>Tell guests about your event</Text>
@@ -309,7 +317,7 @@ export default function CreateEventScreen() {
               />
               <Input
                 label="Description"
-                placeholder="Tell guests what to expect, the agenda, dress code…"
+                placeholder="Tell guests what to expect..."
                 value={form.description}
                 onChangeText={t => update('description', t)}
                 multiline
@@ -338,18 +346,18 @@ export default function CreateEventScreen() {
             </View>
           )}
 
-          {/* ── STEP 2: Venue ───────────────────────────────────────── */}
+          {/* ── STEP 2: Venue ── */}
           {step === 2 && (
             <View style={styles.fields}>
               <Text style={styles.stepHint}>Where is the event taking place?</Text>
               <Input label="Venue Name"     placeholder="Madison Square Garden" value={form.venue_name}    onChangeText={t => update('venue_name', t)}    icon="map-pin"  />
               <Input label="Street Address" placeholder="4 Pennsylvania Plaza"  value={form.venue_address} onChangeText={t => update('venue_address', t)} icon="navigation"/>
-              <Input label="City"           placeholder="New York"              value={form.city}          onChangeText={t => update('city', t)}          icon="map"      />
+              <Input label="City"           placeholder="New York"               value={form.city}          onChangeText={t => update('city', t)}          icon="map"      />
               <Input label="Country"        placeholder="US"                    value={form.country}       onChangeText={t => update('country', t)}       icon="flag"     />
             </View>
           )}
 
-          {/* ── STEP 3: Settings ────────────────────────────────────── */}
+          {/* ── STEP 3: Settings ── */}
           {step === 3 && (
             <View style={styles.toggles}>
               <Text style={styles.stepHint}>Configure event features</Text>
@@ -408,7 +416,7 @@ export default function CreateEventScreen() {
   );
 }
 
-/* ─── Toggle row ─────────────────────────────────────────────────────────── */
+/* ─── Toggle row ─── */
 function ToggleRow({ icon, label, sub, value, onChange, color }: {
   icon: keyof typeof Feather.glyphMap;
   label: string; sub: string; value: boolean; color: string;
@@ -436,7 +444,7 @@ function ToggleRow({ icon, label, sub, value, onChange, color }: {
   );
 }
 
-/* ─── Styles ──────────────────────────────────────────────────────────────── */
+/* ─── Styles ─── */
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg.primary },
   root: { flex: 1 },
@@ -467,7 +475,6 @@ const styles = StyleSheet.create({
   content:  { padding: 16, paddingBottom: 16, gap: 12 },
   stepHint: { fontSize: 14, color: Colors.text.muted, marginBottom: 4 },
 
-  // Category picker
   catWrap:  { gap: 8 },
   catGroup: { gap: 0 },
   catHeader: {
@@ -481,15 +488,25 @@ const styles = StyleSheet.create({
   catSelected: { fontSize: 11, marginTop: 2, fontWeight: '600' },
 
   subGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 8,
-    paddingTop: 8, paddingHorizontal: 4, paddingBottom: 4,
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    gap: 8,
+    paddingTop: 8, 
+    paddingHorizontal: 4, 
+    paddingBottom: 4,
+    justifyContent: 'center', // Centers the toggle cards when dropdown opens
   },
   subCard: {
-    width: (SW - 48) / 3,
-    alignItems: 'center', gap: 5,
-    paddingVertical: 12, paddingHorizontal: 6,
-    borderRadius: 12, borderWidth: 1, borderColor: Colors.border.DEFAULT,
-    backgroundColor: Colors.bg.elevated, position: 'relative',
+    width: (SW - 48) / 3.2, // Slightly adjusted for better fit during centering
+    alignItems: 'center', 
+    gap: 5,
+    paddingVertical: 12, 
+    paddingHorizontal: 6,
+    borderRadius: 12, 
+    borderWidth: 1, 
+    borderColor: Colors.border.DEFAULT,
+    backgroundColor: Colors.bg.elevated, 
+    position: 'relative',
   },
   subIcon:  { fontSize: 20 },
   subLabel: { fontSize: 10, fontWeight: '700', color: Colors.text.muted, textAlign: 'center' },
@@ -499,7 +516,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
 
-  // Selected category pill
   catPill: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 14, paddingVertical: 10,
@@ -508,10 +524,7 @@ const styles = StyleSheet.create({
   catPillText:   { fontSize: 13, fontWeight: '700', color: '#fff' },
   catPillChange: { fontSize: 12, fontWeight: '700' },
 
-  // Fields
   fields:  { gap: 12 },
-
-  // Toggles
   toggles: { gap: 8 },
   toggleRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -526,3 +539,13 @@ const styles = StyleSheet.create({
 
   bottom: { padding: 16, paddingBottom: 32, borderTopWidth: 1, borderTopColor: Colors.border.subtle },
 });
+
+
+
+
+
+
+
+
+
+

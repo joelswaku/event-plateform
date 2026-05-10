@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -35,10 +35,48 @@ import {
   ArrowUpRight,
   Package,
   CircleDot,
+  Home,
+  User,
 } from "lucide-react";
 import { useTicketStore } from "@/store/ticket.store";
 import { useEventStore } from "@/store/event.store";
 import { EVENT_CATEGORIES } from "@/config/event-categories";
+
+function MobileBottomNav() {
+  const pathname = usePathname();
+  const tabs = [
+    { href: "/dashboard", label: "Home",    Icon: Home,         active: pathname === "/dashboard" },
+    { href: "/events",    label: "Events",  Icon: CalendarDays, active: pathname.startsWith("/events") && !pathname.includes("create") },
+    null,
+    { href: "/tickets",   label: "Tickets", Icon: Ticket,       active: pathname === "/tickets" },
+    { href: "/settings",  label: "Account", Icon: User,         active: pathname === "/settings" },
+  ];
+  return (
+    <div className="shrink-0 border-t px-1 pt-2"
+      style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.08)", paddingBottom: "max(10px, env(safe-area-inset-bottom))" }}>
+      <div className="flex items-end justify-around">
+        {tabs.map((tab) => {
+          if (!tab) return (
+            <Link key="create" href="/events/create" className="-mt-5 flex flex-col items-center gap-1">
+              <div className="flex h-14 w-14 items-center justify-center rounded-[18px]"
+                style={{ background: "linear-gradient(135deg, #4f46e5, #6366f1)", boxShadow: "0 4px 20px rgba(99,102,241,0.45)" }}>
+                <Plus size={24} className="text-white" />
+              </div>
+              <span className="mt-0.5 text-[10px] font-extrabold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.40)" }}>Create</span>
+            </Link>
+          );
+          const { href, label, Icon, active } = tab;
+          return (
+            <Link key={href} href={href} className="flex flex-col items-center gap-1 px-3 py-1">
+              <Icon size={22} style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }} />
+              <span className="text-[10px] font-extrabold uppercase tracking-wide" style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }}>{label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -863,9 +901,34 @@ export default function TicketsPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <>
+      {/* ── MOBILE OVERLAY ── */}
+      <div className="sm:hidden fixed inset-0 z-50 flex flex-col overflow-hidden dark" style={{ background: "#07070f" }}>
+        <div className="flex shrink-0 items-center gap-3 border-b px-4"
+          style={{ borderColor: "rgba(255,255,255,0.08)", paddingTop: "max(12px, env(safe-area-inset-top))", paddingBottom: 12 }}>
+          <Link href={`/events/${eventId}`}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px]"
+            style={{ background: "#14141f", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <ChevronLeft size={17} style={{ color: "rgba(255,255,255,0.5)" }} />
+          </Link>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-[20px] font-black text-white leading-tight">Tickets</h1>
+            <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>Manage ticket types & orders</p>
+          </div>
+          {!showSetup && tab === "types" && (
+            <button onClick={openCreate}
+              className="flex h-9 w-9 items-center justify-center rounded-[12px]"
+              style={{ background: "linear-gradient(135deg,#4f46e5,#6366f1)", boxShadow: "0 4px 16px rgba(99,102,241,0.4)" }}>
+              <Plus size={17} className="text-white" />
+            </button>
+          )}
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-4 space-y-4">
+            <div className="space-y-4">
 
-      {/* ── Page Header ──────────────────────────────────────────────────── */}
+      {/* Page header hidden in mobile - we have a custom dark header above */}
+      <div className="hidden">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-4">
           {/* Back */}
@@ -926,6 +989,7 @@ export default function TicketsPage() {
           )}
         </div>
       </div>
+      </div>{/* end hidden page header */}
 
       {/* ── KPI Strip ────────────────────────────────────────────────────── */}
       {stats && !showSetup && (
@@ -1102,7 +1166,144 @@ export default function TicketsPage() {
         </motion.div>
       </AnimatePresence>
 
-      {/* ── Modal ────────────────────────────────────────────────────────── */}
+            </div>
+          </div>
+        </div>
+        <MobileBottomNav />
+      </div>
+
+      {/* ── DESKTOP UI ── */}
+      <div className="hidden sm:block space-y-6">
+
+      {/* ── Page Header ──────────────────────────────────────────────────── */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <Link
+            href="/tickets"
+            className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            title="All events"
+          >
+            <ChevronLeft size={15} />
+          </Link>
+          <div>
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              {sub && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/30 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                  <span>{sub.icon}</span> {sub.label}
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/30 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                <Ticket size={9} /> Ticketed
+              </span>
+            </div>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white leading-tight">{event?.title ?? "Loading…"}</h1>
+            {event?.starts_at_local && (
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+                <CalendarDays size={11} />
+                {new Date(event.starts_at_local).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Link href={`/events/${eventId}/builder`}
+            className="hidden sm:flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+            <Palette size={13} /> Builder
+          </Link>
+          {!showSetup && tab === "types" && (
+            <motion.button initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} onClick={openCreate}
+              className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700 transition-colors active:scale-95 shadow-sm shadow-indigo-200 dark:shadow-indigo-900/30">
+              <Plus size={13} />
+              <span className="hidden sm:inline">New ticket type</span>
+              <span className="sm:hidden">New</span>
+            </motion.button>
+          )}
+        </div>
+      </div>
+
+      {stats && !showSetup && (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <KpiCard icon={DollarSign} label="Gross Revenue" value={fmt(stats.gross_revenue, stats.currency)} sub={`${fmt(stats.pending_revenue, stats.currency)} pending`} colorClass="text-emerald-600 dark:text-emerald-400" bgClass="bg-emerald-50 dark:bg-emerald-950/40" borderClass="border-emerald-100 dark:border-emerald-900/30" delay={0} />
+          <KpiCard icon={ShoppingBag} label="Paid Orders" value={stats.paid_orders} sub={`${stats.total_orders} total`} colorClass="text-indigo-600 dark:text-indigo-400" bgClass="bg-indigo-50 dark:bg-indigo-950/40" borderClass="border-indigo-100 dark:border-indigo-900/30" delay={0.05} />
+          <KpiCard icon={Users} label="Tickets Issued" value={stats.total_issued} sub={`${stats.checked_in} checked in`} colorClass="text-violet-600 dark:text-violet-400" bgClass="bg-violet-50 dark:bg-violet-950/40" borderClass="border-violet-100 dark:border-violet-900/30" delay={0.1} />
+          <KpiCard icon={TrendingUp} label="Pending Revenue" value={fmt(stats.pending_revenue, stats.currency)} sub="awaiting payment" colorClass="text-amber-600 dark:text-amber-400" bgClass="bg-amber-50 dark:bg-amber-950/40" borderClass="border-amber-100 dark:border-amber-900/30" delay={0.15} />
+        </div>
+      )}
+
+      {!showSetup && (
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-1 gap-1">
+            {tabs.map((t) => {
+              const Icon = t.icon;
+              return (
+                <button key={t.id} onClick={() => setTab(t.id)}
+                  className={`relative flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all ${tab === t.id ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-white"}`}>
+                  <Icon size={14} />
+                  {t.label}
+                  {t.count > 0 && (
+                    <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${tab === t.id ? "bg-white/20 dark:bg-black/20 text-white dark:text-gray-900" : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"}`}>
+                      {t.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <AnimatePresence mode="wait">
+        <motion.div key={showSetup ? "setup" : tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
+          {showSetup && <SetupScreen event={event} onStartFresh={openCreate} />}
+          {!showSetup && tab === "types" && (
+            <>
+              {loading ? (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {[1, 2, 3].map((i) => <div key={i} className="h-52 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />)}
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {tickets.map((t) => <TicketTypeCard key={t.id} ticket={t} onEdit={(t) => { setEditing(t); setFormOpen(true); }} onDelete={handleDelete} onToggle={handleToggle} />)}
+                  <AddTicketCard onClick={openCreate} />
+                </div>
+              )}
+            </>
+          )}
+          {tab === "orders" && (
+            <div>
+              {orders.length > 0 && (
+                <div className="hidden md:flex items-center gap-4 px-5 py-2 mb-1">
+                  <div className="w-9 shrink-0" />
+                  <p className="flex-1 text-[10px] font-semibold uppercase tracking-wider text-gray-300 dark:text-gray-600">Buyer</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-300 dark:text-gray-600">Amount</p>
+                  <p className="hidden sm:block text-[10px] font-semibold uppercase tracking-wider text-gray-300 dark:text-gray-600 w-20 text-center">Status</p>
+                  <p className="hidden md:block text-[10px] font-semibold uppercase tracking-wider text-gray-300 dark:text-gray-600 w-28 text-right">Date</p>
+                  <div className="w-5 shrink-0" />
+                </div>
+              )}
+              <div className="space-y-2">
+                {orders.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 py-20 text-center">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
+                      <ShoppingBag size={22} className="text-gray-300 dark:text-gray-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">No orders yet</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Orders appear here once guests purchase tickets</p>
+                    </div>
+                  </div>
+                ) : (
+                  orders.map((o) => <OrderRow key={o.id} order={o} />)
+                )}
+              </div>
+            </div>
+          )}
+          {tab === "stats" && <StatsTab stats={stats} />}
+        </motion.div>
+      </AnimatePresence>
+      </div>
+
+      {/* ── Modal (above mobile overlay) ── */}
       <AnimatePresence>
         {formOpen && (
           <TicketFormModal
@@ -1112,7 +1313,7 @@ export default function TicketsPage() {
           />
         )}
       </AnimatePresence>
-    </div>
+    </>
   );
 }
 

@@ -23,7 +23,15 @@
       "PowerShell(Stop-Process -Name \"node\" -Force -ErrorAction SilentlyContinue)",
       "PowerShell(Get-ChildItem -Recurse \"c:\\\\projects\\\\event-plateform\\\\eventapp-mobile\\\\components\\\\builder\" | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Replace\\(\"c:\\\\projects\\\\event-plateform\\\\eventapp-mobile\\\\\", \"\"\\) })",
       "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('date-fns:', p.dependencies['date-fns'] || 'NOT FOUND'\\)\")",
-      "Bash(git status *)"
+      "Bash(git status *)",
+      "Read(//c/Users/joels/Downloads/**)",
+      "Bash(Get-ChildItem -Path \"c:\\\\projects\\\\event-plateform\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(Get-ChildItem -Path \"c:\\\\projects\\\\event-plateform\\\\web\\\\src\\\\app\\\\\\(dashboard\\)\\\\\" -Recurse -Directory | Select-Object -ExpandProperty FullName)",
+      "Read(//c/c/projects/event-plateform/**)",
+      "Bash(npx next *)",
+      "Bash(Get-ChildItem -Path \"c:\\\\projects\\\\event-plateform\\\\api\\\\\" -Recurse -Directory | Select-Object -ExpandProperty FullName | head -30)",
+      "Bash(grep -E \"\\\\.\\(js|tsx\\)$\")"
     ]
   }
 }

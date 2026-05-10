@@ -18,6 +18,7 @@ import eventBuilderRoutes from "./event-builder.routes.js";
 import engagementRoutes from "./engagement.routes.js";
 import uploadImages from "./media-upload.routes.js";
 import subscriptionRoutes from "./subscription.routes.js";
+import notificationsRoutes from "./notifications.routes.js";
 
 const router = Router();
 
@@ -50,6 +51,9 @@ router.use("/upload-image", uploadImages);
 
 // 💳 SUBSCRIPTIONS
 router.use("/subscription", subscriptionRoutes);
+
+// 🔔 NOTIFICATIONS
+router.use("/notifications", notificationsRoutes);
 
 // 👥 GUESTS — mounted last because it uses router.use(authenticate) globally
 // and is mounted at "/" which matches all paths

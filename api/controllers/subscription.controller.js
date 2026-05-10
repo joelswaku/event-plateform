@@ -22,7 +22,8 @@ export async function getSubscriptionStatus(req, res) {
 
 export async function createCheckoutSession(req, res) {
   try {
-    const data = await createCheckoutSessionService(req.user.id, req.body.priceId);
+    const { priceId, successUrl, cancelUrl } = req.body;
+    const data = await createCheckoutSessionService(req.user.id, priceId, successUrl, cancelUrl);
     return res.status(200).json({ success: true, data });
   } catch (err) {
     console.error("[subscription] createCheckout error:", err.message);

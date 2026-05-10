@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus, X, ChevronRight, Ticket, Sparkles, Search, BarChart3,
   Tag, Users, Calendar, TrendingUp, CheckCircle2, Clock, Zap,
   Pencil, Trash2, ChevronDown, ChevronUp, AlertTriangle, Save,
-  ArrowRight, LayoutTemplate, Palette,
+  ArrowRight, LayoutTemplate, Palette, Home, CalendarDays, User,
 } from "lucide-react";
 import { useTicketStore } from "@/store/ticket.store";
 import { EVENT_CATEGORIES } from "@/config/event-categories";
@@ -984,6 +985,239 @@ function EmptyState({ hasFilter, onClear, onCreate }) {
   );
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// MOBILE COMPONENTS
+// ══════════════════════════════════════════════════════════════════════════════
+
+function MobileBottomNav() {
+  const pathname = usePathname();
+  const tabs = [
+    { href: "/dashboard", label: "Home",    Icon: Home,         active: pathname === "/dashboard" },
+    { href: "/events",    label: "Events",  Icon: CalendarDays, active: pathname.startsWith("/events") && !pathname.includes("create") },
+    null,
+    { href: "/tickets",   label: "Tickets", Icon: Ticket,       active: pathname === "/tickets" },
+    { href: "/settings",  label: "Account", Icon: User,         active: pathname === "/settings" },
+  ];
+  return (
+    <div
+      className="shrink-0 border-t px-1 pt-2"
+      style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.08)", paddingBottom: "max(10px, env(safe-area-inset-bottom))" }}
+    >
+      <div className="flex items-end justify-around">
+        {tabs.map((tab) => {
+          if (!tab) {
+            return (
+              <Link key="create" href="/events/create" className="-mt-5 flex flex-col items-center gap-1">
+                <div className="flex h-14 w-14 items-center justify-center rounded-[18px]" style={{ background: "linear-gradient(135deg, #4f46e5, #6366f1)", boxShadow: "0 4px 20px rgba(99,102,241,0.45)" }}>
+                  <Plus size={24} className="text-white" />
+                </div>
+                <span className="mt-0.5 text-[10px] font-extrabold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.40)" }}>Create</span>
+              </Link>
+            );
+          }
+          const { href, label, Icon, active } = tab;
+          return (
+            <Link key={href} href={href} className="flex flex-col items-center gap-1 px-3 py-1">
+              <Icon size={22} style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }} />
+              <span className="text-[10px] font-extrabold uppercase tracking-wide" style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }}>{label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function MobileStatTile({ Icon, label, value, accent, loading }) {
+  return (
+    <div
+      className="flex shrink-0 flex-col gap-1.5 overflow-hidden rounded-[18px] border p-4"
+      style={{ minWidth: 110, background: `${accent}12`, borderColor: `${accent}22` }}
+    >
+      <div className="flex h-8 w-8 items-center justify-center rounded-[10px]" style={{ background: `${accent}20` }}>
+        <Icon size={15} style={{ color: accent }} />
+      </div>
+      {loading ? (
+        <div className="h-7 w-12 animate-pulse rounded-lg" style={{ background: `${accent}18` }} />
+      ) : (
+        <span className="text-[24px] font-black leading-none" style={{ color: accent }}>{value}</span>
+      )}
+      <span className="text-[10px] font-bold uppercase tracking-[0.4px]" style={{ color: "rgba(255,255,255,0.40)" }}>{label}</span>
+    </div>
+  );
+}
+
+function MobileTicketEventCard({ event, onManage }) {
+  const accent  = getAccentForEvent(event);
+  const sub     = getSubForEvent(event);
+  const dateStr = fmtDate(event.starts_at_local);
+  const upcoming = isUpcoming(event.starts_at_local);
+
+  return (
+    <button
+      onClick={() => onManage(event.id)}
+      className="flex w-full items-center gap-3 overflow-hidden rounded-[18px] border text-left"
+      style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.07)" }}
+    >
+      {/* Accent stripe */}
+      <div className="h-full w-1 shrink-0 self-stretch" style={{ background: `linear-gradient(to bottom, ${accent.from}, ${accent.to})` }} />
+
+      {/* Icon */}
+      <div
+        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] text-xl leading-none"
+        style={{ background: `linear-gradient(135deg,${accent.from}20,${accent.to}12)`, border: `1px solid ${accent.from}28` }}
+      >
+        {sub?.icon ?? "🎟️"}
+      </div>
+
+      {/* Info */}
+      <div className="flex flex-1 flex-col gap-1 py-3 pr-3 min-w-0">
+        <span className="line-clamp-1 text-[14px] font-extrabold tracking-tight text-white">{event.title}</span>
+        <div className="flex items-center gap-2">
+          {dateStr && (
+            <div className="flex items-center gap-1">
+              <Calendar size={10} style={{ color: "rgba(255,255,255,0.30)" }} />
+              <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.30)" }}>{dateStr}</span>
+            </div>
+          )}
+          <span
+            className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+            style={upcoming ? { background: "rgba(16,185,129,0.15)", color: "#10b981" } : { background: "rgba(107,114,128,0.12)", color: "#6b7280" }}
+          >
+            {upcoming ? <CheckCircle2 size={8} /> : <Clock size={8} />}
+            {upcoming ? "Soon" : "Past"}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold" style={{ color: accent.from }}>
+            {event.ticket_count ?? 0} types
+          </span>
+          <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>
+            {(event.total_sold ?? 0).toLocaleString()} sold
+          </span>
+        </div>
+      </div>
+
+      <div className="pr-3.5">
+        <ChevronRight size={15} style={{ color: "rgba(255,255,255,0.20)" }} />
+      </div>
+    </button>
+  );
+}
+
+function MobileTicketsPage({ ticketedEvents, loadingTickets, filtered, stats, search, setSearch, onManage, onCreate, fetchError, onRetry }) {
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden" style={{ background: "#07070f" }}>
+
+      {/* Header */}
+      <div
+        className="flex items-center gap-3 px-4 pb-4"
+        style={{ paddingTop: "max(52px, env(safe-area-inset-top))" }}
+      >
+        <div className="flex-1">
+          <div className="flex items-center gap-1.5">
+            <Sparkles size={11} style={{ color: "#f59e0b" }} />
+            <p className="text-[11px] font-black uppercase tracking-[0.5px]" style={{ color: "#f59e0b" }}>
+              Ticketed &amp; Entertainment
+            </p>
+          </div>
+          <p className="text-[22px] font-black tracking-tight text-white">Tickets</p>
+        </div>
+        <button
+          onClick={onCreate}
+          className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-[12px]"
+          style={{ background: "linear-gradient(135deg, #f59e0b, #ef4444)", boxShadow: "0 4px 16px rgba(245,158,11,0.35)" }}
+        >
+          <Plus size={18} className="text-white" />
+        </button>
+      </div>
+
+      {/* Stats row */}
+      <div className="mb-3 flex gap-3 overflow-x-auto px-4 pb-1" style={{ scrollbarWidth: "none" }}>
+        <MobileStatTile Icon={Ticket} label="Events"       value={stats.totalEvents}                 accent="#f59e0b" loading={loadingTickets} />
+        <MobileStatTile Icon={Tag}    label="Ticket Types" value={stats.totalTypes}                  accent="#6366f1" loading={loadingTickets} />
+        <MobileStatTile Icon={Users}  label="Sold"         value={stats.totalSold.toLocaleString()}  accent="#06b6d4" loading={loadingTickets} />
+      </div>
+
+      {/* Search */}
+      <div
+        className="mx-4 mb-3 flex items-center gap-2.5 rounded-[14px] border px-3.5"
+        style={{ height: 44, background: "#14141f", borderColor: "rgba(255,255,255,0.10)" }}
+      >
+        <Search size={15} style={{ color: "rgba(255,255,255,0.30)" }} />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search events…"
+          className="flex-1 bg-transparent text-[14px] font-medium text-white outline-none placeholder:text-[rgba(255,255,255,0.22)]"
+        />
+        {search && (
+          <button onClick={() => setSearch("")} className="flex h-5 w-5 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.12)" }}>
+            <X size={11} style={{ color: "rgba(255,255,255,0.6)" }} />
+          </button>
+        )}
+      </div>
+
+      {/* List */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="flex flex-col gap-3 px-4 pb-6">
+
+          {fetchError && (
+            <div
+              className="flex items-center justify-between rounded-[14px] border px-4 py-3"
+              style={{ background: "rgba(239,68,68,0.10)", borderColor: "rgba(239,68,68,0.20)" }}
+            >
+              <div className="flex items-center gap-2">
+                <AlertTriangle size={14} className="text-red-400 shrink-0" />
+                <p className="text-[12px] font-semibold text-red-300">{fetchError}</p>
+              </div>
+              <button onClick={onRetry} className="text-[11px] font-bold text-red-400">Retry</button>
+            </div>
+          )}
+
+          {loadingTickets ? (
+            [...Array(3)].map((_, i) => (
+              <div key={i} className="h-[80px] animate-pulse rounded-[18px]" style={{ background: "#0e0e16" }} />
+            ))
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 py-16 text-center">
+              <div
+                className="flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-[22px] border"
+                style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.18) 0%, rgba(239,68,68,0.10) 100%)", borderColor: "rgba(245,158,11,0.20)" }}
+              >
+                <Ticket size={28} style={{ color: "#f59e0b" }} />
+              </div>
+              <p className="text-[18px] font-black tracking-tight text-white">
+                {search ? `No results for "${search}"` : "No ticketed events yet"}
+              </p>
+              <p className="text-[13px] leading-5" style={{ color: "rgba(255,255,255,0.40)" }}>
+                {search ? "Try a different search term." : "Create your first Concert, Festival, or Live Show."}
+              </p>
+              {!search && (
+                <button
+                  onClick={onCreate}
+                  className="mt-1 flex items-center gap-2 overflow-hidden rounded-full px-6 py-3"
+                  style={{ background: "linear-gradient(90deg, #f59e0b, #ef4444)" }}
+                >
+                  <Plus size={14} className="text-white" />
+                  <span className="text-[14px] font-extrabold text-white">Create Ticket</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            filtered.map((event) => (
+              <MobileTicketEventCard key={event.id} event={event} onManage={onManage} />
+            ))
+          )}
+        </div>
+      </div>
+
+      <MobileBottomNav />
+    </div>
+  );
+}
+
 /* ── Page ────────────────────────────────────────────────── */
 export default function TicketsPage() {
   const router = useRouter();
@@ -1055,7 +1289,26 @@ export default function TicketsPage() {
   const hasFilter = Boolean(search.trim());
 
   return (
-    <div className="space-y-7">
+    <>
+      {/* ── Mobile layout ── */}
+      <div className="sm:hidden">
+        <MobileTicketsPage
+          ticketedEvents={ticketedEvents}
+          loadingTickets={loadingTickets}
+          filtered={filtered}
+          stats={stats}
+          search={search}
+          setSearch={setSearch}
+          onManage={navigate}
+          onCreate={() => setShowOverlay(true)}
+          fetchError={fetchError}
+          onRetry={loadTicketedEvents}
+        />
+      </div>
+
+      {/* ── Desktop layout ── */}
+      <div className="hidden sm:block">
+      <div className="space-y-7">
       {/* ── header ── */}
       <motion.div
         initial={{ opacity: 0, y: -8 }}
@@ -1177,5 +1430,7 @@ export default function TicketsPage() {
         )}
       </AnimatePresence>
     </div>
+    </div>
+    </>
   );
 }

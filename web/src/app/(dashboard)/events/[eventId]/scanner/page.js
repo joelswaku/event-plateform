@@ -1,14 +1,52 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
+import Link from "next/link";
 import {
   QrCode, CheckCircle2, XCircle, AlertTriangle,
   RefreshCw, Wifi, WifiOff, Camera, CameraOff,
-  ChevronRight, Loader2, Ticket, Users, BarChart3,
-  ClipboardList, Search, Trash2, RotateCcw,
+  ChevronRight, ChevronLeft, Loader2, Ticket, Users, BarChart3,
+  ClipboardList, Search, Trash2, RotateCcw, Home, User, CalendarDays, Plus,
 } from "lucide-react";
 import { api } from "@/lib/api";
+
+// ─── Mobile Bottom Nav ────────────────────────────────────────────────────────
+function MobileBottomNav() {
+  const pathname = usePathname();
+  const tabs = [
+    { href: "/dashboard", label: "Home",    Icon: Home,         active: pathname === "/dashboard" },
+    { href: "/events",    label: "Events",  Icon: CalendarDays, active: pathname.startsWith("/events") && !pathname.includes("create") },
+    null,
+    { href: "/tickets",   label: "Tickets", Icon: Ticket,       active: pathname === "/tickets" },
+    { href: "/settings",  label: "Account", Icon: User,         active: pathname === "/settings" },
+  ];
+  return (
+    <div className="shrink-0 border-t px-1 pt-2"
+      style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.08)", paddingBottom: "max(10px, env(safe-area-inset-bottom))" }}>
+      <div className="flex items-end justify-around">
+        {tabs.map((tab) => {
+          if (!tab) return (
+            <Link key="create" href="/events/create" className="-mt-5 flex flex-col items-center gap-1">
+              <div className="flex h-14 w-14 items-center justify-center rounded-[18px]"
+                style={{ background: "linear-gradient(135deg, #4f46e5, #6366f1)", boxShadow: "0 4px 20px rgba(99,102,241,0.45)" }}>
+                <Plus size={24} className="text-white" />
+              </div>
+              <span className="mt-0.5 text-[10px] font-extrabold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.40)" }}>Create</span>
+            </Link>
+          );
+          const { href, label, Icon, active } = tab;
+          return (
+            <Link key={href} href={href} className="flex flex-col items-center gap-1 px-3 py-1">
+              <Icon size={22} style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }} />
+              <span className="text-[10px] font-extrabold uppercase tracking-wide" style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }}>{label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // ─── Device ID ────────────────────────────────────────────────────────────────
 function getDeviceId() {
@@ -419,6 +457,216 @@ export default function ScannerPage() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
+    <>
+    {/* ── MOBILE OVERLAY ── */}
+    <div className="sm:hidden fixed inset-0 z-50 flex flex-col overflow-hidden dark"
+      style={{ background: "#07070f", "--background": "7 7 15", "--foreground": "255 255 255" }}>
+      {/* Mobile header */}
+      <div className="flex shrink-0 items-center gap-3 border-b px-4"
+        style={{ borderColor: "rgba(255,255,255,0.08)", paddingTop: "max(12px, env(safe-area-inset-top))", paddingBottom: 12 }}>
+        <Link href={`/events/${eventId}`}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px]"
+          style={{ background: "#14141f", border: "1px solid rgba(255,255,255,0.08)" }}>
+          <ChevronLeft size={17} style={{ color: "rgba(255,255,255,0.5)" }} />
+        </Link>
+        <div className="flex-1">
+          <h1 className="text-[20px] font-black text-white leading-tight">QR Scanner</h1>
+          <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>Scan tickets at the door</p>
+        </div>
+        <div className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-semibold ${
+          online
+            ? "border-green-500/20 bg-green-500/10 text-green-400"
+            : "border-red-500/20 bg-red-500/10 text-red-400"
+        }`}>
+          {online ? <Wifi size={12} /> : <WifiOff size={12} />}
+          {online ? "Online" : "Offline"}
+        </div>
+      </div>
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="flex flex-col gap-5 p-4 pb-8 text-white">
+
+      {/* Scan-line animation */}
+      <style>{`
+        @keyframes scanLine {
+          0%,100% { transform:translateY(0);   opacity:1;   }
+          50%      { transform:translateY(200px); opacity:0.5; }
+        }
+        @keyframes fadeUp {
+          from { opacity:0; transform:translateY(8px); }
+          to   { opacity:1; transform:translateY(0);   }
+        }
+      `}</style>
+
+      {/* Tab bar */}
+      <div className="flex items-center gap-1 rounded-2xl border p-1"
+        style={{ borderColor: "rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)" }}>
+        {[
+          { key: "scanner", label: "Scanner", Icon: QrCode },
+          { key: "feed",    label: "Feed",    Icon: ClipboardList, badge: feed.length || null },
+          { key: "stats",   label: "Stats",   Icon: BarChart3 },
+        ].map(({ key, label, Icon, badge }) => (
+          <button key={key} onClick={() => setTab(key)}
+            className="relative flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-semibold transition"
+            style={{
+              background: tab === key ? "rgba(255,255,255,0.10)" : "transparent",
+              color: tab === key ? "#fff" : "rgba(255,255,255,0.35)",
+            }}>
+            <Icon size={13} />
+            {label}
+            {badge > 0 && tab !== key && (
+              <span className="absolute right-2 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-500 text-[9px] font-black text-white">
+                {badge > 99 ? "99+" : badge}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Scanner tab */}
+      {tab === "scanner" && (
+        <div className="flex flex-col gap-5 items-center w-full">
+          <div className="flex w-full items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.35)" }}>Camera</p>
+            <button onClick={() => setCameraOn((v) => !v)}
+              className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-semibold"
+              style={{ borderColor: cameraOn ? "rgba(255,255,255,0.10)" : "rgba(99,102,241,0.4)", background: cameraOn ? "rgba(255,255,255,0.05)" : "rgba(99,102,241,0.15)", color: cameraOn ? "rgba(255,255,255,0.5)" : "#818cf8" }}>
+              {cameraOn ? <><CameraOff size={11} /> Disable</> : <><Camera size={11} /> Enable</>}
+            </button>
+          </div>
+          {cameraOn && <CameraScanner active={cameraOn} onScan={handleScan} />}
+          {scanning && (
+            <div className="flex items-center gap-2 text-[12px]" style={{ color: "rgba(255,255,255,0.40)" }}>
+              <Loader2 size={13} className="animate-spin" /> Processing…
+            </div>
+          )}
+          {lastResult && (
+            <div key={resultKey} className="w-full" style={{ animation: "fadeUp 0.25s ease-out" }}>
+              <ScanResultBanner result={lastResult} />
+            </div>
+          )}
+          <div className="w-full space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.30)" }}>Manual Entry</p>
+            <form onSubmit={(e) => { e.preventDefault(); handleScan(manualInput); }} className="flex gap-2">
+              <div className="flex flex-1 items-center gap-2 rounded-xl border px-3 py-2.5"
+                style={{ borderColor: "rgba(255,255,255,0.10)", background: "#14141f" }}>
+                <Search size={13} style={{ color: "rgba(255,255,255,0.25)" }} className="shrink-0" />
+                <input value={manualInput} onChange={(e) => setManualInput(e.target.value)}
+                  placeholder="Paste ticket token…"
+                  className="flex-1 bg-transparent text-sm outline-none text-white placeholder:text-white/20" />
+              </div>
+              <button type="submit" disabled={!manualInput.trim() || scanning}
+                className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2.5 text-[12px] font-bold text-white hover:bg-indigo-500 transition disabled:opacity-40">
+                {scanning ? <Loader2 size={12} className="animate-spin" /> : <ChevronRight size={13} />}
+                Check
+              </button>
+            </form>
+          </div>
+          {stats && (
+            <div className="w-full rounded-2xl border p-4 space-y-2"
+              style={{ borderColor: "rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.03)" }}>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.40)" }}>Entry Progress</span>
+                <span className="text-[12px] font-black" style={{ color: checkinPct >= 80 ? "#f43f5e" : "#10b981" }}>
+                  {stats.checked_in}/{stats.total_issued}
+                </span>
+              </div>
+              <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.10)" }}>
+                <div className="h-full rounded-full transition-all duration-700"
+                  style={{ width: `${checkinPct}%`, background: checkinPct >= 80 ? "#f43f5e" : "#10b981" }} />
+              </div>
+              <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>
+                {checkinPct}% scanned · {stats.remaining} remaining
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Feed tab */}
+      {tab === "feed" && (
+        <div className="flex flex-col gap-3 w-full">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.35)" }}>
+              {feed.length} scan{feed.length !== 1 ? "s" : ""} this session
+            </p>
+            {feed.length > 0 && (
+              <button onClick={() => { setFeed([]); setLastResult(null); }}
+                className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[10px] font-semibold"
+                style={{ background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.30)" }}>
+                <Trash2 size={10} /> Clear
+              </button>
+            )}
+          </div>
+          {feed.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <QrCode size={28} style={{ color: "rgba(255,255,255,0.15)" }} />
+              <p className="text-sm" style={{ color: "rgba(255,255,255,0.25)" }}>No scans yet — start scanning tickets.</p>
+            </div>
+          ) : (
+            <div className="rounded-2xl border divide-y overflow-hidden"
+              style={{ borderColor: "rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.03)", divideColor: "rgba(255,255,255,0.04)" }}>
+              {feed.map((s, i) => <ScanFeedItem key={i} scan={s} />)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Stats tab */}
+      {tab === "stats" && (
+        <div className="flex flex-col gap-4 w-full">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.35)" }}>Live stats · every 10 s</p>
+            <button onClick={fetchStats}
+              className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[10px] font-semibold"
+              style={{ background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.30)" }}>
+              <RefreshCw size={10} /> Refresh
+            </button>
+          </div>
+          {statsLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 size={22} className="animate-spin" style={{ color: "rgba(255,255,255,0.20)" }} />
+            </div>
+          ) : stats ? (
+            <>
+              <div className="rounded-2xl border p-4 space-y-3"
+                style={{ borderColor: "rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.03)" }}>
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.40)" }}>Entry Progress</p>
+                  <p className="text-[13px] font-black" style={{ color: checkinPct >= 80 ? "#f43f5e" : "#10b981" }}>{checkinPct}%</p>
+                </div>
+                <div className="h-3 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.10)" }}>
+                  <div className="h-full rounded-full transition-all duration-700"
+                    style={{ width: `${checkinPct}%`, background: `linear-gradient(90deg,#10b981,${checkinPct >= 80 ? "#f43f5e" : "#10b981"})` }} />
+                </div>
+                <div className="flex justify-between text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>
+                  <span>{stats.checked_in} checked in</span>
+                  <span>{stats.remaining} remaining</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <StatCard label="Total Tickets" value={stats.total_issued}  accent="#6366f1" Icon={Ticket}       sub="Issued" />
+                <StatCard label="Checked In"    value={stats.checked_in}    accent="#10b981" Icon={Users}        sub={`${checkinPct}%`} />
+                <StatCard label="Remaining"     value={stats.remaining}     accent="#f59e0b" Icon={QrCode}       sub="Not scanned" />
+                <StatCard label="Valid Scans"   value={stats.scan_success}  accent="#10b981" Icon={CheckCircle2} sub="Successful" />
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <BarChart3 size={28} style={{ color: "rgba(255,255,255,0.15)" }} />
+              <p className="text-sm" style={{ color: "rgba(255,255,255,0.25)" }}>Could not load stats</p>
+            </div>
+          )}
+        </div>
+      )}
+
+        </div>
+      </div>
+      <MobileBottomNav />
+    </div>
+
+    {/* ── DESKTOP UI ── */}
+    <div className="hidden sm:block">
     <div className="flex h-full min-h-screen flex-col bg-background text-foreground pb-16">
 
       {/* Scan-line animation */}
@@ -653,5 +901,7 @@ export default function ScannerPage() {
         </div>
       )}
     </div>
+    </div>
+    </>
   );
 }

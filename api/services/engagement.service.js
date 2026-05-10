@@ -1,5 +1,6 @@
 import { db } from "../config/db.js";
 import { stripe } from "../config/stripe.js";
+import { createNotificationService, getEventOwnerIdService } from "./notifications.service.js";
 
 export class AppError extends Error {
   constructor(message, statusCode = 400, details = null) {
@@ -407,7 +408,24 @@ export async function completeDonationFromWebhookService(paymentIntent) {
     );
 
     await client.query("COMMIT");
-    return updated.rows[0];
+    const completedDonation = updated.rows[0];
+
+    // Notify event owner of completed donation (fire-and-forget)
+    getEventOwnerIdService(eventId).then((ownerId) => {
+      if (!ownerId) return;
+      const amount = Number(completedDonation.amount);
+      const donorName = completedDonation.is_anonymous ? "Anonymous" : (completedDonation.donor_name || completedDonation.donor_email || "Someone");
+      createNotificationService({
+        userId: ownerId,
+        type: "new_donation",
+        title: `$${amount.toFixed(0)} donation received`,
+        body: `${donorName} just donated to your event.`,
+        link: `/events/${eventId}/donations`,
+        metadata: { eventId, donationId: completedDonation.id, amount },
+      });
+    }).catch(() => {});
+
+    return completedDonation;
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

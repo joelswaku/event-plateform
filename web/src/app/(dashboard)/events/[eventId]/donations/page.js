@@ -1,10 +1,47 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { Heart, TrendingUp, Users, CheckCircle, Clock, DollarSign } from "lucide-react";
+import { Heart, TrendingUp, Users, CheckCircle, Clock, DollarSign, ChevronLeft, Home, User, Ticket, CalendarDays, Plus } from "lucide-react";
 import { api } from "@/lib/api";
+
+function MobileBottomNav() {
+  const pathname = usePathname();
+  const tabs = [
+    { href: "/dashboard", label: "Home",    Icon: Home,         active: pathname === "/dashboard" },
+    { href: "/events",    label: "Events",  Icon: CalendarDays, active: pathname.startsWith("/events") && !pathname.includes("create") },
+    null,
+    { href: "/tickets",   label: "Tickets", Icon: Ticket,       active: pathname === "/tickets" },
+    { href: "/settings",  label: "Account", Icon: User,         active: pathname === "/settings" },
+  ];
+  return (
+    <div className="shrink-0 border-t px-1 pt-2"
+      style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.08)", paddingBottom: "max(10px, env(safe-area-inset-bottom))" }}>
+      <div className="flex items-end justify-around">
+        {tabs.map((tab) => {
+          if (!tab) return (
+            <Link key="create" href="/events/create" className="-mt-5 flex flex-col items-center gap-1">
+              <div className="flex h-14 w-14 items-center justify-center rounded-[18px]"
+                style={{ background: "linear-gradient(135deg, #4f46e5, #6366f1)", boxShadow: "0 4px 20px rgba(99,102,241,0.45)" }}>
+                <Plus size={24} className="text-white" />
+              </div>
+              <span className="mt-0.5 text-[10px] font-extrabold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.40)" }}>Create</span>
+            </Link>
+          );
+          const { href, label, Icon, active } = tab;
+          return (
+            <Link key={href} href={href} className="flex flex-col items-center gap-1 px-3 py-1">
+              <Icon size={22} style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }} />
+              <span className="text-[10px] font-extrabold uppercase tracking-wide" style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }}>{label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 const fmt = (n, currency = "USD") =>
   new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(n ?? 0);
@@ -67,7 +104,89 @@ export default function DonationsPage() {
   const paidCount   = succeeded.length;
 
   return (
-    <div className="space-y-6">
+    <>
+      {/* ── MOBILE OVERLAY ── */}
+      <div className="sm:hidden fixed inset-0 z-50 flex flex-col overflow-hidden dark"
+        style={{ background: "#07070f" }}>
+        <div className="flex shrink-0 items-center gap-3 border-b px-4"
+          style={{ borderColor: "rgba(255,255,255,0.08)", paddingTop: "max(12px, env(safe-area-inset-top))", paddingBottom: 12 }}>
+          <Link href={`/events/${eventId}`}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px]"
+            style={{ background: "#14141f", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <ChevronLeft size={17} style={{ color: "rgba(255,255,255,0.5)" }} />
+          </Link>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-[20px] font-black text-white leading-tight">Donations</h1>
+            <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>Track contributions</p>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <div className="space-y-4 p-4">
+            {/* Mobile stats */}
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: "Raised",     value: `$${totalRaised.toFixed(0)}`, color: "#10b981" },
+                { label: "Confirmed",  value: paidCount,                    color: "#6366f1" },
+                { label: "Total",      value: totalCount,                   color: "rgba(255,255,255,0.5)" },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="flex flex-col items-center gap-0.5 rounded-[14px] border py-3"
+                  style={{ background: `${color === "rgba(255,255,255,0.5)" ? "rgba(255,255,255" : color}${color === "rgba(255,255,255,0.5)" ? ",0.5)" : ""}10`, borderColor: `${color}22` }}>
+                  <span className="text-[18px] font-black leading-none" style={{ color }}>{value}</span>
+                  <span className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.35)" }}>{label}</span>
+                </div>
+              ))}
+            </div>
+            {/* Donation list */}
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="h-7 w-7 animate-spin rounded-full border-2" style={{ borderColor: "rgba(255,255,255,0.08)", borderTopColor: "#6366f1" }} />
+              </div>
+            ) : error ? (
+              <div className="rounded-[16px] border px-4 py-8 text-center text-[13px]"
+                style={{ borderColor: "rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)", color: "#ef4444" }}>{error}</div>
+            ) : donations.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 py-12">
+                <div className="flex h-14 w-14 items-center justify-center rounded-[18px]"
+                  style={{ background: "rgba(244,63,94,0.12)", border: "1px solid rgba(244,63,94,0.2)" }}>
+                  <Heart size={24} style={{ color: "#f43f5e" }} />
+                </div>
+                <p className="text-[16px] font-extrabold text-white">No donations yet</p>
+                <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.35)" }}>Enable donations in event settings.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {donations.map((d) => (
+                  <div key={d.id} className="flex items-center gap-3 rounded-[16px] border px-4 py-3.5"
+                    style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.07)" }}>
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+                      style={{ background: "rgba(244,63,94,0.12)", border: "1px solid rgba(244,63,94,0.2)" }}>
+                      <Heart size={16} style={{ color: "#f43f5e" }} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] font-extrabold text-white">{d.donor_name || "Anonymous"}</p>
+                      <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>{d.donor_email || "No email"}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[14px] font-black" style={{ color: "#10b981" }}>${Number(d.amount).toFixed(0)}</p>
+                      <div className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                        d.payment_status === "SUCCEEDED"
+                          ? "text-emerald-400"
+                          : "text-amber-400"
+                      }`}>
+                        {d.payment_status === "SUCCEEDED" ? "✓ Received" : "Pending"}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        <MobileBottomNav />
+      </div>
+
+      {/* ── DESKTOP UI ── */}
+      <div className="hidden sm:block space-y-6">
 
       {/* Page header */}
       <div className="flex items-center justify-between">
@@ -155,6 +274,7 @@ export default function DonationsPage() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 }

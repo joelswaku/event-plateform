@@ -1,11 +1,15 @@
 "use client";
 
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Menu, Search, Bell, Sun, Moon, Sparkles, CreditCard, LogOut } from "lucide-react";
+import { AnimatePresence } from "framer-motion";
 import { useTheme }            from "@/providers/ThemeProvider";
 import { useAuthStore }        from "@/store/auth.store";
 import { useSidebarStore }     from "@/store/sidebar.store";
 import { useSubscriptionStore } from "@/store/subscription.store";
+import { useNotifications }    from "@/hooks/useNotifications";
+import NotificationPanel       from "@/components/layout/NotificationPanel";
 
 export default function Topbar() {
   const router         = useRouter();
@@ -15,6 +19,10 @@ export default function Topbar() {
   const { setMobileOpen, isMobileOpen } = useSidebarStore();
   const { isSubscribed, plan, subscriptionStatus, openCustomerPortal, openUpgradeModal, isLoading } =
     useSubscriptionStore();
+
+  const [bellOpen, setBellOpen] = useState(false);
+  const bellRef = useRef(null);
+  const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
 
   const initials = user?.name
     ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
@@ -85,9 +93,31 @@ export default function Topbar() {
           </button>
 
           {/* Notifications */}
-          <button className="rounded-xl p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800">
-            <Bell className="h-4 w-4" />
-          </button>
+          <div ref={bellRef} className="relative">
+            <button
+              onClick={() => setBellOpen((o) => !o)}
+              className="relative rounded-xl p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
+              aria-label="Notifications"
+            >
+              <Bell className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[9px] font-bold text-white leading-none">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
+            <AnimatePresence>
+              {bellOpen && (
+                <NotificationPanel
+                  notifications={notifications}
+                  unreadCount={unreadCount}
+                  onClose={() => setBellOpen(false)}
+                  onMarkRead={markRead}
+                  onMarkAllRead={markAllRead}
+                />
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* Avatar + logout */}
           <div className="flex items-center gap-2 pl-2 border-l border-gray-200 dark:border-gray-800">

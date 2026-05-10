@@ -37,7 +37,7 @@ export async function getSubscriptionStatusService(userId) {
   }
 }
 
-export async function createCheckoutSessionService(userId, priceId) {
+export async function createCheckoutSessionService(userId, priceId, successUrl, cancelUrl) {
   if (!priceId) throw Object.assign(new Error("priceId is required"), { statusCode: 400 });
 
   const uRes = await db.query(`SELECT email, full_name, stripe_customer_id FROM users WHERE id = $1`, [userId]);
@@ -55,8 +55,8 @@ export async function createCheckoutSessionService(userId, priceId) {
     customer:      customerId,
     mode:          "subscription",
     line_items:    [{ price: priceId, quantity: 1 }],
-    success_url:   `${FRONTEND_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url:    `${FRONTEND_URL}/billing/cancel`,
+    success_url:   successUrl || `${FRONTEND_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url:    cancelUrl  || `${FRONTEND_URL}/billing/cancel`,
     // metadata on the session itself — used by the webhook handler
     metadata:          { user_id: userId },
     subscription_data: { metadata: { user_id: userId } },

@@ -31,11 +31,12 @@
  */
 
 import React, {
-  useEffect, useState, useCallback, useRef,
+  useEffect, useState, useCallback, useRef, useMemo,
 } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, StyleSheet, Pressable, ScrollView,
-  ActivityIndicator, Dimensions, Animated,
+  ActivityIndicator, Dimensions, Animated, Easing,
 } from 'react-native';
 import { Image }          from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -78,16 +79,22 @@ const STATUS: Record<string, { color: string; bg: string; dot: string; label: st
 };
 
 /* ── Live countdown ──────────────────────────────────────────────── */
-function useLiveCountdown(iso?: string) {
-  const [diff, setDiff] = useState({ h: 0, m: 0, s: 0, past: false });
+function useLiveCountdown(iso?: string | null) {
+  const [diff, setDiff] = useState({ d: 0, h: 0, m: 0, s: 0, past: false });
 
   useEffect(() => {
     if (!iso) return;
     const tick = () => {
-      const ms  = new Date(iso).getTime() - Date.now();
-      if (ms <= 0) { setDiff({ h: 0, m: 0, s: 0, past: true }); return; }
+      const ms = new Date(iso).getTime() - Date.now();
+      if (ms <= 0) { setDiff({ d: 0, h: 0, m: 0, s: 0, past: true }); return; }
       const tot = Math.floor(ms / 1000);
-      setDiff({ h: Math.floor(tot / 3600), m: Math.floor((tot % 3600) / 60), s: tot % 60, past: false });
+      setDiff({
+        d: Math.floor(tot / 86400),
+        h: Math.floor((tot % 86400) / 3600),
+        m: Math.floor((tot % 3600) / 60),
+        s: tot % 60,
+        past: false,
+      });
     };
     tick();
     const id = setInterval(tick, 1000);
@@ -95,6 +102,127 @@ function useLiveCountdown(iso?: string) {
   }, [iso]);
 
   return diff;
+}
+
+/* ── Active modules strip ────────────────────────────────────────── */
+const MODULE_CFG = [
+  { key: 'allow_rsvp',       icon: 'users'       as const, label: 'RSVP',       color: Colors.accent.emerald },
+  { key: 'allow_ticketing',  icon: 'credit-card' as const, label: 'Ticketing',  color: Colors.accent.amber   },
+  { key: 'allow_qr_checkin', icon: 'camera'      as const, label: 'QR Check-in',color: '#06b6d4'             },
+  { key: 'allow_donations',  icon: 'heart'       as const, label: 'Donations',  color: '#f43f5e'             },
+];
+
+function ActiveModulesStrip({ event }: { event: any }) {
+  const active = MODULE_CFG.filter(m => !!event[m.key]);
+  if (!active.length) return null;
+  return (
+    <View style={am.row}>
+      {active.map(m => (
+        <View key={m.key} style={[am.chip, { backgroundColor: `${m.color}14`, borderColor: `${m.color}35` }]}>
+          <View style={[am.dot, { backgroundColor: m.color }]} />
+          <Feather name={m.icon} size={11} color={m.color} />
+          <Text style={[am.label, { color: m.color }]}>{m.label}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+const am = StyleSheet.create({
+  row:   { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  chip:  { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99, borderWidth: 1 },
+  dot:   { width: 5, height: 5, borderRadius: 3 },
+  label: { fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
+});
+
+/* ── Ticket hero card ────────────────────────────────────────────── */
+function TicketHeroCard({ eventId, ticketCount, checkinCount, router }: {
+  eventId: string; ticketCount: number; checkinCount: number; router: any;
+}) {
+  const scanY    = useRef(new Animated.Value(0)).current;
+  const glowOpac = useRef(new Animated.Value(0.55)).current;
+  const [cardH,  setCardH] = useState(170);
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(scanY, { toValue: 1, duration: 3500, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(scanY, { toValue: 0, duration: 0,    useNativeDriver: true }),
+      ])
+    ).start();
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowOpac, { toValue: 0.95, duration: 1400, useNativeDriver: true }),
+        Animated.timing(glowOpac, { toValue: 0.45, duration: 1400, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
+  const scanTranslate = scanY.interpolate({ inputRange: [0, 1], outputRange: [-2, cardH] });
+  const pct = ticketCount > 0 && checkinCount > 0 ? Math.min((checkinCount / ticketCount) * 100, 100) : 0;
+
+  return (
+    <Pressable
+      style={tc.card}
+      onLayout={e => setCardH(e.nativeEvent.layout.height)}
+      onPress={() => router.push(`/events/${eventId}/tickets` as never)}
+    >
+      {/* Glowing accent top bar */}
+      <Animated.View style={[tc.accentBar, { opacity: glowOpac }]} />
+
+      {/* Sweeping scan line */}
+      <Animated.View style={[tc.scanLine, { transform: [{ translateY: scanTranslate }] }]} />
+
+      {/* Header */}
+      <View style={tc.header}>
+        <View style={tc.badge}>
+          <Text style={tc.badgeTxt}>🎟 Tickets</Text>
+        </View>
+        <View style={tc.livePill}>
+          <View style={tc.liveDot} />
+          <Text style={tc.liveTxt}>LIVE</Text>
+        </View>
+      </View>
+
+      {/* Stats */}
+      <View style={tc.stats}>
+        <View style={tc.statItem}>
+          <Text style={tc.statNum}>{ticketCount}</Text>
+          <Text style={tc.statLabel}>Issued</Text>
+        </View>
+        <View style={tc.statDivider} />
+        <View style={tc.statItem}>
+          <Text style={[tc.statNum, { color: Colors.accent.emerald }]}>{checkinCount}</Text>
+          <Text style={tc.statLabel}>Checked In</Text>
+        </View>
+        <View style={tc.statDivider} />
+        <View style={tc.statItem}>
+          <Text style={[tc.statNum, { color: Colors.accent.amber }]}>
+            {Math.round(pct)}<Text style={{ fontSize: 14 }}>%</Text>
+          </Text>
+          <Text style={tc.statLabel}>Check-in Rate</Text>
+        </View>
+      </View>
+
+      {/* Progress bar */}
+      {ticketCount > 0 && (
+        <View style={tc.progWrap}>
+          <View style={tc.progBg}>
+            <LinearGradient
+              colors={[Colors.accent.indigo, Colors.accent.violet]}
+              style={[tc.progFill, { width: `${pct}%` as `${number}%` }]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            />
+          </View>
+        </View>
+      )}
+
+      {/* CTA row */}
+      <View style={tc.cta}>
+        <Text style={tc.ctaTxt}>View all tickets</Text>
+        <Feather name="arrow-right" size={13} color={Colors.accent.indigo} />
+      </View>
+    </Pressable>
+  );
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -107,7 +235,8 @@ export default function EventDetailScreen() {
   const scrollY   = useRef(new Animated.Value(0)).current;
 
   const {
-    events, fetchEvents,
+    events, currentEvent, dashboard,
+    fetchEvents, fetchEventById, fetchEventDashboard,
     publishEvent, unpublishEvent, archiveEvent, restoreEvent, deleteEvent,
   } = useEventStore();
 
@@ -116,9 +245,32 @@ export default function EventDetailScreen() {
     action: () => Promise<any>; title: string; desc: string; danger: boolean;
   } | null>(null);
 
-  useEffect(() => { fetchEvents(); }, []);
+  const refresh = useCallback(() => {
+    fetchEvents();
+    if (id) {
+      fetchEventById(id);
+      fetchEventDashboard(id);
+    }
+  }, [id]);
 
-  const event = events.find(e => e.id === id);
+  useEffect(() => { refresh(); }, [id]);
+
+  // Re-fetch every time this screen gains focus (e.g. coming back from Settings)
+  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
+
+  // Merge: individual event (has all flags) + dashboard stats (has live counts)
+  const baseEvent   = (currentEvent?.id === id ? currentEvent : null) ?? events.find(e => e.id === id);
+  const dashStats   = dashboard?.event?.id === id ? dashboard.stats : null;
+  const event: any  = useMemo(() => {
+    if (!baseEvent) return null;
+    return {
+      ...baseEvent,
+      guest_count:    dashStats?.guest_count    ?? (baseEvent as any).guest_count    ?? 0,
+      attending_count:dashStats?.attending_count?? (baseEvent as any).attending_count?? 0,
+      ticket_count:   dashStats?.ticket_count   ?? (baseEvent as any).ticket_count   ?? 0,
+      checkin_count:  dashStats?.checkin_count  ?? (baseEvent as any).checkin_count  ?? 0,
+    };
+  }, [baseEvent, dashStats]);
   const status = event?.status ?? 'DRAFT';
   const statusCfg = STATUS[status] ?? STATUS.DRAFT;
   const countdown = useLiveCountdown(event?.starts_at_utc);
@@ -126,8 +278,8 @@ export default function EventDetailScreen() {
   const run = useCallback(async (fn: () => Promise<any>) => {
     setLoading(true);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    try { await fn(); await fetchEvents(); } finally { setLoading(false); }
-  }, []);
+    try { await fn(); await refresh(); } finally { setLoading(false); }
+  }, [refresh]);
 
   /* ── Topbar opacity on scroll ── */
   const headerBg = scrollY.interpolate({
@@ -152,7 +304,8 @@ export default function EventDetailScreen() {
     { icon: 'credit-card' as const, label: 'Tickets',   sub: 'Types & orders',      accent: Colors.accent.amber,   grad: ['#d97706','#f59e0b'] as const, route: `/events/${id}/tickets`   },
     { icon: 'camera'      as const, label: 'Scanner',   sub: 'QR check-in',         accent: Colors.accent.emerald, grad: ['#0891b2','#06b6d4'] as const, route: `/events/${id}/scanner`   },
     { icon: 'bar-chart-2' as const, label: 'Analytics', sub: 'Revenue & insights',  accent: Colors.accent.violet,  grad: ['#7c3aed','#8b5cf6'] as const, route: `/events/${id}/analytics` },
-    { icon: 'settings'    as const, label: 'Settings',  sub: 'Edit event details',  accent: '#6b7280',             grad: ['#374151','#4b5563'] as const, route: `/events/${id}/edit`      },
+    { icon: 'heart'       as const, label: 'Donations', sub: 'Track contributions', accent: '#f43f5e',             grad: ['#be185d','#f43f5e'] as const, route: `/events/${id}/donations` },
+    { icon: 'settings'    as const, label: 'Settings',  sub: 'Edit event details',  accent: '#6b7280',             grad: ['#374151','#4b5563'] as const, route: `/events/${id}/settings`  },
   ];
 
   const STAT_ITEMS = [
@@ -208,6 +361,9 @@ export default function EventDetailScreen() {
                 {event.event_type?.replace(/_/g, ' ').toUpperCase() ?? 'EVENT'}
               </Text>
             </View>
+
+            {/* Active modules row — overlaid on hero image */}
+            <ActiveModulesStrip event={event} />
           </View>
         </View>
 
@@ -219,11 +375,10 @@ export default function EventDetailScreen() {
             <View style={s.section}>
               <Text style={s.sectionLabel}>EVENT STARTS IN</Text>
               <View style={s.cntRow}>
-                {[
-                  { v: countdown.h, l: 'HRS' },
-                  { v: countdown.m, l: 'MIN' },
-                  { v: countdown.s, l: 'SEC' },
-                ].map((u, i) => (
+                {(countdown.d > 0
+                  ? [{ v: countdown.d, l: 'DAYS' }, { v: countdown.h, l: 'HRS' }, { v: countdown.m, l: 'MIN' }, { v: countdown.s, l: 'SEC' }]
+                  : [{ v: countdown.h, l: 'HRS' }, { v: countdown.m, l: 'MIN' }, { v: countdown.s, l: 'SEC' }]
+                ).map((u, i) => (
                   <React.Fragment key={u.l}>
                     {i > 0 && <Text style={s.cntColon}>:</Text>}
                     <View style={s.cntBox}>
@@ -238,6 +393,16 @@ export default function EventDetailScreen() {
                 ))}
               </View>
             </View>
+          )}
+
+          {/* ── Ticket hero card ───────────────────────────────────── */}
+          {(event.allow_ticketing || (event.ticket_count ?? 0) > 0) && (
+            <TicketHeroCard
+              eventId={id}
+              ticketCount={event.ticket_count ?? 0}
+              checkinCount={event.checkin_count ?? 0}
+              router={router}
+            />
           )}
 
           {/* ── Date + venue meta card ─────────────────────────────── */}
@@ -456,6 +621,7 @@ export default function EventDetailScreen() {
           variant={modal.danger ? 'danger' : 'default'}
           onConfirm={async () => { await modal.action(); setModal(null); }}
           onCancel={() => setModal(null)}
+          onClose={() => setModal(null)}    // ✅ matches ConfirmModal interface
         />
       )}
     </View>
@@ -624,6 +790,73 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: `${Colors.accent.red}30`,
   },
   deleteTxt: { fontSize: 13, fontWeight: '700', color: Colors.accent.red },
+});
+
+/* ── Ticket card styles ──────────────────────────────────────────── */
+const tc = StyleSheet.create({
+  card: {
+    borderRadius: 20, borderWidth: 1,
+    borderColor: 'rgba(99,102,241,0.28)',
+    backgroundColor: 'rgba(12,12,22,0.88)',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  accentBar: {
+    height: 4,
+    backgroundColor: Colors.accent.indigo,
+  },
+  scanLine: {
+    position: 'absolute',
+    left: 0, right: 0,
+    height: 2,
+    backgroundColor: 'transparent',
+    borderTopWidth: 1,
+    borderTopColor: `${Colors.accent.indigo}50`,
+    zIndex: 5,
+    pointerEvents: 'none' as any,
+  },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  badge: {
+    backgroundColor: `${Colors.accent.indigo}22`,
+    borderWidth: 1, borderColor: `${Colors.accent.indigo}45`,
+    borderRadius: 99, paddingHorizontal: 12, paddingVertical: 5,
+  },
+  badgeTxt: { fontSize: 11, fontWeight: '800', color: Colors.accent.indigo, letterSpacing: 0.5 },
+  livePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: `${Colors.accent.emerald}15`,
+    borderWidth: 1, borderColor: `${Colors.accent.emerald}35`,
+    borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4,
+  },
+  liveDot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: Colors.accent.emerald,
+  },
+  liveTxt: { fontSize: 9, fontWeight: '900', color: Colors.accent.emerald, letterSpacing: 1 },
+
+  stats: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 16,
+  },
+  statItem: { flex: 1, alignItems: 'center', gap: 3 },
+  statDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.08)' },
+  statNum:  { fontSize: 26, fontWeight: '900', color: '#fff', letterSpacing: -0.8 },
+  statLabel:{ fontSize: 10, fontWeight: '600', color: Colors.text.subtle, letterSpacing: 0.4 },
+
+  progWrap: { paddingHorizontal: 16, paddingBottom: 12 },
+  progBg:   { height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.08)' },
+  progFill: { height: 4, borderRadius: 2 },
+
+  cta: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 12,
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  ctaTxt: { fontSize: 13, fontWeight: '700', color: Colors.accent.indigo },
 });
 
 

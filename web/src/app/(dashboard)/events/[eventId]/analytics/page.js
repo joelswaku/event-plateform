@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
+import Link from "next/link";
 import {
   TrendingUp,
   TrendingDown,
@@ -17,8 +18,45 @@ import {
   CheckCircle2,
   XCircle,
   Copy,
+  ChevronLeft, Home, User, CalendarDays, Plus,
 } from "lucide-react";
 import { api } from "@/lib/api";
+
+function MobileBottomNav() {
+  const pathname = usePathname();
+  const tabs = [
+    { href: "/dashboard", label: "Home",    Icon: Home,         active: pathname === "/dashboard" },
+    { href: "/events",    label: "Events",  Icon: CalendarDays, active: pathname.startsWith("/events") && !pathname.includes("create") },
+    null,
+    { href: "/tickets",   label: "Tickets", Icon: Ticket,       active: pathname === "/tickets" },
+    { href: "/settings",  label: "Account", Icon: User,         active: pathname === "/settings" },
+  ];
+  return (
+    <div className="shrink-0 border-t px-1 pt-2"
+      style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.08)", paddingBottom: "max(10px, env(safe-area-inset-bottom))" }}>
+      <div className="flex items-end justify-around">
+        {tabs.map((tab) => {
+          if (!tab) return (
+            <Link key="create" href="/events/create" className="-mt-5 flex flex-col items-center gap-1">
+              <div className="flex h-14 w-14 items-center justify-center rounded-[18px]"
+                style={{ background: "linear-gradient(135deg, #4f46e5, #6366f1)", boxShadow: "0 4px 20px rgba(99,102,241,0.45)" }}>
+                <Plus size={24} className="text-white" />
+              </div>
+              <span className="mt-0.5 text-[10px] font-extrabold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.40)" }}>Create</span>
+            </Link>
+          );
+          const { href, label, Icon, active } = tab;
+          return (
+            <Link key={href} href={href} className="flex flex-col items-center gap-1 px-3 py-1">
+              <Icon size={22} style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }} />
+              <span className="text-[10px] font-extrabold uppercase tracking-wide" style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }}>{label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -95,36 +133,53 @@ function Sparkline({ data = [], color = "#6366f1", height = 32, width = 80 }) {
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 
 function KpiCard({ icon: Icon, label, value, sub, color, sparkData, sparkColor, loading }) {
-  const colors = {
-    indigo: "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400",
-    emerald: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400",
-    violet: "bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400",
-    amber: "bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400",
-    rose: "bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400",
-    sky: "bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400",
+  const iconCls = {
+    indigo:  "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400",
+    emerald: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400",
+    violet:  "bg-violet-50 text-violet-600 dark:bg-violet-950/60 dark:text-violet-400",
+    amber:   "bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400",
+    rose:    "bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400",
+    sky:     "bg-sky-50 text-sky-600 dark:bg-sky-950/60 dark:text-sky-400",
+  };
+  const accentBar = {
+    indigo:  "bg-indigo-500",
+    emerald: "bg-emerald-500",
+    violet:  "bg-violet-500",
+    amber:   "bg-amber-500",
+    rose:    "bg-rose-500",
+    sky:     "bg-sky-500",
+  };
+  const valCls = {
+    indigo:  "dark:text-indigo-300",
+    emerald: "dark:text-emerald-300",
+    violet:  "dark:text-violet-300",
+    amber:   "dark:text-amber-300",
+    rose:    "dark:text-rose-300",
+    sky:     "dark:text-sky-300",
   };
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between gap-3">
+    <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
+      <div className={`absolute inset-x-0 top-0 h-0.5 ${accentBar[color] ?? accentBar.indigo}`} />
+      <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <div className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl ${colors[color] ?? colors.indigo}`}>
-            <Icon className="h-4 w-4" />
+          <div className={`mb-3 inline-flex h-8 w-8 items-center justify-center rounded-xl ${iconCls[color] ?? iconCls.indigo}`}>
+            <Icon className="h-3.5 w-3.5" />
           </div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">
             {label}
           </p>
           {loading ? (
-            <div className="h-8 w-24 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
+            <div className="h-7 w-20 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
           ) : (
-            <p className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">{value}</p>
+            <p className={`text-xl font-bold tracking-tight text-gray-900 sm:text-2xl ${valCls[color] ?? valCls.indigo}`}>{value}</p>
           )}
           {sub && !loading && (
-            <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">{sub}</p>
+            <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">{sub}</p>
           )}
         </div>
         {sparkData?.length > 1 && !loading && (
-          <div className="shrink-0 self-end">
+          <div className="shrink-0 self-end opacity-80">
             <Sparkline data={sparkData} color={sparkColor ?? "#6366f1"} />
           </div>
         )}
@@ -254,46 +309,39 @@ function TicketTypesTable({ data = [], loading }) {
 
   const maxRev = Math.max(...data.map((d) => d.paid_revenue ?? 0), 1);
 
+  const COLORS = ["#6366f1","#7c3aed","#10b981","#f59e0b","#06b6d4"];
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-gray-100 dark:border-gray-800">
-            {["Type", "Price", "Sold", "Revenue", "Fill"].map((h) => (
-              <th key={h} className={`pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 ${h === "Type" ? "text-left" : "text-right"} ${h === "Fill" ? "pl-4 text-left" : ""}`}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-50 dark:divide-gray-800/60">
-          {data.map((tt) => {
-            const fillPct = tt.quantity_total > 0 ? (tt.paid_quantity / tt.quantity_total) * 100 : 0;
-            return (
-              <tr key={tt.ticket_type_id} className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
-                <td className="py-3 pr-4">
-                  <p className="font-medium text-gray-900 dark:text-white">{tt.ticket_type_name}</p>
-                  <p className="text-xs text-gray-400 capitalize">{tt.kind?.toLowerCase()}</p>
-                </td>
-                <td className="py-3 text-right font-mono text-gray-700 dark:text-gray-300">
-                  {tt.price === 0 ? <span className="text-emerald-500 font-semibold text-xs">FREE</span> : fmtMoney(tt.price)}
-                </td>
-                <td className="py-3 text-right text-gray-700 dark:text-gray-300">
-                  {fmt(tt.paid_quantity)}
-                  {tt.quantity_total > 0 && <span className="text-gray-400"> / {fmt(tt.quantity_total)}</span>}
-                </td>
-                <td className="py-3 text-right font-semibold text-gray-900 dark:text-white">{fmtMoney(tt.paid_revenue)}</td>
-                <td className="py-3 pl-4">
-                  <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-24 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                      <div className="h-full rounded-full bg-indigo-500 transition-all duration-700" style={{ width: `${Math.min(fillPct, 100)}%` }} />
-                    </div>
-                    <span className="text-xs text-gray-400">{fmtPct(fillPct)}</span>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div className="space-y-2">
+      {data.map((tt, idx) => {
+        const fillPct = tt.quantity_total > 0 ? Math.min((tt.paid_quantity / tt.quantity_total) * 100, 100) : 0;
+        const accent  = COLORS[idx % COLORS.length];
+        return (
+          <div key={tt.ticket_type_id} className="rounded-xl border border-gray-100 bg-gray-50/60 p-3 dark:border-gray-800 dark:bg-gray-800/40">
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <div className="min-w-0">
+                <p className="font-semibold text-sm text-gray-900 dark:text-white truncate">{tt.ticket_type_name}</p>
+                <p className="text-[11px] text-gray-400 capitalize mt-0.5">
+                  {tt.kind?.toLowerCase()} · {tt.price === 0 ? <span className="text-emerald-500 font-semibold">Free</span> : fmtMoney(tt.price)}
+                </p>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-sm font-bold text-gray-900 dark:text-white">{fmtMoney(tt.paid_revenue)}</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  {fmt(tt.paid_quantity)}{tt.quantity_total > 0 && <span> / {fmt(tt.quantity_total)}</span>} sold
+                </p>
+              </div>
+            </div>
+            {tt.quantity_total > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                  <div className="h-full rounded-full transition-all duration-700" style={{ width: `${fillPct}%`, backgroundColor: accent }} />
+                </div>
+                <span className="text-[11px] text-gray-400 shrink-0">{fmtPct(fillPct)}</span>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -313,21 +361,21 @@ function ConversionFunnel({ data, loading }) {
   if (!data) return null;
 
   const steps = [
-    { label: "Invited",           value: data.invited,   color: "bg-indigo-50 dark:bg-indigo-900/40",  bar: "bg-indigo-500"  },
-    { label: "Attending (RSVP)",  value: data.attending, color: "bg-violet-50 dark:bg-violet-900/40",  bar: "bg-violet-500"  },
-    { label: "Purchased Tickets", value: data.buyers,    color: "bg-emerald-50 dark:bg-emerald-900/40", bar: "bg-emerald-500" },
+    { label: "Invited",           value: data.invited,   color: "bg-indigo-50/80 dark:bg-indigo-950/50",  bar: "bg-indigo-500",  txt: "text-indigo-500"  },
+    { label: "Attending (RSVP)",  value: data.attending, color: "bg-violet-50/80 dark:bg-violet-950/50",  bar: "bg-violet-500",  txt: "text-violet-500"  },
+    { label: "Purchased Tickets", value: data.buyers,    color: "bg-emerald-50/80 dark:bg-emerald-950/50", bar: "bg-emerald-500", txt: "text-emerald-500" },
   ];
   const max = Math.max(...steps.map((s) => s.value), 1);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {steps.map((s, i) => (
         <div key={i} className={`rounded-xl p-3 ${s.color}`}>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{s.label}</p>
-            <p className="text-sm font-bold text-gray-900 dark:text-white">{fmt(s.value)}</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{s.label}</p>
+            <p className={`text-sm font-bold ${s.txt}`}>{fmt(s.value)}</p>
           </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/50 dark:bg-black/20">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/60 dark:bg-black/20">
             <div className={`h-full rounded-full ${s.bar} transition-all duration-700`} style={{ width: `${(s.value / max) * 100}%` }} />
           </div>
           {i > 0 && steps[i - 1].value > 0 && (
@@ -337,10 +385,10 @@ function ConversionFunnel({ data, loading }) {
           )}
         </div>
       ))}
-      <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3 dark:border-indigo-900/40 dark:bg-indigo-950/30">
-        <p className="text-xs font-semibold uppercase tracking-wider text-indigo-400 mb-1">Overall Conversion</p>
+      <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-3 dark:border-indigo-900/50 dark:bg-indigo-950/40">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-400 mb-1">Overall Conversion</p>
         <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{fmtPct(data.conversion_rate)}</p>
-        <p className="text-xs text-indigo-400">invited → ticket buyers</p>
+        <p className="text-[11px] text-indigo-400">invited → ticket buyers</p>
       </div>
     </div>
   );
@@ -372,17 +420,17 @@ function CheckinStats({ data, loading }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2">
         {items.map((item) => {
           const Icon = item.icon;
           return (
             <div key={item.label} className={`rounded-xl p-3 ${item.bg}`}>
               <div className="flex items-center gap-2 mb-1">
-                <Icon className={`h-4 w-4 ${item.color}`} />
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{item.label}</p>
+                <Icon className={`h-3.5 w-3.5 ${item.color}`} />
+                <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">{item.label}</p>
               </div>
-              <p className="text-xl font-bold text-gray-900 dark:text-white">{fmt(item.value)}</p>
-              <p className="text-[11px] text-gray-400">{fmtPct(item.pct)} of scans</p>
+              <p className="text-lg font-bold text-gray-900 dark:text-white sm:text-xl">{fmt(item.value)}</p>
+              <p className="text-[10px] text-gray-400">{fmtPct(item.pct)} of scans</p>
             </div>
           );
         })}
@@ -475,11 +523,11 @@ function InsightsPanel({ data, loading }) {
 
 function Section({ title, subtitle, children, action }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-      <div className="mb-5 flex items-start justify-between gap-4">
+    <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 dark:border-gray-800 dark:bg-gray-900">
+      <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-gray-900 dark:text-white">{title}</h2>
-          {subtitle && <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">{subtitle}</p>}
+          <h2 className="text-sm font-bold text-gray-900 dark:text-white sm:text-base">{title}</h2>
+          {subtitle && <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">{subtitle}</p>}
         </div>
         {action}
       </div>
@@ -606,26 +654,74 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <>
+      {/* ── MOBILE OVERLAY ── */}
+      <div className="sm:hidden fixed inset-0 z-50 flex flex-col overflow-hidden dark"
+        style={{ background: "#07070f" }}>
+        <div className="flex shrink-0 items-center gap-3 border-b px-4"
+          style={{ borderColor: "rgba(255,255,255,0.08)", paddingTop: "max(12px, env(safe-area-inset-top))", paddingBottom: 12 }}>
+          <Link href={`/events/${eventId}`}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px]"
+            style={{ background: "#14141f", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <ChevronLeft size={17} style={{ color: "rgba(255,255,255,0.5)" }} />
+          </Link>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-[20px] font-black text-white leading-tight">Analytics</h1>
+            <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>Event performance overview</p>
+          </div>
+          <button onClick={handleRefresh} disabled={refreshing}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px]"
+            style={{ background: "#14141f", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} style={{ color: "rgba(255,255,255,0.5)" }} />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 pb-8">
+          <div className="space-y-4 dark:text-white">
+            {error && (
+              <div className="rounded-[14px] border px-4 py-3 text-[13px]"
+                style={{ borderColor: "rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)", color: "#ef4444" }}>{error}</div>
+            )}
+            <Section title="Overview" subtitle="Key performance indicators">
+              <KpiGrid data={dashboard} loading={loading.dashboard} />
+            </Section>
+            <Section title="Ticket Sales" subtitle="Revenue and sales breakdown">
+              <TicketSalesStats data={ticketSales} loading={loading.ticketSales} />
+            </Section>
+            <Section title="Revenue" subtitle="Revenue trends over time">
+              <RevenueStats data={revenue} loading={loading.revenue} interval={interval} onIntervalChange={setInterval} />
+            </Section>
+            <Section title="Check-in Analytics" subtitle="Scanner activity">
+              <CheckinStats data={checkins} loading={loading.checkins} />
+            </Section>
+            <Section title="Key Insights" subtitle="Auto-detected patterns">
+              <InsightsPanel data={insights} loading={loading.insights} />
+            </Section>
+          </div>
+        </div>
+        <MobileBottomNav />
+      </div>
+
+      {/* ── DESKTOP UI ── */}
+      <div className="hidden sm:block space-y-6">
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Analytics</h1>
-          <p className="text-sm text-gray-400 dark:text-gray-500">Event performance overview</p>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-white sm:text-xl">Analytics</h1>
+          <p className="text-xs text-gray-400 dark:text-gray-500 sm:text-sm">Event performance overview</p>
         </div>
         <button
           onClick={handleRefresh}
           disabled={refreshing}
-          className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+          className="flex shrink-0 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
-          Refresh
+          <span className="hidden sm:inline">Refresh</span>
         </button>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <KpiCard icon={DollarSign} label="Revenue"      value={fmtMoney(kpiRevenue)}     sub={`${fmt(kpiBuyers)} buyers`}        color="indigo"  sparkData={revSparkData} sparkColor="#6366f1" loading={loading.ticketSales} />
         <KpiCard icon={Ticket}     label="Tickets Sold" value={fmt(kpiTicketsSold)}       sub="paid tickets"                      color="violet"  sparkData={tixSparkData} sparkColor="#7c3aed" loading={loading.ticketSales} />
         <KpiCard icon={ScanLine}   label="Check-ins"    value={fmt(kpiCheckins)}          sub="successful scans"                  color="emerald" loading={loading.checkins} />
@@ -656,8 +752,8 @@ export default function AnalyticsPage() {
       </Section>
 
       {/* Middle row */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="md:col-span-2">
           <Section title="Ticket Types" subtitle="Breakdown by type — sold, revenue, capacity">
             <TicketTypesTable data={ticketSales?.by_ticket_type ?? []} loading={loading.ticketSales} />
           </Section>
@@ -668,7 +764,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Bottom row */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
         <Section title="Check-in Analytics" subtitle="Scanner activity and scan outcomes">
           <CheckinStats data={checkins} loading={loading.checkins} />
         </Section>
@@ -677,6 +773,7 @@ export default function AnalyticsPage() {
         </Section>
       </div>
 
-    </div>
+      </div>
+    </>
   );
 }

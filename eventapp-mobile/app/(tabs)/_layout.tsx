@@ -98,20 +98,24 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    position:        'absolute',
-    bottom:          0,
-    left:            0,
-    right:           0,
-    height:          Platform.OS === 'ios' ? 85 : 72,
-    borderTopWidth:  1,
-    borderTopColor:  Colors.border.DEFAULT,
-    backgroundColor: 'transparent',
-    elevation:       0,
+    position:          'absolute',
+    bottom:            0,
+    left:              0,
+    right:             0,
+    height:            Platform.OS === 'ios' ? 88 : 68,
+    borderTopWidth:    1,
+    borderTopColor:    Colors.border.DEFAULT,
+    backgroundColor:   'transparent',
+    elevation:         0,
+    paddingBottom:     Platform.OS === 'ios' ? 24 : 8,  // ← safe area padding
+    paddingHorizontal: 4,                                 // ← stop edge clipping
   },
   tabItem: {
-    alignItems:  'center',
-    gap:          3,
-    paddingTop:   6,
+    alignItems:     'center',
+    justifyContent: 'center',
+    gap:            2,
+    paddingTop:     4,
+    minWidth:       52,   // ← prevents label wrapping
   },
   iconWrap: {
     width:           42,
@@ -139,7 +143,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 3,
   },
   badgeText: { fontSize: 8, fontWeight: '900', color: '#fff' },
-  tabLabel:  { fontSize: 9, fontWeight: '700', letterSpacing: 0.3 },
+  tabLabel: {
+    fontSize:      10,
+    fontWeight:    '700',
+    letterSpacing: 0,       // ← 0 tracking prevents overflow
+    numberOfLines: 1,       // note: set this on the Text component below too
+  },
 
   // Builder center button — special styled
   builderTab: {

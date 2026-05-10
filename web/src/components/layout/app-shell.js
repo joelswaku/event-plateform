@@ -16,10 +16,11 @@ export default function AppShell({ children }) {
         {!isBuilder && <DashboardSidebar />}
 
         <div className="flex min-h-screen flex-1 flex-col overflow-hidden">
-          {!isBuilder && <Topbar />}
-          {!isBuilder && <BillingBanner />}
+          {/* Topbar hidden on mobile — mobile pages render their own overlay navigation */}
+          {!isBuilder && <div className="hidden sm:block"><Topbar /></div>}
+          {!isBuilder && <div className="hidden sm:block"><BillingBanner /></div>}
 
-          <main className={`flex-1 ${isBuilder ? "p-0" : "p-4 md:p-6"}`}>
+          <main className={`flex-1 ${isBuilder ? "p-0" : "p-0 sm:p-4 md:p-6"}`}>
             <div className={isBuilder ? "h-full w-full" : "mx-auto max-w-6xl"}>
               {children}
             </div>

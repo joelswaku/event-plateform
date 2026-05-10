@@ -33,22 +33,31 @@ export default function LoginScreen() {
   const [showPw, setShowPw]           = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
+  // expoClientId removed in Expo SDK 54 — use native client IDs only
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    expoClientId: ENV.GOOGLE_WEB,
-    webClientId:  ENV.GOOGLE_WEB,
-    iosClientId:  ENV.GOOGLE_IOS,
+    webClientId:     ENV.GOOGLE_WEB,
+    iosClientId:     ENV.GOOGLE_IOS,
+    androidClientId: ENV.GOOGLE_ANDROID || undefined,
   });
 
   useEffect(() => {
     if (response?.type === 'success') {
-      const idToken = response.params?.id_token;
+      // Native flows put the token in params.id_token (implicit);
+      // PKCE/code flows put it in authentication.idToken
+      const idToken =
+        (response.params as Record<string, string>)?.id_token ??
+        response.authentication?.idToken;
+
       if (idToken) {
         handleGoogleToken(idToken);
       } else {
         setGoogleLoading(false);
-        Toast.show({ type: 'error', text1: 'Google Sign-In failed', text2: 'No id_token received' });
+        Toast.show({ type: 'error', text1: 'Google Sign-In failed', text2: 'No id_token in response' });
       }
-    } else if (response?.type === 'error' || response?.type === 'dismiss') {
+    } else if (response?.type === 'error') {
+      setGoogleLoading(false);
+      Toast.show({ type: 'error', text1: 'Google Sign-In failed', text2: response.error?.message ?? 'Unknown error' });
+    } else if (response?.type === 'dismiss') {
       setGoogleLoading(false);
     }
   }, [response]);

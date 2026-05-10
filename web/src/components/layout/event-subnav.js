@@ -62,7 +62,7 @@ export default function EventSubnav() {
   ];
 
   return (
-    <div className="overflow-x-auto rounded-3xl border border-[#e5e7eb] bg-white p-2">
+    <div className="hidden sm:block overflow-x-auto rounded-3xl border border-[#e5e7eb] bg-white p-2">
       <div className="flex min-w-max items-center gap-2">
         {items.map((item) => {
           const Icon = item.icon;

@@ -46,6 +46,11 @@ export interface Event {
   organization_id: string;
   created_at: string;
   updated_at: string;
+  // Computed fields returned by the list/detail API
+  guest_count?: number;
+  attending_count?: number;
+  ticket_count?: number;
+  checkin_count?: number;
 }
 
 export interface EventDashboard {

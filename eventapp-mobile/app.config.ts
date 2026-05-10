@@ -24,6 +24,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       NSAppTransportSecurity: {
         NSAllowsArbitraryLoads: true,
       },
+      // Google OAuth reverse-client-ID URL scheme so the OS can redirect
+      // back to the app after Google sign-in completes.
+      CFBundleURLTypes: [
+        {
+          CFBundleURLSchemes: [
+            'com.googleusercontent.apps.728056596746-44c4q2vgaiojan8imrs50ikkjmg3e8d0',
+          ],
+        },
+      ],
     },
   },
   android: {

@@ -3,6 +3,11 @@ export const Config = {
   APP_NAME:  'EventApp',
   VERSION:   '1.0.0',
 
+  STRIPE: {
+    MONTHLY_PRICE_ID: process.env.EXPO_PUBLIC_STRIPE_MONTHLY_PRICE_ID ?? 'price_1TOoyNGaoI7icxS6KoDugKLZ',
+    YEARLY_PRICE_ID:  process.env.EXPO_PUBLIC_STRIPE_YEARLY_PRICE_ID  ?? '',
+  },
+
   SECURE_STORE_KEYS: {
     USER:             'eventapp_user',
     IS_AUTHENTICATED: 'eventapp_is_authenticated',
