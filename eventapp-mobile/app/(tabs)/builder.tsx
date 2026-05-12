@@ -12,7 +12,8 @@
  *   EMPTY:  Create first event CTA
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, StyleSheet, Pressable, ScrollView,
   ActivityIndicator, Dimensions,
@@ -39,12 +40,25 @@ export default function BuilderTabScreen() {
   const router     = useRouter();
   const insets     = useSafeAreaInsets();
   const openDrawer = useDrawerStore(s => s.open);
-  const { events, fetchEvents, loading } = useEventStore();
+  const { events, fetchEvents, loading, activeEventId } = useEventStore();
   const { isHydrated, isAuthenticated }  = useAuthStore(s => ({ isHydrated: s.isHydrated, isAuthenticated: s.isAuthenticated }));
 
   useEffect(() => {
     if (isHydrated && isAuthenticated) fetchEvents();
   }, [isHydrated, isAuthenticated]);
+
+  // Auto-navigate to active event's builder on focus
+  const didNavigate = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      const target = activeEventId ?? events[0]?.id;
+      if (target && !didNavigate.current) {
+        didNavigate.current = true;
+        router.push(`/events/${target}/builder` as never);
+      }
+      return () => { didNavigate.current = false; };
+    }, [activeEventId, events])
+  );
 
   const handleSelect = (eventId: string) => {
     router.push(`/events/${eventId}/builder` as never);
@@ -75,7 +89,7 @@ export default function BuilderTabScreen() {
     );
   }
 
-  /* ── Event list ── */
+  /* ── Event list (fallback if no active event yet) ── */
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <TopBar onMenu={openDrawer} onCreate={() => router.push('/events/create' as never)} />
@@ -90,10 +104,11 @@ export default function BuilderTabScreen() {
 
         {events.map(ev => {
           const cfg = statusCfg(ev.status);
+          const isActive = ev.id === activeEventId;
           return (
             <Pressable
               key={ev.id}
-              style={s.card}
+              style={[s.card, isActive && { borderColor: `${Colors.accent.indigo}60`, borderWidth: 1.5 }]}
               onPress={() => handleSelect(ev.id)}
             >
               {/* Subtle left-side gradient accent */}
@@ -114,9 +129,15 @@ export default function BuilderTabScreen() {
 
               {/* Info */}
               <View style={s.cardInfo}>
-                <Text style={s.cardTitle} numberOfLines={1}>{ev.title}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={s.cardTitle} numberOfLines={1}>{ev.title}</Text>
+                  {isActive && (
+                    <View style={s.activeBadge}>
+                      <Text style={s.activeBadgeTxt}>ACTIVE</Text>
+                    </View>
+                  )}
+                </View>
                 <View style={s.cardMeta}>
-                  {/* Status dot + label */}
                   <View style={[s.statusDot, { backgroundColor: cfg.dot }]} />
                   <Text style={[s.statusTxt, { color: cfg.text }]}>
                     {ev.status.charAt(0) + ev.status.slice(1).toLowerCase()}
@@ -127,7 +148,7 @@ export default function BuilderTabScreen() {
               </View>
 
               {/* Arrow */}
-              <Feather name="chevron-right" size={15} color="rgba(255,255,255,0.18)" />
+              <Feather name="chevron-right" size={15} color={isActive ? Colors.accent.indigo : 'rgba(255,255,255,0.18)'} />
             </Pressable>
           );
         })}
@@ -259,6 +280,8 @@ const s = StyleSheet.create({
   statusTxt:{ fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
   dot:      { fontSize: 10, color: '#44495a' },
   cardSub:  { fontSize: 10, color: '#44495a', fontWeight: '600' },
+  activeBadge:    { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: `${Colors.accent.indigo}22`, borderWidth: 1, borderColor: `${Colors.accent.indigo}40` },
+  activeBadgeTxt: { fontSize: 8, fontWeight: '800', color: Colors.accent.indigo, letterSpacing: 0.8 },
 
   /* Quick create card */
   createCard: {

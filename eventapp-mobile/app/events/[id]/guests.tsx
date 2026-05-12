@@ -26,6 +26,7 @@ import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import {
   View, Text, TextInput, ScrollView, StyleSheet,
   Pressable, RefreshControl, Dimensions, Animated,
+  ActivityIndicator, Alert, Modal,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -108,12 +109,28 @@ const sc = StyleSheet.create({
 /* ══════════════════════════════════════════════════════════════
    GUEST CARD
 ══════════════════════════════════════════════════════════════ */
-function GuestCard({ guest, onPress }: { guest: any; onPress: () => void }) {
+function GuestCard({
+  guest, onPress, selectMode = false, selected = false, onToggle,
+}: {
+  guest: any; onPress: () => void;
+  selectMode?: boolean; selected?: boolean; onToggle?: () => void;
+}) {
   const cfg      = getStatusCfg(guest);
   const initials = getInitials(guest.full_name);
 
   return (
-    <Pressable style={gc.card} onPress={onPress} activeOpacity={0.82}>
+    <Pressable
+      style={[gc.card, selected && gc.cardSelected]}
+      onPress={selectMode ? onToggle : onPress}
+      onLongPress={!selectMode ? undefined : undefined}
+    >
+      {/* Selection checkbox */}
+      {selectMode && (
+        <View style={[gc.checkbox, selected && gc.checkboxChecked]}>
+          {selected && <Feather name="check" size={11} color="#fff" />}
+        </View>
+      )}
+
       {/* Avatar */}
       <View style={[gc.avatar, { backgroundColor: `${cfg.color}20`, borderColor: `${cfg.color}40` }]}>
         {guest.is_vip && (
@@ -154,7 +171,9 @@ function GuestCard({ guest, onPress }: { guest: any; onPress: () => void }) {
         <Text style={[gc.statusTxt, { color: cfg.color }]}>{cfg.label}</Text>
       </View>
 
-      <Feather name="chevron-right" size={14} color="rgba(255,255,255,0.15)" style={{ marginLeft: 2 }} />
+      {!selectMode && (
+        <Feather name="chevron-right" size={14} color="rgba(255,255,255,0.15)" style={{ marginLeft: 2 }} />
+      )}
     </Pressable>
   );
 }
@@ -165,6 +184,20 @@ const gc = StyleSheet.create({
     backgroundColor: Colors.bg.card,
     borderRadius: 16, borderWidth: 1, borderColor: Colors.border.subtle,
     padding: 14,
+  },
+  cardSelected: {
+    borderColor: `${Colors.accent.indigo}55`,
+    backgroundColor: `${Colors.accent.indigo}0a`,
+  },
+  checkbox: {
+    width: 22, height: 22, borderRadius: 7, flexShrink: 0,
+    borderWidth: 1.5, borderColor: Colors.border.DEFAULT,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.bg.elevated,
+  },
+  checkboxChecked: {
+    backgroundColor: Colors.accent.indigo,
+    borderColor: Colors.accent.indigo,
   },
   avatar: {
     width: 46, height: 46, borderRadius: 23,
@@ -197,7 +230,7 @@ const gc = StyleSheet.create({
 /* ══════════════════════════════════════════════════════════════
    EMPTY STATE
 ══════════════════════════════════════════════════════════════ */
-function EmptyGuests({ filter, query, onAdd }: { filter: Filter; query: string; onAdd: () => void }) {
+function EmptyGuests({ filter, query, onAdd, onContacts }: { filter: Filter; query: string; onAdd: () => void; onContacts: () => void }) {
   const msg = query
     ? { icon: 'search'    as const, title: `No results for "${query}"`, sub: 'Try a different name or email.' }
     : filter !== 'ALL'
@@ -216,15 +249,21 @@ function EmptyGuests({ filter, query, onAdd }: { filter: Filter; query: string; 
       <Text style={em.title}>{msg.title}</Text>
       <Text style={em.sub}>{msg.sub}</Text>
       {filter === 'ALL' && !query && (
-        <Pressable style={em.btn} onPress={onAdd}>
-          <LinearGradient
-            colors={[Colors.accent.indigo, Colors.accent.violet]}
-            style={StyleSheet.absoluteFill}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-          />
-          <Feather name="user-plus" size={15} color="#fff" />
-          <Text style={em.btnTxt}>Add First Guest</Text>
-        </Pressable>
+        <View style={em.btnRow}>
+          <Pressable style={em.btn} onPress={onAdd}>
+            <LinearGradient
+              colors={[Colors.accent.indigo, Colors.accent.violet]}
+              style={StyleSheet.absoluteFill}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            />
+            <Feather name="user-plus" size={15} color="#fff" />
+            <Text style={em.btnTxt}>Add Guest</Text>
+          </Pressable>
+          <Pressable style={em.contactsBtn} onPress={onContacts}>
+            <Feather name="book-open" size={15} color={Colors.accent.indigo} />
+            <Text style={em.contactsBtnTxt}>From Contacts</Text>
+          </Pressable>
+        </View>
       )}
     </View>
   );
@@ -240,12 +279,20 @@ const em = StyleSheet.create({
   },
   title:   { fontSize: 18, fontWeight: '900', color: '#fff', textAlign: 'center', letterSpacing: -0.3 },
   sub:     { fontSize: 13, color: Colors.text.muted, textAlign: 'center', lineHeight: 20 },
+  btnRow: { flexDirection: 'row', gap: 10, marginTop: 8 },
   btn: {
     flexDirection: 'row', alignItems: 'center', gap: 7,
-    height: 44, paddingHorizontal: 24, borderRadius: 12,
-    overflow: 'hidden', marginTop: 8,
+    height: 44, paddingHorizontal: 20, borderRadius: 12,
+    overflow: 'hidden', flex: 1, justifyContent: 'center',
   },
   btnTxt:  { fontSize: 14, fontWeight: '800', color: '#fff' },
+  contactsBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+    height: 44, paddingHorizontal: 20, borderRadius: 12, flex: 1,
+    borderWidth: 1.5, borderColor: `${Colors.accent.indigo}40`,
+    backgroundColor: `${Colors.accent.indigo}10`,
+  },
+  contactsBtnTxt: { fontSize: 14, fontWeight: '800', color: Colors.accent.indigo },
 });
 
 /* ══════════════════════════════════════════════════════════════
@@ -255,14 +302,23 @@ export default function GuestsScreen() {
   const { id: eventId }  = useLocalSearchParams<{ id: string }>();
   const router           = useRouter();
   const insets           = useSafeAreaInsets();
-  const { guests, dashboard, fetchGuests, fetchDashboard, createGuest } = useGuestStore();
+  const {
+    guests, dashboard, fetchGuests, fetchDashboard, createGuest,
+    bulkDeleteGuests, bulkSubmitRsvp, bulkSendInvitations,
+  } = useGuestStore();
 
-  const [query,    setQuery]    = useState('');
-  const [filter,   setFilter]   = useState<Filter>('ALL');
-  const [addOpen,  setAddOpen]  = useState(false);
-  const [focused,  setFocused]  = useState(false);
-  const [newGuest, setNewGuest] = useState({ full_name: '', email: '', phone: '', is_vip: false });
-  const [adding,   setAdding]   = useState(false);
+  const [query,       setQuery]       = useState('');
+  const [filter,      setFilter]      = useState<Filter>('ALL');
+  const [addOpen,     setAddOpen]     = useState(false);
+  const [focused,     setFocused]     = useState(false);
+  const [newGuest,    setNewGuest]    = useState({ full_name: '', email: '', phone: '', is_vip: false });
+  const [adding,      setAdding]      = useState(false);
+
+  /* Bulk selection */
+  const [selectMode,   setSelectMode]   = useState(false);
+  const [selectedIds,  setSelectedIds]  = useState<Set<string>>(new Set());
+  const [bulkLoading,  setBulkLoading]  = useState(false);
+  const [rsvpMenu,     setRsvpMenu]     = useState(false);
 
   useEffect(() => {
     if (!eventId) return;
@@ -308,6 +364,77 @@ export default function GuestsScreen() {
     }
   };
 
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((g: any) => g.id)));
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, [selectedIds, filtered]);
+
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+    setRsvpMenu(false);
+  }, []);
+
+  const handleBulkDelete = useCallback(() => {
+    Alert.alert(
+      'Delete Guests',
+      `Remove ${selectedIds.size} guest${selectedIds.size !== 1 ? 's' : ''}? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete', style: 'destructive',
+          onPress: async () => {
+            setBulkLoading(true);
+            const res = await bulkDeleteGuests(eventId!, Array.from(selectedIds));
+            setBulkLoading(false);
+            if (res.success) {
+              Toast.show({ type: 'success', text1: `${selectedIds.size} guest${selectedIds.size !== 1 ? 's' : ''} deleted` });
+              exitSelectMode();
+            } else {
+              Toast.show({ type: 'error', text1: 'Bulk delete failed' });
+            }
+          },
+        },
+      ],
+    );
+  }, [selectedIds, eventId, bulkDeleteGuests, exitSelectMode]);
+
+  const handleBulkInvite = useCallback(async () => {
+    setBulkLoading(true);
+    const res = await bulkSendInvitations(eventId!, Array.from(selectedIds));
+    setBulkLoading(false);
+    if (res.success) {
+      Toast.show({ type: 'success', text1: `Invitations sent to ${selectedIds.size} guest${selectedIds.size !== 1 ? 's' : ''}` });
+    } else {
+      Toast.show({ type: 'error', text1: 'Failed to send invitations' });
+    }
+  }, [selectedIds, eventId, bulkSendInvitations]);
+
+  const handleBulkRsvp = useCallback(async (status: string) => {
+    setRsvpMenu(false);
+    setBulkLoading(true);
+    const res = await bulkSubmitRsvp(eventId!, Array.from(selectedIds), status);
+    setBulkLoading(false);
+    if (res.success) {
+      Toast.show({ type: 'success', text1: `RSVP set to ${status.toLowerCase()} for ${selectedIds.size} guest${selectedIds.size !== 1 ? 's' : ''}` });
+    } else {
+      Toast.show({ type: 'error', text1: 'Failed to update RSVP' });
+    }
+  }, [selectedIds, eventId, bulkSubmitRsvp]);
+
   const dash = dashboard as any;
 
   return (
@@ -315,38 +442,70 @@ export default function GuestsScreen() {
 
       {/* ── HEADER ──────────────────────────────────────────────── */}
       <View style={s.header}>
-        <Pressable style={s.backBtn} onPress={() => router.back()} hitSlop={10}>
-          <Feather name="arrow-left" size={17} color={Colors.text.muted} />
+        <Pressable style={s.backBtn} onPress={selectMode ? exitSelectMode : () => router.back()} hitSlop={10}>
+          <Feather name={selectMode ? 'x' : 'arrow-left'} size={17} color={Colors.text.muted} />
         </Pressable>
 
         <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>Guests</Text>
-          <Text style={s.headerSub}>
-            {dash
-              ? `${dash.total ?? guests.length} total · ${dash.checked_in ?? 0} checked in`
-              : `${guests.length} total`
-            }
-          </Text>
+          {selectMode ? (
+            <>
+              <Text style={s.headerTitle}>{selectedIds.size} selected</Text>
+              <Pressable onPress={toggleSelectAll} hitSlop={6}>
+                <Text style={s.selectAllTxt}>
+                  {selectedIds.size === filtered.length ? 'Deselect all' : 'Select all'}
+                </Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Text style={s.headerTitle}>Guests</Text>
+              <Text style={s.headerSub}>
+                {dash
+                  ? `${dash.total ?? guests.length} total · ${dash.checked_in ?? 0} checked in`
+                  : `${guests.length} total`
+                }
+              </Text>
+            </>
+          )}
         </View>
 
-        {/* Import / more */}
-        <Pressable style={s.iconBtn} hitSlop={8}>
-          <Feather name="more-horizontal" size={17} color={Colors.text.muted} />
-        </Pressable>
+        {!selectMode && (
+          <>
+            {/* Select mode toggle */}
+            {guests.length > 0 && (
+              <Pressable
+                style={s.iconBtn}
+                onPress={() => { setSelectMode(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
+                hitSlop={8}
+              >
+                <Feather name="check-square" size={17} color={Colors.text.muted} />
+              </Pressable>
+            )}
 
-        {/* Add guest */}
-        <Pressable
-          style={s.addBtn}
-          onPress={() => setAddOpen(true)}
-          hitSlop={6}
-        >
-          <LinearGradient
-            colors={[Colors.accent.indigo, Colors.accent.violet]}
-            style={StyleSheet.absoluteFill}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          />
-          <Feather name="user-plus" size={16} color="#fff" />
-        </Pressable>
+            {/* From Contacts shortcut */}
+            <Pressable
+              style={s.iconBtn}
+              onPress={() => router.push(`/events/${eventId}/guests/contacts` as never)}
+              hitSlop={8}
+            >
+              <Feather name="book-open" size={17} color={Colors.accent.indigo} />
+            </Pressable>
+
+            {/* Add guest manually */}
+            <Pressable
+              style={s.addBtn}
+              onPress={() => setAddOpen(true)}
+              hitSlop={6}
+            >
+              <LinearGradient
+                colors={[Colors.accent.indigo, Colors.accent.violet]}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              />
+              <Feather name="user-plus" size={16} color="#fff" />
+            </Pressable>
+          </>
+        )}
       </View>
 
       {/* ── STATS ROW ───────────────────────────────────────────── */}
@@ -431,7 +590,12 @@ export default function GuestsScreen() {
         }
       >
         {filtered.length === 0 ? (
-          <EmptyGuests filter={filter} query={query} onAdd={() => setAddOpen(true)} />
+          <EmptyGuests
+            filter={filter}
+            query={query}
+            onAdd={() => setAddOpen(true)}
+            onContacts={() => router.push(`/events/${eventId}/guests/contacts` as never)}
+          />
         ) : (
           <>
             <Text style={s.listCount}>
@@ -442,6 +606,9 @@ export default function GuestsScreen() {
                 <GuestCard
                   key={g.id}
                   guest={g}
+                  selectMode={selectMode}
+                  selected={selectedIds.has(g.id)}
+                  onToggle={() => toggleSelect(g.id)}
                   onPress={() => router.push(`/events/${eventId}/guests/${g.id}` as never)}
                 />
               ))}
@@ -450,6 +617,57 @@ export default function GuestsScreen() {
         )}
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* ── BULK ACTION TOOLBAR ─────────────────────────────────── */}
+      {selectMode && selectedIds.size > 0 && (
+        <View style={bl.toolbar}>
+          <Text style={bl.count}>{selectedIds.size} selected</Text>
+          <View style={bl.actions}>
+            {/* Send Invite */}
+            <Pressable style={bl.btn} onPress={handleBulkInvite} disabled={bulkLoading}>
+              <Feather name="send" size={15} color={Colors.accent.indigo} />
+              <Text style={[bl.btnTxt, { color: Colors.accent.indigo }]}>Invite</Text>
+            </Pressable>
+
+            {/* RSVP */}
+            <Pressable style={bl.btn} onPress={() => setRsvpMenu(true)} disabled={bulkLoading}>
+              <Feather name="check-circle" size={15} color={Colors.accent.emerald} />
+              <Text style={[bl.btnTxt, { color: Colors.accent.emerald }]}>RSVP</Text>
+            </Pressable>
+
+            {/* Delete */}
+            <Pressable style={bl.deleteBtn} onPress={handleBulkDelete} disabled={bulkLoading}>
+              {bulkLoading
+                ? <ActivityIndicator size="small" color={Colors.accent.red} />
+                : <Feather name="trash-2" size={15} color={Colors.accent.red} />
+              }
+              <Text style={[bl.btnTxt, { color: Colors.accent.red }]}>Delete</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {/* ── RSVP MENU MODAL ─────────────────────────────────────── */}
+      <Modal visible={rsvpMenu} transparent animationType="fade" onRequestClose={() => setRsvpMenu(false)}>
+        <Pressable style={rm.overlay} onPress={() => setRsvpMenu(false)}>
+          <View style={rm.sheet}>
+            <Text style={rm.title}>Set RSVP for {selectedIds.size} guest{selectedIds.size !== 1 ? 's' : ''}</Text>
+            {[
+              { label: 'Confirmed', value: 'CONFIRMED', color: Colors.accent.emerald },
+              { label: 'Pending',   value: 'PENDING',   color: Colors.accent.amber   },
+              { label: 'Declined',  value: 'DECLINED',  color: Colors.accent.red     },
+            ].map(opt => (
+              <Pressable key={opt.value} style={rm.option} onPress={() => handleBulkRsvp(opt.value)}>
+                <View style={[rm.optDot, { backgroundColor: opt.color }]} />
+                <Text style={[rm.optTxt, { color: opt.color }]}>{opt.label}</Text>
+              </Pressable>
+            ))}
+            <Pressable style={rm.cancel} onPress={() => setRsvpMenu(false)}>
+              <Text style={rm.cancelTxt}>Cancel</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* ── ADD GUEST SHEET ─────────────────────────────────────── */}
       <BottomSheet open={addOpen} onClose={() => setAddOpen(false)} title="Add Guest">
@@ -539,8 +757,9 @@ const s = StyleSheet.create({
     backgroundColor: ELEV, borderWidth: 1, borderColor: BORDER,
     alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontSize: 22, fontWeight: '900', color: '#fff', letterSpacing: -0.4 },
-  headerSub:   { fontSize: 11, color: Colors.text.muted, marginTop: 1 },
+  headerTitle:   { fontSize: 22, fontWeight: '900', color: '#fff', letterSpacing: -0.4 },
+  headerSub:     { fontSize: 11, color: Colors.text.muted, marginTop: 1 },
+  selectAllTxt:  { fontSize: 12, fontWeight: '700', color: Colors.accent.indigo, marginTop: 1 },
   iconBtn: {
     width: 38, height: 38, borderRadius: 12,
     backgroundColor: ELEV, borderWidth: 1, borderColor: BORDER,
@@ -595,6 +814,58 @@ const s = StyleSheet.create({
     textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10,
   },
   listItems: { gap: 10 },
+});
+
+/* Bulk action toolbar */
+const bl = StyleSheet.create({
+  toolbar: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: Colors.bg.elevated,
+    borderTopWidth: 1, borderTopColor: Colors.border.subtle,
+    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+  },
+  count: { fontSize: 13, fontWeight: '800', color: Colors.text.muted, flexShrink: 0 },
+  actions: { flex: 1, flexDirection: 'row', gap: 8, justifyContent: 'flex-end' },
+  btn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 12, height: 36, borderRadius: 10,
+    borderWidth: 1, borderColor: Colors.border.DEFAULT,
+    backgroundColor: Colors.bg.card,
+  },
+  deleteBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 12, height: 36, borderRadius: 10,
+    borderWidth: 1, borderColor: `${Colors.accent.red}40`,
+    backgroundColor: `${Colors.accent.red}12`,
+  },
+  btnTxt: { fontSize: 13, fontWeight: '700' },
+});
+
+/* RSVP modal */
+const rm = StyleSheet.create({
+  overlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 24,
+  },
+  sheet: {
+    width: '90%', backgroundColor: Colors.bg.elevated,
+    borderRadius: 20, borderWidth: 1, borderColor: Colors.border.subtle,
+    padding: 16, gap: 4,
+  },
+  title: { fontSize: 14, fontWeight: '800', color: Colors.text.muted, marginBottom: 10, textAlign: 'center' },
+  option: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 14, paddingHorizontal: 12, borderRadius: 14,
+    backgroundColor: Colors.bg.card, marginBottom: 4,
+  },
+  optDot:    { width: 10, height: 10, borderRadius: 5 },
+  optTxt:    { fontSize: 15, fontWeight: '800' },
+  cancel: {
+    alignItems: 'center', paddingVertical: 14, borderRadius: 14, marginTop: 4,
+    backgroundColor: Colors.bg.card,
+  },
+  cancelTxt: { fontSize: 14, fontWeight: '700', color: Colors.text.muted },
 });
 
 /* Add guest form */

@@ -172,7 +172,7 @@ export default function SectionPreviewCard({ section, selected, event }: Props) 
 
 function SectionContent({ type,cfg,title,body,event,t }: any) {
   switch(type) {
-    case 'HERO':      return <HeroBlock      cfg={cfg} title={title} body={body} t={t}/>;
+    case 'HERO':      return <HeroBlock      cfg={cfg} title={title} body={body} t={t} event={event}/>;
     case 'ABOUT':     return <AboutBlock     cfg={cfg} title={title} body={body} t={t}/>;
     case 'STORY':     return <StoryBlock     cfg={cfg} title={title} body={body} t={t}/>;
     case 'COUPLE':    return <CoupleBlock    cfg={cfg} t={t}/>;
@@ -261,7 +261,14 @@ const fc = StyleSheet.create({
    LUXURY:  UPPERCASE italic 200, gold accent line top+bottom
    FUN:     extrabold 800, center, full image with heavy overlay
 ══════════════════════════════════════════════════════════════════ */
-function HeroBlock({ cfg, title, body, t }: any) {
+const MODULE_CHIPS = [
+  { key: 'allow_rsvp',       label: 'RSVP',      color: '#10b981' },
+  { key: 'allow_ticketing',  label: 'Ticketing',  color: '#f59e0b' },
+  { key: 'allow_qr_checkin', label: 'QR',         color: '#06b6d4' },
+  { key: 'allow_donations',  label: 'Donations',  color: '#f43f5e' },
+];
+
+function HeroBlock({ cfg, title, body, t, event }: any) {
   const th       = cfg._theme ?? 'CLASSIC';
   const bg       = cfg.background_image as string|undefined;
   const eyebrow  = cfg.eyebrow || (th==='FUN' ? "Let's Celebrate!" : th==='MODERN' ? 'OPENING NIGHT' : 'YOU ARE INVITED');
@@ -368,6 +375,22 @@ function HeroBlock({ cfg, title, body, t }: any) {
             }]}>{ctaTxt}</Text>
           </View>
         )}
+
+        {/* Active module chips */}
+        {event && (() => {
+          const active = MODULE_CHIPS.filter(m => !!(event as any)[m.key]);
+          if (!active.length) return null;
+          return (
+            <View style={hro.chipsRow}>
+              {active.map(m => (
+                <View key={m.key} style={[hro.chip, { backgroundColor: `${m.color}22`, borderColor: `${m.color}44` }]}>
+                  <View style={[hro.chipDot, { backgroundColor: m.color }]} />
+                  <Text style={[hro.chipTxt, { color: m.color }]}>{m.label}</Text>
+                </View>
+              ))}
+            </View>
+          );
+        })()}
       </View>
     </View>
   );
@@ -385,6 +408,10 @@ const hro = StyleSheet.create({
   sub:       {fontSize:13,color:'rgba(255,255,255,0.65)',lineHeight:19},
   cta:       {alignSelf:'flex-start',paddingHorizontal:18,paddingVertical:9,marginTop:4},
   ctaTxt:    {fontSize:11,color:'#fff'},
+  chipsRow:  {flexDirection:'row',flexWrap:'wrap',gap:4,marginTop:2},
+  chip:      {flexDirection:'row',alignItems:'center',gap:3,paddingHorizontal:7,paddingVertical:3,borderRadius:99,borderWidth:1},
+  chipDot:   {width:4,height:4,borderRadius:2},
+  chipTxt:   {fontSize:9,fontWeight:'700',letterSpacing:0.3},
 });
 
 /* ══════════════════════════════════════════════════════════════════

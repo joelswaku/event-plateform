@@ -70,6 +70,150 @@ const QUICK = [
   { icon: 'credit-card' as const, label: 'Tickets', route: '/my-tickets',     grad: ['#d97706', '#f59e0b'] as const },
 ];
 
+
+/* ─── Active Event Toggle ──────────────────────────────────────────
+   Shows only when user has 2+ events.
+   One tap switches the active event for the ENTIRE app.
+─────────────────────────────────────────────────────────────────── */
+function ActiveEventToggle() {
+  const { events, activeEventId, setActiveEvent } = useEventStore();
+
+  // Only show when there are 2+ events
+  if (events.length < 2) return null;
+
+  return (
+    <View style={tog.wrap}>
+      <View style={tog.labelRow}>
+        <Feather name="zap" size={10} color={Colors.accent.indigo} />
+        <Text style={tog.label}>ACTIVE EVENT</Text>
+        <Text style={tog.sublabel}>· scanner & builder use this</Text>
+      </View>
+
+      <View style={tog.pills}>
+        {events.map(ev => {
+          const isActive = ev.id === activeEventId;
+          const cfg      = Colors.status[ev.status as keyof typeof Colors.status]
+                           ?? Colors.status.DRAFT;
+          return (
+            <Pressable
+              key={ev.id}
+              style={[tog.pill, isActive && tog.pillActive]}
+              onPress={() => setActiveEvent(ev.id)}
+            >
+              {/* Active glow */}
+              {isActive && (
+                <LinearGradient
+                  colors={[`${Colors.accent.indigo}25`, `${Colors.accent.indigo}08`]}
+                  style={StyleSheet.absoluteFill}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                />
+              )}
+
+              {/* Status dot */}
+              <View style={[tog.dot, { backgroundColor: cfg.dot }]} />
+
+              {/* Title */}
+              <Text
+                style={[tog.pillTxt, isActive && tog.pillTxtActive]}
+                numberOfLines={1}
+              >
+                {ev.title}
+              </Text>
+
+              {/* Active checkmark */}
+              {isActive && (
+                <View style={tog.check}>
+                  <Feather name="check" size={10} color="#fff" />
+                </View>
+              )}
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const tog = StyleSheet.create({
+  wrap: {
+    marginHorizontal: 20,
+    marginTop:        14,
+    backgroundColor:  Colors.bg.card,
+    borderRadius:     16,
+    borderWidth:      1,
+    borderColor:      Colors.border.DEFAULT,
+    padding:          12,
+    gap:              10,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           5,
+  },
+  label: {
+    fontSize:      9,
+    fontWeight:    '800',
+    color:         Colors.accent.indigo,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  sublabel: {
+    fontSize:  9,
+    color:     Colors.text.subtle,
+    fontWeight:'600',
+  },
+  pills: {
+    flexDirection: 'row',
+    gap:           8,
+  },
+  pill: {
+    flex:              1,
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               7,
+    paddingHorizontal: 10,
+    paddingVertical:   9,
+    borderRadius:      12,
+    borderWidth:       1,
+    borderColor:       Colors.border.subtle,
+    backgroundColor:   Colors.bg.elevated,
+    overflow:          'hidden',
+  },
+  pillActive: {
+    borderColor: `${Colors.accent.indigo}50`,
+  },
+  dot: {
+    width:        7,
+    height:       7,
+    borderRadius: 4,
+    flexShrink:   0,
+  },
+  pillTxt: {
+    flex:          1,
+    fontSize:      12,
+    fontWeight:    '700',
+    color:         Colors.text.muted,
+    letterSpacing: -0.1,
+  },
+  pillTxtActive: {
+    color:      '#fff',
+    fontWeight: '800',
+  },
+  check: {
+    width:           18,
+    height:          18,
+    borderRadius:    9,
+    backgroundColor: Colors.accent.indigo,
+    alignItems:      'center',
+    justifyContent:  'center',
+    flexShrink:      0,
+  },
+});
+
+
+
+
+
 /* ─── Stat tile ────────────────────────────────────────────────────── */
 function StatTile({ value, label, icon, accent }: {
   value: number | string; label: string;
@@ -228,7 +372,8 @@ function EmptyEvents({ onPress }: { onPress: () => void }) {
 export default function HomeScreen() {
   const router   = useRouter();
   const user     = useAuthStore(st => st.user);
-  const { events, fetchEvents, loading } = useEventStore();
+
+  const { events, fetchEvents, loading, activeEventId, setActiveEvent, dashboard, fetchEventDashboard } = useEventStore();
   const { isPremium, fetchSubscription } = useSubscriptionStore();
   const { unreadCount, fetch: fetchNotifs } = useNotificationStore();
 
@@ -255,19 +400,37 @@ export default function HomeScreen() {
     ]).start();
   }, []);
 
+  // Fetch dashboard whenever active event changes
+  useEffect(() => {
+    if (activeEventId) fetchEventDashboard(activeEventId);
+  }, [activeEventId]);
+
+  // Auto-scroll carousel to active event
+  useEffect(() => {
+    if (!activeEventId || !events.length) return;
+    const idx = events.findIndex(e => e.id === activeEventId);
+    if (idx < 0) return;
+    setActiveIdx(idx);
+    setTimeout(() => {
+      carouselRef.current?.scrollTo({ x: idx * (CARD_W + 12), animated: true });
+    }, 100);
+  }, [activeEventId, events.length]);
+
   // Re-check subscription + notifications when screen comes back into focus
   useFocusEffect(
     useCallback(() => {
       fetchSubscription();
       fetchNotifs();
-    }, [fetchSubscription, fetchNotifs])
+      if (activeEventId) fetchEventDashboard(activeEventId);
+    }, [activeEventId, fetchSubscription, fetchNotifs])
   );
 
   const onRefresh = useCallback(() => {
     fetchEvents();
     fetchSubscription();
     fetchNotifs();
-  }, []);
+    if (activeEventId) fetchEventDashboard(activeEventId);
+  }, [activeEventId]);
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -276,11 +439,17 @@ export default function HomeScreen() {
     return 'Good evening';
   };
 
-  const firstName = user?.full_name?.split(' ')[0] ?? 'there';
+  const firstName   = user?.full_name?.split(' ')[0] ?? 'there';
   const premiumStatus = isPremium();
-  const published = events.filter(e => e.status === 'PUBLISHED').length;
-  const drafts    = events.filter(e => e.status === 'DRAFT').length;
-  const recent    = events.slice(0, 6);
+  const recent      = events.slice(0, 6);
+
+  // Active event + its dashboard stats
+  const activeEvent = events.find(e => e.id === activeEventId) ?? events[0] ?? null;
+  const activeStats = dashboard?.event?.id === activeEventId ? dashboard.stats : null;
+  const guestCount    = activeStats?.guest_count     ?? 0;
+  const attendingCount = activeStats?.attending_count ?? 0;
+  const ticketCount   = activeStats?.ticket_count    ?? 0;
+  const checkinCount  = activeStats?.checkin_count   ?? 0;
 
   const initials = (user?.full_name ?? 'U')
     .split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
@@ -293,6 +462,11 @@ export default function HomeScreen() {
   const onCarouselScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const idx = Math.round(e.nativeEvent.contentOffset.x / (CARD_W + 12));
     setActiveIdx(idx);
+    // Switch active event when user manually scrolls
+    const scrolledEvent = events[idx];
+    if (scrolledEvent && scrolledEvent.id !== activeEventId) {
+      setActiveEvent(scrolledEvent.id);
+    }
   };
 
   return (
@@ -344,14 +518,27 @@ export default function HomeScreen() {
           </View>
         </Animated.View>
 
-        {/* ── Stats row ─────────────────────────────────────────── */}
+        {/* ── Stats row (active event) ──────────────────────────── */}
         <Animated.View style={animStyle(statsAnim)}>
+          {activeEvent && (
+            <View style={s.activeEventBanner}>
+              <View style={s.activeEventDot} />
+              <Text style={s.activeEventName} numberOfLines={1}>{activeEvent.title}</Text>
+              <Pressable onPress={() => router.push(`/events/${activeEvent.id}` as never)}>
+                <Text style={s.activeEventLink}>Open →</Text>
+              </Pressable>
+            </View>
+          )}
           <View style={s.statsRow}>
-            <StatTile value={events.length} label="Total"     icon="layers"     accent={Colors.accent.indigo}  />
-            <StatTile value={published}     label="Published" icon="globe"       accent={Colors.accent.emerald} />
-            <StatTile value={drafts}        label="Drafts"    icon="edit-2"      accent={Colors.accent.amber}   />
-            <StatTile value="$0"            label="Revenue"   icon="dollar-sign" accent={Colors.accent.violet}  />
+            <StatTile value={guestCount}     label="Guests"    icon="users"       accent={Colors.accent.indigo}  />
+            <StatTile value={attendingCount} label="Attending" icon="user-check"  accent={Colors.accent.emerald} />
+            <StatTile value={ticketCount}    label="Tickets"   icon="credit-card" accent={Colors.accent.amber}   />
+            <StatTile value={checkinCount}   label="Scanned"   icon="camera"      accent={Colors.accent.violet}  />
           </View>
+        </Animated.View>
+        {/* ── Active event toggle ───────────────────────────────── */}
+        <Animated.View style={animStyle(statsAnim)}>
+          <ActiveEventToggle />
         </Animated.View>
 
         {/* ── Upgrade banner ────────────────────────────────────── */}
@@ -480,6 +667,15 @@ const s = StyleSheet.create({
   notifBadgeTxt:{ fontSize: 9, fontWeight: '800', color: '#fff', lineHeight: 11 },
   avatar:       { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   avatarTxt:    { fontSize: 13, fontWeight: '900', color: '#fff' },
+
+  /* Active event banner */
+  activeEventBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 20, paddingTop: 8, paddingBottom: 2,
+  },
+  activeEventDot:  { width: 7, height: 7, borderRadius: 4, backgroundColor: Colors.accent.indigo, flexShrink: 0 },
+  activeEventName: { flex: 1, fontSize: 13, fontWeight: '800', color: '#fff', letterSpacing: -0.2 },
+  activeEventLink: { fontSize: 12, fontWeight: '700', color: Colors.accent.indigo },
 
   /* Stats */
   statsRow:  { flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingVertical: 6 },

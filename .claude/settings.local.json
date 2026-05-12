@@ -31,7 +31,13 @@
       "Read(//c/c/projects/event-plateform/**)",
       "Bash(npx next *)",
       "Bash(Get-ChildItem -Path \"c:\\\\projects\\\\event-plateform\\\\api\\\\\" -Recurse -Directory | Select-Object -ExpandProperty FullName | head -30)",
-      "Bash(grep -E \"\\\\.\\(js|tsx\\)$\")"
+      "Bash(grep -E \"\\\\.\\(js|tsx\\)$\")",
+      "Read(//c/Program Files/PostgreSQL/**)",
+      "Read(//c/Users/joels/AppData/Local/Programs/**)",
+      "PowerShell(cmd /c \"dir /b C:\\\\projects\\\\event-plateform\\\\eventapp-mobile\\\\app\\\\events\\\\[id]\\\\guests\\\\\")",
+      "PowerShell(cmd /c \"dir /b C:\\\\projects\\\\event-plateform\\\\web\\\\src\\\\app\\\\\\(dashboard\\)\\\\events\\\\[id]\\\\ 2>nul\")",
+      "PowerShell(cmd /c \"dir /b C:\\\\projects\\\\event-plateform\\\\web\\\\src\\\\app\\\\\\(dashboard\\)\\\\\")",
+      "PowerShell(cmd /c \"dir /s /b C:\\\\projects\\\\event-plateform\\\\web\\\\src\\\\components\\\\layout\\\\ 2>nul\")"
     ]
   }
 }

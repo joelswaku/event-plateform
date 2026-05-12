@@ -1,5 +1,6 @@
 export const Config = {
   API_URL:   process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000/api',
+  WEB_URL:   process.env.EXPO_PUBLIC_WEB_URL ?? 'http://localhost:3000',
   APP_NAME:  'EventApp',
   VERSION:   '1.0.0',
 

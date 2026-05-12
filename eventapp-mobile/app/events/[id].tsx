@@ -44,9 +44,11 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather }        from '@expo/vector-icons';
 import * as Haptics       from 'expo-haptics';
+import * as WebBrowser   from 'expo-web-browser';
 
 import { useEventStore }  from '@/store/event.store';
 import { Colors }         from '@/constants/colors';
+import { Config }         from '@/constants/config';
 import { ConfirmModal }   from '@/components/ui/ConfirmModal';
 import { fmtDateTime }    from '@/lib/format';
 
@@ -538,6 +540,24 @@ export default function EventDetailScreen() {
             )}
           </View>
 
+          {/* ── See Your Website ───────────────────────────────────── */}
+          {event?.slug && (
+            <Pressable
+              style={s.websiteBtn}
+              onPress={() => {
+                const url = `${Config.WEB_URL}/e/${event.slug}`;
+                WebBrowser.openBrowserAsync(url, {
+                  toolbarColor: Colors.bg.primary,
+                  controlsColor: Colors.accent.indigo,
+                });
+              }}
+            >
+              <Feather name="globe" size={14} color={Colors.accent.indigo} />
+              <Text style={s.websiteBtnTxt}>See Your Website</Text>
+              <Feather name="external-link" size={13} color={Colors.text.muted} style={{ marginLeft: 'auto' }} />
+            </Pressable>
+          )}
+
           {/* ── Divider ────────────────────────────────────────────── */}
           <View style={s.divider} />
 
@@ -751,6 +771,15 @@ const s = StyleSheet.create({
     borderWidth: 1.5, overflow: 'visible',
   },
   ctaBtnTxt: { fontSize: 15, fontWeight: '800', color: '#fff', letterSpacing: -0.2 },
+
+  websiteBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 9,
+    paddingHorizontal: 16, paddingVertical: 13,
+    borderRadius: 14, marginTop: 8,
+    backgroundColor: `${Colors.accent.indigo}10`,
+    borderWidth: 1, borderColor: `${Colors.accent.indigo}30`,
+  },
+  websiteBtnTxt: { fontSize: 14, fontWeight: '700', color: Colors.accent.indigo },
 
   /* Divider */
   divider: { height: 1, backgroundColor: Colors.border.subtle },

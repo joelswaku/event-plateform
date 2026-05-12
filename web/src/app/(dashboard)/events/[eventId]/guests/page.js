@@ -9,6 +9,7 @@ import {
   CheckSquare, Square, LogIn, X, ScanLine, Send,
   ChevronDown, ChevronUp, Search, Home, User,
   CalendarDays, Ticket, ChevronLeft, ChevronRight,
+  CheckCheck,
 } from "lucide-react";
 import { useGuestStore } from "@/store/guest.store";
 
@@ -155,7 +156,7 @@ function MobileBottomNav() {
   );
 }
 
-function MobileGuestRow({ guest, rsvp, attendance, onPress }) {
+function MobileGuestRow({ guest, rsvp, attendance, onPress, selectMode = false, selected = false, onToggle }) {
   const initials = (guest.full_name || "?").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
   const checkedIn = attendance === "CHECKED_IN" || attendance === "PRESENT";
   const cfg = checkedIn
@@ -168,9 +169,21 @@ function MobileGuestRow({ guest, rsvp, attendance, onPress }) {
     ? { color: "#ef4444", bg: "rgba(239,68,68,0.12)", dot: "#ef4444", label: "Declined" }
     : { color: "rgba(255,255,255,0.35)", bg: "rgba(255,255,255,0.06)", dot: "rgba(255,255,255,0.25)", label: "Pending" };
   return (
-    <button type="button" onClick={onPress}
-      className="flex w-full items-center gap-3 rounded-[16px] border px-4 py-3.5 text-left"
-      style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.07)" }}>
+    <button type="button" onClick={selectMode ? onToggle : onPress}
+      className="flex w-full items-center gap-3 rounded-[16px] border px-4 py-3.5 text-left transition-colors"
+      style={{
+        background: selected ? "rgba(99,102,241,0.10)" : "#0e0e16",
+        borderColor: selected ? "rgba(99,102,241,0.45)" : "rgba(255,255,255,0.07)",
+      }}>
+      {selectMode && (
+        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px]"
+          style={{
+            background: selected ? "#6366f1" : "transparent",
+            border: selected ? "1.5px solid #6366f1" : "1.5px solid rgba(255,255,255,0.25)",
+          }}>
+          {selected && <CheckCheck size={11} color="#fff" />}
+        </div>
+      )}
       <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
         style={{ background: `${cfg.color}20`, border: `1.5px solid ${cfg.color}40` }}>
         {guest.is_vip && <span className="absolute -right-1 -top-1.5 text-[9px]">👑</span>}
@@ -192,7 +205,7 @@ function MobileGuestRow({ guest, rsvp, attendance, onPress }) {
         <div className="h-1.5 w-1.5 rounded-full" style={{ background: cfg.dot }} />
         <span className="text-[10px] font-extrabold" style={{ color: cfg.color }}>{cfg.label}</span>
       </div>
-      <ChevronRight size={14} style={{ color: "rgba(255,255,255,0.15)", flexShrink: 0 }} />
+      {!selectMode && <ChevronRight size={14} style={{ color: "rgba(255,255,255,0.15)", flexShrink: 0 }} />}
     </button>
   );
 }
@@ -209,11 +222,45 @@ function MobileGuestsPage({
   eventId, guests, filteredGuests, rsvpMap, attendanceMap,
   isLoading, query, setQuery, mobileFilter, setMobileFilter,
   onAddGuest, onEditGuest,
+  onBulkDelete, onBulkInvite, onBulkRsvp,
 }) {
   const goingCount    = guests.filter(g => rsvpMap.get(g.id) === "GOING").length;
   const maybeCount    = guests.filter(g => rsvpMap.get(g.id) === "MAYBE").length;
   const declinedCount = guests.filter(g => rsvpMap.get(g.id) === "DECLINED").length;
   const checkinCount  = guests.filter(g => { const a = attendanceMap.get(g.id); return a === "CHECKED_IN" || a === "PRESENT"; }).length;
+
+  const [selectMode,  setSelectMode]  = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [rsvpMenuOpen, setRsvpMenuOpen] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
+
+  const toggleSelect = (id) => setSelectedIds(prev => {
+    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
+  });
+  const exitSelectMode = () => { setSelectMode(false); setSelectedIds(new Set()); setRsvpMenuOpen(false); };
+  const toggleAll = (list) => {
+    if (selectedIds.size === list.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(list.map(g => g.id)));
+  };
+
+  const doBulkDelete = async () => {
+    if (!window.confirm(`Delete ${selectedIds.size} guest${selectedIds.size !== 1 ? "s" : ""}? This cannot be undone.`)) return;
+    setBulkLoading(true);
+    await onBulkDelete(Array.from(selectedIds));
+    setBulkLoading(false);
+    exitSelectMode();
+  };
+  const doBulkInvite = async () => {
+    setBulkLoading(true);
+    await onBulkInvite(Array.from(selectedIds));
+    setBulkLoading(false);
+  };
+  const doBulkRsvp = async (status) => {
+    setRsvpMenuOpen(false);
+    setBulkLoading(true);
+    await onBulkRsvp(Array.from(selectedIds), status);
+    setBulkLoading(false);
+  };
 
   const mobileFiltered = useMemo(() => {
     let list = filteredGuests;
@@ -229,22 +276,49 @@ function MobileGuestsPage({
       {/* Header */}
       <div className="flex shrink-0 items-center gap-3 px-4 pb-2"
         style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}>
-        <Link href={`/events/${eventId}`}
+        <button type="button"
+          onClick={selectMode ? exitSelectMode : undefined}
           className="flex h-9 w-9 items-center justify-center rounded-[12px]"
           style={{ background: "#14141f", border: "1px solid rgba(255,255,255,0.08)" }}>
-          <ChevronLeft size={17} style={{ color: "rgba(255,255,255,0.5)" }} />
-        </Link>
-        <div className="flex-1">
-          <h1 className="text-[22px] font-black leading-tight tracking-tight text-white">Guests</h1>
-          <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
-            {guests.length} total · {checkinCount} checked in
-          </p>
-        </div>
-        <button type="button" onClick={onAddGuest}
-          className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-[12px]"
-          style={{ background: "linear-gradient(135deg, #4f46e5, #6366f1)" }}>
-          <Plus size={17} className="text-white" />
+          {selectMode
+            ? <X size={17} style={{ color: "rgba(255,255,255,0.5)" }} />
+            : <Link href={`/events/${eventId}`} className="flex h-full w-full items-center justify-center">
+                <ChevronLeft size={17} style={{ color: "rgba(255,255,255,0.5)" }} />
+              </Link>
+          }
         </button>
+        <div className="flex-1">
+          {selectMode ? (
+            <>
+              <h1 className="text-[18px] font-black leading-tight tracking-tight text-white">{selectedIds.size} selected</h1>
+              <button type="button" onClick={() => toggleAll(mobileFiltered)}
+                className="text-[11px] font-bold" style={{ color: "#6366f1" }}>
+                {selectedIds.size === mobileFiltered.length ? "Deselect all" : "Select all"}
+              </button>
+            </>
+          ) : (
+            <>
+              <h1 className="text-[22px] font-black leading-tight tracking-tight text-white">Guests</h1>
+              <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
+                {guests.length} total · {checkinCount} checked in
+              </p>
+            </>
+          )}
+        </div>
+        {!selectMode && guests.length > 0 && (
+          <button type="button" onClick={() => setSelectMode(true)}
+            className="flex h-9 w-9 items-center justify-center rounded-[12px]"
+            style={{ background: "#14141f", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <CheckSquare size={16} style={{ color: "rgba(255,255,255,0.5)" }} />
+          </button>
+        )}
+        {!selectMode && (
+          <button type="button" onClick={onAddGuest}
+            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-[12px]"
+            style={{ background: "linear-gradient(135deg, #4f46e5, #6366f1)" }}>
+            <Plus size={17} className="text-white" />
+          </button>
+        )}
       </div>
 
       {/* Stats */}
@@ -332,7 +406,7 @@ function MobileGuestsPage({
             )}
           </div>
         ) : (
-          <div className="flex flex-col gap-2.5 pb-4">
+          <div className="flex flex-col gap-2.5 pb-32">
             <p className="py-1 text-[11px] font-extrabold uppercase tracking-widest"
               style={{ color: "rgba(255,255,255,0.25)" }}>
               {mobileFiltered.length} {mobileFiltered.length === 1 ? "guest" : "guests"}
@@ -344,11 +418,55 @@ function MobileGuestsPage({
                 rsvp={rsvpMap.get(guest.id) || "PENDING"}
                 attendance={attendanceMap.get(guest.id) || "NOT_MARKED"}
                 onPress={() => onEditGuest(guest)}
+                selectMode={selectMode}
+                selected={selectedIds.has(guest.id)}
+                onToggle={() => toggleSelect(guest.id)}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* Bulk action toolbar */}
+      {selectMode && selectedIds.size > 0 && (
+        <div className="shrink-0 border-t px-4 pt-3 pb-2"
+          style={{ background: "#14141f", borderColor: "rgba(255,255,255,0.08)" }}>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[12px] font-bold" style={{ color: "rgba(255,255,255,0.45)" }}>
+              {selectedIds.size} selected
+            </span>
+            <div className="flex-1" />
+            <button type="button" onClick={doBulkInvite} disabled={bulkLoading}
+              className="flex items-center gap-1.5 rounded-[10px] border px-3 py-2 text-[12px] font-bold disabled:opacity-50"
+              style={{ borderColor: "rgba(99,102,241,0.4)", background: "rgba(99,102,241,0.12)", color: "#818cf8" }}>
+              <Send size={13} /> Invite
+            </button>
+            <button type="button" onClick={() => setRsvpMenuOpen(v => !v)} disabled={bulkLoading}
+              className="flex items-center gap-1.5 rounded-[10px] border px-3 py-2 text-[12px] font-bold disabled:opacity-50"
+              style={{ borderColor: "rgba(16,185,129,0.4)", background: "rgba(16,185,129,0.12)", color: "#10b981" }}>
+              <CheckCheck size={13} /> RSVP
+            </button>
+            <button type="button" onClick={doBulkDelete} disabled={bulkLoading}
+              className="flex items-center gap-1.5 rounded-[10px] border px-3 py-2 text-[12px] font-bold disabled:opacity-50"
+              style={{ borderColor: "rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.12)", color: "#ef4444" }}>
+              <Trash2 size={13} /> Delete
+            </button>
+          </div>
+          {rsvpMenuOpen && (
+            <div className="mb-2 flex gap-2">
+              {[{ label: "Going",    value: "GOING",    color: "#10b981" },
+                { label: "Maybe",   value: "MAYBE",    color: "#f59e0b" },
+                { label: "Declined",value: "DECLINED", color: "#ef4444" }].map(opt => (
+                <button key={opt.value} type="button" onClick={() => doBulkRsvp(opt.value)}
+                  className="flex-1 rounded-[10px] py-2 text-[12px] font-extrabold"
+                  style={{ background: `${opt.color}18`, border: `1px solid ${opt.color}40`, color: opt.color }}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <MobileBottomNav />
     </>
@@ -541,6 +659,18 @@ export default function GuestsPage() {
           setMobileFilter={setMobileFilter}
           onAddGuest={openCreateModal}
           onEditGuest={openEditModal}
+          onBulkDelete={async (ids) => {
+            const r = await bulkDeleteGuests(eventId, ids);
+            r?.success ? toast.success("Deleted") : toast.error("Bulk delete failed");
+          }}
+          onBulkInvite={async (ids) => {
+            const r = await bulkSendInvitations(eventId, ids, { channel: "EMAIL" });
+            r?.success ? toast.success("Invitations sent") : toast.error("Bulk invite failed");
+          }}
+          onBulkRsvp={async (ids, status) => {
+            const r = await bulkSubmitRsvp(eventId, ids, status);
+            r?.success ? toast.success(`RSVP → ${status}`) : toast.error("Bulk RSVP failed");
+          }}
         />
       </div>
 

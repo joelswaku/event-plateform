@@ -21,6 +21,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     infoPlist: {
       NSCameraUsageDescription:
         'EventApp uses your camera to scan QR codes at event check-in.',
+      NSContactsUsageDescription:
+        'EventApp uses your contacts to quickly add guests to your events.',
       NSAppTransportSecurity: {
         NSAllowsArbitraryLoads: true,
       },
@@ -41,7 +43,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#07070f',
     },
-    permissions: ['CAMERA', 'VIBRATE', 'INTERNET', 'ACCESS_NETWORK_STATE'],
+    permissions: ['CAMERA', 'VIBRATE', 'INTERNET', 'ACCESS_NETWORK_STATE', 'READ_CONTACTS'],
   },
   plugins: [
     'expo-router',
@@ -56,6 +58,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     'expo-notifications',
+    [
+      'expo-contacts',
+      {
+        contactsPermission: 'Allow EventApp to access your contacts to add guests quickly.',
+      },
+    ],
     [
       'expo-build-properties',
       {
