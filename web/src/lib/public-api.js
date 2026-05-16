@@ -10,8 +10,8 @@
 import axios from "axios";
 
 export const publicApi = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api",
-  withCredentials: false, // 🔥 IMPORTANT
+  baseURL: process.env.INTERNAL_API_URL || "http://localhost:5000/api",
+  withCredentials: false,
   timeout: 10000,
 });
 

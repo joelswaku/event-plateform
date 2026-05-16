@@ -2,8 +2,6 @@ import jwt from "jsonwebtoken"
 
 export function authenticate(req, res, next) {
 
-  console.log("AUTH CHECK:", req.method, req.originalUrl)
-
   let token = null
 
   /* cookies (web) */

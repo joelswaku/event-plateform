@@ -402,9 +402,6 @@ export async function loginUser({
       `,
       [user.id]
     );
-    console.log(" update last login" , user.id);
-    
-
     setAuthCookies(res, tokens);
 
     return {

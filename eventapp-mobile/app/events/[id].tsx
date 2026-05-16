@@ -49,6 +49,7 @@ import * as WebBrowser   from 'expo-web-browser';
 import { useEventStore }  from '@/store/event.store';
 import { Colors }         from '@/constants/colors';
 import { Config }         from '@/constants/config';
+import { getToken }       from '@/lib/api';
 import { ConfirmModal }   from '@/components/ui/ConfirmModal';
 import { fmtDateTime }    from '@/lib/format';
 
@@ -301,13 +302,14 @@ export default function EventDetailScreen() {
 
   /* Feature grid */
   const FEATURES = [
-    { icon: 'layout'      as const, label: 'Builder',   sub: 'Design event page',   accent: Colors.accent.indigo,  grad: ['#4f46e5','#6366f1'] as const, route: `/events/${id}/builder`   },
-    { icon: 'users'       as const, label: 'Guests',    sub: 'Manage attendees',    accent: Colors.accent.emerald, grad: ['#059669','#10b981'] as const, route: `/events/${id}/guests`    },
-    { icon: 'credit-card' as const, label: 'Tickets',   sub: 'Types & orders',      accent: Colors.accent.amber,   grad: ['#d97706','#f59e0b'] as const, route: `/events/${id}/tickets`   },
-    { icon: 'camera'      as const, label: 'Scanner',   sub: 'QR check-in',         accent: Colors.accent.emerald, grad: ['#0891b2','#06b6d4'] as const, route: `/events/${id}/scanner`   },
-    { icon: 'bar-chart-2' as const, label: 'Analytics', sub: 'Revenue & insights',  accent: Colors.accent.violet,  grad: ['#7c3aed','#8b5cf6'] as const, route: `/events/${id}/analytics` },
-    { icon: 'heart'       as const, label: 'Donations', sub: 'Track contributions', accent: '#f43f5e',             grad: ['#be185d','#f43f5e'] as const, route: `/events/${id}/donations` },
-    { icon: 'settings'    as const, label: 'Settings',  sub: 'Edit event details',  accent: '#6b7280',             grad: ['#374151','#4b5563'] as const, route: `/events/${id}/settings`  },
+    { icon: 'layout'      as const, label: 'Builder',   sub: 'Design event page',   accent: Colors.accent.indigo,  grad: ['#4f46e5','#6366f1'] as const, route: `/events/${id}/builder`      },
+    { icon: 'users'       as const, label: 'Guests',    sub: 'Manage attendees',    accent: Colors.accent.emerald, grad: ['#059669','#10b981'] as const, route: `/events/${id}/guests`       },
+    { icon: 'credit-card' as const, label: 'Tickets',   sub: 'Types & orders',      accent: Colors.accent.amber,   grad: ['#d97706','#f59e0b'] as const, route: `/events/${id}/tickets`      },
+    { icon: 'grid'        as const, label: 'Seating',   sub: 'Seat assignments',    accent: '#06b6d4',             grad: ['#0891b2','#06b6d4'] as const, route: `/events/${id}/seating`      },
+    { icon: 'camera'      as const, label: 'Scanner',   sub: 'QR check-in',         accent: Colors.accent.emerald, grad: ['#0891b2','#06b6d4'] as const, route: `/events/${id}/scanner`      },
+    { icon: 'bar-chart-2' as const, label: 'Analytics', sub: 'Revenue & insights',  accent: Colors.accent.violet,  grad: ['#7c3aed','#8b5cf6'] as const, route: `/events/${id}/analytics`    },
+    { icon: 'heart'       as const, label: 'Donations', sub: 'Track contributions', accent: '#f43f5e',             grad: ['#be185d','#f43f5e'] as const, route: `/events/${id}/donations`    },
+    { icon: 'settings'    as const, label: 'Settings',  sub: 'Edit event details',  accent: '#6b7280',             grad: ['#374151','#4b5563'] as const, route: `/events/${id}/settings`     },
   ];
 
   const STAT_ITEMS = [
@@ -467,6 +469,16 @@ export default function EventDetailScreen() {
               <Text style={[s.pillTxt, { color: Colors.accent.emerald }]}>QR CHECK-IN</Text>
             </Pressable>
 
+            {event.allow_ticketing && (
+              <Pressable
+                style={[s.pill, { borderColor: `${Colors.accent.amber}40`, backgroundColor: `${Colors.accent.amber}12` }]}
+                onPress={() => router.push(`/events/${id}/buy-tickets` as never)}
+              >
+                <Feather name="credit-card" size={14} color={Colors.accent.amber} />
+                <Text style={[s.pillTxt, { color: Colors.accent.amber }]}>BUY TICKETS</Text>
+              </Pressable>
+            )}
+
             {event.slug && (
               <Pressable
                 style={[s.pill, { borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.06)' }]}
@@ -545,11 +557,21 @@ export default function EventDetailScreen() {
             <Pressable
               style={s.websiteBtn}
               onPress={() => {
-                const url = `${Config.WEB_URL}/e/${event.slug}`;
-                WebBrowser.openBrowserAsync(url, {
-                  toolbarColor: Colors.bg.primary,
-                  controlsColor: Colors.accent.indigo,
-                });
+                if (status === 'PUBLISHED') {
+                  WebBrowser.openBrowserAsync(`${Config.WEB_URL}/e/${event.slug}`, {
+                    toolbarColor: Colors.bg.primary,
+                    controlsColor: Colors.accent.indigo,
+                  });
+                } else {
+                  const token = getToken();
+                  const qs = token
+                    ? `?preview=1&ptoken=${encodeURIComponent(token)}`
+                    : '?preview=1';
+                  WebBrowser.openBrowserAsync(`${Config.WEB_URL}/e/${event.slug}${qs}`, {
+                    toolbarColor: Colors.bg.primary,
+                    controlsColor: Colors.accent.indigo,
+                  });
+                }
               }}
             >
               <Feather name="globe" size={14} color={Colors.accent.indigo} />

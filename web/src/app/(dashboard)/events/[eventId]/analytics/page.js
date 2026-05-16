@@ -682,7 +682,21 @@ export default function AnalyticsPage() {
                 style={{ borderColor: "rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)", color: "#ef4444" }}>{error}</div>
             )}
             <Section title="Overview" subtitle="Key performance indicators">
-              <KpiGrid data={dashboard} loading={loading.dashboard} />
+              <div className="grid grid-cols-2 gap-3">
+                <KpiCard icon={DollarSign} label="Revenue"      value={fmtMoney(kpiRevenue)}   sub={`${fmt(kpiBuyers)} buyers`}  color="indigo"  loading={loading.ticketSales} />
+                <KpiCard icon={Ticket}     label="Tickets Sold" value={fmt(kpiTicketsSold)}     sub="paid tickets"                color="violet"  loading={loading.ticketSales} />
+                <KpiCard icon={ScanLine}   label="Check-ins"    value={fmt(kpiCheckins)}        sub="successful scans"            color="emerald" loading={loading.checkins}    />
+                <KpiCard icon={Users}      label="Invited"      value={fmt(kpiInvited)}         sub="total guests"                color="sky"     loading={loading.conversion}  />
+                <KpiCard icon={TrendingUp} label="Conversion"   value={fmtPct(kpiConvRate)}     sub="invited → buyer"             color="amber"   loading={loading.conversion}  />
+                <KpiCard
+                  icon={BarChart3}
+                  label="Total Scans"
+                  value={fmt((checkins?.summary?.success ?? 0) + (checkins?.summary?.already_used ?? 0) + (checkins?.summary?.invalid ?? 0))}
+                  sub="all scan attempts"
+                  color="rose"
+                  loading={loading.checkins}
+                />
+              </div>
             </Section>
             <Section title="Ticket Sales" subtitle="Revenue and sales breakdown">
               <TicketSalesStats data={ticketSales} loading={loading.ticketSales} />

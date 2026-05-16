@@ -37,7 +37,8 @@
       "PowerShell(cmd /c \"dir /b C:\\\\projects\\\\event-plateform\\\\eventapp-mobile\\\\app\\\\events\\\\[id]\\\\guests\\\\\")",
       "PowerShell(cmd /c \"dir /b C:\\\\projects\\\\event-plateform\\\\web\\\\src\\\\app\\\\\\(dashboard\\)\\\\events\\\\[id]\\\\ 2>nul\")",
       "PowerShell(cmd /c \"dir /b C:\\\\projects\\\\event-plateform\\\\web\\\\src\\\\app\\\\\\(dashboard\\)\\\\\")",
-      "PowerShell(cmd /c \"dir /s /b C:\\\\projects\\\\event-plateform\\\\web\\\\src\\\\components\\\\layout\\\\ 2>nul\")"
+      "PowerShell(cmd /c \"dir /s /b C:\\\\projects\\\\event-plateform\\\\web\\\\src\\\\components\\\\layout\\\\ 2>nul\")",
+      "Bash(Select-Object -ExpandProperty Name)"
     ]
   }
 }

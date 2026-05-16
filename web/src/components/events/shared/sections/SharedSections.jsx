@@ -21,8 +21,7 @@ function FadeUp({ children, delay = 0, className = "" }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-50px" }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.7, ease, delay }}
       className={className}
     >
@@ -107,9 +106,11 @@ function SectionWrap({ id, bg = "var(--t-bg)", children, className = "", onClick
 // ══════════════════════════════════════════════════════════════════════════════
 // ABOUT
 // ══════════════════════════════════════════════════════════════════════════════
-export function AboutSection({ section, isEditor = false, onEdit }) {
-  const theme = section.config?._theme || "CLASSIC";
-  const pad   = getThemePad(theme);
+export function AboutSection({ section, event, isEditor = false, onEdit }) {
+  const theme  = section.config?._theme || "CLASSIC";
+  const pad    = getThemePad(theme);
+  const aTitle = section.title || (!isEditor && event?.title) || "About This Event";
+  const aBody  = section.body  || (!isEditor && (event?.description || event?.short_description)) || (isEditor ? "Add your event description here." : "");
 
   // ── MODERN: Left-aligned card with thick accent left-border ──────────────
   if (theme === "MODERN") {
@@ -126,10 +127,10 @@ export function AboutSection({ section, isEditor = false, onEdit }) {
               {/* Right: content */}
               <div className="md:col-span-9 pl-0 md:pl-6" style={{ borderLeft: "3px solid var(--t-accent)" }}>
                 <h2 className="text-4xl font-black sm:text-5xl leading-none uppercase" style={{ fontFamily: "var(--t-font-heading)", color: "var(--t-text)", letterSpacing: "-0.02em" }}>
-                  {section.title || "About This Event"}
+                  {aTitle}
                 </h2>
                 <p className="mt-6 text-lg leading-relaxed" style={{ color: "var(--t-text-muted)" }}>
-                  {section.body || "Add your event description here."}
+                  {aBody}
                 </p>
               </div>
             </div>
@@ -148,12 +149,12 @@ export function AboutSection({ section, isEditor = false, onEdit }) {
           <FadeUp>
             <p className="mb-6 text-[10px] uppercase tracking-[0.5em]" style={{ color: "var(--t-text-muted)" }}>About</p>
             <h2 className="text-4xl font-light sm:text-5xl" style={{ fontFamily: "var(--t-font-heading)", color: "var(--t-text)", letterSpacing: "0.01em" }}>
-              {section.title || "About This Event"}
+              {aTitle}
             </h2>
           </FadeUp>
           <FadeUp delay={0.15}>
             <p className="mx-auto mt-10 text-base leading-loose" style={{ color: "var(--t-text-muted)" }}>
-              {section.body || "Add your event description here."}
+              {aBody}
             </p>
           </FadeUp>
         </div>
@@ -173,12 +174,12 @@ export function AboutSection({ section, isEditor = false, onEdit }) {
         <div className="mx-auto max-w-3xl text-center">
           <FadeUp>
             <SectionEyebrow center>About</SectionEyebrow>
-            <SectionHeading center>{section.title || "About This Event"}</SectionHeading>
+            <SectionHeading center>{aTitle}</SectionHeading>
             <Ornament center />
           </FadeUp>
           <FadeUp delay={0.15}>
             <p className="mx-auto mt-10 max-w-2xl text-lg leading-loose italic" style={{ color: "var(--t-text-muted)" }}>
-              {section.body || "Add your event description here."}
+              {aBody}
             </p>
           </FadeUp>
         </div>
@@ -193,13 +194,13 @@ export function AboutSection({ section, isEditor = false, onEdit }) {
       <SectionWrap bg="var(--t-bg)" isEditor={isEditor} onClick={onEdit} pad={pad}>
         <div className="mx-auto max-w-5xl">
           <FadeUp>
-            <div className="rounded-3xl p-10 sm:p-14" style={{ background: "var(--t-bg-alt)", boxShadow: "6px 6px 0px var(--t-accent)" }}>
+            <div className="rounded-3xl p-10 sm:p-14" style={{ background: "var(--t-bg-alt)", border: "2px solid #1a1a1a", boxShadow: "6px 6px 0px #1a1a1a" }}>
               <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.25em]" style={{ color: "var(--t-accent)" }}>✦ About</p>
               <h2 className="text-4xl font-extrabold sm:text-5xl" style={{ fontFamily: "var(--t-font-heading)", color: "var(--t-text)" }}>
-                {section.title || "About This Event"}
+                {aTitle}
               </h2>
               <p className="mt-6 text-lg leading-relaxed" style={{ color: "var(--t-text-muted)" }}>
-                {section.body || "Add your event description here."}
+                {aBody}
               </p>
             </div>
           </FadeUp>
@@ -223,9 +224,9 @@ export function AboutSection({ section, isEditor = false, onEdit }) {
             </div>
             <div className="md:col-span-6">
               <FadeUp delay={0.1}>
-                <SectionHeading>{section.title || "About This Event"}</SectionHeading>
+                <SectionHeading>{aTitle}</SectionHeading>
                 <p className="mt-8 text-lg leading-relaxed" style={{ color: "var(--t-text-muted)" }}>
-                  {section.body || "Add your event description here."}
+                  {aBody}
                 </p>
               </FadeUp>
             </div>
@@ -246,12 +247,12 @@ export function AboutSection({ section, isEditor = false, onEdit }) {
       <div className="mx-auto max-w-3xl text-center">
         <FadeUp>
           <SectionEyebrow center>About</SectionEyebrow>
-          <SectionHeading center>{section.title || "About This Event"}</SectionHeading>
+          <SectionHeading center>{aTitle}</SectionHeading>
           <Ornament center />
         </FadeUp>
         <FadeUp delay={0.15}>
           <p className="mx-auto mt-10 max-w-2xl text-lg leading-relaxed" style={{ color: "var(--t-text-muted)" }}>
-            {section.body || "Add your event description here."}
+            {aBody}
           </p>
         </FadeUp>
       </div>
@@ -428,7 +429,6 @@ export function CountdownSection({ section, event, isEditor = false, onEdit }) {
 
   // FUN: colorful chunky cards
   if (theme === "FUN") {
-    const funColors = ["#F59E0B", "#EF4444", "#3B82F6", "#10B981"];
     return (
       <section
         className={`relative overflow-hidden px-6 py-16 sm:py-24 ${isEditor ? "cursor-pointer ring-inset hover:ring-2 hover:ring-indigo-400/60" : ""}`}
@@ -443,14 +443,14 @@ export function CountdownSection({ section, event, isEditor = false, onEdit }) {
             </h2>
           </FadeUp>
           {timeLeft && (
-            <FadeUp delay={0.2} className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {UNITS.map((label, i) => (
-                <div key={label} className="flex flex-col items-center rounded-2xl p-5"
-                  style={{ background: `${funColors[i]}18`, border: `2px solid ${funColors[i]}`, boxShadow: `4px 4px 0 ${funColors[i]}40` }}>
-                  <span className="text-5xl font-black tabular-nums sm:text-6xl" style={{ color: funColors[i] }}>
+            <FadeUp delay={0.2} className="mt-12 grid grid-cols-4 gap-1.5 sm:gap-4">
+              {UNITS.map((label) => (
+                <div key={label} className="flex flex-col items-center rounded-xl p-2 sm:rounded-2xl sm:p-5"
+                  style={{ background: "var(--t-accent)", border: "2px solid #1a1a1a", boxShadow: "2px 2px 0 #1a1a1a" }}>
+                  <span className="text-2xl font-black tabular-nums sm:text-5xl md:text-6xl" style={{ color: "#fff" }}>
                     {String(timeLeft[label] ?? 0).padStart(2, "0")}
                   </span>
-                  <span className="mt-2 text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: funColors[i], opacity: 0.8 }}>{label}</span>
+                  <span className="mt-1 text-[8px] font-bold uppercase tracking-[0.15em] sm:mt-2 sm:text-[10px] sm:tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.85)" }}>{label}</span>
                 </div>
               ))}
             </FadeUp>
@@ -479,7 +479,7 @@ export function CountdownSection({ section, event, isEditor = false, onEdit }) {
           {timeLeft && (
             <div className="grid grid-cols-4 gap-3">
               {UNITS.map((label, i) => (
-                <motion.div key={label} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                <motion.div key={label} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, ease, delay: i * 0.06 }}
                   className="flex flex-col px-4 py-8"
                   style={{ border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)" }}>
@@ -520,16 +520,16 @@ export function CountdownSection({ section, event, isEditor = false, onEdit }) {
               <span className="text-2xl italic" style={{ fontFamily: "var(--t-font-heading)", color: "var(--t-accent)" }}>Happening Now</span>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6" role="timer">
+            <div className="grid grid-cols-4 gap-2 sm:gap-6" role="timer">
               {UNITS.map((label, i) => (
-                <motion.div key={label} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                <motion.div key={label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, ease, delay: i * 0.08 }}
-                  className="flex flex-col items-center px-4 py-8"
+                  className="flex flex-col items-center px-1 py-5 sm:px-4 sm:py-8"
                   style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)" }}>
-                  <span className="text-5xl font-bold tabular-nums text-white sm:text-6xl" style={{ fontFamily: "var(--t-font-heading)" }}>
+                  <span className="text-3xl font-bold tabular-nums text-white sm:text-5xl md:text-6xl" style={{ fontFamily: "var(--t-font-heading)" }}>
                     {String(timeLeft[label] ?? 0).padStart(2, "0")}
                   </span>
-                  <span className="mt-3 text-[10px] font-medium uppercase tracking-[0.3em]" style={{ color: "var(--t-accent)" }}>{label}</span>
+                  <span className="mt-2 text-[9px] font-medium uppercase tracking-[0.2em] sm:mt-3 sm:text-[10px] sm:tracking-[0.3em]" style={{ color: "var(--t-accent)" }}>{label}</span>
                 </motion.div>
               ))}
             </div>
@@ -701,8 +701,8 @@ export function VenueSection({ section, isEditor = false, onEdit }) {
 
           <FadeUp delay={0.2} className="lg:col-span-3">
             {hasLocation ? (
-              <div className="relative hidden overflow-hidden border shadow-sm md:block" style={{ height: "400px", borderColor: "var(--t-border)" }}>
-                <iframe title="Event location" src={embedUrl} width="100%" height="100%" style={{ border: 0, display: "block", height: "400px", filter: mapFilter }} allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+              <div className="relative overflow-hidden border shadow-sm h-[260px] md:h-[400px]" style={{ borderColor: "var(--t-border)" }}>
+                <iframe title="Event location" src={embedUrl} width="100%" height="100%" style={{ border: 0, display: "block", height: "100%", filter: mapFilter }} allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
                 <a href={directionsUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => isEditor && e.preventDefault()}
                   className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 bg-white px-3 py-2 text-xs font-semibold text-stone-800 shadow-lg ring-1 ring-black/10 transition hover:bg-stone-50">
                   <ExternalLink className="h-3.5 w-3.5" /> Open in Maps
@@ -975,7 +975,7 @@ export function GallerySection({ section, isEditor = false, onEdit }) {
                 {display.map((img, i) => (
                   <FadeUp key={i} delay={i * 0.04}>
                     <div className="overflow-hidden rounded-2xl cursor-pointer group relative"
-                      style={{ aspectRatio: i % 3 === 1 ? "1/1.3" : "4/3", background: "var(--t-bg)", boxShadow: "4px 4px 0px var(--t-accent)" }}
+                      style={{ aspectRatio: i % 3 === 1 ? "1/1.3" : "4/3", background: "var(--t-bg)", border: "2px solid #1a1a1a", boxShadow: "4px 4px 0px #1a1a1a" }}
                       onClick={() => openLb(i)}>
                       {img && <img src={img} alt={`Gallery ${i + 1}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />}
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
@@ -1384,7 +1384,7 @@ export function RegistrySection({ section, isEditor = false, onEdit }) {
             <FadeUp key={i} delay={i * 0.1}>
               <a href={item.url || "#"} target="_blank" rel="noopener noreferrer"
                 className="group flex flex-col items-center gap-4 p-8 transition hover:-translate-y-1"
-                style={{ border: "1px solid var(--t-border)", background: "var(--t-bg-alt)", borderRadius: "var(--t-radius, 0px)", boxShadow: theme === "FUN" ? "4px 4px 0 var(--t-accent)" : "none" }}>
+                style={{ border: theme === "FUN" ? "2px solid #1a1a1a" : "1px solid var(--t-border)", background: "var(--t-bg-alt)", borderRadius: "var(--t-radius, 0px)", boxShadow: theme === "FUN" ? "4px 4px 0 #1a1a1a" : "none" }}>
                 <div className="h-px w-8" style={{ background: "var(--t-accent)", opacity: 0.5 }} />
                 <h4 className="text-lg font-semibold" style={{ fontFamily: "var(--t-font-heading)", color: "var(--t-text)" }}>{item.name}</h4>
                 <span className="text-xs uppercase tracking-[0.2em] transition-all group-hover:tracking-[0.3em]" style={{ color: "var(--t-accent)" }}>

@@ -269,9 +269,9 @@ export interface PlanUsage {
 export interface SeatingLocation {
   id: string;
   event_id: string;
-  name: string;
+  location_name: string;
   capacity: number;
-  location_type: string;
+  shape: 'round' | 'rectangle' | 'custom' | null;
   position_x: number | null;
   position_y: number | null;
   created_at: string;

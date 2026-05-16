@@ -2,8 +2,10 @@
 import nodemailer from "nodemailer";
 import QRCode from "qrcode";
 import { env } from "../config/env.js";
+import { sendBrevoEmail } from "../services/brevo.service.js";
 
-const transporter = nodemailer.createTransport({
+/* ── Nodemailer transporter (fallback when Brevo key not set) ─────── */
+const nodemailerTransporter = nodemailer.createTransport({
   host: env.smtpHost,
   port: Number(env.smtpPort),
   secure: Number(env.smtpPort) === 465,
@@ -11,59 +13,61 @@ const transporter = nodemailer.createTransport({
     user: env.smtpUser,
     pass: env.smtpPass,
   },
-  tls: {
-    // Required for Mailtrap sandbox and self-signed certs in dev
-    rejectUnauthorized: false,
-  },
+  tls: { rejectUnauthorized: false },
 });
 
 export async function sendResetPasswordEmail({ to, name, resetUrl }) {
-
   const html = `
-    <h2>Reset your password</h2>
-    <p>Hello ${name}</p>
-    <p><a href="${resetUrl}">Reset Password</a></p>
+  <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head>
+  <body style="margin:0;padding:0;background:#f5f4f0;font-family:Arial,sans-serif">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f4f0;padding:40px 16px">
+      <tr><td align="center">
+        <table width="100%" style="max-width:520px;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb" cellpadding="0" cellspacing="0">
+          <tr><td style="background:#1C1917;padding:12px 32px;text-align:center">
+            <p style="margin:0;font-size:11px;letter-spacing:0.3em;text-transform:uppercase;color:#C9A96E">Eventos Security</p>
+          </td></tr>
+          <tr><td style="padding:40px 36px">
+            <h2 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#1C1917">Reset your password</h2>
+            <p style="margin:0 0 24px;font-size:15px;color:#57534e;line-height:1.7">Hello <strong>${name}</strong>, we received a request to reset your password. Click the button below to set a new one.</p>
+            <a href="${resetUrl}" style="display:inline-block;background:#1C1917;color:#C9A96E;text-decoration:none;font-size:13px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;padding:14px 32px;border:1px solid #C9A96E;border-radius:8px">Reset Password →</a>
+            <p style="margin:24px 0 0;font-size:12px;color:#a8a29e;line-height:1.6">If you did not request this, you can safely ignore this email. This link expires in 1 hour.</p>
+          </td></tr>
+          <tr><td style="background:#faf9f6;padding:16px 36px;border-top:1px solid #f0ede8;text-align:center">
+            <p style="margin:0;font-size:10px;color:#d6d3d1;letter-spacing:0.15em;text-transform:uppercase">Powered by Eventos</p>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body></html>
   `;
-
-  const info = await transporter.sendMail({
-    from: `"${env.mailFromName}" <${env.mailFromEmail}>`,
-    to,
-    subject: "Reset password",
-    html,
-  });
-
-  console.log("Email sent:", info.messageId);
-  console.log("Accepted:", info.accepted);
-  console.log("Rejected:", info.rejected);
+  return sendMail({ to, name, subject: "Reset your Eventos password", html });
 }
 
 export async function sendWelcomeEmail({ to, name }) {
-
   const html = `
-  <h2>Welcome to Eventos 🎉</h2>
-  <p>Hello ${name},</p>
-
-  <p>Your account was successfully created.</p>
-
-  <p>You can now create events, invite guests, and manage everything in one dashboard.</p>
-
-  <p>Start creating your first event.</p>
-
-  <br/>
-
-  <b>The Eventos Team</b>
+  <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head>
+  <body style="margin:0;padding:0;background:#f5f4f0;font-family:Arial,sans-serif">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f4f0;padding:40px 16px">
+      <tr><td align="center">
+        <table width="100%" style="max-width:520px;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb" cellpadding="0" cellspacing="0">
+          <tr><td style="background:#1C1917;padding:12px 32px;text-align:center">
+            <p style="margin:0;font-size:11px;letter-spacing:0.3em;text-transform:uppercase;color:#C9A96E">🎉 Welcome to Eventos</p>
+          </td></tr>
+          <tr><td style="padding:40px 36px">
+            <h2 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#1C1917">Hello ${name}!</h2>
+            <p style="margin:0 0 16px;font-size:15px;color:#57534e;line-height:1.7">Your account was successfully created. You can now create events, invite guests, and manage everything from one beautiful dashboard.</p>
+            <p style="margin:0 0 24px;font-size:15px;color:#57534e;line-height:1.7">Get started by creating your first event.</p>
+            <p style="margin:0;font-size:14px;color:#78716c"><b>The Eventos Team</b></p>
+          </td></tr>
+          <tr><td style="background:#faf9f6;padding:16px 36px;border-top:1px solid #f0ede8;text-align:center">
+            <p style="margin:0;font-size:10px;color:#d6d3d1;letter-spacing:0.15em;text-transform:uppercase">Powered by Eventos</p>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body></html>
   `;
-
-  const info = await transporter.sendMail({
-    from: `"${env.mailFromName}" <${env.mailFromEmail}>`,
-    to,
-    subject: "Welcome to Eventos",
-    html,
-  });
-
-  console.log("Email sent:", info.messageId);
-  console.log("Accepted:", info.accepted);
-  console.log("Rejected:", info.rejected);
+  return sendMail({ to, name, subject: "Welcome to Eventos 🎉", html });
 }
 
 
@@ -100,20 +104,25 @@ export async function sendPasswordChangedEmail({ to, name }) {
   });
 }
 
-export async function sendMail({ to, subject, html }) {
+/**
+ * Core send function.
+ * Uses Brevo SMTP relay when BREVO_SMTP_KEY is set, falls back to legacy Nodemailer.
+ */
+export async function sendMail({ to, subject, html, name }) {
+  if (env.brevoSmtpKey) {
+    return sendBrevoEmail({ to, subject, html, name });
+  }
 
-  const info = await transporter.sendMail({
+  /* Legacy Nodemailer fallback (Mailtrap / any SMTP) */
+  const info = await nodemailerTransporter.sendMail({
     from: `"${env.mailFromName}" <${env.mailFromEmail}>`,
     to,
     subject,
     html,
   });
 
-  console.log("Email sent:", info.messageId);
-  console.log("Accepted:", info.accepted);
-  console.log("Rejected:", info.rejected);
-
-  return info;
+  console.log("[SMTP] Email sent:", info.messageId, "→", to);
+  return { messageId: info.messageId };
 }
 export async function sendSeatAssignmentEmail({
   to,
@@ -140,12 +149,7 @@ export async function sendSeatAssignmentEmail({
   <p>See you soon!</p>
   `;
 
-  await transporter.sendMail({
-    from: `"Eventos" <${env.mailFromEmail}>`,
-    to,
-    subject: `Your seat for ${eventName}`,
-    html
-  });
+  return sendMail({ to, name, subject: `Your seat for ${eventName}`, html });
 
 }
 

@@ -7,4 +7,3 @@ export const stripe = env.stripeSecretKey
   ? new Stripe(env.stripeSecretKey, { apiVersion: "2024-06-20" })
   : null;
 
-  console.log("Stripe key at runtime:", env.stripeSecretKey);

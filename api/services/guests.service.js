@@ -2,6 +2,7 @@
 import { db } from "../config/db.js";
 import crypto from "crypto";
 import { sendMail, sendEventInvitationEmail, sendSeatAssignmentEmail, sendRsvpConfirmationEmail } from "../utils/sendEmail.js";
+import { sendBrevoSms, sendBrevoWhatsapp } from "./brevo.service.js";
 import { createNotificationService, getEventOwnerIdService } from "./notifications.service.js";
 import QRCode from "qrcode";
 
@@ -909,8 +910,15 @@ export async function sendInvitationEmailToGuestService({
     const event = await assertEventExists(client, eventId, organizationId);
     const guest = await assertGuestBelongsToEvent(client, guestId, eventId);
 
-    // Always try email first; fall back to manual if guest has no email
-    const effectiveChannel = guest.email ? "EMAIL" : channel === "SMS" || channel === "WHATSAPP" ? channel : "MANUAL";
+    // Channel priority: requested channel → email → SMS/WhatsApp → manual
+    let effectiveChannel;
+    if (channel === "SMS" || channel === "WHATSAPP") {
+      effectiveChannel = guest.phone ? channel : (guest.email ? "EMAIL" : "MANUAL");
+    } else if (channel === "EMAIL") {
+      effectiveChannel = guest.email ? "EMAIL" : (guest.phone ? "SMS" : "MANUAL");
+    } else {
+      effectiveChannel = guest.email ? "EMAIL" : (guest.phone ? "SMS" : "MANUAL");
+    }
     let recipientValue = null;
 
     if (effectiveChannel === "EMAIL") {
@@ -955,6 +963,53 @@ export async function sendInvitationEmailToGuestService({
       } catch (error) {
         finalStatus = "FAILED";
         failedReason = error.message || "Failed to send invitation email";
+      }
+    } else if (effectiveChannel === "SMS") {
+      try {
+        const dateStr = event.starts_at
+          ? new Date(event.starts_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+          : "";
+        const smsMessage =
+          `You're invited to ${event.title}${dateStr ? ` on ${dateStr}` : ""}. ` +
+          `RSVP here: ${invitationUrl}`;
+        const smsResult = await sendBrevoSms({ to: recipientValue, message: smsMessage });
+        providerMessageId = smsResult?.messageId || null;
+      } catch (error) {
+        finalStatus = "FAILED";
+        failedReason = error.message || "Failed to send SMS invitation";
+      }
+    } else if (effectiveChannel === "WHATSAPP") {
+      try {
+        const templateId = Number(process.env.BREVO_WHATSAPP_TEMPLATE_INVITE || 0);
+        if (templateId) {
+          const dateStr = event.starts_at
+            ? new Date(event.starts_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+            : "";
+          const waResult = await sendBrevoWhatsapp({
+            to: recipientValue,
+            templateId,
+            params: {
+              guest_name:   guest.full_name,
+              event_title:  event.title,
+              event_date:   dateStr,
+              invite_url:   invitationUrl,
+            },
+          });
+          providerMessageId = waResult?.messageId || null;
+        } else {
+          /* Fallback: send as SMS if no WhatsApp template configured */
+          const dateStr = event.starts_at
+            ? new Date(event.starts_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+            : "";
+          const smsMessage =
+            `You're invited to ${event.title}${dateStr ? ` on ${dateStr}` : ""}. ` +
+            `RSVP here: ${invitationUrl}`;
+          const smsResult = await sendBrevoSms({ to: recipientValue, message: smsMessage });
+          providerMessageId = smsResult?.messageId || null;
+        }
+      } catch (error) {
+        finalStatus = "FAILED";
+        failedReason = error.message || "Failed to send WhatsApp invitation";
       }
     } else {
       finalStatus = "SENT";

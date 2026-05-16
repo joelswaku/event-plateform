@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
@@ -9,12 +9,29 @@ import SharedEventRenderer from "@/components/events/shared/SharedEventRenderer"
 
 export default function EventPreviewClient({ slug }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const ptoken = searchParams.get("ptoken");
+
   const { isAuthenticated, isHydrated } = useAuthStore();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Mobile app passed its access token directly — skip web session entirely
+    if (ptoken) {
+      api
+        .get(`/public/pages/${slug}/preview`, {
+          headers: { Authorization: `Bearer ${ptoken}` },
+        })
+        .then((res) => setData(res.data?.data || null))
+        .catch((err) =>
+          setError(err.response?.data?.message || "Preview not available")
+        )
+        .finally(() => setLoading(false));
+      return;
+    }
+
     if (!isHydrated) return;
 
     if (!isAuthenticated) {
@@ -29,9 +46,9 @@ export default function EventPreviewClient({ slug }) {
         setError(err.response?.data?.message || "Preview not available")
       )
       .finally(() => setLoading(false));
-  }, [slug, isAuthenticated, isHydrated, router]);
+  }, [slug, isAuthenticated, isHydrated, ptoken, router]);
 
-  if (!isHydrated || loading) {
+  if ((!ptoken && !isHydrated) || loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-7 w-7 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />

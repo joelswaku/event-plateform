@@ -3,8 +3,6 @@ import * as eventsService from "../services/events.service.js";
 /**
  * Helper to send consistent error responses
  */
-console.log(` controller hit`);
-
 function handleControllerError(res, error, fallbackMessage = "Internal server error") {
   console.error(error);
 

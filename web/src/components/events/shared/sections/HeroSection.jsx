@@ -772,6 +772,9 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
   const config = section.config || {};
   const theme  = config._theme || "CLASSIC";
 
+  // In public/preview mode fall back to the event's own data when sections are empty
+  const bgImg  = config.background_image || (!isEditor && event?.cover_image_url) || null;
+
   const overlayOpacity = (config.overlay_opacity ?? 50) / 100;
   const align          = config.headline_align || (theme === "MODERN" ? "left" : "center");
   const isLeft         = align === "left";
@@ -811,7 +814,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
 
   // Independent show flags â€” each feature is separate
   const showTicketBlock   = isEditor ? !!event?.allow_ticketing : isTicketed;
-  const showRsvpBlock     = !!event?.allow_rsvp;
+  const showRsvpBlock     = !!event?.allow_rsvp && !showTicketBlock;
   const showDonationBlock = !!event?.allow_donations;
 
   function handleRsvp() {
@@ -852,14 +855,14 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
         style={{ background: bg }}
         onClick={isEditor ? onEdit : undefined}
       >
-        {config.background_image && (
+        {bgImg && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={config.background_image} alt="" aria-hidden="true" fetchPriority="high"
+          <img src={bgImg} alt="" aria-hidden="true" fetchPriority="high"
             style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
         )}
-        {config.background_image ? (
+        {bgImg ? (
           <motion.div className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url(${config.background_image})`, transformOrigin: "center center" }}
+            style={{ backgroundImage: `url(${bgImg})`, transformOrigin: "center center" }}
             initial={{ scale: 1 }} animate={{ scale: 1.08 }}
             transition={{ duration: 20, ease: "linear", repeat: Infinity, repeatType: "reverse" }}
             aria-hidden="true" />
@@ -879,7 +882,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
             </motion.p>
           )}
           <motion.h1 initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1.1, ease: EASE, delay: 0.35 }} style={headingStyle}>
-            {section.title || "Welcome"}
+            {section.title || (!isEditor && event?.title) || "Welcome"}
           </motion.h1>
           <Ornament centered={isCentered} />
           {section.body && (
@@ -905,13 +908,13 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
         style={{ background: bg }}
         onClick={isEditor ? onEdit : undefined}
       >
-        {config.background_image && (
+        {bgImg && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={config.background_image} alt="" aria-hidden="true" fetchPriority="high"
+          <img src={bgImg} alt="" aria-hidden="true" fetchPriority="high"
             style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
         )}
-        {config.background_image && (
-          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${config.background_image})` }} aria-hidden="true" />
+        {bgImg && (
+          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${bgImg})` }} aria-hidden="true" />
         )}
         <div className="absolute inset-0" style={{ background: overlayGrad }} aria-hidden="true" />
 
@@ -928,7 +931,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 0.15 }}
             className="mb-6 h-1 w-16" style={{ background: "var(--t-accent)" }} aria-hidden="true" />
           <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.85, ease: EASE, delay: 0.25 }} style={headingStyle}>
-            {section.title || "Welcome"}
+            {section.title || (!isEditor && event?.title) || "Welcome"}
           </motion.h1>
           {section.body && (
             <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE, delay: 0.45 }}
@@ -954,13 +957,13 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
         style={{ background: bg }}
         onClick={isEditor ? onEdit : undefined}
       >
-        {config.background_image && (
+        {bgImg && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={config.background_image} alt="" aria-hidden="true" fetchPriority="high"
+          <img src={bgImg} alt="" aria-hidden="true" fetchPriority="high"
             style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
         )}
-        {config.background_image && (
-          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${config.background_image})` }} aria-hidden="true" />
+        {bgImg && (
+          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${bgImg})` }} aria-hidden="true" />
         )}
         <div className="absolute inset-0" style={{ background: overlayGrad }} aria-hidden="true" />
 
@@ -972,7 +975,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
             </motion.p>
           )}
           <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, ease: EASE, delay: 0.2 }} style={headingStyle}>
-            {section.title || "Welcome"}
+            {section.title || (!isEditor && event?.title) || "Welcome"}
           </motion.h1>
           {section.body && (
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1, delay: 0.45 }}
@@ -996,13 +999,13 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
         style={{ background: bg }}
         onClick={isEditor ? onEdit : undefined}
       >
-        {config.background_image && (
+        {bgImg && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={config.background_image} alt="" aria-hidden="true" fetchPriority="high"
+          <img src={bgImg} alt="" aria-hidden="true" fetchPriority="high"
             style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
         )}
-        {config.background_image && (
-          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${config.background_image})` }} aria-hidden="true" />
+        {bgImg && (
+          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${bgImg})` }} aria-hidden="true" />
         )}
         <div className="absolute inset-0" style={{ background: overlayGrad }} aria-hidden="true" />
 
@@ -1014,7 +1017,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
             </motion.p>
           )}
           <motion.h1 initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease: EASE, delay: 0.25 }} style={headingStyle}>
-            {section.title || "Welcome"}
+            {section.title || (!isEditor && event?.title) || "Welcome"}
           </motion.h1>
           {section.body && (
             <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: EASE, delay: 0.45 }}
@@ -1037,13 +1040,13 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
       style={{ background: bg }}
       onClick={isEditor ? onEdit : undefined}
     >
-      {config.background_image && (
+      {bgImg && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={config.background_image} alt="" aria-hidden="true" fetchPriority="high"
+        <img src={bgImg} alt="" aria-hidden="true" fetchPriority="high"
           style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
       )}
-      {config.background_image && (
-        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${config.background_image})` }} aria-hidden="true" />
+      {bgImg && (
+        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${bgImg})` }} aria-hidden="true" />
       )}
       <div className="absolute inset-0" style={{ background: overlayGrad }} aria-hidden="true" />
       {showOrnament && (
@@ -1058,7 +1061,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
           </motion.p>
         )}
         <motion.h1 initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease: EASE, delay: 0.25 }} style={headingStyle}>
-          {section.title || "Welcome"}
+          {section.title || (!isEditor && event?.title) || "Welcome"}
         </motion.h1>
         {section.body && (
           <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: EASE, delay: 0.45 }}

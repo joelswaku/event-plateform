@@ -18,6 +18,7 @@
         "migrate:create": "node-pg-migrate create"
     },
     "dependencies": {
+        "@getbrevo/brevo": "^5.0.4",
         "bcryptjs": "^2.4.3",
         "bullmq": "^5.71.0",
         "cloudinary": "^2.9.0",

@@ -76,7 +76,15 @@ app.use(
         return callback(null, true);
       }
 
-      return callback(new Error("CORS not allowed for this origin"));
+      // In development allow localhost and private LAN IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+      if (process.env.NODE_ENV !== "production" && (
+        /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
+        /^https?:\/\/(192\.168|10\.\d+|172\.(1[6-9]|2\d|3[01]))\.\d+\.\d+(:\d+)?$/.test(origin)
+      )) {
+        return callback(null, true);
+      }
+
+      return callback(null, false);
     },
     credentials: true,
   }),
@@ -115,9 +123,7 @@ const globalLimiter = rateLimit({
 
 app.use("/api", globalLimiter);
 
-app.use((req, res, next) => {
-  (console.log(" request:", req.method, req.url), next());
-});
+
 
 /*
 |--------------------------------------------------------------------------

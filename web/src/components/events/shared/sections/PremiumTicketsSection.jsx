@@ -16,7 +16,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { motion, AnimatePresence, useInView } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 /* ─── API ─────────────────────────────────────────────────── */
 const API = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -215,8 +215,6 @@ function ViewerCount({ accent }) {
 
 /* ─── TICKET CARD ─────────────────────────────────────────── */
 function PremiumTicketCard({ ticket, onBuy, delay = 0, isEditor }) {
-  const ref     = useRef(null);
-  const inView  = useInView(ref, { once: true, margin: "-60px" });
   const tierKey = resolveTier(ticket);
   const cfg     = TIER[tierKey];
 
@@ -239,9 +237,8 @@ function PremiumTicketCard({ ticket, onBuy, delay = 0, isEditor }) {
 
   return (
     <motion.div
-      ref={ref}
       initial={{ opacity: 0, y: 40, scale: 0.95 }}
-      animate={inView ? { opacity: 1, y: 0, scale: 1 } : {}}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay }}
       className="relative flex flex-col overflow-hidden rounded-2xl"
       style={{
@@ -377,7 +374,7 @@ function PremiumTicketCard({ ticket, onBuy, delay = 0, isEditor }) {
           <div style={{ height: 4, borderRadius: 99, background: `${cfg.accent}15`, overflow: "hidden" }}>
             <motion.div
               initial={{ width: 0 }}
-              animate={inView ? { width: `${pct}%` } : {}}
+              animate={{ width: `${pct}%` }}
               transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1], delay: delay + 0.3 }}
               style={{
                 height: "100%",

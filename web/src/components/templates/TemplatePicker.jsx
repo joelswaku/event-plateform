@@ -367,31 +367,31 @@ function PreviewModal({ template, userPlan, onClose, onUse, onUpgrade }) {
         <div style={{ height: 3, background: `linear-gradient(90deg, ${accent}00, ${accent}, ${accent}00)`, flexShrink: 0 }} />
 
         {/* ── Body */}
-        <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
+        <div className="flex flex-col sm:flex-row flex-1 min-h-0 overflow-hidden">
 
-          {/* ── Left: phone preview */}
+          {/* ── Phone preview */}
           <div
+            className="flex w-full shrink-0 items-center justify-center border-b p-5 sm:w-[220px] sm:border-b-0 sm:border-r sm:p-8"
             style={{
-              width: 220,
-              flexShrink: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "32px 20px",
               background: `radial-gradient(ellipse at center, ${accent}10 0%, transparent 70%)`,
-              borderRight: "1px solid rgba(255,255,255,0.05)",
+              borderColor: "rgba(255,255,255,0.05)",
             }}
           >
-            <PhonePreview
-              template={template}
-              accent={accent}
-              bg={pageBg}
-              heroImg={heroImg}
-            />
+            {/* Desktop: full-size phone */}
+            <div className="hidden sm:block">
+              <PhonePreview template={template} accent={accent} bg={pageBg} heroImg={heroImg} />
+            </div>
+            {/* Mobile: scaled-down phone */}
+            <div className="sm:hidden" style={{ transform: "scale(0.72)", transformOrigin: "top center" }}>
+              <PhonePreview template={template} accent={accent} bg={pageBg} heroImg={heroImg} />
+            </div>
           </div>
 
-          {/* ── Right: info */}
-          <div style={{ flex: 1, overflowY: "auto", padding: "28px 28px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* ── Info */}
+          <div
+            className="flex-1 overflow-y-auto"
+            style={{ padding: "20px 20px 20px", display: "flex", flexDirection: "column", gap: 16 }}
+          >
 
             {/* Header */}
             <div>
@@ -711,6 +711,80 @@ function TemplateCard({ t, userPlan, applying, onSelect, onPreview }) {
   );
 }
 
+// ── Mobile Template Card (matches native TemplatePickerModal exactly) ─────────
+function MobileTemplateCard({ t, userPlan, applying, onSelect, onPreview }) {
+  const accessible = canAccessTemplate(t, userPlan);
+  const isApplying = applying === t.id;
+  const meta       = STYLE_META[t.style] ?? STYLE_META.CLASSIC;
+  const accent     = meta.preview.accent;
+  const coverImg   = t.assets?.cover_image ?? t.assets?.hero_image;
+  const isFree     = t.style === FREE_STYLE;
+
+  return (
+    <button
+      type="button"
+      className="flex w-full flex-col overflow-hidden rounded-[16px] border text-left"
+      style={{ background: "#1e2026", borderColor: "rgba(255,255,255,0.07)" }}
+      onClick={() => onPreview(t)}
+      disabled={!!applying}
+    >
+      {/* Cover */}
+      <div className="relative shrink-0" style={{ height: 140, background: `${accent}22` }}>
+        {coverImg && (
+          <img
+            src={coverImg}
+            alt={t.name}
+            crossOrigin="anonymous"
+            referrerPolicy="no-referrer"
+            className="absolute inset-0 h-full w-full object-cover"
+            loading="lazy"
+          />
+        )}
+        <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.30)" }} />
+
+        {/* Applying overlay */}
+        {isApplying && (
+          <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.55)" }}>
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+          </div>
+        )}
+
+        {/* Tier badge — top-left */}
+        {isFree ? (
+          <span
+            className="absolute left-2 top-2 rounded-full px-[7px] py-[2px] text-[9px] font-black text-white"
+            style={{ background: accent }}
+          >Free</span>
+        ) : (
+          <span
+            className="absolute left-2 top-2 rounded-full px-[7px] py-[2px] text-[9px] font-black"
+            style={{ background: "rgba(245,158,11,0.9)", color: "#1c1407" }}
+          >✦ Pro</span>
+        )}
+
+        {/* Lock badge — bottom-left if no access */}
+        {!accessible && (
+          <span
+            className="absolute bottom-2 left-2 rounded-full px-2 py-[3px] text-[9px] font-black"
+            style={{ background: "rgba(245,158,11,0.9)", color: "#1c1407" }}
+          >🔒 Pro</span>
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="flex flex-col gap-[5px] p-[10px]">
+        <span className="truncate text-[12px] font-bold text-white">{t.name}</span>
+        <span
+          className="self-start rounded-full px-[7px] py-[2px] text-[9px] font-extrabold uppercase"
+          style={{ background: `${accent}20`, color: accent, letterSpacing: "0.5px" }}
+        >
+          {t.style}
+        </span>
+      </div>
+    </button>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) {
   const { plan, isSubscribed, openUpgradeModal } = useSubscriptionStore();
@@ -933,10 +1007,10 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
                 )}
 
                 {/* Template grid */}
-                <div className="px-4 sm:px-5 py-5 pb-6">
-                  {/* Filter header */}
+                <div className="px-4 sm:px-5 py-4 sm:py-5 pb-6">
+                  {/* Filter header (desktop only) */}
                   {(STYLE_ORDER.includes(activeFilter) || CATEGORY_ORDER.includes(activeFilter)) && (
-                    <div className="flex items-center gap-3 mb-4">
+                    <div className="hidden sm:flex items-center gap-3 mb-4">
                       {STYLE_ORDER.includes(activeFilter) ? (
                         <>
                           <span className="h-2.5 w-2.5 rounded-full" style={{ background: STYLE_META[activeFilter]?.preview?.accent ?? "#888", boxShadow: `0 0 8px ${STYLE_META[activeFilter]?.preview?.accent ?? "#888"}88` }} />
@@ -959,11 +1033,20 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
                       <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.3)" }}>No templates in this category yet.</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-                      {filteredTemplates.map((t) => (
-                        <TemplateCard key={t.id} t={t} {...cardProps} />
-                      ))}
-                    </div>
+                    <>
+                      {/* Mobile grid — matches native app card design */}
+                      <div className="sm:hidden grid grid-cols-2 gap-3">
+                        {filteredTemplates.map((t) => (
+                          <MobileTemplateCard key={t.id} t={t} {...cardProps} />
+                        ))}
+                      </div>
+                      {/* Desktop grid */}
+                      <div className="hidden sm:grid sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {filteredTemplates.map((t) => (
+                          <TemplateCard key={t.id} t={t} {...cardProps} />
+                        ))}
+                      </div>
+                    </>
                   )}
                 </div>
               </div>

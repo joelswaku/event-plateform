@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import React, { useEffect, useState, useCallback } from "react";
+import { useParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   Users, UserCheck, Ticket, QrCode,
   CalendarDays, MapPin, Globe, Tag,
   Pencil, Eye, Layout, ArrowRight, Clock,
   BarChart3, Heart, Settings, Plus,
-  Home, User, ChevronRight, ChevronLeft,
+  Home, User, ChevronRight,
+  Share2, MoreHorizontal, ArrowLeft, Camera, ExternalLink,
+  Send, EyeOff, Archive, Trash2, RotateCcw, CreditCard,
+  LayoutGrid, CheckCircle,
 } from "lucide-react";
 import { useEventStore }  from "@/store/event.store";
 import StatCard           from "@/components/ui/stat-card";
@@ -113,7 +115,7 @@ function SectionTitle({ children }) {
   );
 }
 
-// ── Feature modules with toggles ──────────────────────────────────────────────
+// ── Feature modules with toggles (desktop) ───────────────────────────────────
 const MODULE_CFG = {
   allow_rsvp:       { icon: Users,  label: "RSVP",           desc: "Guest list & tracking", activeBg: "bg-indigo-50 dark:bg-indigo-900/20",  activeIcon: "text-indigo-600 dark:text-indigo-400" },
   allow_ticketing:  { icon: Ticket, label: "Stripe Ticketing", desc: "Paid ticket sales",    activeBg: "bg-amber-50 dark:bg-amber-900/20",    activeIcon: "text-amber-600 dark:text-amber-400"   },
@@ -221,6 +223,75 @@ function formatDate(d) {
 // MOBILE COMPONENTS
 // ══════════════════════════════════════════════════════════════════════════════
 
+function useMobileCountdown(iso) {
+  const [diff, setDiff] = useState({ d: 0, h: 0, m: 0, s: 0, past: false });
+  useEffect(() => {
+    if (!iso) return;
+    const tick = () => {
+      const ms = new Date(iso).getTime() - Date.now();
+      if (ms <= 0) { setDiff({ d: 0, h: 0, m: 0, s: 0, past: true }); return; }
+      const tot = Math.floor(ms / 1000);
+      setDiff({
+        d: Math.floor(tot / 86400),
+        h: Math.floor((tot % 86400) / 3600),
+        m: Math.floor((tot % 3600) / 60),
+        s: tot % 60,
+        past: false,
+      });
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [iso]);
+  return diff;
+}
+
+function MobileConfirmDialog({ title, desc, danger, onConfirm, onCancel }) {
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center"
+      style={{ background: "rgba(0,0,0,0.65)" }}
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-md flex flex-col gap-4 rounded-t-[24px] p-6"
+        style={{
+          background: "#0e0e16",
+          borderTop: "1px solid rgba(255,255,255,0.08)",
+          paddingBottom: "max(24px, env(safe-area-inset-bottom))",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="h-1 w-10 self-center rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
+        <p className="text-center text-[18px] font-black text-white" style={{ letterSpacing: "-0.3px" }}>{title}</p>
+        <p className="text-center text-[13px]" style={{ color: "rgba(255,255,255,0.50)" }}>{desc}</p>
+        <div className="mt-2 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="flex h-[52px] items-center justify-center rounded-[14px] text-[15px] font-extrabold"
+            style={
+              danger
+                ? { background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.35)", color: "#ef4444" }
+                : { background: "linear-gradient(135deg,#4f46e5,#8b5cf6)", color: "#fff" }
+            }
+          >
+            {danger ? "Delete" : "Confirm"}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex h-[48px] items-center justify-center rounded-[14px] text-[14px] font-bold"
+            style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.50)" }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MobileBottomNav() {
   const pathname = usePathname();
   const tabs = [
@@ -236,7 +307,7 @@ function MobileBottomNav() {
       style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.08)", paddingBottom: "max(10px, env(safe-area-inset-bottom))" }}
     >
       <div className="flex items-end justify-around">
-        {tabs.map((tab) => {
+        {tabs.map((tab, idx) => {
           if (!tab) {
             return (
               <Link key="create" href="/events/create" className="-mt-5 flex flex-col items-center gap-1">
@@ -260,276 +331,451 @@ function MobileBottomNav() {
   );
 }
 
-function MobileStat({ value, label, color, href }) {
-  const inner = (
-    <div
-      className="flex flex-1 flex-col gap-1 rounded-[16px] border p-3.5"
-      style={{ background: `${color}10`, borderColor: `${color}22` }}
-    >
-      <span className="text-[22px] font-black leading-none" style={{ color }}>{value}</span>
-      <span className="text-[10px] font-bold uppercase tracking-[0.4px]" style={{ color: "rgba(255,255,255,0.40)" }}>{label}</span>
-    </div>
-  );
-  if (href) return <Link href={href} className="flex flex-1">{inner}</Link>;
-  return <div className="flex flex-1">{inner}</div>;
-}
+function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, onTicketGate }) {
+  const cfg      = sc(event.status);
+  const router   = useRouter();
+  const status   = (event.status ?? "DRAFT").toUpperCase();
+  const countdown = useMobileCountdown(event.starts_at_utc);
+  const { publishEvent, unpublishEvent, archiveEvent, restoreEvent, deleteEvent } = useEventStore();
+  const [loading, setLoading] = useState(false);
+  const [modal,   setModal]   = useState(null);
 
-function MobileModuleToggle({ moduleKey, cfg, active, busy, onToggle, href }) {
-  const MODULE_COLORS = {
-    allow_rsvp:       { icon: "#6366f1", bg: "rgba(99,102,241,0.12)"  },
-    allow_ticketing:  { icon: "#f59e0b", bg: "rgba(245,158,11,0.12)"  },
-    allow_qr_checkin: { icon: "#06b6d4", bg: "rgba(6,182,212,0.12)"   },
-    allow_donations:  { icon: "#ec4899", bg: "rgba(236,72,153,0.12)"  },
-  };
-  const col  = MODULE_COLORS[moduleKey] ?? { icon: "#6366f1", bg: "rgba(99,102,241,0.12)" };
-  const Icon = cfg.icon;
+  const run = useCallback(async (fn) => {
+    setLoading(true);
+    try { await fn(); } finally { setLoading(false); }
+  }, []);
+
+  const FEATURES = [
+    { FIcon: Layout,     label: "Builder",   sub: "Design event page",   accent: "#6366f1", grad: "linear-gradient(135deg,#4f46e5,#6366f1)", href: `/events/${eventId}/builder`   },
+    { FIcon: Users,      label: "Guests",    sub: "Manage attendees",    accent: "#10b981", grad: "linear-gradient(135deg,#059669,#10b981)", href: `/events/${eventId}/guests`    },
+    { FIcon: CreditCard, label: "Tickets",   sub: "Types & orders",      accent: "#f59e0b", grad: "linear-gradient(135deg,#d97706,#f59e0b)", href: `/events/${eventId}/tickets`   },
+    { FIcon: LayoutGrid, label: "Seating",   sub: "Seat assignments",    accent: "#06b6d4", grad: "linear-gradient(135deg,#0891b2,#06b6d4)", href: `/events/${eventId}/seating`   },
+    { FIcon: Camera,     label: "Scanner",   sub: "QR check-in",         accent: "#10b981", grad: "linear-gradient(135deg,#0891b2,#06b6d4)", href: `/events/${eventId}/scanner`   },
+    { FIcon: BarChart3,  label: "Analytics", sub: "Revenue & insights",  accent: "#a78bfa", grad: "linear-gradient(135deg,#7c3aed,#8b5cf6)", href: `/events/${eventId}/analytics` },
+    { FIcon: Heart,      label: "Donations", sub: "Track contributions", accent: "#f43f5e", grad: "linear-gradient(135deg,#be185d,#f43f5e)", href: `/events/${eventId}/donations` },
+    { FIcon: Settings,   label: "Settings",  sub: "Edit event details",  accent: "#6b7280", grad: "linear-gradient(135deg,#374151,#4b5563)", href: `/events/${eventId}/settings`  },
+  ];
+
+  const STAT_ITEMS = [
+    { SIcon: Users,        label: "Guests",    value: stats.guest_count     ?? 0, accent: "#6366f1", href: `/events/${eventId}/guests`  },
+    { SIcon: UserCheck,    label: "Attending", value: stats.attending_count ?? 0, accent: "#10b981"  },
+    { SIcon: CreditCard,   label: "Tickets",   value: stats.ticket_count    ?? 0, accent: "#f59e0b", href: hasFullTicketing ? `/events/${eventId}/tickets` : undefined },
+    { SIcon: CheckCircle,  label: "Scanned",   value: stats.checkin_count   ?? 0, accent: "#a78bfa", href: `/events/${eventId}/scanner` },
+  ];
+
+  const ticketPct = (stats.ticket_count ?? 0) > 0
+    ? Math.min(((stats.checkin_count ?? 0) / (stats.ticket_count ?? 1)) * 100, 100)
+    : 0;
 
   return (
-    <div
-      className="flex flex-col gap-3 rounded-[16px] border p-3.5"
-      style={{
-        background: active ? col.bg : "rgba(255,255,255,0.03)",
-        borderColor: active ? `${col.icon}30` : "rgba(255,255,255,0.07)",
-      }}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex h-8 w-8 items-center justify-center rounded-[10px]" style={{ background: active ? `${col.icon}20` : "rgba(255,255,255,0.06)" }}>
-          <Icon size={16} style={{ color: active ? col.icon : "rgba(255,255,255,0.25)" }} />
-        </div>
+    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden" style={{ background: "#0e0f11" }}>
+
+      {/* Floating topbar — sits above scroll */}
+      <div
+        className="absolute left-0 right-0 top-0 z-20 flex items-end justify-between px-4 pb-3"
+        style={{ paddingTop: "max(48px, env(safe-area-inset-top))", pointerEvents: "none" }}
+      >
+        <Link
+          href="/events"
+          className="flex h-[38px] w-[38px] items-center justify-center rounded-[12px]"
+          style={{ background: "rgba(0,0,0,0.45)", pointerEvents: "auto" }}
+        >
+          <ArrowLeft size={17} className="text-white" />
+        </Link>
         <button
           type="button"
-          onClick={onToggle}
-          disabled={busy}
-          className="relative flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-300 focus:outline-none"
-          style={{ background: active ? "#6366f1" : "rgba(255,255,255,0.12)" }}
+          className="flex h-[38px] w-[38px] items-center justify-center rounded-[12px]"
+          style={{ background: "rgba(0,0,0,0.45)", pointerEvents: "auto" }}
         >
-          {busy ? (
-            <span className="absolute left-0.5 h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-          ) : (
-            <span
-              className="absolute h-4 w-4 rounded-full bg-white shadow transition-transform duration-300"
-              style={{ left: active ? "calc(100% - 18px)" : 2 }}
-            />
-          )}
+          <MoreHorizontal size={19} className="text-white" />
         </button>
       </div>
-      <div>
-        <p className="text-[12px] font-extrabold text-white">{cfg.label}</p>
-        <p className="mt-0.5 text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>
-          {active ? cfg.desc : "Disabled"}
-        </p>
-      </div>
-      {active && (
-        <Link
-          href={href}
-          className="flex items-center gap-1 text-[10px] font-bold"
-          style={{ color: col.icon }}
-        >
-          Open <ChevronRight size={10} />
-        </Link>
-      )}
-    </div>
-  );
-}
 
-function MobileModules({ event, eventId }) {
-  const { updateEvent } = useEventStore();
-  const hrefs = MODULE_HREFS(eventId);
-  const [local,  setLocal]  = useState(() =>
-    Object.fromEntries(Object.keys(MODULE_CFG).map((k) => [k, !!event?.[k]]))
-  );
-  const [saving, setSaving] = useState({});
-
-  const toggle = async (key) => {
-    if (saving[key]) return;
-    const next = !local[key];
-    setLocal((s) => ({ ...s, [key]: next }));
-    setSaving((s) => ({ ...s, [key]: true }));
-    await updateEvent(eventId, { [key]: next });
-    setSaving((s) => ({ ...s, [key]: false }));
-  };
-
-  return (
-    <div className="px-4">
-      <p className="mb-3 text-[11px] font-black uppercase tracking-[0.5px]" style={{ color: "rgba(255,255,255,0.35)" }}>
-        Modules
-      </p>
-      <div className="grid grid-cols-2 gap-3">
-        {Object.entries(MODULE_CFG).map(([key, cfg]) => (
-          <MobileModuleToggle
-            key={key}
-            moduleKey={key}
-            cfg={cfg}
-            active={local[key]}
-            busy={!!saving[key]}
-            onToggle={() => toggle(key)}
-            href={hrefs[key]}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function MobileQuickAction({ Icon, label, desc, href, onClick, accent }) {
-  const inner = (
-    <div
-      className="flex items-center gap-3 rounded-[14px] border px-4 py-3.5"
-      style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.07)" }}
-    >
-      <div
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px]"
-        style={{ background: `${accent}18`, border: `1px solid ${accent}28` }}
-      >
-        <Icon size={16} style={{ color: accent }} />
-      </div>
-      <div className="flex-1">
-        <p className="text-[13px] font-extrabold text-white">{label}</p>
-        <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>{desc}</p>
-      </div>
-      <ChevronRight size={15} style={{ color: "rgba(255,255,255,0.20)" }} />
-    </div>
-  );
-  if (href) return <Link href={href}>{inner}</Link>;
-  return <button type="button" onClick={onClick} className="w-full text-left">{inner}</button>;
-}
-
-function MobileEventDetail({ event, stats, eventId, hasFullTicketing, location, isPublic, onTicketGate }) {
-  const cfg = sc(event.status);
-
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden" style={{ background: "#07070f" }}>
       <div className="flex-1 overflow-y-auto">
 
-        {/* Hero cover */}
-        <div className="relative" style={{ height: 240 }}>
+        {/* ── Hero 320px ── */}
+        <div className="relative" style={{ height: 320 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={heroImg(event)} alt={event.title} className="absolute inset-0 h-full w-full object-cover" />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(7,7,15,0.5) 0%, transparent 40%, rgba(7,7,15,0.85) 100%)" }} />
-
-          {/* Header row */}
           <div
-            className="absolute left-0 right-0 top-0 flex items-center justify-between px-4"
-            style={{ paddingTop: "max(48px, env(safe-area-inset-top))" }}
-          >
-            <Link
-              href="/events"
-              className="flex h-9 w-9 items-center justify-center rounded-[11px] border"
-              style={{ background: "rgba(0,0,0,0.45)", borderColor: "rgba(255,255,255,0.12)" }}
+            className="absolute inset-0"
+            style={{ background: "linear-gradient(to bottom, rgba(14,15,17,0.12) 0%, rgba(14,15,17,0.5) 60%, rgba(14,15,17,0.97) 100%)" }}
+          />
+          <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-[10px] px-5 pb-6">
+            {/* Status pill */}
+            <div
+              className="inline-flex items-center gap-1.5 self-start rounded-full px-[10px] py-[5px]"
+              style={{ background: cfg.bg }}
             >
-              <ChevronLeft size={18} className="text-white" />
-            </Link>
-            <Link
-              href={`/events/${eventId}/edit`}
-              className="flex h-9 items-center gap-1.5 rounded-[11px] border px-3"
-              style={{ background: "rgba(0,0,0,0.45)", borderColor: "rgba(255,255,255,0.12)" }}
-            >
-              <Pencil size={13} className="text-white" />
-              <span className="text-[12px] font-bold text-white">Edit</span>
-            </Link>
-          </div>
-
-          {/* Bottom overlay: title + status */}
-          <div className="absolute bottom-0 left-0 right-0 px-4 pb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div
-                className="flex items-center gap-1.5 rounded-full px-2.5 py-1"
-                style={{ background: cfg.bg }}
-              >
-                <span className="h-1.5 w-1.5 rounded-full" style={{ background: cfg.dot }} />
-                <span className="text-[11px] font-extrabold" style={{ color: cfg.text }}>
-                  {event.status.charAt(0) + event.status.slice(1).toLowerCase()}
-                </span>
-              </div>
-              {event.event_type && (
-                <span
-                  className="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.3px]"
-                  style={{ background: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.60)" }}
-                >
-                  {event.event_type}
-                </span>
-              )}
+              <span className="h-[7px] w-[7px] rounded-full" style={{ background: cfg.dot }} />
+              <span className="text-[11px] font-extrabold" style={{ color: cfg.text }}>
+                {event.status.charAt(0) + event.status.slice(1).toLowerCase()}
+              </span>
             </div>
-            <p className="text-[20px] font-black leading-tight tracking-tight text-white line-clamp-2">
+            {/* Title */}
+            <p className="text-[32px] font-black leading-[36px] text-white" style={{ letterSpacing: "-0.8px" }}>
               {event.title}
             </p>
+            {/* Type chip */}
+            <div
+              className="inline-flex self-start rounded-full border px-3 py-[5px]"
+              style={{ background: "rgba(255,255,255,0.10)", borderColor: "rgba(255,255,255,0.18)" }}
+            >
+              <span className="text-[10px] font-extrabold" style={{ color: "rgba(255,255,255,0.7)", letterSpacing: "1.5px" }}>
+                {event.event_type?.replace(/_/g, " ").toUpperCase() ?? "EVENT"}
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="flex flex-col gap-5 pb-8 pt-5">
+        {/* ── Body ── */}
+        <div className="flex flex-col gap-4 px-4 pt-6" style={{ paddingBottom: 40 }}>
 
-          {/* Stats 2×2 */}
-          <div className="px-4">
-            <div className="grid grid-cols-2 gap-3">
-              <MobileStat value={stats.guest_count    ?? 0} label="Guests"    color="#6366f1" href={`/events/${eventId}/guests`} />
-              <MobileStat value={stats.attending_count ?? 0} label="Attending" color="#10b981" />
-              <MobileStat value={stats.ticket_count   ?? 0} label="Tickets"   color="#a78bfa" href={hasFullTicketing ? `/events/${eventId}/tickets` : undefined} />
-              <MobileStat value={stats.checkin_count  ?? 0} label="Check-ins" color="#f59e0b" href={`/events/${eventId}/scanner`} />
+          {/* Countdown */}
+          {event.starts_at_utc && !countdown.past && (
+            <div className="flex flex-col gap-[10px]">
+              <p className="text-[10px] font-bold uppercase" style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "1.5px" }}>
+                EVENT STARTS IN
+              </p>
+              <div className="flex items-center gap-2">
+                {(countdown.d > 0
+                  ? [{ v: countdown.d, l: "DAYS" }, { v: countdown.h, l: "HRS" }, { v: countdown.m, l: "MIN" }, { v: countdown.s, l: "SEC" }]
+                  : [{ v: countdown.h, l: "HRS" }, { v: countdown.m, l: "MIN" }, { v: countdown.s, l: "SEC" }]
+                ).map((u, i) => (
+                  <React.Fragment key={u.l}>
+                    {i > 0 && (
+                      <span className="text-[24px] font-light" style={{ color: "rgba(255,255,255,0.2)", marginBottom: 10 }}>:</span>
+                    )}
+                    <div
+                      className="relative flex flex-1 flex-col items-center gap-[2px] overflow-hidden rounded-[16px] border py-[14px]"
+                      style={{ background: "#0e0e16", borderColor: "rgba(108,111,238,0.25)" }}
+                    >
+                      <div
+                        className="absolute inset-0"
+                        style={{ background: "linear-gradient(to bottom, rgba(108,111,238,0.12), rgba(108,111,238,0.04))" }}
+                      />
+                      <span className="relative text-[30px] font-black leading-none text-white" style={{ letterSpacing: "-1px" }}>
+                        {String(u.v).padStart(2, "0")}
+                      </span>
+                      <span className="relative text-[9px] font-bold" style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "1.5px" }}>
+                        {u.l}
+                      </span>
+                    </div>
+                  </React.Fragment>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Event details row */}
-          <div className="px-4">
-            <p className="mb-3 text-[11px] font-black uppercase tracking-[0.5px]" style={{ color: "rgba(255,255,255,0.35)" }}>
-              Details
-            </p>
-            <div
-              className="flex flex-col gap-2.5 rounded-[18px] border p-4"
-              style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.07)" }}
+          {/* Ticket hero card */}
+          {(event.allow_ticketing || (stats.ticket_count ?? 0) > 0) && (
+            <Link
+              href={`/events/${eventId}/tickets`}
+              className="block overflow-hidden rounded-[20px] border"
+              style={{ background: "rgba(12,12,22,0.88)", borderColor: "rgba(99,102,241,0.28)" }}
             >
-              {event.starts_at_local && (
-                <div className="flex items-center gap-2.5">
-                  <CalendarDays size={14} style={{ color: "#6366f1" }} />
-                  <span className="text-[13px] font-semibold" style={{ color: "rgba(255,255,255,0.70)" }}>
-                    {formatDate(event.starts_at_local)}
+              <div className="h-1" style={{ background: "#6366f1" }} />
+              <div
+                className="flex items-center justify-between border-b px-4 pb-3 pt-[14px]"
+                style={{ borderColor: "rgba(255,255,255,0.06)" }}
+              >
+                <div
+                  className="rounded-full border px-3 py-[5px]"
+                  style={{ background: "rgba(99,102,241,0.13)", borderColor: "rgba(99,102,241,0.28)" }}
+                >
+                  <span className="text-[11px] font-extrabold" style={{ color: "#6366f1", letterSpacing: "0.5px" }}>🎟 Tickets</span>
+                </div>
+                <div
+                  className="flex items-center gap-[5px] rounded-full border px-[10px] py-1"
+                  style={{ background: "rgba(16,185,129,0.09)", borderColor: "rgba(16,185,129,0.21)" }}
+                >
+                  <span className="h-[6px] w-[6px] rounded-full" style={{ background: "#10b981" }} />
+                  <span className="text-[9px] font-black" style={{ color: "#10b981", letterSpacing: "1px" }}>LIVE</span>
+                </div>
+              </div>
+              <div className="flex items-center px-4 py-4">
+                {[
+                  { v: stats.ticket_count   ?? 0,             l: "Issued",        c: "#fff"     },
+                  { v: stats.checkin_count  ?? 0,             l: "Checked In",    c: "#10b981"  },
+                  { v: `${Math.round(ticketPct)}%`,           l: "Check-in Rate", c: "#f59e0b"  },
+                ].map((it, i) => (
+                  <React.Fragment key={it.l}>
+                    {i > 0 && <div className="h-8 w-px" style={{ background: "rgba(255,255,255,0.08)" }} />}
+                    <div className="flex flex-1 flex-col items-center gap-[3px]">
+                      <span className="text-[26px] font-black" style={{ color: it.c, letterSpacing: "-0.8px" }}>{it.v}</span>
+                      <span className="text-[10px] font-semibold" style={{ color: "rgba(255,255,255,0.35)" }}>{it.l}</span>
+                    </div>
+                  </React.Fragment>
+                ))}
+              </div>
+              {(stats.ticket_count ?? 0) > 0 && (
+                <div className="px-4 pb-3">
+                  <div className="h-1 overflow-hidden rounded-sm" style={{ background: "rgba(255,255,255,0.08)" }}>
+                    <div
+                      className="h-full rounded-sm"
+                      style={{ width: `${ticketPct}%`, background: "linear-gradient(to right, #6366f1, #8b5cf6)" }}
+                    />
+                  </div>
+                </div>
+              )}
+              <div
+                className="flex items-center justify-center gap-[6px] border-t py-3"
+                style={{ borderColor: "rgba(255,255,255,0.06)" }}
+              >
+                <span className="text-[13px] font-bold" style={{ color: "#6366f1" }}>View all tickets</span>
+                <ArrowRight size={13} style={{ color: "#6366f1" }} />
+              </div>
+            </Link>
+          )}
+
+          {/* Meta card */}
+          <div
+            className="flex flex-col rounded-[16px] border p-4"
+            style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.07)" }}
+          >
+            {event.starts_at_local && (
+              <div className="flex items-center gap-3 py-1">
+                <div className="flex h-8 w-8 items-center justify-center rounded-[10px]" style={{ background: "rgba(99,102,241,0.12)" }}>
+                  <Clock size={14} style={{ color: "#6366f1" }} />
+                </div>
+                <span className="flex-1 text-[14px] font-medium text-white">{formatDate(event.starts_at_local)}</span>
+              </div>
+            )}
+            {event.venue_name && (
+              <>
+                <div className="my-2 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
+                <div className="flex items-center gap-3 py-1">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-[10px]" style={{ background: "rgba(16,185,129,0.12)" }}>
+                    <MapPin size={14} style={{ color: "#10b981" }} />
+                  </div>
+                  <span className="flex-1 truncate text-[14px] font-medium text-white">
+                    {event.venue_name}{event.city ? ` · ${event.city}` : ""}
                   </span>
                 </div>
-              )}
-              {location && (
-                <div className="flex items-center gap-2.5">
-                  <MapPin size={14} style={{ color: "#10b981" }} />
-                  <span className="text-[13px] font-semibold" style={{ color: "rgba(255,255,255,0.70)" }}>{location}</span>
-                </div>
-              )}
-              {event.visibility && (
-                <div className="flex items-center gap-2.5">
-                  <Globe size={14} style={{ color: "#f59e0b" }} />
-                  <span className="text-[13px] font-semibold" style={{ color: "rgba(255,255,255,0.70)" }}>{event.visibility}</span>
-                </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
 
-          {/* Modules */}
-          <MobileModules event={event} eventId={eventId} />
-
-          {/* Quick actions */}
-          <div className="px-4">
-            <p className="mb-3 text-[11px] font-black uppercase tracking-[0.5px]" style={{ color: "rgba(255,255,255,0.35)" }}>
-              Quick Actions
-            </p>
-            <div className="flex flex-col gap-2.5">
-              <MobileQuickAction Icon={Layout}   label="Event Builder"   desc="Design your event page"    href={`/events/${eventId}/builder`}   accent="#6366f1" />
-              <MobileQuickAction Icon={BarChart3} label="Analytics"       desc="Views & conversions"       href={`/events/${eventId}/analytics`} accent="#a78bfa" />
-              <MobileQuickAction Icon={Users}     label="Manage Guests"   desc="Invite & track attendees"  href={`/events/${eventId}/guests`}    accent="#10b981" />
-              {hasFullTicketing
-                ? <MobileQuickAction Icon={Ticket} label="Tickets"        desc="Ticket tiers & sales"      href={`/events/${eventId}/tickets`}   accent="#f59e0b" />
-                : <MobileQuickAction Icon={Ticket} label="Tickets"        desc="Not available for this type" onClick={onTicketGate}              accent="#6b7280" />
-              }
-              <MobileQuickAction Icon={QrCode}   label="QR Scanner"      desc="Check in on arrival"       href={`/events/${eventId}/scanner`}   accent="#06b6d4" />
-              <MobileQuickAction
-                Icon={Eye}
-                label={isPublic ? "View Event Page" : "Preview"}
-                desc={isPublic ? "Public page" : "Draft preview"}
-                href={isPublic ? `/e/${event.slug}` : `/e/${event.slug}?preview=1`}
-                accent="#ec4899"
-              />
-            </div>
+          {/* Stats 4-col grid */}
+          <div className="grid grid-cols-4 gap-[10px]">
+            {STAT_ITEMS.map(({ SIcon, label, value, accent, href }) => {
+              const card = (
+                <div
+                  className="relative flex flex-col items-center gap-1 overflow-hidden rounded-[16px] border py-4"
+                  style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.07)" }}
+                >
+                  <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, ${accent}14, ${accent}06)` }} />
+                  <div className="relative flex h-8 w-8 items-center justify-center rounded-[10px]" style={{ background: `${accent}20` }}>
+                    <SIcon size={15} style={{ color: accent }} />
+                  </div>
+                  <span className="relative text-[24px] font-black leading-none" style={{ color: accent, letterSpacing: "-0.5px" }}>{value}</span>
+                  <span className="relative text-[10px] font-bold" style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "0.5px" }}>{label}</span>
+                </div>
+              );
+              if (href) return <Link key={label} href={href} className="block">{card}</Link>;
+              return <div key={label}>{card}</div>;
+            })}
           </div>
+
+          {/* Quick-action pills */}
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/events/${eventId}/guests`}
+              className="flex items-center gap-[6px] rounded-full border px-[14px] py-2"
+              style={{ borderColor: "rgba(99,102,241,0.40)", background: "rgba(99,102,241,0.12)" }}
+            >
+              <Users size={14} style={{ color: "#6366f1" }} />
+              <span className="text-[11px] font-extrabold" style={{ color: "#6366f1", letterSpacing: "0.8px" }}>RSVP</span>
+            </Link>
+            <Link
+              href={`/events/${eventId}/scanner`}
+              className="flex items-center gap-[6px] rounded-full border px-[14px] py-2"
+              style={{ borderColor: "rgba(16,185,129,0.40)", background: "rgba(16,185,129,0.12)" }}
+            >
+              <Camera size={14} style={{ color: "#10b981" }} />
+              <span className="text-[11px] font-extrabold" style={{ color: "#10b981", letterSpacing: "0.8px" }}>QR CHECK-IN</span>
+            </Link>
+            {event.allow_ticketing && (
+              hasFullTicketing ? (
+                <Link
+                  href={`/events/${eventId}/tickets`}
+                  className="flex items-center gap-[6px] rounded-full border px-[14px] py-2"
+                  style={{ borderColor: "rgba(245,158,11,0.40)", background: "rgba(245,158,11,0.12)" }}
+                >
+                  <CreditCard size={14} style={{ color: "#f59e0b" }} />
+                  <span className="text-[11px] font-extrabold" style={{ color: "#f59e0b", letterSpacing: "0.8px" }}>BUY TICKETS</span>
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onTicketGate}
+                  className="flex items-center gap-[6px] rounded-full border px-[14px] py-2"
+                  style={{ borderColor: "rgba(245,158,11,0.40)", background: "rgba(245,158,11,0.12)" }}
+                >
+                  <CreditCard size={14} style={{ color: "#f59e0b" }} />
+                  <span className="text-[11px] font-extrabold" style={{ color: "#f59e0b", letterSpacing: "0.8px" }}>BUY TICKETS</span>
+                </button>
+              )
+            )}
+            {event.slug && (
+              <button
+                type="button"
+                className="flex items-center gap-[6px] rounded-full border px-[14px] py-2"
+                style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)" }}
+              >
+                <Share2 size={14} style={{ color: "rgba(255,255,255,0.45)" }} />
+                <span className="text-[11px] font-extrabold" style={{ color: "rgba(255,255,255,0.45)", letterSpacing: "0.8px" }}>SHARE</span>
+              </button>
+            )}
+          </div>
+
+          {/* Primary CTA */}
+          <div className="flex flex-col gap-2">
+            {status === "DRAFT" && (
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => setModal({
+                  action: () => run(() => publishEvent(eventId)),
+                  title: "Publish this event?",
+                  desc: "Your event will be publicly visible.",
+                  danger: false,
+                })}
+                className="relative flex h-[52px] items-center justify-center gap-[9px] overflow-hidden rounded-[14px]"
+                style={{ background: "linear-gradient(to right, #4f46e5, #8b5cf6)" }}
+              >
+                {loading
+                  ? <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  : <><Send size={16} className="text-white" /><span className="text-[15px] font-extrabold text-white" style={{ letterSpacing: "-0.2px" }}>Publish Event</span></>
+                }
+              </button>
+            )}
+            {status === "PUBLISHED" && (
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => setModal({
+                  action: () => run(() => unpublishEvent(eventId)),
+                  title: "Unpublish?",
+                  desc: "Event goes back to draft.",
+                  danger: false,
+                })}
+                className="flex h-[52px] items-center justify-center gap-[9px] rounded-[14px] border"
+                style={{ borderColor: "rgba(245,158,11,0.34)", background: "transparent" }}
+              >
+                {loading
+                  ? <div className="h-5 w-5 animate-spin rounded-full border-2 border-amber-500/30 border-t-amber-500" />
+                  : <><EyeOff size={16} style={{ color: "#f59e0b" }} /><span className="text-[15px] font-extrabold" style={{ color: "#f59e0b", letterSpacing: "-0.2px" }}>Unpublish</span></>
+                }
+              </button>
+            )}
+            {(status === "ARCHIVED" || status === "CANCELLED") && (
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => run(() => restoreEvent(eventId))}
+                className="relative flex h-[52px] items-center justify-center gap-[9px] overflow-hidden rounded-[14px]"
+                style={{ background: "linear-gradient(to right, #4f46e5, #8b5cf6)" }}
+              >
+                <RotateCcw size={16} className="text-white" />
+                <span className="text-[15px] font-extrabold text-white" style={{ letterSpacing: "-0.2px" }}>Restore Event</span>
+              </button>
+            )}
+          </div>
+
+          {/* See Your Website */}
+          {event.slug && (
+            <Link
+              href={isPublic ? `/e/${event.slug}` : `/e/${event.slug}?preview=1`}
+              target="_blank"
+              className="flex items-center gap-[9px] rounded-[14px] border px-4 py-[13px]"
+              style={{ background: "rgba(99,102,241,0.06)", borderColor: "rgba(99,102,241,0.18)" }}
+            >
+              <Globe size={14} style={{ color: "#6366f1" }} />
+              <span className="text-[14px] font-bold" style={{ color: "#6366f1" }}>See Your Website</span>
+              <ExternalLink size={13} className="ml-auto" style={{ color: "rgba(255,255,255,0.25)" }} />
+            </Link>
+          )}
+
+          {/* Divider */}
+          <div className="h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
+
+          {/* MANAGE */}
+          <p className="text-[10px] font-bold uppercase" style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "1.5px" }}>MANAGE</p>
+
+          {/* Feature grid 2×N */}
+          <div className="grid grid-cols-2 gap-3">
+            {FEATURES.map(({ FIcon, label, sub, accent, grad, href }) => (
+              <Link
+                key={label}
+                href={href}
+                className="relative flex min-h-[120px] flex-col gap-[6px] overflow-hidden rounded-[20px] border p-4"
+                style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.07)" }}
+              >
+                <div className="absolute inset-0 rounded-[20px]" style={{ background: `linear-gradient(135deg, ${accent}14, transparent)` }} />
+                <div
+                  className="relative mb-0.5 flex h-[42px] w-[42px] items-center justify-center rounded-[13px]"
+                  style={{ background: grad }}
+                >
+                  <FIcon size={18} className="text-white" />
+                </div>
+                <span className="relative text-[15px] font-black text-white" style={{ letterSpacing: "-0.3px" }}>{label}</span>
+                <span className="relative text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.45)" }}>{sub}</span>
+                <div className="absolute bottom-[14px] right-[14px]">
+                  <ChevronRight size={13} style={{ color: "rgba(255,255,255,0.2)" }} />
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          {/* Archive / Delete */}
+          <div className="flex gap-[10px] pb-5">
+            {(status === "DRAFT" || status === "PUBLISHED") && (
+              <button
+                type="button"
+                onClick={() => setModal({
+                  action: () => run(() => archiveEvent(eventId)),
+                  title: "Archive event?",
+                  desc: "Hidden from dashboard but restorable anytime.",
+                  danger: false,
+                })}
+                className="flex flex-1 items-center justify-center gap-[6px] rounded-[12px] border"
+                style={{ height: 44, background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.10)" }}
+              >
+                <Archive size={13} style={{ color: "rgba(255,255,255,0.35)" }} />
+                <span className="text-[13px] font-bold" style={{ color: "rgba(255,255,255,0.35)" }}>Archive</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setModal({
+                action: () => run(async () => { await deleteEvent(eventId); router.push("/events"); }),
+                title: "Delete permanently?",
+                desc: "All guests, tickets, and data will be erased. This cannot be undone.",
+                danger: true,
+              })}
+              className="flex flex-1 items-center justify-center gap-[6px] rounded-[12px] border"
+              style={{ height: 44, background: "rgba(239,68,68,0.06)", borderColor: "rgba(239,68,68,0.18)" }}
+            >
+              <Trash2 size={13} style={{ color: "#ef4444" }} />
+              <span className="text-[13px] font-bold" style={{ color: "#ef4444" }}>Delete Event</span>
+            </button>
+          </div>
+
         </div>
       </div>
 
       <MobileBottomNav />
+
+      {modal && (
+        <MobileConfirmDialog
+          title={modal.title}
+          desc={modal.desc}
+          danger={modal.danger}
+          onConfirm={async () => { await modal.action(); setModal(null); }}
+          onCancel={() => setModal(null)}
+        />
+      )}
     </div>
   );
 }
@@ -557,8 +803,8 @@ export default function EventDetailPage() {
       <>
         {/* Mobile skeleton */}
         <div className="sm:hidden">
-          <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "#07070f" }}>
-            <div className="h-[240px] animate-pulse" style={{ background: "#0e0e16" }} />
+          <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "#0e0f11" }}>
+            <div className="h-[320px] animate-pulse" style={{ background: "#0e0e16" }} />
             <div className="flex flex-col gap-4 p-4">
               {[...Array(4)].map((_, i) => (
                 <div key={i} className="h-16 animate-pulse rounded-[16px]" style={{ background: "#0e0e16" }} />
@@ -583,7 +829,6 @@ export default function EventDetailPage() {
           stats={stats}
           eventId={eventId}
           hasFullTicketing={hasFullTicketing}
-          location={location}
           isPublic={isPublic}
           onTicketGate={() => setTicketGateOpen(true)}
         />

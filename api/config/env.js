@@ -12,16 +12,26 @@ export const env = {
 
   frontendUrl: process.env.FRONTEND_URL || "http://localhost:3000",
 
+  /* Brevo — Email via SMTP relay */
+  brevoSmtpLogin: process.env.BREVO_SMTP_LOGIN || "",  // your Brevo account email
+  brevoSmtpKey:   process.env.BREVO_SMTP_KEY   || "",  // xsmtpsib-... key
 
+  /* Brevo — SMS + WhatsApp via REST API */
+  brevoApiKey:    process.env.BREVO_API_KEY    || "",  // xkeysib-... key
+  brevoSmsSender: process.env.BREVO_SMS_SENDER || "Eventos",
+
+  mailFromEmail: process.env.MAIL_FROM_EMAIL || "noreply@eventos.app",
+  mailFromName:  process.env.MAIL_FROM_NAME  || "Eventos",
+
+  /* Legacy SMTP fallback (used when BREVO_SMTP_KEY is not set) */
   smtpHost: process.env.SMTP_HOST,
   smtpPort: process.env.SMTP_PORT || 587,
   smtpUser: process.env.SMTP_USER,
   smtpPass: process.env.SMTP_PASS,
-  mailFromEmail: process.env.MAIL_FROM_EMAIL,
-  mailFromName: process.env.MAIL_FROM_NAME || "Eventos",
-  googleClientId: process.env.GOOGLE_CLIENT_ID,
-  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  googleRedirectUri: process.env.GOOGLE_REDIRECT_URI,
-  stripeSecretKey: process.env.STRIPE_SECRET_KEY,
-  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET
+
+  googleClientId:      process.env.GOOGLE_CLIENT_ID,
+  googleClientSecret:  process.env.GOOGLE_CLIENT_SECRET,
+  googleRedirectUri:   process.env.GOOGLE_REDIRECT_URI,
+  stripeSecretKey:     process.env.STRIPE_SECRET_KEY,
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
 };

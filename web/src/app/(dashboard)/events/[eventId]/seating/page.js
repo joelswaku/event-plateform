@@ -589,13 +589,13 @@ export default function SeatingPage() {
             <button onClick={() => setView("list")} className={`rounded-lg p-2 transition ${view === "list" ? "bg-foreground/15 text-foreground" : "text-foreground/30 hover:text-foreground/60"}`}><List size={13} /></button>
           </div>
           <button onClick={() => setPanel((v) => !v)}
-            className="flex items-center gap-1.5 rounded-xl border border-foreground/10 bg-foreground/[0.04] px-3 py-2 text-[11px] font-semibold text-foreground/40 hover:bg-foreground/[0.08] transition">
+            className="hidden sm:flex items-center gap-1.5 rounded-xl border border-foreground/10 bg-foreground/[0.04] px-3 py-2 text-[11px] font-semibold text-foreground/40 hover:bg-foreground/[0.08] transition">
             {panel ? <EyeOff size={12} /> : <Eye size={12} />} {panel ? "Hide" : "Show"} Panel
           </button>
           {assignments.length > 0 && (
             <button onClick={() => setConfirm(true)}
               className="flex items-center gap-1.5 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-[11px] font-semibold text-red-400 hover:bg-red-500/20 transition">
-              <RotateCcw size={12} /> Clear All
+              <RotateCcw size={12} /> <span className="hidden xs:inline">Clear All</span>
             </button>
           )}
           <button onClick={() => setAutoMod(true)}
@@ -643,7 +643,7 @@ export default function SeatingPage() {
         </div>
       ) : (
         <div className="flex gap-5 flex-1 min-h-0">
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 space-y-3">
             <div className={view === "grid"
               ? "grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
               : "flex flex-col gap-2.5"}>
@@ -663,8 +663,17 @@ export default function SeatingPage() {
                 <Plus size={18} /><span className="text-[11px] font-semibold">Add Table</span>
               </button>
             </div>
+
+            {/* Unassigned panel — inline below tables on < lg */}
+            {panel && guests.length > 0 && (
+              <div className="lg:hidden rounded-2xl border border-foreground/[0.07] bg-foreground/[0.03] overflow-hidden">
+                <UnassignedPanel guests={guests} assignments={assignments} locations={locations}
+                  onSeat={() => { setAsgTgt(locations.length === 1 ? locations[0] : null); setAsgMod(true); }} />
+              </div>
+            )}
           </div>
 
+          {/* Unassigned panel — sidebar on lg+ */}
           {panel && guests.length > 0 && (
             <div className="w-60 shrink-0 hidden lg:flex flex-col" style={{ maxHeight: "calc(100vh - 260px)" }}>
               <UnassignedPanel guests={guests} assignments={assignments} locations={locations}
