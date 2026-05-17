@@ -36,7 +36,7 @@ import React, {
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, StyleSheet, Pressable, ScrollView,
-  ActivityIndicator, Dimensions, Animated, Easing,
+  ActivityIndicator, Dimensions, Animated, Easing, Modal, Share,
 } from 'react-native';
 import { Image }          from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -243,10 +243,12 @@ export default function EventDetailScreen() {
     publishEvent, unpublishEvent, archiveEvent, restoreEvent, deleteEvent,
   } = useEventStore();
 
-  const [loading, setLoading] = useState(false);
-  const [modal,   setModal]   = useState<{
+  const [loading,  setLoading]  = useState(false);
+  const [modal,    setModal]    = useState<{
     action: () => Promise<any>; title: string; desc: string; danger: boolean;
   } | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuAnim = useRef(new Animated.Value(0)).current;
 
   const refresh = useCallback(() => {
     fetchEvents();
@@ -284,6 +286,18 @@ export default function EventDetailScreen() {
     try { await fn(); await refresh(); } finally { setLoading(false); }
   }, [refresh]);
 
+  const openMenu = useCallback(() => {
+    menuAnim.setValue(0);
+    setMenuOpen(true);
+    Animated.spring(menuAnim, { toValue: 1, useNativeDriver: true, bounciness: 3 }).start();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, [menuAnim]);
+
+  const closeMenu = useCallback(() => {
+    Animated.timing(menuAnim, { toValue: 0, duration: 220, useNativeDriver: true })
+      .start(() => setMenuOpen(false));
+  }, [menuAnim]);
+
   /* ── Topbar opacity on scroll ── */
   const headerBg = scrollY.interpolate({
     inputRange: [120, 180], outputRange: ['rgba(14,15,17,0)', 'rgba(14,15,17,0.98)'], extrapolate: 'clamp',
@@ -319,6 +333,79 @@ export default function EventDetailScreen() {
     { icon: 'check-circle'as const, label: 'Scanned',   value: event.checkin_count  ?? 0, accent: Colors.accent.violet  },
   ];
 
+  type MenuItem = {
+    icon: React.ComponentProps<typeof Feather>['name'];
+    label: string; sub: string; accent: string;
+    danger?: boolean; onPress: () => void;
+  };
+  const MENU_ITEMS: MenuItem[] = [];
+  MENU_ITEMS.push({
+    icon: 'edit-2', label: 'Edit Event', sub: 'Update details & settings',
+    accent: Colors.accent.indigo,
+    onPress: () => { closeMenu(); router.push(`/events/${id}/settings` as never); },
+  });
+  if (event?.slug) {
+    MENU_ITEMS.push({
+      icon: 'globe', label: 'See Website',
+      sub: status === 'PUBLISHED' ? 'View live event page' : 'Preview your event page',
+      accent: '#06b6d4',
+      onPress: () => {
+        closeMenu();
+        const token = getToken();
+        const url = status === 'PUBLISHED'
+          ? `${Config.WEB_URL}/e/${event.slug}`
+          : `${Config.WEB_URL}/e/${event.slug}?preview=1${token ? `&ptoken=${encodeURIComponent(token)}` : ''}`;
+        WebBrowser.openBrowserAsync(url, { toolbarColor: Colors.bg.primary, controlsColor: Colors.accent.indigo });
+      },
+    });
+    MENU_ITEMS.push({
+      icon: 'share-2', label: 'Share Event', sub: 'Copy or share the link',
+      accent: Colors.accent.emerald,
+      onPress: () => {
+        closeMenu();
+        Share.share({ message: `${Config.WEB_URL}/e/${event.slug}`, url: `${Config.WEB_URL}/e/${event.slug}` });
+      },
+    });
+  }
+  if (status === 'DRAFT') {
+    MENU_ITEMS.push({
+      icon: 'send', label: 'Publish Event', sub: 'Make it publicly visible',
+      accent: Colors.accent.indigo,
+      onPress: () => {
+        closeMenu();
+        setModal({ action: () => run(() => publishEvent(id)), title: 'Publish this event?', desc: 'Your event will be publicly visible.', danger: false });
+      },
+    });
+  }
+  if (status === 'PUBLISHED') {
+    MENU_ITEMS.push({
+      icon: 'eye-off', label: 'Unpublish', sub: 'Move back to draft',
+      accent: Colors.accent.amber,
+      onPress: () => {
+        closeMenu();
+        setModal({ action: () => run(() => unpublishEvent(id)), title: 'Unpublish?', desc: 'Event goes back to draft.', danger: false });
+      },
+    });
+  }
+  if (status === 'DRAFT' || status === 'PUBLISHED') {
+    MENU_ITEMS.push({
+      icon: 'archive', label: 'Archive', sub: 'Hide from dashboard, restorable later',
+      accent: Colors.text.subtle,
+      onPress: () => {
+        closeMenu();
+        setModal({ action: () => run(() => archiveEvent(id)), title: 'Archive event?', desc: 'Hidden from dashboard but restorable anytime.', danger: false });
+      },
+    });
+  }
+  MENU_ITEMS.push({
+    icon: 'trash-2', label: 'Delete Event', sub: 'Permanently erase all data',
+    accent: Colors.accent.red, danger: true,
+    onPress: () => {
+      closeMenu();
+      setModal({ action: () => run(async () => { await deleteEvent(id); router.back(); }), title: 'Delete permanently?', desc: 'All guests, tickets, and data will be erased. This cannot be undone.', danger: true });
+    },
+  });
+
   return (
     <View style={s.root}>
 
@@ -327,7 +414,7 @@ export default function EventDetailScreen() {
         <Pressable style={s.backBtn} onPress={() => router.back()} hitSlop={10}>
           <Feather name="arrow-left" size={17} color="#fff" />
         </Pressable>
-        <Pressable style={s.moreBtn} hitSlop={10}>
+        <Pressable style={s.moreBtn} hitSlop={10} onPress={openMenu}>
           <Feather name="more-horizontal" size={19} color="#fff" />
         </Pressable>
       </Animated.View>
@@ -662,10 +749,48 @@ export default function EventDetailScreen() {
           confirmText={modal.title.includes('Delete') ? 'Delete' : 'Confirm'}
           variant={modal.danger ? 'danger' : 'default'}
           onConfirm={async () => { await modal.action(); setModal(null); }}
-          onCancel={() => setModal(null)}
-          onClose={() => setModal(null)}    // ✅ matches ConfirmModal interface
+          onClose={() => setModal(null)}
         />
       )}
+
+      {/* ── 3-dot action sheet ─────────────────────────────── */}
+      <Modal visible={menuOpen} transparent animationType="none" statusBarTranslucent onRequestClose={closeMenu}>
+        <View style={ms.backdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={closeMenu} />
+          <Animated.View
+            style={[ms.sheet, {
+              opacity: menuAnim,
+              transform: [{ translateY: menuAnim.interpolate({ inputRange: [0, 1], outputRange: [350, 0] }) }],
+            }]}
+          >
+            <View style={ms.handle} />
+            <Text style={ms.sheetTitle} numberOfLines={1}>{event.title}</Text>
+            <Text style={ms.sheetSub}>{statusCfg.label}</Text>
+
+            <View style={ms.itemList}>
+              {MENU_ITEMS.map((item, i) => (
+                <React.Fragment key={item.label}>
+                  {item.danger && i > 0 && <View style={ms.separator} />}
+                  <Pressable style={ms.item} onPress={item.onPress}>
+                    <View style={[ms.itemIcon, { backgroundColor: `${item.accent}18` }]}>
+                      <Feather name={item.icon} size={17} color={item.accent} />
+                    </View>
+                    <View style={ms.itemText}>
+                      <Text style={[ms.itemLabel, item.danger && { color: item.accent }]}>{item.label}</Text>
+                      <Text style={ms.itemSub}>{item.sub}</Text>
+                    </View>
+                    <Feather name="chevron-right" size={14} color="rgba(255,255,255,0.15)" />
+                  </Pressable>
+                </React.Fragment>
+              ))}
+            </View>
+
+            <Pressable style={ms.cancelBtn} onPress={closeMenu}>
+              <Text style={ms.cancelTxt}>Cancel</Text>
+            </Pressable>
+          </Animated.View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -841,6 +966,58 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: `${Colors.accent.red}30`,
   },
   deleteTxt: { fontSize: 13, fontWeight: '700', color: Colors.accent.red },
+});
+
+/* ── Action sheet (3-dot menu) styles ───────────────────────────── */
+const ms = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#1a1b1f',
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    paddingBottom: 36, overflow: 'hidden',
+  },
+  handle: {
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignSelf: 'center', marginTop: 12, marginBottom: 16,
+  },
+  sheetTitle: {
+    fontSize: 15, fontWeight: '800', color: '#fff',
+    textAlign: 'center', paddingHorizontal: 20,
+  },
+  sheetSub: {
+    fontSize: 11, color: Colors.text.muted,
+    textAlign: 'center', marginTop: 2, marginBottom: 12,
+  },
+  itemList: { paddingHorizontal: 12 },
+  item: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 12, paddingVertical: 13, borderRadius: 14,
+  },
+  itemIcon: {
+    width: 40, height: 40, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  itemText: { flex: 1, gap: 1 },
+  itemLabel: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  itemSub:   { fontSize: 11, color: Colors.text.muted, fontWeight: '500' },
+  separator: {
+    height: 1, backgroundColor: 'rgba(255,255,255,0.06)',
+    marginHorizontal: 12, marginVertical: 6,
+  },
+  cancelBtn: {
+    marginHorizontal: 12, marginTop: 8,
+    height: 50, borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+  },
+  cancelTxt: { fontSize: 15, fontWeight: '700', color: Colors.text.muted },
 });
 
 /* ── Ticket card styles ──────────────────────────────────────────── */
