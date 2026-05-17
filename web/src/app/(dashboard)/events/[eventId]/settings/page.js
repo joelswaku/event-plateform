@@ -213,6 +213,114 @@ function DangerRow({ icon: Icon, label, description, buttonLabel, onClick, varia
 }
 
 /* ─────────────────────────────────────────────
+   MOBILE-ONLY HELPERS
+───────────────────────────────────────────── */
+function MSection({ label, children }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="px-1 text-[10px] font-bold uppercase" style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "1.5px" }}>
+        {label}
+      </p>
+      <div className="flex flex-col gap-3 rounded-[16px] border p-4" style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.07)" }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function MField({ label, children }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <p className="text-[12px] font-semibold" style={{ color: "rgba(255,255,255,0.5)" }}>{label}</p>
+      {children}
+    </div>
+  );
+}
+
+function MInput({ value, onChange, placeholder }) {
+  return (
+    <input
+      type="text"
+      value={value ?? ""}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full rounded-[10px] border px-[13px] py-[11px] text-[14px] font-medium text-white outline-none focus:border-indigo-500/50"
+      style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.10)" }}
+    />
+  );
+}
+
+function MTextarea({ value, onChange, placeholder }) {
+  return (
+    <textarea
+      value={value ?? ""}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      rows={4}
+      className="w-full resize-none rounded-[10px] border px-[13px] py-[11px] text-[14px] font-medium text-white outline-none focus:border-indigo-500/50"
+      style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.10)" }}
+    />
+  );
+}
+
+function MSelect({ value, onChange, options }) {
+  return (
+    <div className="relative">
+      <select
+        value={value ?? ""}
+        onChange={e => onChange(e.target.value)}
+        className="w-full appearance-none rounded-[10px] border py-[11px] pl-[13px] pr-10 text-[14px] font-medium text-white outline-none focus:border-indigo-500/50"
+        style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.10)" }}
+      >
+        {options.map(o => (
+          <option key={o.value} value={o.value} style={{ background: "#111" }}>{o.label}</option>
+        ))}
+      </select>
+      <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "rgba(255,255,255,0.4)" }} />
+    </div>
+  );
+}
+
+function MDateInput({ value, onChange }) {
+  const iso = value ? value.slice(0, 16) : "";
+  return (
+    <input
+      type="datetime-local"
+      value={iso}
+      onChange={e => onChange(e.target.value)}
+      className="w-full rounded-[10px] border px-[13px] py-[11px] text-[14px] font-medium text-white outline-none focus:border-indigo-500/50"
+      style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.10)", colorScheme: "dark" }}
+    />
+  );
+}
+
+function MToggle({ label, sub, checked, onChange, accent }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="min-w-0 flex-1">
+        <p className="text-[14px] font-bold text-white">{label}</p>
+        <p className="mt-0.5 text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>{sub}</p>
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className="relative flex h-[26px] w-[46px] shrink-0 items-center rounded-full px-[3px] transition-colors duration-300"
+        style={{ background: checked ? accent : "rgba(255,255,255,0.1)" }}
+      >
+        <div
+          className="h-5 w-5 rounded-full bg-white shadow transition-transform duration-300"
+          style={{ transform: checked ? "translateX(20px)" : "translateX(0px)" }}
+        />
+      </button>
+    </div>
+  );
+}
+
+function MDivider() {
+  return <div className="h-px" style={{ background: "rgba(255,255,255,0.06)" }} />;
+}
+
+/* ─────────────────────────────────────────────
    PAGE MAIN
 ───────────────────────────────────────────── */
 
@@ -296,226 +404,153 @@ export default function EventSettingsPage() {
   return (
     <>
       {/* ── MOBILE OVERLAY ── */}
-      <div className="sm:hidden fixed inset-0 z-50 flex flex-col overflow-hidden dark" style={{ background: "#07070f" }}>
-        <div className="flex shrink-0 items-center gap-3 border-b px-4"
-          style={{ borderColor: "rgba(255,255,255,0.08)", paddingTop: "max(12px, env(safe-area-inset-top))", paddingBottom: 12 }}>
-          <Link href={`/events/${eventId}`}
+      <div className="sm:hidden fixed inset-0 z-50 flex flex-col overflow-hidden" style={{ background: "#07070f" }}>
+
+        {/* Header */}
+        <div
+          className="flex shrink-0 items-center gap-3 border-b px-4"
+          style={{ borderColor: "rgba(255,255,255,0.08)", paddingTop: "max(12px, env(safe-area-inset-top))", paddingBottom: 12 }}
+        >
+          <Link
+            href={`/events/${eventId}`}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px]"
-            style={{ background: "#14141f", border: "1px solid rgba(255,255,255,0.08)" }}>
+            style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.08)" }}
+          >
             <ChevronLeft size={17} style={{ color: "rgba(255,255,255,0.5)" }} />
           </Link>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-[20px] font-black text-white leading-tight">Settings</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-[18px] font-black leading-tight text-white" style={{ letterSpacing: "-0.3px" }}>Settings</h1>
             <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>Event configuration</p>
           </div>
+          <div className="flex w-16 justify-end">
+            {saving && (
+              <div className="h-4 w-4 animate-spin rounded-full border-2" style={{ borderColor: "rgba(99,102,241,0.3)", borderTopColor: "#6366f1" }} />
+            )}
+            {saved && !saving && (
+              <div className="flex items-center gap-1">
+                <CheckCircle2 size={12} style={{ color: "#10b981" }} />
+                <span className="text-[10px] font-bold" style={{ color: "#10b981" }}>Saved</span>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Scrollable form */}
         <div className="flex-1 overflow-y-auto">
-          <div className="min-h-screen bg-slate-50 dark:bg-[#080B14] transition-colors duration-700">
-            <div className="mx-auto max-w-7xl px-6 py-12">
-        
-        {/* Header Section */}
-        <header className="mb-16 flex flex-col md:flex-row md:items-center justify-between gap-8">
-          <div className="space-y-4">
-            <nav className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.25em] text-slate-400 dark:text-slate-500">
-              <Settings2 size={14} className="text-indigo-500" />
-              <span>Event Engine</span>
-              <span className="opacity-30">/</span>
-              <span className="text-slate-900 dark:text-white">Settings</span>
-            </nav>
-            <h1 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tight">
-              {event?.title || "Configuration"}
-            </h1>
-          </div>
-          
-          <div className="flex items-center gap-4">
-             <div className={`group flex items-center gap-3 px-5 py-2.5 rounded-2xl border text-[12px] font-bold tracking-tight transition-all ${cfg.bg} ${cfg.color} ${cfg.border}`}>
-               <div className={`h-2 w-2 rounded-full animate-pulse shadow-[0_0_10px_currentColor] ${cfg.color.replace('text', 'bg')}`} />
-               {cfg.label}
-             </div>
-          </div>
-        </header>
+          <div className="flex flex-col gap-3 px-4 py-4" style={{ paddingBottom: dirty ? 88 : 40 }}>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-          
-          {/* Main Form Area */}
-          <div className="lg:col-span-8 space-y-12 pb-32">
-            
-            {/* Essential Branding */}
-            <GlassCard delay={0.1} className="p-10">
-              <SectionHeader 
-                icon={Info} 
-                label="Branding & Identity" 
-                colorClass="text-indigo-500" 
-                description="Define how your event appears on the marketplace."
-              />
-              <div className="space-y-8">
-                <Field label="Event Title" error={errors.title}>
-                  <Input value={form.title} onChange={e => set("title", e.target.value)} />
-                </Field>
-                <Field label="Catchy Tagline" hint={`${form.short_description.length}/160`}>
-                  <Input maxLength={160} value={form.short_description} onChange={e => set("short_description", e.target.value)} />
-                </Field>
-                <Field label="Event Story / Bio">
-                  <Textarea rows={6} value={form.description} onChange={e => set("description", e.target.value)} />
-                </Field>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                  <Field label="Privacy Level">
-                    <Select value={form.visibility} onChange={e => set("visibility", e.target.value)}>
-                      <option value="PUBLIC">🌍 Discoverable (Public)</option>
-                      <option value="PRIVATE">🔒 Invitation Only (Private)</option>
-                    </Select>
-                  </Field>
-                  <Field label="Operational Timezone">
-                    <Select value={form.timezone} onChange={e => set("timezone", e.target.value)}>
-                      {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
-                    </Select>
-                  </Field>
-                </div>
+            {/* BRANDING */}
+            <MSection label="BRANDING">
+              <MField label="Title">
+                <MInput value={form.title} onChange={v => set("title", v)} placeholder="Event title" />
+              </MField>
+              <MField label="Short Description">
+                <MInput value={form.short_description} onChange={v => set("short_description", v)} placeholder="One-liner" />
+              </MField>
+              <MField label="Description">
+                <MTextarea value={form.description} onChange={v => set("description", v)} placeholder="Full event description" />
+              </MField>
+              <MField label="Visibility">
+                <MSelect
+                  value={form.visibility}
+                  onChange={v => set("visibility", v)}
+                  options={[
+                    { label: "🌍 Public", value: "PUBLIC" },
+                    { label: "🔒 Private", value: "PRIVATE" },
+                  ]}
+                />
+              </MField>
+              <MField label="Timezone">
+                <MSelect
+                  value={form.timezone}
+                  onChange={v => set("timezone", v)}
+                  options={TIMEZONES.map(tz => ({ label: tz, value: tz }))}
+                />
+              </MField>
+            </MSection>
+
+            {/* DATE & LOCATION */}
+            <MSection label="DATE & LOCATION">
+              <MField label="Start">
+                <MDateInput value={form.starts_at} onChange={v => set("starts_at", v)} />
+              </MField>
+              <MField label="End">
+                <MDateInput value={form.ends_at} onChange={v => set("ends_at", v)} />
+              </MField>
+              <MField label="Venue Name">
+                <MInput value={form.venue_name} onChange={v => set("venue_name", v)} placeholder="Venue or place name" />
+              </MField>
+              <MField label="Address">
+                <MInput value={form.venue_address} onChange={v => set("venue_address", v)} placeholder="Street address" />
+              </MField>
+              <div className="grid grid-cols-2 gap-2">
+                <MField label="City">
+                  <MInput value={form.city} onChange={v => set("city", v)} placeholder="City" />
+                </MField>
+                <MField label="State">
+                  <MInput value={form.state} onChange={v => set("state", v)} placeholder="State" />
+                </MField>
               </div>
-            </GlassCard>
+              <MField label="Country">
+                <MInput value={form.country} onChange={v => set("country", v)} placeholder="Country" />
+              </MField>
+            </MSection>
 
-            {/* Time & Place */}
-            <GlassCard delay={0.15} className="p-10">
-              <SectionHeader 
-                icon={CalendarDays} 
-                label="Date & Location" 
-                colorClass="text-amber-500" 
-                description="Logistics for venue and scheduling."
-              />
-              <div className="space-y-8">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                  <Field label="Event Starts"><DateTimePicker value={form.starts_at} onChange={v => set("starts_at", v)} /></Field>
-                  <Field label="Event Ends"><DateTimePicker value={form.ends_at} onChange={v => set("ends_at", v)} /></Field>
-                </div>
-                <div className="h-px bg-slate-200/50 dark:bg-white/5" />
-                <Field label="Venue or Platform Name"><Input value={form.venue_name} onChange={e => set("venue_name", e.target.value)} /></Field>
-                <Field label="Exact Address"><Input value={form.venue_address} onChange={e => set("venue_address", e.target.value)} /></Field>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
-                  <Field label="City"><Input value={form.city} onChange={e => set("city", e.target.value)} /></Field>
-                  <Field label="State"><Input value={form.state} onChange={e => set("state", e.target.value)} /></Field>
-                  <Field label="Country Code"><Input value={form.country} onChange={e => set("country", e.target.value)} /></Field>
-                </div>
-              </div>
-            </GlassCard>
+            {/* MODULES */}
+            <MSection label="MODULES">
+              <MToggle label="RSVP" sub="Collect guest names and emails" checked={form.allow_rsvp} onChange={v => { set("allow_rsvp", v); if (!v) set("open_rsvp", false); }} accent="#10b981" />
+              {form.allow_rsvp && (
+                <>
+                  <MDivider />
+                  <MToggle label="Open RSVP" sub="Anyone can RSVP without invitation" checked={form.open_rsvp} onChange={v => set("open_rsvp", v)} accent="#10b981" />
+                </>
+              )}
+              <MDivider />
+              <MToggle label="Ticketing" sub="Secure payment processing" checked={form.allow_ticketing} onChange={v => set("allow_ticketing", v)} accent="#f59e0b" />
+              <MDivider />
+              <MToggle label="QR Check-in" sub="Mobile QR scanning at the door" checked={form.allow_qr_checkin} onChange={v => set("allow_qr_checkin", v)} accent="#06b6d4" />
+              <MDivider />
+              <MToggle label="Donations" sub="Accept tips and contributions" checked={form.allow_donations} onChange={v => set("allow_donations", v)} accent="#f43f5e" />
+            </MSection>
 
-            {/* Plugin Features */}
-            <GlassCard delay={0.2} className="p-10">
-              <SectionHeader 
-                icon={Zap} 
-                label="Modules & Features" 
-                colorClass="text-emerald-500" 
-                description="Extend your event functionality with pre-built modules."
-              />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Toggle icon={Users} label="RSVP Flow" description="Collect guest names and emails" checked={form.allow_rsvp} onChange={v => { set("allow_rsvp", v); if (!v) set("open_rsvp", false); }} />
-                <Toggle icon={Ticket} label="Stripe Ticketing" colorClass="text-amber-500" description="Secure payment processing" checked={form.allow_ticketing} onChange={v => set("allow_ticketing", v)} />
-                <Toggle icon={QrCode} label="Express Entry" colorClass="text-cyan-500" description="Mobile QR scanning at door" checked={form.allow_qr_checkin} onChange={v => set("allow_qr_checkin", v)} />
-                <Toggle icon={Heart} label="Donation Portal" colorClass="text-pink-500" description="Accept tips and contributions" checked={form.allow_donations} onChange={v => set("allow_donations", v)} />
-              </div>
-              <AnimatePresence>
-                {form.allow_rsvp && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden mt-4"
-                  >
-                    <div className="pl-4 border-l-2 border-indigo-500/20">
-                      <Toggle
-                        icon={Globe}
-                        label="Open RSVP"
-                        colorClass="text-emerald-500"
-                        description="Allow anyone to RSVP without an invitation link"
-                        checked={form.open_rsvp}
-                        onChange={v => set("open_rsvp", v)}
-                      />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </GlassCard>
-
-            {/* Critical Actions */}
-            <GlassCard delay={0.25} className="border-red-500/30 dark:border-red-500/20 overflow-visible">
-               <div className="bg-red-500/[0.02] p-10">
-                  <SectionHeader icon={ShieldAlert} label="Sensitive Actions" colorClass="text-red-500" description="Lifecycle management and safety tools." />
-                  <div className="space-y-4 divide-y divide-red-500/10 dark:divide-red-500/10">
-                    {status === "DRAFT" && <DangerRow icon={Rocket} label="Release Event" variant="success" buttonLabel="Go Live" onClick={() => {}} description="Push your event to the public discovery feed." />}
-                    {status === "PUBLISHED" && <DangerRow icon={EyeOff} label="Retract Event" variant="warning" buttonLabel="Draft Mode" onClick={() => {}} description="Hide the event from new guests temporarily." />}
-                    <DangerRow icon={Trash2} label="Destroy Database Entry" variant="danger" buttonLabel="Delete Event" onClick={() => {}} description="Irreversible removal of all guest and event data." />
-                  </div>
-               </div>
-            </GlassCard>
-          </div>
-
-          {/* Persistent Sidebar */}
-          <aside className="lg:col-span-4 sticky top-12 space-y-8">
-            <GlassCard className="p-8 border-indigo-500/10 bg-white dark:bg-slate-900/60">
-              <div className="flex items-center justify-between mb-8">
-                <h4 className="text-[12px] font-black uppercase tracking-widest text-slate-400">Sync Controls</h4>
-                {dirty && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex h-3 w-3 rounded-full bg-amber-500 shadow-[0_0_12px_#f59e0b]" />}
-              </div>
-              
-              <div className="space-y-5">
-                <div className="p-5 rounded-2xl bg-slate-100/50 dark:bg-white/[0.02] border border-slate-200/50 dark:border-white/5 transition-all">
-                   <p className="text-[11px] text-slate-500 font-bold uppercase tracking-tight mb-1.5">Live Status</p>
-                   <p className="text-xl font-black text-slate-900 dark:text-white capitalize">{status.toLowerCase()}</p>
-                </div>
-
-                <button 
-                  disabled={!dirty || saving}
-                  onClick={handleSave}
-                  className={`
-                    w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-sm tracking-wide transition-all
-                    ${dirty 
-                      ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-2xl shadow-indigo-600/30 active:scale-95' 
-                      : 'bg-slate-200 dark:bg-white/5 text-slate-400 cursor-not-allowed'}
-                  `}
-                >
-                  {saving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
-                  {saving ? "Updating..." : "Deploy Settings"}
-                </button>
-
-                <AnimatePresence>
-                  {saved && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                      className="flex items-center justify-center gap-2 text-emerald-500 text-xs font-bold py-2"
-                    >
-                      <CheckCircle2 size={16} /> Cloud synced successfully
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </GlassCard>
-
-            <GlassCard className="p-8 bg-indigo-600 dark:bg-indigo-700 border-none shadow-2xl shadow-indigo-600/20 group cursor-pointer overflow-hidden">
-              <div className="relative z-10 flex gap-5 items-start text-white">
-                <div className="p-3 rounded-2xl bg-white/20 shadow-inner group-hover:scale-110 transition-transform duration-500"><LayoutDashboard size={24} /></div>
-                <div className="space-y-2">
-                  <h4 className="font-black text-base tracking-tight">Live Preview</h4>
-                  <p className="text-xs text-indigo-100/80 leading-relaxed font-medium">Verify how your settings render on the production storefront.</p>
-                  <button className="pt-2 text-[11px] font-black uppercase tracking-widest flex items-center gap-2 group-hover:gap-4 transition-all">
-                    Open Event Page <span className="text-lg">→</span>
-                  </button>
-                </div>
-              </div>
-              {/* Decorative Background Element */}
-              <div className="absolute -right-10 -bottom-10 h-40 w-40 bg-white/10 rounded-full blur-3xl" />
-            </GlassCard>
-          </aside>
-
-        </div>
-      </div>
-
-            <ConfirmModal
-              isOpen={!!modal}
-              onClose={() => setModal(null)}
-              {...modal}
-            />
+            {/* DANGER ZONE */}
+            <div className="flex flex-col gap-2 pb-4 pt-2">
+              <p className="px-1 text-[10px] font-bold uppercase" style={{ color: "rgba(255,255,255,0.25)", letterSpacing: "1.5px" }}>Danger Zone</p>
+              <button
+                type="button"
+                className="flex items-center justify-center gap-2 rounded-[12px] border"
+                style={{ height: 44, background: "rgba(239,68,68,0.06)", borderColor: "rgba(239,68,68,0.18)" }}
+              >
+                <Trash2 size={13} style={{ color: "#ef4444" }} />
+                <span className="text-[13px] font-bold" style={{ color: "#ef4444" }}>Delete Event</span>
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* Fixed save bar — only when there are unsaved changes */}
+        {dirty && (
+          <div
+            className="shrink-0 border-t px-4 py-3"
+            style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.08)" }}
+          >
+            <button
+              type="button"
+              disabled={saving}
+              onClick={handleSave}
+              className="relative flex h-[52px] w-full items-center justify-center gap-2 overflow-hidden rounded-[14px]"
+              style={{ background: "linear-gradient(to right, #4f46e5, #8b5cf6)" }}
+            >
+              {saving
+                ? <div className="h-5 w-5 animate-spin rounded-full border-2" style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "#fff" }} />
+                : <><Save size={16} className="text-white" /><span className="text-[15px] font-extrabold text-white" style={{ letterSpacing: "-0.2px" }}>Save Changes</span></>
+              }
+            </button>
+          </div>
+        )}
+
         <MobileBottomNav />
+        <ConfirmModal isOpen={!!modal} onClose={() => setModal(null)} {...modal} />
       </div>
 
       {/* ── DESKTOP UI ── */}
