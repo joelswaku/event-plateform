@@ -342,7 +342,7 @@ export default function EventDetailScreen() {
   MENU_ITEMS.push({
     icon: 'edit-2', label: 'Edit Event', sub: 'Update details & settings',
     accent: Colors.accent.indigo,
-    onPress: () => { closeMenu(); router.push(`/events/${id}/settings` as never); },
+    onPress: () => { closeMenu(); router.push(`/events/${id}/edit` as never); },
   });
   if (event?.slug) {
     MENU_ITEMS.push({
