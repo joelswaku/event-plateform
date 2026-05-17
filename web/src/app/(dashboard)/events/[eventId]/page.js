@@ -331,19 +331,167 @@ function MobileBottomNav() {
   );
 }
 
+function MobileActionSheet({ event, eventId, status, isPublic, onShare, onAction, onClose }) {
+  const router = useRouter();
+
+  const ITEMS = [];
+  ITEMS.push({
+    Icon: Pencil, label: "Edit Event", sub: "Update details & settings",
+    accent: "#6366f1",
+    onPress: () => { onClose(); router.push(`/events/${eventId}/edit`); },
+  });
+  if (event.slug) {
+    ITEMS.push({
+      Icon: Globe, label: "See Website",
+      sub: isPublic ? "View live event page" : "Preview your event page",
+      accent: "#06b6d4",
+      onPress: () => { onClose(); window.open(isPublic ? `/e/${event.slug}` : `/e/${event.slug}?preview=1`, "_blank"); },
+    });
+    ITEMS.push({
+      Icon: Share2, label: "Share Event", sub: "Copy or share the link",
+      accent: "#10b981",
+      onPress: () => { onClose(); onShare(); },
+    });
+  }
+  if (status === "DRAFT") {
+    ITEMS.push({
+      Icon: Send, label: "Publish Event", sub: "Make it publicly visible",
+      accent: "#6366f1",
+      onPress: () => { onClose(); onAction("publish"); },
+    });
+  }
+  if (status === "PUBLISHED") {
+    ITEMS.push({
+      Icon: EyeOff, label: "Unpublish", sub: "Move back to draft",
+      accent: "#f59e0b",
+      onPress: () => { onClose(); onAction("unpublish"); },
+    });
+  }
+  if (status === "DRAFT" || status === "PUBLISHED") {
+    ITEMS.push({
+      Icon: Archive, label: "Archive", sub: "Hide from dashboard, restorable later",
+      accent: "rgba(255,255,255,0.35)",
+      onPress: () => { onClose(); onAction("archive"); },
+    });
+  }
+  ITEMS.push({
+    Icon: Trash2, label: "Delete Event", sub: "Permanently erase all data",
+    accent: "#ef4444",
+    danger: true,
+    onPress: () => { onClose(); onAction("delete"); },
+  });
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center"
+      style={{ background: "rgba(0,0,0,0.55)" }}
+      onClick={onClose}
+    >
+      <div
+        className="slide-up w-full max-w-md overflow-hidden rounded-t-[24px] border-t"
+        style={{
+          background: "#1a1b1f",
+          borderColor: "rgba(255,255,255,0.08)",
+          paddingBottom: "max(36px, env(safe-area-inset-bottom))",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mx-auto mt-3 h-1 w-9 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
+        <p className="mt-4 truncate px-5 text-center text-[15px] font-extrabold text-white" style={{ letterSpacing: "-0.3px" }}>
+          {event.title}
+        </p>
+        <p className="mb-3 mt-0.5 text-center text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>
+          {status.charAt(0) + status.slice(1).toLowerCase()}
+        </p>
+
+        <div className="px-3">
+          {ITEMS.map((item, i) => {
+            const Icon = item.Icon;
+            return (
+              <React.Fragment key={item.label}>
+                {item.danger && i > 0 && (
+                  <div className="mx-3 my-1.5 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
+                )}
+                <button
+                  type="button"
+                  onClick={item.onPress}
+                  className="flex w-full items-center gap-3 rounded-[14px] px-3 py-[13px] text-left transition-colors hover:bg-white/5"
+                >
+                  <div
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]"
+                    style={{ background: `${item.accent}18` }}
+                  >
+                    <Icon size={17} style={{ color: item.accent }} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14px] font-bold" style={{ color: item.danger ? item.accent : "#fff" }}>
+                      {item.label}
+                    </p>
+                    <p className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>
+                      {item.sub}
+                    </p>
+                  </div>
+                  <ChevronRight size={14} className="shrink-0" style={{ color: "rgba(255,255,255,0.15)" }} />
+                </button>
+              </React.Fragment>
+            );
+          })}
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="mx-3 mt-2 flex h-[50px] w-[calc(100%-24px)] items-center justify-center rounded-[14px] border text-[15px] font-bold"
+          style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, onTicketGate }) {
   const cfg      = sc(event.status);
   const router   = useRouter();
   const status   = (event.status ?? "DRAFT").toUpperCase();
   const countdown = useMobileCountdown(event.starts_at_utc);
   const { publishEvent, unpublishEvent, archiveEvent, restoreEvent, deleteEvent } = useEventStore();
-  const [loading, setLoading] = useState(false);
-  const [modal,   setModal]   = useState(null);
+  const [loading,  setLoading]  = useState(false);
+  const [modal,    setModal]    = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const run = useCallback(async (fn) => {
     setLoading(true);
     try { await fn(); } finally { setLoading(false); }
   }, []);
+
+  const handleShare = useCallback(async () => {
+    if (!event.slug) return;
+    const url = `${window.location.origin}/e/${event.slug}`;
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try { await navigator.share({ title: event.title, url }); } catch {}
+    } else if (typeof navigator !== "undefined" && navigator.clipboard) {
+      await navigator.clipboard.writeText(url);
+    }
+  }, [event.slug, event.title]);
+
+  const handleMenuAction = useCallback((action) => {
+    switch (action) {
+      case "publish":
+        setModal({ action: () => run(() => publishEvent(eventId)), title: "Publish this event?", desc: "Your event will be publicly visible.", danger: false });
+        break;
+      case "unpublish":
+        setModal({ action: () => run(() => unpublishEvent(eventId)), title: "Unpublish?", desc: "Event goes back to draft.", danger: false });
+        break;
+      case "archive":
+        setModal({ action: () => run(() => archiveEvent(eventId)), title: "Archive event?", desc: "Hidden from dashboard but restorable anytime.", danger: false });
+        break;
+      case "delete":
+        setModal({ action: () => run(async () => { await deleteEvent(eventId); router.push("/events"); }), title: "Delete permanently?", desc: "All guests, tickets, and data will be erased. This cannot be undone.", danger: true });
+        break;
+    }
+  }, [eventId, run, publishEvent, unpublishEvent, archiveEvent, deleteEvent, router]);
 
   const FEATURES = [
     { FIcon: Layout,     label: "Builder",   sub: "Design event page",   accent: "#6366f1", grad: "linear-gradient(135deg,#4f46e5,#6366f1)", href: `/events/${eventId}/builder`   },
@@ -384,6 +532,7 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
         </Link>
         <button
           type="button"
+          onClick={() => setMenuOpen(true)}
           className="flex h-[38px] w-[38px] items-center justify-center rounded-[12px]"
           style={{ background: "rgba(0,0,0,0.45)", pointerEvents: "auto" }}
         >
@@ -620,11 +769,12 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
             {event.slug && (
               <button
                 type="button"
+                onClick={handleShare}
                 className="flex items-center gap-[6px] rounded-full border px-[14px] py-2"
-                style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)" }}
+                style={{ borderColor: "rgba(16,185,129,0.40)", background: "rgba(16,185,129,0.12)" }}
               >
-                <Share2 size={14} style={{ color: "rgba(255,255,255,0.45)" }} />
-                <span className="text-[11px] font-extrabold" style={{ color: "rgba(255,255,255,0.45)", letterSpacing: "0.8px" }}>SHARE</span>
+                <Share2 size={14} style={{ color: "#10b981" }} />
+                <span className="text-[11px] font-extrabold" style={{ color: "#10b981", letterSpacing: "0.8px" }}>SHARE</span>
               </button>
             )}
           </div>
@@ -774,6 +924,18 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
           danger={modal.danger}
           onConfirm={async () => { await modal.action(); setModal(null); }}
           onCancel={() => setModal(null)}
+        />
+      )}
+
+      {menuOpen && (
+        <MobileActionSheet
+          event={event}
+          eventId={eventId}
+          status={status}
+          isPublic={isPublic}
+          onShare={handleShare}
+          onAction={handleMenuAction}
+          onClose={() => setMenuOpen(false)}
         />
       )}
     </div>
