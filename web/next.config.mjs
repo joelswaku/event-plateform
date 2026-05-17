@@ -2,7 +2,7 @@
 const nextConfig = {
   // Allow any local network device (mobile app, emulator, other machines on LAN)
   // to hit the dev server without triggering the "allowedDevOrigins" warning.
-  allowedDevOrigins: ["*"],
+  allowedDevOrigins: ["192.168.0.63"],
 
   async rewrites() {
     return [
