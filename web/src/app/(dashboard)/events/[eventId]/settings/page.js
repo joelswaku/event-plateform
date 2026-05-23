@@ -320,6 +320,118 @@ function MDivider() {
   return <div className="h-px" style={{ background: "rgba(255,255,255,0.06)" }} />;
 }
 
+/* Action info for confirmation sheet */
+function getMobileActionInfo(key, nextValue) {
+  const map = {
+    visibility: nextValue
+      ? { icon: <Globe size={26} />, color: "#6366f1", title: "Make event public?", message: "Your event page will be visible to everyone. Anyone with the link can view details, RSVP, or buy tickets (if enabled).", confirmLabel: "Make Public" }
+      : { icon: <Lock size={26} />, color: "#f59e0b", title: "Make event private?", message: "The public event page will be hidden. Only guests you invite directly will be able to access it.", confirmLabel: "Make Private" },
+    allow_rsvp: nextValue
+      ? { icon: <Users size={26} />, color: "#10b981", title: "Switch to RSVP?", message: "RSVP will be enabled (invitation only by default). Ticketing and Donations will be turned off automatically.", confirmLabel: "Enable RSVP" }
+      : { icon: <Users size={26} />, color: "#10b981", title: "Disable RSVP?", message: "The RSVP button will be removed from your event page. Existing RSVPs are kept but no new ones will be accepted.", confirmLabel: "Disable RSVP" },
+    open_rsvp: nextValue
+      ? { icon: <Users size={26} />, color: "#10b981", title: "Enable Open RSVP?", message: "Anyone will be able to RSVP without needing an invitation. Great for public community events.", confirmLabel: "Enable Open RSVP" }
+      : { icon: <Users size={26} />, color: "#10b981", title: "Disable Open RSVP?", message: "Guests will need a direct invitation to RSVP. Existing RSVPs are not affected.", confirmLabel: "Disable Open RSVP" },
+    allow_ticketing: nextValue
+      ? { icon: <Ticket size={26} />, color: "#f59e0b", title: "Switch to Ticketing?", message: "Ticketing will be enabled. RSVP and Donations will be turned off automatically.", confirmLabel: "Enable Ticketing" }
+      : { icon: <Ticket size={26} />, color: "#f59e0b", title: "Disable ticketing?", message: "Ticket sales will be turned off. Existing ticket types and issued tickets are not deleted, but no new purchases will be accepted.", confirmLabel: "Disable Ticketing" },
+    allow_qr_checkin: nextValue
+      ? { icon: <QrCode size={26} />, color: "#06b6d4", title: "Enable QR check-in?", message: "You and your team can scan guest QR codes at the door to mark attendance in real time using the Scanner.", confirmLabel: "Enable QR Check-in" }
+      : { icon: <QrCode size={26} />, color: "#06b6d4", title: "Disable QR check-in?", message: "The scanner will no longer accept QR codes for this event. You can still mark attendance manually from the Guests tab.", confirmLabel: "Disable QR Check-in" },
+    allow_donations: nextValue
+      ? { icon: <Heart size={26} />, color: "#f43f5e", title: "Switch to Donations?", message: "Donations will be enabled. RSVP and Ticketing will be turned off automatically.", confirmLabel: "Enable Donations" }
+      : { icon: <Heart size={26} />, color: "#f43f5e", title: "Disable donations?", message: "The donation option will be removed from your event page. Past donations are not affected.", confirmLabel: "Disable Donations" },
+  };
+  return map[key] ?? { icon: <Settings2 size={26} />, color: "#6366f1", title: "Confirm change", message: "Are you sure you want to change this setting?", confirmLabel: "Confirm" };
+}
+
+function MConfirmSheet({ pending, onCancel, onConfirm }) {
+  if (!pending) return null;
+  const { info } = pending;
+  return (
+    <div className="fixed inset-0 z-[200] flex flex-col justify-end" onClick={onCancel}>
+      {/* Backdrop */}
+      <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.6)" }} />
+      {/* Sheet */}
+      <div
+        className="relative flex flex-col items-center gap-4 slide-up rounded-t-[24px] border-t px-6 pt-3"
+        style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.08)", paddingBottom: "max(24px,env(safe-area-inset-bottom))" }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Handle */}
+        <div className="h-1 w-9 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
+        {/* Icon */}
+        <div className="flex h-14 w-14 items-center justify-center rounded-[18px] mt-1" style={{ background: `${info.color}18`, color: info.color }}>
+          {info.icon}
+        </div>
+        {/* Copy */}
+        <p className="text-center text-[18px] font-extrabold text-white leading-tight">{info.title}</p>
+        <p className="text-center text-[13px] leading-[1.5]" style={{ color: "rgba(255,255,255,0.5)" }}>{info.message}</p>
+        {/* Buttons */}
+        <button
+          type="button"
+          onClick={onConfirm}
+          className="w-full rounded-[14px] py-[14px] text-[15px] font-extrabold text-white"
+          style={{ background: info.color }}
+        >
+          {info.confirmLabel}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="w-full py-3 text-[14px] font-semibold"
+          style={{ color: "rgba(255,255,255,0.4)" }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function MVisibilityCard({ isPublic, onRequestToggle }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onRequestToggle(!isPublic)}
+      className="flex w-full items-center gap-3 rounded-[16px] border p-4 text-left"
+      style={{
+        background: isPublic ? "rgba(99,102,241,0.06)" : "rgba(245,158,11,0.06)",
+        borderColor: isPublic ? "rgba(99,102,241,0.3)" : "rgba(245,158,11,0.3)",
+      }}
+    >
+      <div
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px]"
+        style={{ background: isPublic ? "rgba(99,102,241,0.14)" : "rgba(245,158,11,0.14)" }}
+      >
+        {isPublic ? <Globe size={20} color="#6366f1" /> : <Lock size={20} color="#f59e0b" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-[15px] font-extrabold text-white">{isPublic ? "Public" : "Private"}</span>
+          <span
+            className="rounded-md px-1.5 py-0.5 text-[9px] font-black tracking-widest"
+            style={{ background: isPublic ? "rgba(99,102,241,0.2)" : "rgba(245,158,11,0.2)", color: isPublic ? "#6366f1" : "#f59e0b" }}
+          >{isPublic ? "LIVE" : "HIDDEN"}</span>
+        </div>
+        <p className="mt-0.5 text-[11px] leading-snug" style={{ color: "rgba(255,255,255,0.4)" }}>
+          {isPublic ? "Anyone with the link can view this event page." : "Only guests you invite directly can access this event."}
+        </p>
+      </div>
+      {/* Toggle pill */}
+      <div
+        className="relative flex h-[26px] w-[46px] shrink-0 items-center rounded-full px-[3px] transition-colors duration-300"
+        style={{ background: isPublic ? "#6366f1" : "rgba(255,255,255,0.1)" }}
+      >
+        <div
+          className="h-5 w-5 rounded-full bg-white shadow transition-transform duration-300"
+          style={{ transform: isPublic ? "translateX(20px)" : "translateX(0px)" }}
+        />
+      </div>
+    </button>
+  );
+}
+
 /* ─────────────────────────────────────────────
    PAGE MAIN
 ───────────────────────────────────────────── */
@@ -334,6 +446,7 @@ export default function EventSettingsPage() {
   const [dirty, setDirty] = useState(false);
   const [errors, setErrors] = useState({});
   const [modal, setModal] = useState(null);
+  const [mobilePending, setMobilePending] = useState(null); // { key, nextValue, info }
   
   const initialRef = useRef(null);
 
@@ -387,6 +500,40 @@ export default function EventSettingsPage() {
       setTimeout(() => setSaved(false), 3000);
     }
   };
+
+  // Immediately persist a single boolean feature toggle without requiring "Save Changes"
+  const saveToggle = useCallback(async (key, value, extra = {}) => {
+    setForm((prev) => {
+      const next = { ...prev, [key]: value, ...extra };
+      setDirty(JSON.stringify(next) !== initialRef.current);
+      return next;
+    });
+    setSaving(true);
+    const payload = { [key]: value, ...extra };
+    const result = await updateEvent(eventId, payload);
+    setSaving(false);
+    if (result?.success) {
+      setSaved(true);
+      // Update the baseline so the dirty flag resets
+      setForm((prev) => {
+        initialRef.current = JSON.stringify({ ...prev, [key]: value, ...extra });
+        return prev;
+      });
+      setDirty(false);
+      setTimeout(() => setSaved(false), 2000);
+    }
+  }, [eventId, updateEvent]);
+
+  // Mutual exclusivity: only one of RSVP / Ticketing / Donations can be on at a time
+  const applyModuleToggle = useCallback((key, value) => {
+    if (value) {
+      if (key === 'allow_rsvp')      return saveToggle('allow_rsvp',      true, { allow_ticketing: false, allow_donations: false, open_rsvp: false });
+      if (key === 'allow_ticketing') return saveToggle('allow_ticketing', true, { allow_rsvp: false,      allow_donations: false, open_rsvp: false });
+      if (key === 'allow_donations') return saveToggle('allow_donations', true, { allow_rsvp: false,      allow_ticketing: false, open_rsvp: false });
+    }
+    if (!value && key === 'allow_rsvp') return saveToggle('allow_rsvp', false, { open_rsvp: false });
+    saveToggle(key, value);
+  }, [saveToggle]);
 
   if (loading || !form) return (
     <div className="flex h-[80vh] items-center justify-center">
@@ -451,13 +598,9 @@ export default function EventSettingsPage() {
                 <MTextarea value={form.description} onChange={v => set("description", v)} placeholder="Full event description" />
               </MField>
               <MField label="Visibility">
-                <MSelect
-                  value={form.visibility}
-                  onChange={v => set("visibility", v)}
-                  options={[
-                    { label: "🌍 Public", value: "PUBLIC" },
-                    { label: "🔒 Private", value: "PRIVATE" },
-                  ]}
+                <MVisibilityCard
+                  isPublic={form.visibility === "PUBLIC"}
+                  onRequestToggle={v => setMobilePending({ key: "visibility", nextValue: v, info: getMobileActionInfo("visibility", v) })}
                 />
               </MField>
               <MField label="Timezone">
@@ -498,19 +641,17 @@ export default function EventSettingsPage() {
 
             {/* MODULES */}
             <MSection label="MODULES">
-              <MToggle label="RSVP" sub="Collect guest names and emails" checked={form.allow_rsvp} onChange={v => { set("allow_rsvp", v); if (!v) set("open_rsvp", false); }} accent="#10b981" />
+              <MToggle label="RSVP" sub="Collect guest names and emails" checked={form.allow_rsvp} onChange={v => setMobilePending({ key: "allow_rsvp", nextValue: v, info: getMobileActionInfo("allow_rsvp", v) })} accent="#10b981" />
               {form.allow_rsvp && (
                 <>
                   <MDivider />
-                  <MToggle label="Open RSVP" sub="Anyone can RSVP without invitation" checked={form.open_rsvp} onChange={v => set("open_rsvp", v)} accent="#10b981" />
+                  <MToggle label="Open RSVP" sub="Anyone can RSVP without invitation" checked={form.open_rsvp} onChange={v => setMobilePending({ key: "open_rsvp", nextValue: v, info: getMobileActionInfo("open_rsvp", v) })} accent="#10b981" />
                 </>
               )}
               <MDivider />
-              <MToggle label="Ticketing" sub="Secure payment processing" checked={form.allow_ticketing} onChange={v => set("allow_ticketing", v)} accent="#f59e0b" />
+              <MToggle label="Ticketing" sub="Secure payment processing" checked={form.allow_ticketing} onChange={v => setMobilePending({ key: "allow_ticketing", nextValue: v, info: getMobileActionInfo("allow_ticketing", v) })} accent="#f59e0b" />
               <MDivider />
-              <MToggle label="QR Check-in" sub="Mobile QR scanning at the door" checked={form.allow_qr_checkin} onChange={v => set("allow_qr_checkin", v)} accent="#06b6d4" />
-              <MDivider />
-              <MToggle label="Donations" sub="Accept tips and contributions" checked={form.allow_donations} onChange={v => set("allow_donations", v)} accent="#f43f5e" />
+              <MToggle label="Donations" sub="Accept tips and contributions" checked={form.allow_donations} onChange={v => setMobilePending({ key: "allow_donations", nextValue: v, info: getMobileActionInfo("allow_donations", v) })} accent="#f43f5e" />
             </MSection>
 
             {/* DANGER ZONE */}
@@ -551,6 +692,18 @@ export default function EventSettingsPage() {
 
         <MobileBottomNav />
         <ConfirmModal isOpen={!!modal} onClose={() => setModal(null)} {...modal} />
+
+        {/* Mobile confirmation sheet for toggle actions */}
+        <MConfirmSheet
+          pending={mobilePending}
+          onCancel={() => setMobilePending(null)}
+          onConfirm={() => {
+            if (!mobilePending) return;
+            const { key, nextValue } = mobilePending;
+            setMobilePending(null);
+            applyModuleToggle(key, nextValue);
+          }}
+        />
       </div>
 
       {/* ── DESKTOP UI ── */}
@@ -621,16 +774,15 @@ export default function EventSettingsPage() {
               <GlassCard delay={0.2} className="p-10">
                 <SectionHeader icon={Zap} label="Modules & Features" colorClass="text-emerald-500" description="Extend your event functionality with pre-built modules." />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Toggle icon={Users} label="RSVP Flow" description="Collect guest names and emails" checked={form.allow_rsvp} onChange={v => { set("allow_rsvp", v); if (!v) set("open_rsvp", false); }} />
-                  <Toggle icon={Ticket} label="Stripe Ticketing" colorClass="text-amber-500" description="Secure payment processing" checked={form.allow_ticketing} onChange={v => set("allow_ticketing", v)} />
-                  <Toggle icon={QrCode} label="Express Entry" colorClass="text-cyan-500" description="Mobile QR scanning at door" checked={form.allow_qr_checkin} onChange={v => set("allow_qr_checkin", v)} />
-                  <Toggle icon={Heart} label="Donation Portal" colorClass="text-pink-500" description="Accept tips and contributions" checked={form.allow_donations} onChange={v => set("allow_donations", v)} />
+                  <Toggle icon={Users} label="RSVP Flow" description="Collect guest names and emails" checked={form.allow_rsvp} onChange={v => applyModuleToggle("allow_rsvp", v)} />
+                  <Toggle icon={Ticket} label="Stripe Ticketing" colorClass="text-amber-500" description="Secure payment processing" checked={form.allow_ticketing} onChange={v => applyModuleToggle("allow_ticketing", v)} />
+                  <Toggle icon={Heart} label="Donation Portal" colorClass="text-pink-500" description="Accept tips and contributions" checked={form.allow_donations} onChange={v => applyModuleToggle("allow_donations", v)} />
                 </div>
                 <AnimatePresence>
                   {form.allow_rsvp && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mt-4">
                       <div className="pl-4 border-l-2 border-indigo-500/20">
-                        <Toggle icon={Globe} label="Open RSVP" colorClass="text-emerald-500" description="Allow anyone to RSVP without an invitation link" checked={form.open_rsvp} onChange={v => set("open_rsvp", v)} />
+                        <Toggle icon={Globe} label="Open RSVP" colorClass="text-emerald-500" description="Allow anyone to RSVP without an invitation link" checked={form.open_rsvp} onChange={v => saveToggle("open_rsvp", v)} />
                       </div>
                     </motion.div>
                   )}

@@ -29,8 +29,21 @@ interface BuilderState {
   deleteSection:             (eventId: string, sectionId: string) => Promise<void>;
   reorderSections:           (eventId: string, payload: { id: string; position_order: number }[]) => Promise<void>;
 
+  // Speakers
+  createSpeaker: (eventId: string, payload: Record<string, unknown>) => Promise<void>;
+  updateSpeaker: (eventId: string, speakerId: string, payload: Record<string, unknown>) => Promise<void>;
+  deleteSpeaker: (eventId: string, speakerId: string) => Promise<void>;
+
+  // Schedule Items
+  createScheduleItem: (eventId: string, payload: Record<string, unknown>) => Promise<void>;
+  updateScheduleItem: (eventId: string, itemId: string, payload: Record<string, unknown>) => Promise<void>;
+  deleteScheduleItem: (eventId: string, itemId: string) => Promise<void>;
+
   // Theme
   setTheme: (eventId: string, themeId: string) => Promise<void>;
+
+  // Event details sync
+  updateEventDetails: (eventId: string, payload: Record<string, unknown>) => Promise<void>;
 
   // Publish
   publishPage: (eventId: string) => Promise<boolean>;
@@ -199,15 +212,17 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
       .filter((s): s is BuilderSection => s !== null)
       .sort((a, b) => a.position_order - b.position_order);
 
-    set((state) => ({ builder: { ...state.builder!, sections: optimistic } }));
+    set((state) => ({ builder: { ...state.builder!, sections: optimistic }, saveStatus: 'saving' }));
 
     try {
       const res = await api.patch<{ data: BuilderSection[] }>(`/builder/events/${eventId}/sections/reorder`, { sections: payload });
       set((state) => ({
         builder: { ...state.builder!, sections: res.data?.data ?? optimistic },
+        saveStatus: 'saved',
       }));
+      setTimeout(() => { if (get().saveStatus === 'saved') set({ saveStatus: 'idle' }); }, 2000);
     } catch {
-      set((state) => ({ builder: { ...state.builder!, sections: currentSections } }));
+      set((state) => ({ builder: { ...state.builder!, sections: currentSections }, saveStatus: 'error' }));
     }
   },
 
@@ -237,6 +252,133 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
     } catch {
       set({ saveStatus: 'error' });
     }
+  },
+
+  // ── Speakers ──────────────────────────────────────────────────────────────────
+  createSpeaker: async (eventId, payload) => {
+    set({ saveStatus: 'saving' });
+    try {
+      const res     = await api.post<{ data: Record<string, unknown> }>(`/builder/events/${eventId}/speakers`, payload);
+      const speaker = res.data?.data;
+      set((state) => ({
+        builder: {
+          ...state.builder!,
+          speakers: [...((state.builder as any)?.speakers ?? []), speaker],
+        },
+        saveStatus: 'saved',
+      }));
+      setTimeout(() => { if (get().saveStatus === 'saved') set({ saveStatus: 'idle' }); }, 2000);
+    } catch {
+      set({ saveStatus: 'error' });
+    }
+  },
+
+  updateSpeaker: async (eventId, speakerId, payload) => {
+    set({ saveStatus: 'saving' });
+    try {
+      const res     = await api.patch<{ data: Record<string, unknown> }>(`/builder/events/${eventId}/speakers/${speakerId}`, payload);
+      const updated = res.data?.data;
+      set((state) => ({
+        builder: {
+          ...state.builder!,
+          speakers: ((state.builder as any)?.speakers ?? []).map((s: any) =>
+            s.id === speakerId ? updated : s
+          ),
+        },
+        saveStatus: 'saved',
+      }));
+      setTimeout(() => { if (get().saveStatus === 'saved') set({ saveStatus: 'idle' }); }, 2000);
+    } catch {
+      set({ saveStatus: 'error' });
+    }
+  },
+
+  deleteSpeaker: async (eventId, speakerId) => {
+    set((state) => ({
+      builder: {
+        ...state.builder!,
+        speakers: ((state.builder as any)?.speakers ?? []).filter((s: any) => s.id !== speakerId),
+      },
+      saveStatus: 'saving',
+    }));
+    try {
+      await api.delete(`/builder/events/${eventId}/speakers/${speakerId}`);
+      set({ saveStatus: 'saved' });
+      setTimeout(() => { if (get().saveStatus === 'saved') set({ saveStatus: 'idle' }); }, 2000);
+    } catch {
+      set({ saveStatus: 'error' });
+    }
+  },
+
+  // ── Schedule Items ────────────────────────────────────────────────────────────
+  createScheduleItem: async (eventId, payload) => {
+    set({ saveStatus: 'saving' });
+    try {
+      const res  = await api.post<{ data: Record<string, unknown> }>(`/builder/events/${eventId}/schedule-items`, payload);
+      const item = res.data?.data;
+      set((state) => ({
+        builder: {
+          ...state.builder!,
+          schedule_items: [...((state.builder as any)?.schedule_items ?? []), item],
+        },
+        saveStatus: 'saved',
+      }));
+      setTimeout(() => { if (get().saveStatus === 'saved') set({ saveStatus: 'idle' }); }, 2000);
+    } catch {
+      set({ saveStatus: 'error' });
+    }
+  },
+
+  updateScheduleItem: async (eventId, itemId, payload) => {
+    set({ saveStatus: 'saving' });
+    try {
+      const res     = await api.patch<{ data: Record<string, unknown> }>(`/builder/events/${eventId}/schedule-items/${itemId}`, payload);
+      const updated = res.data?.data;
+      set((state) => ({
+        builder: {
+          ...state.builder!,
+          schedule_items: ((state.builder as any)?.schedule_items ?? []).map((s: any) =>
+            s.id === itemId ? updated : s
+          ),
+        },
+        saveStatus: 'saved',
+      }));
+      setTimeout(() => { if (get().saveStatus === 'saved') set({ saveStatus: 'idle' }); }, 2000);
+    } catch {
+      set({ saveStatus: 'error' });
+    }
+  },
+
+  deleteScheduleItem: async (eventId, itemId) => {
+    set((state) => ({
+      builder: {
+        ...state.builder!,
+        schedule_items: ((state.builder as any)?.schedule_items ?? []).filter((s: any) => s.id !== itemId),
+      },
+      saveStatus: 'saving',
+    }));
+    try {
+      await api.delete(`/builder/events/${eventId}/schedule-items/${itemId}`);
+      set({ saveStatus: 'saved' });
+      setTimeout(() => { if (get().saveStatus === 'saved') set({ saveStatus: 'idle' }); }, 2000);
+    } catch {
+      set({ saveStatus: 'error' });
+    }
+  },
+
+  // ── Event details sync ────────────────────────────────────────────────────────
+  updateEventDetails: async (eventId, payload) => {
+    try {
+      const res     = await api.patch<{ data: Record<string, unknown> }>(`/events/${eventId}`, payload);
+      const updated = res.data?.data;
+      if (updated) {
+        set((state) => ({
+          builder: state.builder
+            ? { ...state.builder, event: { ...state.builder.event, ...(updated as object) } }
+            : state.builder,
+        }));
+      }
+    } catch { /* silent — venue config is still saved; event sync is best-effort */ }
   },
 
   // ── Publish ───────────────────────────────────────────────────────────────────

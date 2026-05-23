@@ -117,6 +117,7 @@ export const EVENT_CATEGORIES = [
 
 export const RSVP_DEFAULTS = {
   allow_rsvp: true,
+  open_rsvp: false,
   allow_ticketing: false,
   allow_donations: false,
   allow_plus_ones: true,

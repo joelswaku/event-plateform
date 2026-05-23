@@ -40,32 +40,25 @@ export default function BuilderSidebar({
   const applyPreset               = useBuilderStore((s) => s.applyPreset);
   const setTheme                  = useBuilderStore((s) => s.setTheme);
 
-  const isSubscribed    = useSubscriptionStore((s) => s.isSubscribed);
-  const plan            = useSubscriptionStore((s) => s.plan);
+  const features        = useSubscriptionStore((s) => s.features);
   const openUpgradeModal = useSubscriptionStore((s) => s.openUpgradeModal);
-  const isPremium = isSubscribed && plan === "premium";
+  // Locked when server says templates are locked (free plan); unlocked on starter+
+  const lockedTemplates = features?.lockedTemplates ?? true;
 
   const activeTheme = useMemo(() => {
     const first = sections?.find((s) => s?.config?._theme);
     return first?.config?._theme || "CLASSIC";
   }, [sections]);
 
-  const handleThemeChange = (themeId) => {
-    if (themeId !== "CLASSIC" && !isPremium) {
+  const handlePresetSelect = async (presetKey) => {
+    if (lockedTemplates && presetKey !== "CLASSIC") {
       openUpgradeModal("templates");
       return;
     }
-    if (sections?.length) setTheme(eventId, themeId);
-  };
-
-  const handlePresetSelect = async (e) => {
-    const presetKey = e.target.value;
     const preset = PAGE_PRESETS[presetKey];
     if (!preset) return;
-    e.target.value = "";
 
-    // Free users: always apply CLASSIC theme regardless of chosen preset
-    const themeId = isPremium && STYLE_META[presetKey] ? presetKey : "CLASSIC";
+    const themeId = STYLE_META[presetKey] ? presetKey : "CLASSIC";
     const sectionsWithTheme = preset.sections.map((s) => ({
       type: s,
       config: { _theme: themeId },
@@ -129,109 +122,55 @@ export default function BuilderSidebar({
       {isOpen && (
         <div className="flex flex-col gap-5 overflow-y-auto p-4">
 
-          {/* ── Style / Theme Switcher ──────────────────────────────── */}
+          {/* ── Layout Presets ──────────────────────────────────────── */}
           <div className="flex flex-col gap-2">
-            <SidebarLabel>Style</SidebarLabel>
-            <div className="grid grid-cols-3 gap-1.5">
-              {Object.entries(STYLE_META).map(([id, meta]) => {
-                const isActive  = activeTheme === id;
-                const locked    = id !== "CLASSIC" && !isPremium;
+            <SidebarLabel>Layout</SidebarLabel>
+            <div className="flex flex-col gap-1">
+              {Object.entries(PAGE_PRESETS).map(([k, v]) => {
+                const locked  = lockedTemplates && k !== "CLASSIC";
+                const isActive = activeTheme === k;
+                const meta    = STYLE_META[k];
                 return (
                   <button
-                    key={id}
-                    onClick={() => handleThemeChange(id)}
-                    title={locked ? `${meta.label} — Premium` : meta.description}
+                    key={k}
+                    onClick={() => handlePresetSelect(k)}
+                    className="flex items-center gap-2.5 w-full text-left rounded-md px-3 py-2 transition-colors"
                     style={{
-                      border: `1px solid ${isActive ? meta.preview.accent : "rgba(255,255,255,0.06)"}`,
-                      borderRadius: 7,
-                      overflow: "hidden",
+                      background: isActive ? "rgba(108,111,238,0.12)" : "#1e2026",
+                      border: `1px solid ${isActive ? "rgba(108,111,238,0.4)" : "rgba(255,255,255,0.07)"}`,
                       cursor: "pointer",
-                      boxShadow: isActive
-                        ? `0 0 0 1px ${meta.preview.accent}50, 0 0 16px ${meta.preview.accent}25`
-                        : "none",
-                      transition: "all 0.18s ease",
-                      background: "transparent",
-                      opacity: locked ? 0.55 : 1,
-                      position: "relative",
                     }}
                   >
-                    {/* Hero preview strip */}
-                    <div style={{ height: 28, background: meta.preview.hero, position: "relative", overflow: "hidden" }}>
-                      <div style={{
-                        position: "absolute", inset: 0,
-                        background: `repeating-linear-gradient(135deg, transparent, transparent 4px, ${meta.preview.accent}08 4px, ${meta.preview.accent}08 8px)`,
-                      }} />
-                      <div style={{ position: "absolute", bottom: 4, left: 5, right: 5 }}>
-                        <div style={{ height: 2.5, background: "rgba(255,255,255,0.6)", borderRadius: 2, width: "72%", marginBottom: 2 }} />
-                        <div style={{ height: 1.5, background: meta.preview.accent, opacity: 0.85, borderRadius: 2, width: "44%" }} />
-                      </div>
-                      {locked && (
-                        <div style={{
-                          position: "absolute", top: 3, right: 3,
-                          background: "rgba(0,0,0,0.55)",
-                          borderRadius: 4, padding: "1px 3px",
-                          display: "flex", alignItems: "center",
-                        }}>
-                          <LockClosedIcon style={{ width: 8, height: 8, color: "#f0c060" }} />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Content preview strip */}
-                    <div style={{ background: meta.preview.bg, padding: "4px 5px 5px" }}>
-                      <div style={{ height: 1.5, background: "rgba(0,0,0,0.2)", borderRadius: 1, width: "88%", marginBottom: 2 }} />
-                      <div style={{ height: 1.5, background: "rgba(0,0,0,0.12)", borderRadius: 1, width: "65%", marginBottom: 2 }} />
-                      <div style={{ height: 1.5, background: meta.preview.accent, opacity: 0.45, borderRadius: 1, width: "38%" }} />
-                    </div>
-
-                    {/* Label */}
-                    <div style={{
-                      background: isActive ? `${meta.preview.hero}ee` : "#1a1b1f",
-                      padding: "2.5px 4px",
-                      fontSize: 8.5,
-                      textAlign: "center",
-                      color: isActive ? meta.preview.accent : "#4a5060",
-                      fontWeight: 700,
-                      letterSpacing: "0.07em",
-                      textTransform: "uppercase",
-                      transition: "all 0.18s",
-                    }}>
-                      {meta.label}
-                    </div>
+                    {meta && (
+                      <div
+                        style={{
+                          width: 10, height: 10, borderRadius: "50%", flexShrink: 0,
+                          background: meta.preview.accent,
+                          opacity: locked ? 0.4 : 1,
+                        }}
+                      />
+                    )}
+                    <span
+                      style={{
+                        flex: 1, fontSize: 12, fontWeight: 500,
+                        color: locked ? "#44495a" : isActive ? "#c4c6ff" : "#c0c4d0",
+                      }}
+                    >
+                      {v.label}
+                    </span>
+                    <span style={{ fontSize: 10, color: "#44495a" }}>
+                      {v.sections.length} blocks
+                    </span>
+                    {locked && (
+                      <LockClosedIcon style={{ width: 11, height: 11, color: "#f0c060", flexShrink: 0 }} />
+                    )}
                   </button>
                 );
               })}
             </div>
-            {!isPremium && (
+            {lockedTemplates && (
               <p style={{ fontSize: 10, color: "#44495a", lineHeight: 1.5, marginTop: 2 }}>
-                Classic is free. Upgrade to unlock all styles.
-              </p>
-            )}
-          </div>
-
-          {/* ── Layout Presets ──────────────────────────────────────── */}
-          <div className="flex flex-col gap-2">
-            <SidebarLabel>Layout</SidebarLabel>
-            <select
-              defaultValue=""
-              onChange={handlePresetSelect}
-              className="w-full rounded-md px-3 py-2 text-xs"
-              style={{
-                background: "#1e2026",
-                border: "1px solid rgba(255,255,255,0.1)",
-                color: "#f0f1f3",
-              }}
-            >
-              <option value="" disabled>Apply a preset layout…</option>
-              {Object.entries(PAGE_PRESETS).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v.label}{k !== "CLASSIC" && !isPremium ? " (Classic style)" : ""}
-                </option>
-              ))}
-            </select>
-            {!isPremium && (
-              <p style={{ fontSize: 10, color: "#44495a", lineHeight: 1.5 }}>
-                All layouts available. Premium styles applied only for Pro users.
+                Classic is free. Upgrade to Starter to unlock all layouts and styles.
               </p>
             )}
           </div>

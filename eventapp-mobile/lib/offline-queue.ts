@@ -45,14 +45,21 @@ export async function clearQueue(): Promise<void> {
 // ─── Device ID (stable per install) ──────────────────────────────────────────
 const DEVICE_KEY = Config.ASYNC_STORAGE_KEYS.DEVICE_ID;
 
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
 export async function getDeviceId(): Promise<string> {
   try {
     const existing = await AsyncStorage.getItem(DEVICE_KEY);
-    if (existing) return existing;
-    const id = `mobile-${Math.random().toString(36).slice(2, 10)}`;
+    if (existing && /^[0-9a-f-]{36}$/.test(existing)) return existing;
+    const id = generateUUID();
     await AsyncStorage.setItem(DEVICE_KEY, id);
     return id;
   } catch {
-    return 'mobile-fallback';
+    return generateUUID();
   }
 }

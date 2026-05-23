@@ -21,21 +21,21 @@ export default function FAQConfigFields({ section, eventId, iosKeyboardInsets }:
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [faqs, setFaqs] = useState<FaqItem[]>(
-    (cfgRef.current.faqs as FaqItem[]) ?? []
+    ((cfgRef.current.items ?? cfgRef.current.faqs) as FaqItem[]) ?? []
   );
 
   useEffect(() => {
     const c = section.config ?? {};
     cfgRef.current = c;
-    setFaqs((c.faqs as FaqItem[]) ?? []);
+    setFaqs(((c.items ?? c.faqs) as FaqItem[]) ?? []);
   }, [section.id]);
 
   const save = (items: FaqItem[]) => {
-    cfgRef.current = { ...cfgRef.current, faqs: items };
+    cfgRef.current = { ...cfgRef.current, items };
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       updateSection(eventId, section.id, { config: cfgRef.current });
-    }, 600);
+    }, 400);
   };
 
   const addFaq = () => {

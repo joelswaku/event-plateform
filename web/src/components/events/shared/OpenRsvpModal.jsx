@@ -68,6 +68,7 @@ export default function OpenRsvpModal({ eventId }) {
             position: "fixed", inset: 0, zIndex: 60,
             background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)",
             display: "flex", alignItems: "flex-end", justifyContent: "center",
+            overflowX: "hidden",
           }}
         >
           <div
@@ -75,8 +76,9 @@ export default function OpenRsvpModal({ eventId }) {
             style={{
               background: "#fff", borderRadius: "28px 28px 0 0",
               width: "100%", maxWidth: 520,
-              padding: "32px 28px 40px",
+              padding: "32px 16px 40px",
               boxShadow: "0 -20px 60px rgba(0,0,0,0.15)",
+              boxSizing: "border-box", overflowX: "hidden",
             }}
           >
             {/* Header */}
@@ -145,7 +147,7 @@ export default function OpenRsvpModal({ eventId }) {
                     value={name}
                     onChange={e => setName(e.target.value)}
                     placeholder="Full name"
-                    style={{ width: "100%", padding: "11px 14px", fontSize: 14, borderRadius: 12, border: "1px solid #e5e7eb", outline: "none", boxSizing: "border-box" }}
+                    style={{ width: "100%", padding: "11px 14px", fontSize: 14, borderRadius: 12, border: "1px solid #e5e7eb", outline: "none", boxSizing: "border-box", color: "#111827", background: "#fff" }}
                   />
                 </div>
 
@@ -160,7 +162,7 @@ export default function OpenRsvpModal({ eventId }) {
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     placeholder="you@example.com"
-                    style={{ width: "100%", padding: "11px 14px", fontSize: 14, borderRadius: 12, border: "1px solid #e5e7eb", outline: "none", boxSizing: "border-box" }}
+                    style={{ width: "100%", padding: "11px 14px", fontSize: 14, borderRadius: 12, border: "1px solid #e5e7eb", outline: "none", boxSizing: "border-box", color: "#111827", background: "#fff" }}
                   />
                 </div>
 
@@ -174,7 +176,7 @@ export default function OpenRsvpModal({ eventId }) {
                     value={phone}
                     onChange={e => setPhone(e.target.value)}
                     placeholder="+1 555 000 0000"
-                    style={{ width: "100%", padding: "11px 14px", fontSize: 14, borderRadius: 12, border: "1px solid #e5e7eb", outline: "none", boxSizing: "border-box" }}
+                    style={{ width: "100%", padding: "11px 14px", fontSize: 14, borderRadius: 12, border: "1px solid #e5e7eb", outline: "none", boxSizing: "border-box", color: "#111827", background: "#fff" }}
                   />
                 </div>
 

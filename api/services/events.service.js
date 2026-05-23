@@ -282,6 +282,7 @@ function mapEvent(row) {
 
     city: row.city,
     state: row.state,
+    zip_code: row.zip_code,
     country: row.country,
 
     latitude: row.latitude,
@@ -428,14 +429,15 @@ export async function createEventService({ userId, organizationId, payload }) {
           require_creator_verification,
           creator_verified,
           dashboard_mode,
-          custom_domain
+          custom_domain,
+          zip_code
         )
         VALUES (
           $1,$2,$3,$4,$5,$6,$7,$8,$9,
           'DRAFT',
           $10,$11,$12,$13,$14,$15,$16,$17,
           $18,$19,$20,
-          $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31
+          $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32
         )
         RETURNING *
         `,
@@ -473,6 +475,7 @@ export async function createEventService({ userId, organizationId, payload }) {
         payload.creator_verified ?? false,
         payload.dashboard_mode ?? null,
         payload.custom_domain ?? null,
+        payload.zip_code ?? null,
       ],
     );
 
@@ -734,6 +737,7 @@ export async function updateEventService({
       venue_address: payload.venue_address ?? existing.venue_address,
       city: payload.city ?? existing.city,
       state: payload.state ?? existing.state,
+      zip_code: payload.zip_code ?? existing.zip_code,
       country: payload.country ?? existing.country,
       latitude: payload.latitude ?? existing.latitude,
       longitude: payload.longitude ?? existing.longitude,
@@ -808,9 +812,10 @@ export async function updateEventService({
           creator_verified = $28,
           dashboard_mode = $29,
           custom_domain = $30,
+          zip_code = $31,
           updated_at = NOW()
-        WHERE id = $31
-          AND organization_id = $32
+        WHERE id = $32
+          AND organization_id = $33
           AND deleted_at IS NULL
         RETURNING *
         `,
@@ -845,6 +850,7 @@ export async function updateEventService({
         merged.creator_verified,
         merged.dashboard_mode,
         merged.custom_domain,
+        merged.zip_code,
         eventId,
         organizationId,
       ],
@@ -930,6 +936,7 @@ export async function publishEventService({ eventId, organizationId, userId }) {
       UPDATE events
       SET
         status = 'PUBLISHED',
+        visibility = 'PUBLIC',
         updated_at = NOW()
       WHERE id = $1
         AND organization_id = $2
@@ -939,8 +946,41 @@ export async function publishEventService({ eventId, organizationId, userId }) {
       [eventId, organizationId],
     );
 
+    const published = result.rows[0];
+
+    // Auto-create/publish the event page so /e/:slug is immediately accessible
+    const pageCheck = await client.query(
+      `SELECT id FROM event_pages WHERE event_id = $1 LIMIT 1`,
+      [published.id],
+    );
+    if (pageCheck.rows[0]) {
+      await client.query(
+        `UPDATE event_pages
+         SET page_status  = 'PUBLISHED',
+             published_at = COALESCE(published_at, NOW()),
+             updated_at   = NOW()
+         WHERE id = $1`,
+        [pageCheck.rows[0].id],
+      );
+    } else {
+      const previewToken = crypto.randomBytes(24).toString("hex");
+      await client.query(
+        `INSERT INTO event_pages
+           (event_id, public_url, seo_title, seo_description, page_status,
+            preview_token, draft_updated_at, published_at, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,'PUBLISHED',$5,NOW(),NOW(),NOW(),NOW())`,
+        [
+          published.id,
+          `/events/${published.slug}`,
+          published.title,
+          published.short_description ?? published.description ?? null,
+          previewToken,
+        ],
+      );
+    }
+
     await client.query("COMMIT");
-    return mapEvent(result.rows[0]);
+    return mapEvent(published);
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -976,6 +1016,7 @@ export async function unpublishEventService({
       UPDATE events
       SET
         status = 'DRAFT',
+        visibility = 'PRIVATE',
         updated_at = NOW()
       WHERE id = $1
         AND organization_id = $2
@@ -983,6 +1024,16 @@ export async function unpublishEventService({
       RETURNING *
       `,
       [eventId, organizationId],
+    );
+
+    // Take the page offline so /e/:slug returns 404 again
+    await client.query(
+      `
+      UPDATE event_pages
+      SET page_status = 'DRAFT', published_at = NULL, updated_at = NOW()
+      WHERE event_id = $1
+      `,
+      [eventId],
     );
 
     await client.query("COMMIT");
@@ -1143,14 +1194,15 @@ export async function duplicateEventService({
         require_creator_verification,
         creator_verified,
         dashboard_mode,
-        custom_domain
+        custom_domain,
+        zip_code
       )
       VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,
         'DRAFT',
         $10,$11,$12,$13,$14,$15,$16,$17,
         $18,$19,$20,
-        $21,$22,$23,$24,$25,$26,$27,$28,$29,$30
+        $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31
       )
       RETURNING *
       `,
@@ -1185,6 +1237,7 @@ export async function duplicateEventService({
         event.creator_verified,
         event.dashboard_mode,
         event.custom_domain,
+        event.zip_code ?? null,
       ],
     );
 

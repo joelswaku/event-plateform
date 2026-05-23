@@ -1,7 +1,7 @@
 // api/routes/public.tickets.routes.js
 import express    from "express";
 import rateLimit  from "express-rate-limit";
-import { createTicketOrder }                          from "../controllers/tickets.controller.js";
+import { createTicketOrder, confirmOrderPayment }      from "../controllers/tickets.controller.js";
 import { getPublicTickets }                           from "../controllers/ticket-types.controller.js";
 import { generateTicketQr, getMyTickets, getQrToken } from "../controllers/guest-tickets.controller.js";
 
@@ -48,6 +48,7 @@ const orderLimiter = rateLimit({
 
 router.get("/events/:eventId/tickets",   getPublicTickets);
 router.post("/events/:eventId/orders",   orderLimiter,   createTicketOrder);
+router.post("/orders/:orderId/confirm",  confirmOrderPayment);
 router.get("/tickets/qr/:token",         qrImageLimiter, generateTicketQr);
 router.get("/tickets/:id/qr-token",      qrTokenLimiter, getQrToken);
 router.get("/my-tickets",                portalLimiter,  getMyTickets);

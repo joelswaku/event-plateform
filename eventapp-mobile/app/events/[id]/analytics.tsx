@@ -309,7 +309,7 @@ function Funnel({ data, loading }: { data: ConversionData | null; loading: boole
 
 // ─── Check-in Stats ───────────────────────────────────────────────────────────
 
-function CheckinStats({ data, loading }: { data: CheckinData | null; loading: boolean }) {
+function CheckinStats({ data, loading, chartW = 280 }: { data: CheckinData | null; loading: boolean; chartW?: number }) {
   if (loading) return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
       {[1,2,3,4].map(i => <View key={i} style={[styles.skeleton, { height: 70, flex: 1, minWidth: '47%' }]} />)}
@@ -360,7 +360,7 @@ function CheckinStats({ data, loading }: { data: CheckinData | null; loading: bo
       {data.by_hour && data.by_hour.length > 1 && (
         <View style={{ gap: 6 }}>
           <Text style={styles.microLabel}>CHECK-INS OVER TIME</Text>
-          <Sparkline data={data.by_hour.map(h => h.successful_scans)} color={Colors.accent.emerald} id="checkinTime" w={300} h={44} />
+          <Sparkline data={data.by_hour.map(h => h.successful_scans)} color={Colors.accent.emerald} id="checkinTime" w={chartW} h={44} />
         </View>
       )}
     </View>
@@ -563,7 +563,7 @@ export default function AnalyticsScreen() {
 
           {/* Check-in stats */}
           <Section title="Check-in Analytics" subtitle="Scanner activity and outcomes">
-            <CheckinStats data={checkins} loading={loading.checkins} />
+            <CheckinStats data={checkins} loading={loading.checkins} chartW={chartW - 32} />
           </Section>
 
           {/* Insights */}

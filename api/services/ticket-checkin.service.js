@@ -53,11 +53,13 @@ export async function checkInIssuedTicketService({
   userId,
   payload,
 }) {
-  const qrToken = payload?.qr_token ? String(payload.qr_token).trim() : null;
-
-  if (!qrToken) {
+  const rawToken = payload?.qr_token ? String(payload.qr_token).trim() : null;
+  if (!rawToken) {
     throw new AppError("qr_token is required", 400);
   }
+  const STAMPED_RE = /^([0-9a-f]{64})\.[0-9a-f]{8}$/i;
+  const stampMatch = rawToken.match(STAMPED_RE);
+  const qrToken = stampMatch ? stampMatch[1] : rawToken;
 
   const client = await db.connect();
 

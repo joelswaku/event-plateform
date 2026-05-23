@@ -17,6 +17,7 @@ interface AuthState {
   googleLogin:  (idToken: string) => Promise<{ success: boolean; message?: string }>;
   refreshToken: (storedToken?: string | null) => Promise<string | null>;
   fetchMe:      () => Promise<void>;
+  updateAvatar: (uri: string, mimeType?: string, fileName?: string) => Promise<{ success: boolean; avatar_url?: string; message?: string }>;
   logout:       () => Promise<void>;
   clearError:   () => void;
 }
@@ -149,6 +150,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ user });
       }
     } catch { /* silent */ }
+  },
+
+  // ─── Upload profile avatar ────────────────────────────────────────────────
+  updateAvatar: async (uri, mimeType = 'image/jpeg', fileName = 'avatar.jpg') => {
+    try {
+      const form = new FormData();
+      form.append('file', { uri, type: mimeType, name: fileName } as unknown as Blob);
+      const res = await api.patch<{ data: { avatar_url: string } }>('/auth/avatar', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const avatarUrl = res.data?.data?.avatar_url;
+      if (avatarUrl) {
+        const { user } = get();
+        if (user) {
+          const updated = { ...user, avatar_url: avatarUrl };
+          await persistSession(updated, true);
+          set({ user: updated });
+        }
+      }
+      return { success: true, avatar_url: avatarUrl };
+    } catch (err: unknown) {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Upload failed';
+      return { success: false, message };
+    }
   },
 
   // ─── Logout ───────────────────────────────────────────────────────────────

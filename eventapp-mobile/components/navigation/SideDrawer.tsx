@@ -58,7 +58,7 @@ export function SideDrawer() {
     ]).start();
   }, [isOpen]);
 
-  const isPremium = user?.is_subscribed && user?.subscription_plan === 'premium';
+  const isPremium = user?.is_subscribed && user?.subscription_plan !== 'free' && !!user?.subscription_plan;
 
   const initials = (user?.full_name ?? 'U')
     .split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);

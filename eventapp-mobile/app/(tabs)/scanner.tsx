@@ -15,7 +15,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet,
-  Modal, FlatList, ActivityIndicator,
+  Modal, FlatList, ActivityIndicator, Dimensions,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -47,6 +47,11 @@ const TYPE_IMG: Record<string, string> = {
   charity:         'https://images.unsplash.com/photo-1617196034183-421b4040ed20?w=400&q=60',
 };
 const DEFAULT_IMG = 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&q=60';
+
+/* Camera viewport height — ~48% of screen, capped so it never overwhelms */
+const { height: SH } = Dimensions.get('window');
+const CAMERA_H   = Math.min(Math.round(SH * 0.48), 390);
+const SCAN_TRAVEL = CAMERA_H - 120 - 10; // scan box minus top/bottom overlay minus margin
 
 function coverImg(ev: Event): string {
   if (ev.cover_image_url) return ev.cover_image_url;
@@ -171,7 +176,7 @@ export default function ScannerTab() {
 
   useEffect(() => {
     scanY.value = withRepeat(
-      withTiming(280, { duration: 2000, easing: Easing.linear }),
+      withTiming(SCAN_TRAVEL, { duration: 2000, easing: Easing.linear }),
       -1, true,
     );
   }, []);
@@ -203,6 +208,21 @@ export default function ScannerTab() {
 
     const result = await scanTicket(eventId, data.trim());
     setLastResult(result);
+    if (result.type === 'SUCCESS') {
+      Toast.show({
+        type: 'success',
+        text1: `✅ Checked in — ${result.holder_name ?? 'Guest'}`,
+        text2: result.ticket_type_name ?? undefined,
+        visibilityTime: 3500,
+      });
+    } else if (result.type === 'DUPLICATE') {
+      Toast.show({
+        type: 'error',
+        text1: '⚠️ Already checked in',
+        text2: result.holder_name ?? result.message ?? undefined,
+        visibilityTime: 3500,
+      });
+    }
   }, [eventId, scanTicket]);
 
   const handleManualScan = () => {
@@ -460,7 +480,7 @@ const s = StyleSheet.create({
   offlineTxt: { fontSize: 12, fontWeight: '700', color: Colors.accent.amber, flex: 1 },
 
   /* Camera */
-  cameraWrap:    { flex: 1, position: 'relative', backgroundColor: '#000' },
+  cameraWrap:    { height: CAMERA_H, position: 'relative', backgroundColor: '#000' },
   overlayTop:    { position: 'absolute', top: 0, left: 0, right: 0, height: 60, backgroundColor: 'rgba(0,0,0,0.55)', zIndex: 1 },
   overlayBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 60, backgroundColor: 'rgba(0,0,0,0.55)', zIndex: 1 },
   overlayRow:    { position: 'absolute', top: 60, bottom: 60, left: 0, right: 0, flexDirection: 'row', zIndex: 1 },

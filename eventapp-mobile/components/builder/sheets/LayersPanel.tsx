@@ -1,5 +1,10 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Switch } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, Text, StyleSheet, Switch, Pressable } from 'react-native';
+import { TouchableOpacity } from 'react-native-gesture-handler';
+import DraggableFlatList, {
+  ScaleDecorator,
+  RenderItemParams,
+} from 'react-native-draggable-flatlist';
 import { useBuilderStore } from '@/store/builder.store';
 import * as Haptics from 'expo-haptics';
 
@@ -24,7 +29,14 @@ interface Props {
 }
 
 export default function LayersPanel({ eventId, sections, selectedSectionId, onSectionSelect }: Props) {
-  const updateSection = useBuilderStore((s) => s.updateSection);
+  const updateSection   = useBuilderStore(s => s.updateSection);
+  const reorderSections = useBuilderStore(s => s.reorderSections);
+
+  const handleDragEnd = useCallback(({ data }: { data: Section[] }) => {
+    const payload = data.map((sec, i) => ({ id: sec.id, position_order: i + 1 }));
+    reorderSections(eventId, payload);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, [eventId, reorderSections]);
 
   if (sections.length === 0) {
     return (
@@ -34,49 +46,99 @@ export default function LayersPanel({ eventId, sections, selectedSectionId, onSe
     );
   }
 
-  return (
-    <ScrollView contentContainerStyle={s.wrap}>
-      <Text style={s.header}>LAYERS</Text>
-      {sections.map((sec) => {
-        const accent = ACCENT[sec.section_type] ?? '#6c6fee';
-        const icon   = ICONS[sec.section_type]  ?? '▣';
-        const active = sec.id === selectedSectionId;
-        return (
+  const renderItem = ({ item: sec, drag, isActive }: RenderItemParams<Section>) => {
+    const accent = ACCENT[sec.section_type] ?? '#6c6fee';
+    const icon   = ICONS[sec.section_type]  ?? '▣';
+    const active = sec.id === selectedSectionId;
+    return (
+      <ScaleDecorator activeScale={0.97}>
+        <View style={[s.row, active && { borderColor: accent, backgroundColor: `${accent}12` }, isActive && s.rowActive]}>
+
+          {/* Drag handle — long-press initiates drag */}
           <TouchableOpacity
-            key={sec.id}
-            style={[s.row, active && { borderColor: accent }]}
-            onPress={() => { onSectionSelect(sec); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-            activeOpacity={0.8}
+            onLongPress={drag}
+            delayLongPress={120}
+            hitSlop={8}
+            style={s.dragHandle}
           >
             <Text style={s.drag}>⠿</Text>
-            <View style={[s.iconWrap, { backgroundColor: accent + '20' }]}>
+          </TouchableOpacity>
+
+          {/* Tappable content area — selects section for editing */}
+          <Pressable
+            style={s.rowContent}
+            onPress={() => { onSectionSelect(sec); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+          >
+            <View style={[s.iconWrap, { backgroundColor: `${accent}20` }]}>
               <Text style={{ fontSize: 14 }}>{icon}</Text>
             </View>
-            <Text style={[s.label, active && { color: '#fff' }]}>{sec.section_type}</Text>
-            <Switch
-              value={sec.is_visible !== false}
-              onValueChange={(val) => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                updateSection(eventId, sec.id, { is_visible: val });
-              }}
-              trackColor={{ false: '#333640', true: accent + '80' }}
-              thumbColor={sec.is_visible !== false ? accent : '#555a66'}
-              style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
-            />
-          </TouchableOpacity>
-        );
-      })}
-    </ScrollView>
+            <Text style={[s.label, active && { color: '#fff' }]} numberOfLines={1}>
+              {sec.section_type}
+            </Text>
+          </Pressable>
+
+          <Switch
+            value={sec.is_visible !== false}
+            onValueChange={val => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              updateSection(eventId, sec.id, { is_visible: val });
+            }}
+            trackColor={{ false: '#333640', true: `${accent}80` }}
+            thumbColor={sec.is_visible !== false ? accent : '#555a66'}
+            style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
+          />
+        </View>
+      </ScaleDecorator>
+    );
+  };
+
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={s.headerRow}>
+        <Text style={s.header}>LAYERS</Text>
+        <Text style={s.hint}>Hold ⠿ to reorder</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <DraggableFlatList
+          data={sections}
+          keyExtractor={item => item.id}
+          onDragEnd={handleDragEnd}
+          renderItem={renderItem}
+          contentContainerStyle={s.list}
+          showsVerticalScrollIndicator={false}
+          activationDistance={5}
+        />
+      </View>
+    </View>
   );
 }
 
 const s = StyleSheet.create({
-  wrap:     { padding: 14, gap: 6 },
-  header:   { fontSize: 9, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 2, color: '#555a66', marginBottom: 6 },
-  row:      { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#1e2026', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
-  drag:     { fontSize: 16, color: '#444854', marginRight: 2 },
+  headerRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingTop: 6, paddingBottom: 10,
+  },
+  header:  { fontSize: 9, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 2, color: '#555a66' },
+  hint:    { fontSize: 9, color: '#444854', fontWeight: '600' },
+
+  list:  { paddingHorizontal: 12, paddingBottom: 120, gap: 6 },
+
+  row: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#1e2026', borderRadius: 12,
+    paddingVertical: 10, paddingHorizontal: 12,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+  },
+  rowActive: { backgroundColor: '#24272f', shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 8, elevation: 6 },
+
+  dragHandle: { paddingHorizontal: 2, paddingVertical: 4 },
+  drag:       { fontSize: 16, color: '#555a66' },
+
+  rowContent: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+
   iconWrap: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  label:    { flex: 1, fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: 0.5 },
-  empty:    { padding: 32, alignItems: 'center' },
+  label:    { flex: 1, fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: 0.5 },
+
+  empty:    { padding: 32, alignItems: 'center', justifyContent: 'center', flex: 1 },
   emptyTxt: { fontSize: 12, color: '#555a66', textAlign: 'center' },
 });

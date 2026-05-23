@@ -155,15 +155,18 @@ export const useBuilderStore = create((set, get) => ({
       );
       const updated = res.data?.data;
 
-      set((state) => ({
-        builder: {
-          ...state.builder,
-          sections: state.builder.sections.map((s) =>
-            s.id === sectionId ? { ...s, ...updated } : s
-          ),
-        },
-        saveStatus: "saved",
-      }));
+      set((state) => {
+        if (!state.builder) return { saveStatus: "saved" };
+        return {
+          builder: {
+            ...state.builder,
+            sections: (state.builder.sections ?? []).map((s) =>
+              s.id === sectionId ? { ...s, ...updated } : s
+            ),
+          },
+          saveStatus: "saved",
+        };
+      });
       setTimeout(() => { if (get().saveStatus === "saved") set({ saveStatus: "idle" }); }, 2000);
     } catch {
       set({ saveStatus: "error" });
@@ -258,6 +261,23 @@ export const useBuilderStore = create((set, get) => ({
     }
   },
 
+  // ── Event details (venue sync) ─────────────────────────────────────────────
+  updateEventDetails: async (eventId, payload) => {
+    try {
+      const res = await api.patch(`/events/${eventId}`, payload);
+      const updated = res.data?.data;
+      if (updated) {
+        set((state) => ({
+          builder: state.builder
+            ? { ...state.builder, event: { ...state.builder.event, ...updated } }
+            : state.builder,
+        }));
+      }
+    } catch {
+      // silent — venue config is still saved; event sync is best-effort
+    }
+  },
+
   // ── Publish ────────────────────────────────────────────────────────────────
   publishPage: async (eventId) => {
     try {
@@ -279,6 +299,104 @@ export const useBuilderStore = create((set, get) => ({
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to publish");
       return false;
+    }
+  },
+
+  // ── Schedule Items ─────────────────────────────────────────────────────────
+  createScheduleItem: async (eventId, payload) => {
+    try {
+      const res = await api.post(`/builder/events/${eventId}/schedule-items`, payload);
+      const item = res.data?.data;
+      set((state) => ({
+        builder: {
+          ...state.builder,
+          schedule_items: [...(state.builder?.schedule_items ?? []), item],
+        },
+      }));
+      return item;
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to create schedule item");
+    }
+  },
+
+  updateScheduleItem: async (eventId, itemId, payload) => {
+    try {
+      const res = await api.patch(`/builder/events/${eventId}/schedule-items/${itemId}`, payload);
+      const updated = res.data?.data;
+      set((state) => ({
+        builder: {
+          ...state.builder,
+          schedule_items: (state.builder?.schedule_items ?? []).map((s) =>
+            s.id === itemId ? updated : s
+          ),
+        },
+      }));
+      return updated;
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to update schedule item");
+    }
+  },
+
+  deleteScheduleItem: async (eventId, itemId) => {
+    set((state) => ({
+      builder: {
+        ...state.builder,
+        schedule_items: (state.builder?.schedule_items ?? []).filter((s) => s.id !== itemId),
+      },
+    }));
+    try {
+      await api.delete(`/builder/events/${eventId}/schedule-items/${itemId}`);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to delete schedule item");
+    }
+  },
+
+  // ── Speakers ───────────────────────────────────────────────────────────────
+  createSpeaker: async (eventId, payload) => {
+    try {
+      const res = await api.post(`/builder/events/${eventId}/speakers`, payload);
+      const speaker = res.data?.data;
+      set((state) => ({
+        builder: {
+          ...state.builder,
+          speakers: [...(state.builder?.speakers ?? []), speaker],
+        },
+      }));
+      return speaker;
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to create speaker");
+    }
+  },
+
+  updateSpeaker: async (eventId, speakerId, payload) => {
+    try {
+      const res = await api.patch(`/builder/events/${eventId}/speakers/${speakerId}`, payload);
+      const updated = res.data?.data;
+      set((state) => ({
+        builder: {
+          ...state.builder,
+          speakers: (state.builder?.speakers ?? []).map((s) =>
+            s.id === speakerId ? updated : s
+          ),
+        },
+      }));
+      return updated;
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to update speaker");
+    }
+  },
+
+  deleteSpeaker: async (eventId, speakerId) => {
+    set((state) => ({
+      builder: {
+        ...state.builder,
+        speakers: (state.builder?.speakers ?? []).filter((s) => s.id !== speakerId),
+      },
+    }));
+    try {
+      await api.delete(`/builder/events/${eventId}/speakers/${speakerId}`);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to delete speaker");
     }
   },
 }));

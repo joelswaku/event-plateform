@@ -1,65 +1,76 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSubscriptionStore } from "@/store/subscription.store";
 import {
-  X, Zap, Check, Lock, Sparkles, ArrowRight,
-  CalendarDays, LayoutTemplate, Users, Globe,
-  BarChart2, Palette, Ticket, Image,
+  X, Zap, Check, Sparkles, ArrowRight,
+  CalendarDays, Users, Palette, Ticket,
+  BarChart2, Globe, Bell, QrCode,
 } from "lucide-react";
 
-const PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID || "";
+const STARTER_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID || "";
+const PRO_PRICE_ID     = process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID     || "";
 
-// ── Plan comparison data ──────────────────────────────────────────────────────
+// ── Plan data ─────────────────────────────────────────────────────────────────
 const FREE_FEATURES = [
-  { icon: CalendarDays,   text: "1 event" },
-  { icon: LayoutTemplate, text: "3 Classic templates (free style)" },
-  { icon: Users,          text: "Up to 50 guests" },
-  { icon: Zap,            text: "Basic page builder" },
+  { icon: CalendarDays, text: "1 event"              },
+  { icon: Users,        text: "50 guests"            },
+  { icon: Palette,      text: "Classic theme only"   },
+  { icon: Ticket,       text: "No ticket selling"    },
+];
+
+const STARTER_FEATURES = [
+  { icon: CalendarDays, text: "5 events"             },
+  { icon: Users,        text: "500 guests"           },
+  { icon: Palette,      text: "All themes & styles"  },
+  { icon: Ticket,       text: "Tickets (2% fee)"     },
+  { icon: QrCode,       text: "QR scanner"           },
+  { icon: Bell,         text: "1 reminder / guest"   },
+  { icon: BarChart2,    text: "Basic analytics"      },
 ];
 
 const PRO_FEATURES = [
-  { icon: CalendarDays,   text: "Unlimited events",              hot: false },
-  { icon: LayoutTemplate, text: "All 18 premium templates",      hot: true  },
-  { icon: Users,          text: "Unlimited guests & RSVPs",      hot: false },
-  { icon: Globe,          text: "Custom domain support",         hot: false },
-  { icon: BarChart2,      text: "Analytics & engagement stats",  hot: false },
-  { icon: Palette,        text: "All 6 style themes",            hot: true  },
-  { icon: Image,          text: "Galleries, countdown & more",   hot: false },
-  { icon: Ticket,         text: "Ticketing & donations",         hot: false },
+  { icon: CalendarDays, text: "Unlimited events"     },
+  { icon: Users,        text: "Unlimited guests"     },
+  { icon: Ticket,       text: "Tickets (1.5% fee)"   },
+  { icon: Bell,         text: "∞ reminders"          },
+  { icon: Globe,        text: "Custom domain"        },
+  { icon: BarChart2,    text: "Adv. analytics"       },
 ];
 
-// Context-aware headline + subtext based on what triggered the modal
-const TRIGGER_COPY = {
-  events: {
-    badge:    "Event Limit Reached",
-    headline: "You've used your 1 free event.",
-    sub:      "Upgrade to Premium and create unlimited events — no caps, ever.",
-  },
-  templates: {
-    badge:    "Premium Template",
-    headline: "This template is Premium.",
-    sub:      "Unlock all 18 templates and every style theme with one upgrade.",
-  },
-  feature: {
-    badge:    "Premium Feature",
-    headline: "This feature requires Premium.",
-    sub:      "Upgrade to access the full toolkit and take your events further.",
-  },
-  default: {
-    badge:    "Go Premium",
-    headline: "Build events without limits.",
-    sub:      "Everything you need to create stunning, professional event pages.",
-  },
-};
+// ── Context-aware copy (plan-aware) ──────────────────────────────────────────
+function getTriggerCopy(feature, plan) {
+  const isStarter = plan === "starter";
 
-function getTriggerCopy(feature) {
-  if (!feature) return TRIGGER_COPY.default;
+  const COPY = {
+    events: isStarter
+      ? { badge: "Starter Limit Reached", headline: "You've used all 5 Starter events.", sub: "Upgrade to Pro for unlimited events — no caps, ever." }
+      : { badge: "Event Limit Reached",   headline: "You've used your 1 free event.",    sub: "Upgrade to Starter for 5 events, or go Pro for unlimited." },
+    guests: isStarter
+      ? { badge: "Starter Limit Reached", headline: "500-guest Starter cap reached.",    sub: "Upgrade to Pro for unlimited guests per event." }
+      : { badge: "Guest Limit Reached",   headline: "You've hit the free guest cap.",    sub: "Upgrade to Starter for 500 guests, or Pro for unlimited." },
+    templates: { badge: "Style Locked",      headline: "This style requires Starter or above.", sub: "Unlock all themes and every style with one upgrade." },
+    tickets:   { badge: "Ticketing Locked",  headline: "Ticket selling requires Starter.",      sub: "Sell tickets and collect payments — Starter gets you a 2% fee." },
+    reminders: isStarter
+      ? { badge: "Reminder Limit Reached", headline: "You've sent your 1 Starter reminder.",  sub: "Upgrade to Pro for unlimited email reminders per guest." }
+      : { badge: "Reminders Locked",       headline: "Email reminders require Starter.",       sub: "Send guest reminders — Starter: 1 per guest, Pro: unlimited." },
+    feature: isStarter
+      ? { badge: "Pro Feature",    headline: "This feature requires Pro.", sub: "Upgrade to Pro to unlock every feature without limits." }
+      : { badge: "Feature Locked", headline: "This feature requires a paid plan.", sub: "Upgrade to Starter or Pro to unlock the full toolkit." },
+    default: isStarter
+      ? { badge: "Upgrade to Pro",    headline: "Ready for no limits?",           sub: "Pro gives you unlimited events, guests, and every feature." }
+      : { badge: "Upgrade Your Plan", headline: "Build events without limits.",   sub: "Starter at $19/mo, or go unlimited with Pro at $49/mo." },
+  };
+
+  if (!feature) return COPY.default;
   const key = feature.toLowerCase();
-  if (key.includes("event"))    return TRIGGER_COPY.events;
-  if (key.includes("template")) return TRIGGER_COPY.templates;
-  return { ...TRIGGER_COPY.feature, badge: feature };
+  if (key.includes("event"))                                           return COPY.events;
+  if (key.includes("guest"))                                           return COPY.guests;
+  if (key.includes("template") || key.includes("style") || key.includes("theme")) return COPY.templates;
+  if (key.includes("ticket"))                                          return COPY.tickets;
+  if (key.includes("reminder"))                                        return COPY.reminders;
+  return { ...COPY.feature, badge: feature };
 }
 
 // ── Animation variants ────────────────────────────────────────────────────────
@@ -74,11 +85,109 @@ const panel = {
   exit:    { opacity: 0, y: 24, scale: 0.97, transition: { duration: 0.18 } },
 };
 
+// ── Plan column ───────────────────────────────────────────────────────────────
+function PlanCol({ label, price, period, features, highlight, badge, accentColor, dimmed, selected, onClick }) {
+  const selectedBorder = label === "Starter"
+    ? "2px solid #8b5cf6"
+    : label === "Pro"
+    ? "2px solid #c9a96e"
+    : undefined;
+
+  const selectedShadow = label === "Starter"
+    ? "0 0 20px rgba(139,92,246,0.3)"
+    : label === "Pro"
+    ? "0 0 20px rgba(201,169,110,0.3)"
+    : undefined;
+
+  return (
+    <div
+      className="relative flex flex-col rounded-2xl p-4"
+      onClick={onClick}
+      style={{
+        background: highlight
+          ? "rgba(99,102,241,0.10)"
+          : dimmed
+          ? "rgba(255,255,255,0.03)"
+          : "rgba(255,255,255,0.05)",
+        border: selected && selectedBorder
+          ? selectedBorder
+          : `1px solid ${highlight ? "rgba(99,102,241,0.40)" : "rgba(255,255,255,0.07)"}`,
+        boxShadow: selected && selectedShadow ? selectedShadow : undefined,
+        transform: selected && label === "Pro" ? "scale(1.02)" : undefined,
+        transition: "all 0.2s ease",
+        opacity: dimmed ? 0.7 : 1,
+        cursor: dimmed ? "default" : "pointer",
+      }}
+    >
+      {badge && (
+        <div className="absolute -top-px left-1/2 -translate-x-1/2">
+          <div
+            className="rounded-b-md px-2.5 py-0.5 text-[9px] font-black uppercase tracking-[0.15em] whitespace-nowrap"
+            style={{ background: accentColor, color: "#fff" }}
+          >
+            {badge}
+          </div>
+        </div>
+      )}
+
+      <p
+        className="mb-1 mt-1 text-[10px] font-bold uppercase tracking-[0.2em]"
+        style={{ color: highlight ? accentColor : "rgba(255,255,255,0.35)" }}
+      >
+        {label}
+      </p>
+
+      <div className="mb-3 flex items-baseline gap-0.5">
+        <span className="text-xl font-black text-white">{price}</span>
+        {period && (
+          <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.30)" }}>
+            {period}
+          </span>
+        )}
+      </div>
+
+      <ul className="flex flex-col gap-2">
+        {features.map(({ icon: Icon, text }) => (
+          <li
+            key={text}
+            className="flex items-start gap-1.5 text-[11px] leading-snug"
+            style={{ color: dimmed ? "rgba(255,255,255,0.30)" : highlight ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.55)" }}
+          >
+            {dimmed
+              ? <Icon size={11} className="mt-0.5 shrink-0 opacity-30" />
+              : <Check size={11} className="mt-0.5 shrink-0" style={{ color: highlight ? accentColor : "rgba(255,255,255,0.4)" }} />
+            }
+            {text}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
 export default function UpgradeModal() {
-  const { upgradeModalOpen, upgradeModalFeature, closeUpgradeModal, createCheckoutSession, isLoading } =
+  const { upgradeModalOpen, upgradeModalFeature, closeUpgradeModal, createCheckoutSession, isLoading, plan } =
     useSubscriptionStore();
 
-  const copy = getTriggerCopy(upgradeModalFeature);
+  const isStarter = plan === "starter";
+  const [loadingTier, setLoadingTier] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState(isStarter ? "pro" : "starter");
+
+  // Re-derive the default selection each time the modal opens so stale
+  // initial state (captured before the store hydrates from localStorage) doesn't persist.
+  useEffect(() => {
+    if (upgradeModalOpen) setSelectedPlan(isStarter ? "pro" : "starter");
+  }, [upgradeModalOpen, isStarter]);
+
+  const copy = getTriggerCopy(upgradeModalFeature, plan);
+
+  const handleCheckout = async (priceId, tier) => {
+    if (!priceId) return;
+    setLoadingTier(tier);
+    await createCheckoutSession(priceId);
+    setLoadingTier(null);
+  };
 
   return (
     <AnimatePresence>
@@ -100,18 +209,18 @@ export default function UpgradeModal() {
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="relative w-full max-w-lg overflow-hidden rounded-3xl shadow-2xl"
+            className="relative w-full max-w-xl overflow-hidden rounded-3xl shadow-2xl"
             style={{ background: "#0f0f12", border: "1px solid rgba(255,255,255,0.07)" }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* ── Ambient glow ─────────────────────────────────────────────── */}
+            {/* Ambient glow */}
             <div
               className="pointer-events-none absolute -top-24 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full blur-3xl"
-              style={{ background: "rgba(245,158,11,0.18)" }}
+              style={{ background: "rgba(99,102,241,0.20)" }}
               aria-hidden
             />
 
-            {/* ── Close ────────────────────────────────────────────────────── */}
+            {/* Close */}
             <button
               onClick={closeUpgradeModal}
               className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full transition-colors"
@@ -123,113 +232,122 @@ export default function UpgradeModal() {
               <X size={14} strokeWidth={2.5} />
             </button>
 
-            {/* ── Header ───────────────────────────────────────────────────── */}
-            <div className="px-8 pb-0 pt-8 text-center">
-              {/* Badge */}
-              <div className="mb-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em]"
-                style={{ background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.35)", color: "#F59E0B" }}>
+            {/* Header */}
+            <div className="px-7 pb-0 pt-7 text-center">
+              <div
+                className="mb-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em]"
+                style={{ background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.35)", color: "#818cf8" }}
+              >
                 <Sparkles size={10} />
                 {copy.badge}
               </div>
-
-              <h2 className="text-[1.6rem] font-extrabold leading-tight text-white">
+              <h2 className="text-[1.4rem] font-extrabold leading-tight text-white">
                 {copy.headline}
               </h2>
-              <p className="mt-2 text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>
+              <p className="mt-1.5 text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.40)" }}>
                 {copy.sub}
               </p>
             </div>
 
-            {/* ── Plan comparison ───────────────────────────────────────────── */}
-            <div className="mt-7 grid grid-cols-2 gap-3 px-8">
-              {/* Free column */}
-              <div className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: "rgba(255,255,255,0.3)" }}>
-                  Free
-                </p>
-                <ul className="space-y-2.5">
-                  {FREE_FEATURES.map(({ icon: Icon, text }) => (
-                    <li key={text} className="flex items-start gap-2 text-[12px]" style={{ color: "rgba(255,255,255,0.4)" }}>
-                      <Icon size={12} className="mt-0.5 shrink-0 opacity-40" />
-                      {text}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Premium column */}
-              <div className="relative rounded-2xl p-4" style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.25)" }}>
-                {/* "Most popular" label */}
-                <div className="absolute -top-px left-1/2 -translate-x-1/2">
-                  <div className="rounded-b-lg px-3 py-0.5 text-[9px] font-black uppercase tracking-[0.15em]"
-                    style={{ background: "#F59E0B", color: "#000" }}>
-                    Premium
-                  </div>
-                </div>
-                <p className="mb-3 mt-1 text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: "#F59E0B" }}>
-                  Everything
-                </p>
-                <ul className="space-y-2.5">
-                  {PRO_FEATURES.map(({ icon: Icon, text, hot }) => (
-                    <li key={text} className="flex items-start gap-2 text-[12px]" style={{ color: hot ? "#fff" : "rgba(255,255,255,0.65)" }}>
-                      <Check size={12} className="mt-0.5 shrink-0" style={{ color: "#F59E0B" }} />
-                      {text}
-                      {hot && (
-                        <span className="ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-black uppercase"
-                          style={{ background: "rgba(245,158,11,0.2)", color: "#F59E0B" }}>
-                          New
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            {/* Plan columns — 2-col for starter users, 3-col for free */}
+            <div className={`mt-5 grid gap-2.5 px-6 ${isStarter ? "grid-cols-2" : "grid-cols-3"}`}>
+              {!isStarter && (
+                <PlanCol
+                  label="Free"
+                  price="$0"
+                  period=""
+                  features={FREE_FEATURES}
+                  dimmed
+                />
+              )}
+              <PlanCol
+                label="Starter"
+                price="$19"
+                period="/mo"
+                features={STARTER_FEATURES}
+                highlight={!isStarter}
+                badge={isStarter ? "Current Plan" : "Most Popular"}
+                accentColor="#6366f1"
+                dimmed={isStarter}
+                selected={!isStarter && selectedPlan === "starter"}
+                onClick={!isStarter ? () => setSelectedPlan("starter") : undefined}
+              />
+              <PlanCol
+                label="Pro"
+                price="$49"
+                period="/mo"
+                features={PRO_FEATURES}
+                highlight={isStarter}
+                badge={isStarter ? "Recommended" : undefined}
+                accentColor="#f59e0b"
+                selected={isStarter || selectedPlan === "pro"}
+                onClick={() => setSelectedPlan("pro")}
+              />
             </div>
 
-            {/* ── Pricing ──────────────────────────────────────────────────── */}
-            <div className="mt-5 px-8">
-              <div className="flex items-center justify-between rounded-2xl px-5 py-3.5"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.3)" }}>Premium plan</p>
-                  <div className="mt-0.5 flex items-baseline gap-1">
-                    <span className="text-2xl font-black text-white">$12</span>
-                    <span className="text-sm" style={{ color: "rgba(255,255,255,0.35)" }}>/month</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-bold"
-                  style={{ background: "rgba(16,185,129,0.15)", color: "#10B981", border: "1px solid rgba(16,185,129,0.25)" }}>
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                  Cancel anytime
-                </div>
-              </div>
-            </div>
-
-            {/* ── CTA ──────────────────────────────────────────────────────── */}
-            <div className="px-8 pb-8 pt-4">
-              <button
-                onClick={() => createCheckoutSession(PRICE_ID)}
-                disabled={isLoading}
-                className="group flex w-full items-center justify-center gap-2.5 rounded-2xl py-4 text-sm font-black uppercase tracking-[0.12em] transition-all duration-200 active:scale-[0.98] disabled:opacity-60"
-                style={{
-                  background: "linear-gradient(135deg, #F59E0B 0%, #F97316 100%)",
-                  color: "#000",
-                  boxShadow: "0 8px 32px rgba(245,158,11,0.35)",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 12px 40px rgba(245,158,11,0.55)")}
-                onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 8px 32px rgba(245,158,11,0.35)")}
+            {/* Cancel-anytime badge */}
+            <div className="mt-4 flex justify-center px-6">
+              <div
+                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold"
+                style={{ background: "rgba(16,185,129,0.12)", color: "#10b981", border: "1px solid rgba(16,185,129,0.22)" }}
               >
-                <Zap size={15} fill="currentColor" />
-                {isLoading ? "Redirecting to checkout…" : "Upgrade to Premium"}
-                {!isLoading && (
-                  <ArrowRight size={15} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                Cancel anytime · No hidden fees
+              </div>
+            </div>
+
+            {/* CTAs */}
+            <div className="flex gap-3 px-6 pb-7 pt-4">
+              {/* Starter — only shown for free users */}
+              {!isStarter && (
+                <button
+                  onClick={() => handleCheckout(STARTER_PRICE_ID, "starter")}
+                  disabled={isLoading || loadingTier !== null}
+                  className="group flex flex-1 items-center justify-center gap-2 rounded-2xl py-3.5 text-[13px] font-black uppercase tracking-[0.1em] transition-all duration-200 active:scale-[0.98] disabled:opacity-60"
+                  style={{
+                    background: "linear-gradient(135deg, #6366f1 0%, #818cf8 100%)",
+                    color: "#fff",
+                    boxShadow: "0 6px 24px rgba(99,102,241,0.40)",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 8px 32px rgba(99,102,241,0.60)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 6px 24px rgba(99,102,241,0.40)")}
+                >
+                  <Zap size={14} fill="currentColor" />
+                  {loadingTier === "starter" ? "Redirecting…" : "Upgrade to Starter"}
+                  {loadingTier !== "starter" && (
+                    <ArrowRight size={13} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+                  )}
+                </button>
+              )}
+
+              {/* Pro — primary for starter users, secondary for free users */}
+              <button
+                onClick={() => handleCheckout(PRO_PRICE_ID, "pro")}
+                disabled={isLoading || loadingTier !== null}
+                className="group flex flex-1 items-center justify-center gap-2 rounded-2xl py-3.5 text-[13px] font-black uppercase tracking-[0.1em] transition-all duration-200 active:scale-[0.98] disabled:opacity-60"
+                style={isStarter ? {
+                  background: "linear-gradient(135deg, #c9a96e 0%, #f59e0b 100%)",
+                  color: "#000",
+                  boxShadow: "0 6px 24px rgba(201,169,110,0.45)",
+                } : {
+                  background: "rgba(245,158,11,0.12)",
+                  border: "1px solid rgba(245,158,11,0.30)",
+                  color: "#f59e0b",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+              >
+                <Zap size={14} fill="currentColor" />
+                {loadingTier === "pro" ? "Redirecting…" : "Upgrade to Pro"}
+                {loadingTier !== "pro" && isStarter && (
+                  <ArrowRight size={13} className="transition-transform duration-200 group-hover:translate-x-0.5" />
                 )}
               </button>
-
-              <p className="mt-3 text-center text-[11px]" style={{ color: "rgba(255,255,255,0.2)" }}>
-                Secure checkout · Powered by Stripe · No hidden fees
-              </p>
             </div>
+
+            <p className="pb-5 text-center text-[10px]" style={{ color: "rgba(255,255,255,0.18)" }}>
+              Secure checkout · Powered by Stripe
+            </p>
           </motion.div>
         </motion.div>
       )}

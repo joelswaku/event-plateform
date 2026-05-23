@@ -38,6 +38,7 @@ export interface Event {
   starts_at_local: string | null;
   ends_at_local: string | null;
   allow_rsvp: boolean;
+  open_rsvp: boolean;
   allow_plus_ones: boolean;
   allow_qr_checkin: boolean;
   allow_ticketing: boolean;
@@ -78,6 +79,7 @@ export interface EventCreatePayload {
   state?: string;
   country?: string;
   allow_rsvp?: boolean;
+  open_rsvp?: boolean;
   allow_ticketing?: boolean;
   allow_qr_checkin?: boolean;
   allow_donations?: boolean;
@@ -124,8 +126,10 @@ export interface GuestAttendance {
   id: string;
   guest_id: string;
   event_id: string;
-  checked_in_at: string;
+  checked_in_at: string | null;
   checked_in_by: string | null;
+  marked_at?: string | null;
+  attendance_status?: string | null;
 }
 
 export interface GuestDashboard {

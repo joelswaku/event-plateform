@@ -7,6 +7,9 @@ const router = express.Router();
 // Public — only PUBLISHED + PUBLIC events
 router.get("/public/pages/:slug", controller.getPublicEventPageBySlug);
 
+// Availability check — returns reason without exposing private content
+router.get("/public/pages/:slug/check", controller.checkEventSlug);
+
 // Invited guest — PUBLISHED events (any visibility) with valid invitation token
 router.get("/public/pages/:slug/invited", controller.getInvitedEventPage);
 

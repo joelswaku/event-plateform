@@ -23,6 +23,8 @@ export default function EventEditor() {
 
   /* ================= LOAD ================= */
   useEffect(() => {
+    // Reset so the next dashboard load re-initializes the form with fresh data
+    initializedRef.current = false;
     if (eventId) fetchEventDashboard(eventId);
   }, [eventId]);
 
@@ -30,6 +32,8 @@ export default function EventEditor() {
   useEffect(() => {
     if (!dashboard?.event) return;
     if (initializedRef.current) return;
+    // Skip stale cached data from a different event
+    if (dashboard.event.id && dashboard.event.id !== eventId) return;
 
     const e = dashboard.event;
     setForm({
@@ -42,6 +46,7 @@ export default function EventEditor() {
       venue_address:     e.venue_address     ?? "",
       city:              e.city              ?? "",
       state:             e.state             ?? "",
+      zip_code:          e.zip_code          ?? "",
       country:           e.country           ?? "",
       // backend stores as starts_at_utc; input sends as starts_at
       starts_at:         e.starts_at_utc     ?? "",
@@ -78,6 +83,7 @@ export default function EventEditor() {
         venue_address:     form.venue_address,
         city:              form.city,
         state:             form.state,
+        zip_code:          form.zip_code,
         country:           form.country,
         starts_at:         form.starts_at  || undefined,
         ends_at:           form.ends_at    || undefined,
@@ -184,6 +190,7 @@ export default function EventEditor() {
         <Grid>
           <Input label="City" value={form.city} onChange={(v) => handleChange("city", v)} />
           <Input label="State" value={form.state} onChange={(v) => handleChange("state", v)} />
+          <Input label="Zip / Postal Code" value={form.zip_code} onChange={(v) => handleChange("zip_code", v)} />
           <Input label="Country" value={form.country} onChange={(v) => handleChange("country", v)} />
         </Grid>
       </Section>
@@ -241,12 +248,6 @@ export default function EventEditor() {
           label="Allow RSVP"
           checked={form.allow_rsvp}
           onChange={(v) => handleChange("allow_rsvp", v)}
-        />
-
-        <Toggle
-          label="Allow Plus Ones"
-          checked={form.allow_plus_ones}
-          onChange={(v) => handleChange("allow_plus_ones", v)}
         />
 
         <Toggle
@@ -344,7 +345,7 @@ function Toggle({ label, checked, onChange }) {
 }
 
 function Grid({ children }) {
-  return <div className="grid grid-cols-3 gap-3">{children}</div>;
+  return <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{children}</div>;
 }
 
 function formatDate(date) {

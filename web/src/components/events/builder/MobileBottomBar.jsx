@@ -71,27 +71,23 @@ export default function MobileBottomBar({
   const canUndo = useBuilderStore((s) => s._historyIndex > 0);
   const canRedo = useBuilderStore((s) => s._historyIndex < s._history.length - 1);
 
-  const isSubscribed     = useSubscriptionStore((s) => s.isSubscribed);
-  const plan             = useSubscriptionStore((s) => s.plan);
+  const features         = useSubscriptionStore((s) => s.features);
   const openUpgradeModal = useSubscriptionStore((s) => s.openUpgradeModal);
-  const isPremium = isSubscribed && plan === "premium";
+  const lockedTemplates  = features?.lockedTemplates ?? true;
 
   const activeTheme = useMemo(() => {
     const first = sections?.find((s) => s?.config?._theme);
     return first?.config?._theme || "CLASSIC";
   }, [sections]);
 
-  const handleThemeChange = (themeId) => {
-    if (themeId !== "CLASSIC" && !isPremium) { openUpgradeModal("templates"); return; }
-    if (sections?.length) setTheme(eventId, themeId);
-  };
-
-  const handlePresetSelect = async (e) => {
-    const presetKey = e.target.value;
+  const handlePresetSelect = async (presetKey) => {
+    if (lockedTemplates && presetKey !== "CLASSIC") {
+      openUpgradeModal("templates");
+      return;
+    }
     const preset = PAGE_PRESETS[presetKey];
     if (!preset) return;
-    e.target.value = "";
-    const themeId = isPremium && STYLE_META[presetKey] ? presetKey : "CLASSIC";
+    const themeId = STYLE_META[presetKey] ? presetKey : "CLASSIC";
     const sectionsWithTheme = preset.sections.map((s) => ({ type: s, config: { _theme: themeId } }));
     const newSections = await applyPreset(eventId, sectionsWithTheme);
     if (newSections?.length && newSections[0]?.config?._theme !== themeId) {
@@ -171,108 +167,56 @@ export default function MobileBottomBar({
 
               {/* ── STYLE & LAYOUT ── */}
               {activeSheet === "style" && (
-                <div className="flex flex-col gap-5 p-4">
-                  {/* Theme grid */}
-                  <div className="flex flex-col gap-2">
-                    <SheetLabel>Style</SheetLabel>
-                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-                      {Object.entries(STYLE_META).map(([id, meta]) => {
-                        const isActive = activeTheme === id;
-                        const locked   = id !== "CLASSIC" && !isPremium;
-                        return (
-                          <button
-                            key={id}
-                            onClick={() => handleThemeChange(id)}
+                <div className="flex flex-col gap-2 p-4">
+                  <SheetLabel>Layout</SheetLabel>
+                  <div className="flex flex-col gap-1">
+                    {Object.entries(PAGE_PRESETS).map(([k, v]) => {
+                      const locked   = lockedTemplates && k !== "CLASSIC";
+                      const isActive = activeTheme === k;
+                      const meta     = STYLE_META[k];
+                      return (
+                        <button
+                          key={k}
+                          onClick={() => handlePresetSelect(k)}
+                          className="flex items-center gap-2.5 w-full text-left rounded-md px-3 py-2 transition-colors"
+                          style={{
+                            background: isActive ? "rgba(108,111,238,0.12)" : "#1e2026",
+                            border: `1px solid ${isActive ? "rgba(108,111,238,0.4)" : "rgba(255,255,255,0.07)"}`,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {meta && (
+                            <div
+                              style={{
+                                width: 10, height: 10, borderRadius: "50%", flexShrink: 0,
+                                background: meta.preview.accent,
+                                opacity: locked ? 0.4 : 1,
+                              }}
+                            />
+                          )}
+                          <span
                             style={{
-                              border: `1px solid ${isActive ? meta.preview.accent : "rgba(255,255,255,0.06)"}`,
-                              borderRadius: 9,
-                              overflow: "hidden",
-                              cursor: "pointer",
-                              boxShadow: isActive
-                                ? `0 0 0 1px ${meta.preview.accent}50, 0 0 16px ${meta.preview.accent}25`
-                                : "none",
-                              transition: "all 0.18s ease",
-                              background: "transparent",
-                              opacity: locked ? 0.55 : 1,
-                              position: "relative",
+                              flex: 1, fontSize: 12, fontWeight: 500,
+                              color: locked ? "#44495a" : isActive ? "#c4c6ff" : "#c0c4d0",
                             }}
                           >
-                            {/* Hero strip */}
-                            <div style={{ height: 34, background: meta.preview.hero, position: "relative", overflow: "hidden" }}>
-                              <div style={{
-                                position: "absolute", inset: 0,
-                                background: `repeating-linear-gradient(135deg, transparent, transparent 4px, ${meta.preview.accent}08 4px, ${meta.preview.accent}08 8px)`,
-                              }} />
-                              <div style={{ position: "absolute", bottom: 5, left: 6, right: 6 }}>
-                                <div style={{ height: 3, background: "rgba(255,255,255,0.6)", borderRadius: 2, width: "72%", marginBottom: 2 }} />
-                                <div style={{ height: 2, background: meta.preview.accent, opacity: 0.85, borderRadius: 2, width: "44%" }} />
-                              </div>
-                              {locked && (
-                                <div style={{
-                                  position: "absolute", top: 4, right: 4,
-                                  background: "rgba(0,0,0,0.6)",
-                                  borderRadius: 4, padding: "2px 4px",
-                                  display: "flex", alignItems: "center",
-                                }}>
-                                  <LockClosedIcon style={{ width: 9, height: 9, color: "#f0c060" }} />
-                                </div>
-                              )}
-                            </div>
-                            {/* Content strip */}
-                            <div style={{ background: meta.preview.bg, padding: "4px 6px 5px" }}>
-                              <div style={{ height: 2, background: "rgba(0,0,0,0.2)", borderRadius: 1, width: "88%", marginBottom: 2 }} />
-                              <div style={{ height: 2, background: "rgba(0,0,0,0.12)", borderRadius: 1, width: "60%" }} />
-                            </div>
-                            {/* Label */}
-                            <div style={{
-                              background: isActive ? `${meta.preview.hero}ee` : "#1a1b1f",
-                              padding: "3px 4px",
-                              fontSize: 9,
-                              textAlign: "center",
-                              color: isActive ? meta.preview.accent : "#4a5060",
-                              fontWeight: 700,
-                              letterSpacing: "0.07em",
-                              textTransform: "uppercase",
-                            }}>
-                              {meta.label}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {!isPremium && (
-                      <p style={{ fontSize: 11, color: "#44495a", lineHeight: 1.5 }}>
-                        Classic is free. Upgrade to unlock all styles.
-                      </p>
-                    )}
+                            {v.label}
+                          </span>
+                          <span style={{ fontSize: 10, color: "#44495a" }}>
+                            {v.sections.length} blocks
+                          </span>
+                          {locked && (
+                            <LockClosedIcon style={{ width: 11, height: 11, color: "#f0c060", flexShrink: 0 }} />
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
-
-                  {/* Layout presets */}
-                  <div className="flex flex-col gap-2">
-                    <SheetLabel>Layout</SheetLabel>
-                    <select
-                      defaultValue=""
-                      onChange={handlePresetSelect}
-                      className="w-full rounded-xl px-4 py-3 text-sm"
-                      style={{
-                        background: "#1e2026",
-                        border: "1px solid rgba(255,255,255,0.1)",
-                        color: "#f0f1f3",
-                      }}
-                    >
-                      <option value="" disabled>Apply a preset layout…</option>
-                      {Object.entries(PAGE_PRESETS).map(([k, v]) => (
-                        <option key={k} value={k}>
-                          {v.label}{k !== "CLASSIC" && !isPremium ? " (Classic style)" : ""}
-                        </option>
-                      ))}
-                    </select>
-                    {!isPremium && (
-                      <p style={{ fontSize: 11, color: "#44495a", lineHeight: 1.5 }}>
-                        All layouts available. Premium styles apply only for Pro users.
-                      </p>
-                    )}
-                  </div>
+                  {lockedTemplates && (
+                    <p style={{ fontSize: 10, color: "#44495a", lineHeight: 1.5, marginTop: 2 }}>
+                      Classic is free. Upgrade to Starter to unlock all layouts and styles.
+                    </p>
+                  )}
                 </div>
               )}
 

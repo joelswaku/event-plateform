@@ -24,8 +24,14 @@ router.post("/events/:eventId/page/publish", controller.publishEventPage);
 router.post("/events/:eventId/page/unpublish", controller.unpublishEventPage);
 router.get("/events/:eventId/page/preview", controller.getPreviewEventPage);
 
+router.get("/events/:eventId/schedule-items", controller.listScheduleItems);
 router.post("/events/:eventId/schedule-items", controller.createScheduleItem);
+router.patch("/events/:eventId/schedule-items/:itemId", controller.updateScheduleItem);
+router.delete("/events/:eventId/schedule-items/:itemId", controller.deleteScheduleItem);
+router.get("/events/:eventId/speakers", controller.listSpeakers);
 router.post("/events/:eventId/speakers", controller.createSpeaker);
+router.patch("/events/:eventId/speakers/:speakerId", controller.updateSpeaker);
+router.delete("/events/:eventId/speakers/:speakerId", controller.deleteSpeaker);
 router.post("/events/:eventId/media", controller.uploadEventMedia);
 router.post("/events/:eventId/theme/select", controller.selectEventTheme);
 

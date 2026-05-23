@@ -146,15 +146,32 @@ export default function ContactsPickerScreen() {
     setSaving(true);
     const toAdd = contacts.filter(c => selected.has(c.id));
     let added = 0;
+    let hitLimit = false;
     for (const c of toAdd) {
       const res = await createGuest(eventId, {
         full_name: c.name,
         email:     c.email ?? undefined,
         phone:     c.phone ?? undefined,
       });
-      if (res.success) added++;
+      if (res.success) {
+        added++;
+      } else if (res.code === 'PLAN_LIMIT_GUESTS') {
+        hitLimit = true;
+        break;
+      }
     }
     setSaving(false);
+    if (hitLimit) {
+      Alert.alert(
+        'Guest Limit Reached',
+        `Added ${added} guest${added !== 1 ? 's' : ''} before hitting your plan limit. Upgrade to add more.`,
+        [
+          { text: 'Not now', style: 'cancel', onPress: () => router.back() },
+          { text: 'Upgrade', style: 'default', onPress: () => router.replace('/profile/billing' as never) },
+        ]
+      );
+      return;
+    }
     Toast.show({
       type: 'success',
       text1: `${added} guest${added !== 1 ? 's' : ''} added`,

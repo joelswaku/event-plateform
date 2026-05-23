@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import api from '@/lib/api';
 import { Event, EventDashboard, EventCreatePayload } from '@/types';
+import { useBuilderStore } from '@/store/builder.store';
 
 interface EventState {
   events:        Event[];
@@ -116,6 +117,25 @@ export const useEventStore = create<EventState>((set, get) => ({
           events:       patchStatus(s.events, id, event.status),
           currentEvent: s.currentEvent?.id === id ? event : s.currentEvent,
         }));
+
+        // Sync to builder store + trigger WebView reload
+        useBuilderStore.setState((s: any) => {
+          if (!s.builder) return {};
+          return {
+            builder: { ...s.builder, event: { ...(s.builder.event ?? {}), ...event } },
+            saveStatus: 'saving',
+          };
+        });
+        setTimeout(() => {
+          const curr = (useBuilderStore as any).getState();
+          if (curr.saveStatus === 'saving') {
+            (useBuilderStore as any).setState({ saveStatus: 'saved' });
+            setTimeout(() => {
+              const curr2 = (useBuilderStore as any).getState();
+              if (curr2.saveStatus === 'saved') (useBuilderStore as any).setState({ saveStatus: 'idle' });
+            }, 2000);
+          }
+        }, 50);
       }
       return { success: true };
     } catch (err) {

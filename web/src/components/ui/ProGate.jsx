@@ -28,7 +28,7 @@ import { useSubscriptionStore } from "@/store/subscription.store";
 // ── Shared upgrade trigger ────────────────────────────────────────────────────
 function useGate(feature) {
   const { isSubscribed, plan, openUpgradeModal } = useSubscriptionStore();
-  const isPremium = isSubscribed && plan === "premium";
+  const isPremium = isSubscribed && plan !== "free";
   const trigger   = () => openUpgradeModal(feature);
   return { isPremium, trigger };
 }

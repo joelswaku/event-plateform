@@ -1,3 +1,4 @@
+
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -11,6 +12,9 @@ export const env = {
   CORS_ORIGIN: process.env.CORS_ORIGIN || "http://localhost:3000",
 
   frontendUrl: process.env.FRONTEND_URL || "http://localhost:3000",
+
+  /* Resend — transactional email (preferred) */
+  resendApiKey: process.env.RESEND_API_KEY || "",
 
   /* Brevo — Email via SMTP relay */
   brevoSmtpLogin: process.env.BREVO_SMTP_LOGIN || "",  // your Brevo account email

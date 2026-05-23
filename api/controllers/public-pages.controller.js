@@ -1,5 +1,20 @@
 import * as service from "../services/public-pages.service.js";
 
+export async function checkEventSlug(req, res) {
+  try {
+    const result = await service.checkEventSlugService({
+      slug: req.params.slug,
+      invitationToken: req.query.token || null,
+    });
+    return res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Failed to check event",
+    });
+  }
+}
+
 export async function getPublicEventPageBySlug(req, res) {
   try {
     const data = await service.getPublicEventPageBySlugService({

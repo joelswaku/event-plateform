@@ -84,7 +84,7 @@ export async function getPublicEventPageBySlugService({ slug }) {
   }
 }
 
-// ── Invited guest endpoint — PRIVATE events with valid invitation token ───────
+// ── Invited guest endpoint — any visibility, valid invitation token required ──
 export async function getInvitedEventPageBySlugService({ slug, invitationToken }) {
   if (!invitationToken) {
     throw new AppError("Invitation token is required", 400);
@@ -93,20 +93,22 @@ export async function getInvitedEventPageBySlugService({ slug, invitationToken }
   const client = await db.connect();
 
   try {
+    // Fetch the event regardless of visibility or page status —
+    // the invitation token is the access credential, not the page status.
+    // Archived/cancelled events are excluded as they are no longer active.
     const eventRes = await client.query(
       `SELECT e.*
        FROM events e
-       INNER JOIN event_pages ep ON ep.event_id = e.id
        WHERE e.slug = $1
          AND e.deleted_at IS NULL
-         AND ep.page_status = 'PUBLISHED'
+         AND e.status NOT IN ('ARCHIVED', 'CANCELLED')
        LIMIT 1`,
       [slug]
     );
 
     const event = eventRes.rows[0];
     if (!event) {
-      throw new AppError("Event not found or not yet published", 404);
+      throw new AppError("Event not found", 404);
     }
 
     // Validate the invitation token belongs to this event
@@ -168,6 +170,56 @@ export async function getPreviewEventPageBySlugService({ slug, userId, organizat
       ...(await loadEventPageData(client, event)),
       isPreview: true,
     };
+  } finally {
+    client.release();
+  }
+}
+
+// ── Slug status check — reveals only availability reason, no private content ──
+export async function checkEventSlugService({ slug, invitationToken }) {
+  const client = await db.connect();
+  try {
+    const res = await client.query(
+      `SELECT e.id, e.visibility, e.status, e.deleted_at
+       FROM events e
+       WHERE e.slug = $1
+       LIMIT 1`,
+      [slug]
+    );
+
+    if (!res.rows[0] || res.rows[0].deleted_at) {
+      return { exists: false };
+    }
+
+    const row = res.rows[0];
+
+    if (row.status === "ARCHIVED" || row.status === "CANCELLED") {
+      return { exists: false };
+    }
+
+    // If the caller supplied a token, check whether it's valid for this event.
+    // This lets us give a precise error ("invalid token") vs generic "private".
+    if (invitationToken) {
+      const tokenRes = await client.query(
+        `SELECT gi.id FROM guest_invitations gi
+         WHERE gi.invitation_token = $1
+           AND gi.event_id = $2
+           AND gi.deleted_at IS NULL
+         LIMIT 1`,
+        [invitationToken, row.id]
+      );
+      if (!tokenRes.rows[0]) {
+        return { exists: true, reason: "invalid_token" };
+      }
+      // Token is valid but something else blocked the load (edge case)
+      return { exists: true, reason: "not_published" };
+    }
+
+    if (row.visibility !== "PUBLIC") {
+      return { exists: true, reason: "private" };
+    }
+
+    return { exists: true, reason: "not_published" };
   } finally {
     client.release();
   }

@@ -834,9 +834,15 @@ export default function ThemedNav({ event, sections, themeKey, isEditor = false 
   const navLinks = useMemo(
     () =>
       sections
-        .filter((s) => s.is_visible !== false && NAV_LABELS[s.section_type])
+        .filter((s) => {
+          if (s.is_visible === false) return false;
+          if (!NAV_LABELS[s.section_type]) return false;
+          if (s.section_type === "CTA"     && !event?.allow_rsvp)      return false;
+          if (s.section_type === "TICKETS" && !event?.allow_ticketing)  return false;
+          return true;
+        })
         .map((s) => ({ id: `s-${s.id}`, label: NAV_LABELS[s.section_type] })),
-    [sections]
+    [sections, event?.allow_rsvp, event?.allow_ticketing]
   );
 
   const openMenu  = useCallback(() => setMenuOpen(true),  []);

@@ -8,7 +8,7 @@ export default function ThemeInit() {
       const s = localStorage.getItem("theme");
       const m = window.matchMedia("(prefers-color-scheme: dark)").matches;
 
-      if (s === "dark" || (!s && m)) {
+      if (s === "dark" || (s === "system" && m) || (!s && m)) {
         document.documentElement.classList.add("dark");
       } else {
         document.documentElement.classList.remove("dark");

@@ -13,7 +13,7 @@ import React, { useEffect, useCallback, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable, RefreshControl,
   ActivityIndicator, Dimensions, Animated, NativeSyntheticEvent,
-  NativeScrollEvent,
+  NativeScrollEvent, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -28,6 +28,7 @@ import { useSubscriptionStore } from '@/store/subscription.store';
 import { useNotificationStore } from '@/store/notification.store';
 import { Colors }               from '@/constants/colors';
 import { Event }                from '@/types';
+import Toast                    from 'react-native-toast-message';
 
 const { width: SW } = Dimensions.get('window');
 const CARD_W        = SW - 40; // carousel card width
@@ -71,66 +72,455 @@ const QUICK = [
 ];
 
 
+/* ─── Switch Event Confirm Modal ──────────────────────────────────── */
+function SwitchEventModal({
+  event,
+  onConfirm,
+  onCancel,
+}: {
+  event: Event | null;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Modal
+      visible={!!event}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={onCancel}
+    >
+      <View style={sw.overlay}>
+        <View style={sw.sheet}>
+          {/* Icon bubble */}
+          <View style={sw.iconBubble}>
+            <Feather name="zap" size={22} color={Colors.accent.indigo} />
+          </View>
+
+          {/* Heading */}
+          <Text style={sw.title}>Switch Active Event?</Text>
+
+          {/* Event name */}
+          <View style={sw.eventNameRow}>
+            <Feather name="calendar" size={13} color={Colors.text.muted} />
+            <Text style={sw.eventName} numberOfLines={2}>{event?.title}</Text>
+          </View>
+
+          {/* Body */}
+          <Text style={sw.body}>
+            The scanner, builder, and guest tools will switch to this event.
+            Any in-progress actions on the current event will not be affected.
+          </Text>
+
+          {/* Buttons */}
+          <Pressable style={sw.confirmBtn} onPress={onConfirm}>
+            <LinearGradient
+              colors={[Colors.accent.indigo, '#818cf8']}
+              style={StyleSheet.absoluteFill}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            />
+            <Feather name="check-circle" size={15} color="#fff" />
+            <Text style={sw.confirmTxt}>Yes, Switch Event</Text>
+          </Pressable>
+
+          <Pressable style={sw.cancelBtn} onPress={onCancel}>
+            <Text style={sw.cancelTxt}>Cancel</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const sw = StyleSheet.create({
+  overlay: {
+    flex:            1,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    alignItems:      'center',
+    justifyContent:  'center',
+    padding:         24,
+  },
+  sheet: {
+    width:           '100%',
+    backgroundColor: Colors.bg.card,
+    borderRadius:    24,
+    borderWidth:     1,
+    borderColor:     Colors.border.DEFAULT,
+    padding:         24,
+    alignItems:      'center',
+    gap:             12,
+  },
+  iconBubble: {
+    width:           56,
+    height:          56,
+    borderRadius:    16,
+    backgroundColor: `${Colors.accent.indigo}18`,
+    borderWidth:     1,
+    borderColor:     `${Colors.accent.indigo}30`,
+    alignItems:      'center',
+    justifyContent:  'center',
+    marginBottom:    4,
+  },
+  title: {
+    fontSize:      20,
+    fontWeight:    '800',
+    color:         Colors.text.primary,
+    letterSpacing: -0.4,
+    textAlign:     'center',
+  },
+  eventNameRow: {
+    flexDirection:    'row',
+    alignItems:       'center',
+    gap:              7,
+    backgroundColor:  Colors.bg.elevated,
+    borderRadius:     10,
+    borderWidth:      1,
+    borderColor:      Colors.border.subtle,
+    paddingHorizontal:12,
+    paddingVertical:  9,
+    alignSelf:        'stretch',
+  },
+  eventName: {
+    flex:       1,
+    fontSize:   13,
+    fontWeight: '700',
+    color:      Colors.text.secondary,
+  },
+  body: {
+    fontSize:   13,
+    fontWeight: '500',
+    color:      Colors.text.muted,
+    textAlign:  'center',
+    lineHeight: 19,
+  },
+  confirmBtn: {
+    flexDirection:    'row',
+    alignItems:       'center',
+    justifyContent:   'center',
+    gap:              8,
+    borderRadius:     14,
+    overflow:         'hidden',
+    paddingVertical:  15,
+    alignSelf:        'stretch',
+    marginTop:        4,
+  },
+  confirmTxt: {
+    fontSize:   15,
+    fontWeight: '800',
+    color:      '#fff',
+    letterSpacing: -0.2,
+  },
+  cancelBtn: {
+    paddingVertical: 10,
+    alignSelf:       'stretch',
+    alignItems:      'center',
+  },
+  cancelTxt: {
+    fontSize:   14,
+    fontWeight: '600',
+    color:      Colors.text.muted,
+  },
+});
+
+/* ─── Upgrade Plan Modal ───────────────────────────────────────────
+   Compact bottom-sheet shown when tapping the upgrade banner.
+   Free users see Starter + Pro tiles side by side.
+   Starter users see only the Pro tile.
+─────────────────────────────────────────────────────────────────── */
+const PLAN_TILES = {
+  starter: {
+    label:    'Starter',
+    price:    '$19',
+    gradFrom: '#4f46e5',
+    gradTo:   '#818cf8',
+    shadow:   'rgba(99,102,241,0.40)',
+    ctaColor: '#fff',
+    perks:    ['5 events', '500 guests / event', 'All themes', 'Ticket selling'],
+  },
+  pro: {
+    label:    'Pro',
+    price:    '$49',
+    gradFrom: '#c9a96e',
+    gradTo:   '#f59e0b',
+    shadow:   'rgba(201,169,110,0.40)',
+    ctaColor: '#000',
+    perks:    ['Unlimited events', 'Unlimited guests', 'Custom domain', 'Priority support'],
+  },
+} as const;
+
+function UpgradePlanModal({
+  visible,
+  plan,
+  eventsUsed,
+  eventsLimit,
+  onClose,
+  onBilling,
+}: {
+  visible:     boolean;
+  plan:        'free' | 'starter' | 'pro' | 'enterprise';
+  eventsUsed:  number;
+  eventsLimit: number | null;
+  onClose:     () => void;
+  onBilling:   () => void;
+}) {
+  const isFree    = plan === 'free' || !plan;
+  const isStarter = plan === 'starter';
+  if (!isFree && !isStarter) return null;
+
+  const tiles = isFree
+    ? [PLAN_TILES.starter, PLAN_TILES.pro]
+    : [PLAN_TILES.pro];
+
+  const usePct = eventsLimit ? Math.min((eventsUsed / eventsLimit) * 100, 100) : 0;
+  const accent = isFree ? Colors.accent.indigo : Colors.accent.amber;
+  const planLabel = isFree ? 'Free Plan' : 'Starter Plan';
+  const tagline   = isFree
+    ? 'Limited to 1 event & 50 guests. Unlock the full platform.'
+    : 'Ready for unlimited? Pro removes all limits.';
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
+      {/* Tap-outside overlay */}
+      <Pressable style={um.overlay} onPress={onClose}>
+        {/* Sheet — stops touch propagation */}
+        <Pressable style={um.sheet} onPress={(e) => e.stopPropagation()}>
+
+          {/* Drag handle */}
+          <View style={um.handle} />
+
+          {/* Header row */}
+          <View style={um.headerRow}>
+            <View style={[um.planBadge, { backgroundColor: `${accent}18`, borderColor: `${accent}30` }]}>
+              <Feather name="zap" size={12} color={accent} />
+              <Text style={[um.planBadgeTxt, { color: accent }]}>{planLabel}</Text>
+            </View>
+            <Pressable onPress={onClose} hitSlop={12} style={um.closeBtn}>
+              <Feather name="x" size={18} color={Colors.text.muted} />
+            </Pressable>
+          </View>
+
+          {/* Tagline */}
+          <Text style={um.tagline}>{tagline}</Text>
+
+          {/* Usage bar */}
+          {eventsLimit != null && (
+            <View style={um.usageRow}>
+              <Text style={um.usageTxt}>{eventsUsed}/{eventsLimit} events used</Text>
+              <View style={um.usageTrack}>
+                <View
+                  style={[
+                    um.usageFill,
+                    {
+                      width: `${usePct}%` as any,
+                      backgroundColor: usePct >= 90 ? '#ef4444' : accent,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          )}
+
+          {/* Plan tiles */}
+          <View style={[um.tilesRow, tiles.length === 1 && um.tilesRowSingle]}>
+            {tiles.map((t) => (
+              <View
+                key={t.label}
+                style={[
+                  um.tile,
+                  tiles.length === 1 && um.tileFull,
+                  { borderColor: `${t.gradFrom}40` },
+                ]}
+              >
+                {/* Ambient glow */}
+                <LinearGradient
+                  colors={[`${t.gradFrom}12`, `${t.gradTo}06`]}
+                  style={StyleSheet.absoluteFill}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                />
+
+                {/* Plan header */}
+                <View style={um.tileHeader}>
+                  <View style={[um.tileIcon, { shadowColor: t.shadow }]}>
+                    <LinearGradient
+                      colors={[t.gradFrom, t.gradTo]}
+                      style={StyleSheet.absoluteFill}
+                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                    />
+                    <Feather name="star" size={12} color="#fff" />
+                  </View>
+                  <Text style={um.tileName}>{t.label}</Text>
+                  <Text style={um.tilePrice}>
+                    {t.price}<Text style={um.tilePeriod}>/mo</Text>
+                  </Text>
+                </View>
+
+                {/* Perks */}
+                {t.perks.map((p) => (
+                  <View key={p} style={um.perkRow}>
+                    <View style={[um.perkDot, { backgroundColor: `${t.gradFrom}30` }]}>
+                      <Feather name="check" size={8} color={t.gradFrom} />
+                    </View>
+                    <Text style={um.perkTxt} numberOfLines={1}>{p}</Text>
+                  </View>
+                ))}
+
+                {/* CTA */}
+                <Pressable style={um.tileCta} onPress={onBilling}>
+                  <LinearGradient
+                    colors={[t.gradFrom, t.gradTo]}
+                    style={[StyleSheet.absoluteFill, { borderRadius: 10 }]}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  />
+                  <Feather name="zap" size={12} color={t.ctaColor} />
+                  <Text style={[um.tileCtaTxt, { color: t.ctaColor }]}>
+                    {t.label === 'Pro' && isStarter ? 'Go Pro' : `Get ${t.label}`}
+                  </Text>
+                </Pressable>
+              </View>
+            ))}
+          </View>
+
+          {/* Footer link */}
+          <Pressable onPress={onBilling} style={um.footerLink}>
+            <Text style={um.footerLinkTxt}>See all plans & billing details →</Text>
+          </Pressable>
+
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const um = StyleSheet.create({
+  overlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: Colors.bg.card,
+    borderTopLeftRadius:  24,
+    borderTopRightRadius: 24,
+    borderTopWidth:  1,
+    borderLeftWidth: 1,
+    borderRightWidth:1,
+    borderColor:     Colors.border.DEFAULT,
+    paddingHorizontal: 18,
+    paddingBottom:   28,
+    paddingTop:      12,
+    gap:             12,
+  },
+  handle:     { alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: Colors.border.DEFAULT, marginBottom: 4 },
+  headerRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  planBadge:  { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99, borderWidth: 1 },
+  planBadgeTxt: { fontSize: 11, fontWeight: '800', letterSpacing: 0.2 },
+  closeBtn:   { padding: 4 },
+  tagline:    { fontSize: 12, color: Colors.text.muted, lineHeight: 17 },
+  usageRow:   { gap: 5 },
+  usageTxt:   { fontSize: 11, color: Colors.text.muted, fontWeight: '600' },
+  usageTrack: { height: 4, backgroundColor: Colors.bg.elevated, borderRadius: 2, overflow: 'hidden' },
+  usageFill:  { height: '100%', borderRadius: 2 },
+  tilesRow:   { flexDirection: 'row', gap: 10 },
+  tilesRowSingle: {},
+  tile: {
+    flex: 1, borderRadius: 16, borderWidth: 1, padding: 12,
+    gap: 7, overflow: 'hidden',
+  },
+  tileFull:   { flex: 1 },
+  tileHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
+  tileIcon:   { width: 24, height: 24, borderRadius: 8, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.4, shadowRadius: 6, elevation: 4 },
+  tileName:   { fontSize: 13, fontWeight: '800', color: Colors.text.primary, flex: 1 },
+  tilePrice:  { fontSize: 16, fontWeight: '900', color: Colors.text.primary, letterSpacing: -0.5 },
+  tilePeriod: { fontSize: 10, fontWeight: '500', color: Colors.text.muted },
+  perkRow:    { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  perkDot:    { width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  perkTxt:    { fontSize: 11, color: Colors.text.secondary, flex: 1 },
+  tileCta: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 5, borderRadius: 10, paddingVertical: 9, marginTop: 4,
+    overflow: 'hidden',
+  },
+  tileCtaTxt: { fontSize: 12, fontWeight: '800' },
+  footerLink: { alignItems: 'center', paddingVertical: 2 },
+  footerLinkTxt: { fontSize: 11, color: Colors.text.muted, fontWeight: '600' },
+});
+
 /* ─── Active Event Toggle ──────────────────────────────────────────
    Shows only when user has 2+ events.
-   One tap switches the active event for the ENTIRE app.
+   Tap on an inactive event → confirm modal → switch.
 ─────────────────────────────────────────────────────────────────── */
 function ActiveEventToggle() {
   const { events, activeEventId, setActiveEvent } = useEventStore();
+  const [pending, setPending] = useState<Event | null>(null);
 
   // Only show when there are 2+ events
   if (events.length < 2) return null;
 
+  function handleConfirm() {
+    if (pending) setActiveEvent(pending.id);
+    setPending(null);
+  }
+
   return (
-    <View style={tog.wrap}>
-      <View style={tog.labelRow}>
-        <Feather name="zap" size={10} color={Colors.accent.indigo} />
-        <Text style={tog.label}>ACTIVE EVENT</Text>
-        <Text style={tog.sublabel}>· scanner & builder use this</Text>
-      </View>
+    <>
+      <View style={tog.wrap}>
+        <View style={tog.labelRow}>
+          <Feather name="zap" size={10} color={Colors.accent.indigo} />
+          <Text style={tog.label}>ACTIVE EVENT</Text>
+          <Text style={tog.sublabel}>· scanner & builder use this</Text>
+        </View>
 
-      <View style={tog.pills}>
-        {events.map(ev => {
-          const isActive = ev.id === activeEventId;
-          const cfg      = Colors.status[ev.status as keyof typeof Colors.status]
-                           ?? Colors.status.DRAFT;
-          return (
-            <Pressable
-              key={ev.id}
-              style={[tog.pill, isActive && tog.pillActive]}
-              onPress={() => setActiveEvent(ev.id)}
-            >
-              {/* Active glow */}
-              {isActive && (
-                <LinearGradient
-                  colors={[`${Colors.accent.indigo}25`, `${Colors.accent.indigo}08`]}
-                  style={StyleSheet.absoluteFill}
-                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                />
-              )}
-
-              {/* Status dot */}
-              <View style={[tog.dot, { backgroundColor: cfg.dot }]} />
-
-              {/* Title */}
-              <Text
-                style={[tog.pillTxt, isActive && tog.pillTxtActive]}
-                numberOfLines={1}
+        <View style={tog.pills}>
+          {events.map(ev => {
+            const isActive = ev.id === activeEventId;
+            const cfg      = Colors.status[ev.status as keyof typeof Colors.status]
+                             ?? Colors.status.DRAFT;
+            return (
+              <Pressable
+                key={ev.id}
+                style={[tog.pill, isActive && tog.pillActive]}
+                onPress={() => { if (!isActive) setPending(ev); }}
               >
-                {ev.title}
-              </Text>
+                {/* Active glow */}
+                {isActive && (
+                  <LinearGradient
+                    colors={[`${Colors.accent.indigo}25`, `${Colors.accent.indigo}08`]}
+                    style={StyleSheet.absoluteFill}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  />
+                )}
 
-              {/* Active checkmark */}
-              {isActive && (
-                <View style={tog.check}>
-                  <Feather name="check" size={10} color="#fff" />
-                </View>
-              )}
-            </Pressable>
-          );
-        })}
+                {/* Status dot */}
+                <View style={[tog.dot, { backgroundColor: cfg.dot }]} />
+
+                {/* Title */}
+                <Text
+                  style={[tog.pillTxt, isActive && tog.pillTxtActive]}
+                  numberOfLines={1}
+                >
+                  {ev.title}
+                </Text>
+
+                {/* Active checkmark */}
+                {isActive && (
+                  <View style={tog.check}>
+                    <Feather name="check" size={10} color="#fff" />
+                  </View>
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
-    </View>
+
+      <SwitchEventModal
+        event={pending}
+        onConfirm={handleConfirm}
+        onCancel={() => setPending(null)}
+      />
+    </>
   );
 }
 
@@ -374,7 +764,7 @@ export default function HomeScreen() {
   const user     = useAuthStore(st => st.user);
 
   const { events, fetchEvents, loading, activeEventId, setActiveEvent, dashboard, fetchEventDashboard } = useEventStore();
-  const { isPremium, fetchSubscription } = useSubscriptionStore();
+  const { isPremium, fetchSubscription, plan, usage, limits } = useSubscriptionStore();
   const { unreadCount, fetch: fetchNotifs } = useNotificationStore();
 
   const headerAnim = useRef(new Animated.Value(0)).current;
@@ -383,8 +773,32 @@ export default function HomeScreen() {
   const listAnim   = useRef(new Animated.Value(0)).current;
 
   // Carousel index
-  const [activeIdx, setActiveIdx] = useState(0);
+  const [activeIdx,      setActiveIdx]      = useState(0);
+  const [planModalOpen,  setPlanModalOpen]  = useState(false);
   const carouselRef = useRef<ScrollView>(null);
+
+  // Toast on active-event switch (skip initial mount)
+  const prevActiveRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activeEventId) return;
+    if (prevActiveRef.current === null) {
+      prevActiveRef.current = activeEventId;
+      return;
+    }
+    if (prevActiveRef.current !== activeEventId) {
+      prevActiveRef.current = activeEventId;
+      const ev = events.find(e => e.id === activeEventId);
+      if (ev) {
+        Toast.show({
+          type: 'success',
+          text1: 'Active event switched',
+          text2: ev.title,
+          visibilityTime: 2500,
+          position: 'bottom',
+        });
+      }
+    }
+  }, [activeEventId, events]);
 
   useEffect(() => {
     fetchEvents();
@@ -439,6 +853,17 @@ export default function HomeScreen() {
     return 'Good evening';
   };
 
+  // Pending nav event (recent row tap → confirm switch → navigate)
+  const [pendingNavEvent, setPendingNavEvent] = useState<Event | null>(null);
+
+  function handleConfirmNavEvent() {
+    if (!pendingNavEvent) return;
+    setActiveEvent(pendingNavEvent.id);
+    const id = pendingNavEvent.id;
+    setPendingNavEvent(null);
+    router.push(`/events/${id}` as never);
+  }
+
   const firstName   = user?.full_name?.split(' ')[0] ?? 'there';
   const premiumStatus = isPremium();
   const recent      = events.slice(0, 6);
@@ -459,15 +884,35 @@ export default function HomeScreen() {
     transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
   });
 
+  const [pendingCarouselEvent, setPendingCarouselEvent] = useState<Event | null>(null);
+  const [pendingCarouselIdx,   setPendingCarouselIdx]   = useState(0);
+
   const onCarouselScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const idx = Math.round(e.nativeEvent.contentOffset.x / (CARD_W + 12));
-    setActiveIdx(idx);
-    // Switch active event when user manually scrolls
     const scrolledEvent = events[idx];
     if (scrolledEvent && scrolledEvent.id !== activeEventId) {
-      setActiveEvent(scrolledEvent.id);
+      // Ask for confirmation before switching
+      setPendingCarouselEvent(scrolledEvent);
+      setPendingCarouselIdx(idx);
+    } else {
+      setActiveIdx(idx);
     }
   };
+
+  function handleConfirmCarouselSwitch() {
+    if (!pendingCarouselEvent) return;
+    setActiveEvent(pendingCarouselEvent.id);
+    setActiveIdx(pendingCarouselIdx);
+    setPendingCarouselEvent(null);
+  }
+
+  function handleCancelCarouselSwitch() {
+    // Scroll back to the currently active event position
+    const prevIdx = events.findIndex(e => e.id === activeEventId);
+    const scrollTo = prevIdx >= 0 ? prevIdx : activeIdx;
+    carouselRef.current?.scrollTo({ x: scrollTo * (CARD_W + 12), animated: true });
+    setPendingCarouselEvent(null);
+  }
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -507,14 +952,20 @@ export default function HomeScreen() {
                 </View>
               )}
             </Pressable>
-            <View style={s.avatar}>
-              <LinearGradient
-                colors={[Colors.accent.indigo, Colors.accent.violet]}
-                style={StyleSheet.absoluteFill}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              />
-              <Text style={s.avatarTxt}>{initials}</Text>
-            </View>
+            <Pressable style={s.avatar} onPress={() => router.push('/(tabs)/profile' as never)} hitSlop={8}>
+              {user?.avatar_url ? (
+                <Image source={{ uri: user.avatar_url }} style={StyleSheet.absoluteFill} contentFit="cover" />
+              ) : (
+                <>
+                  <LinearGradient
+                    colors={[Colors.accent.indigo, Colors.accent.violet]}
+                    style={StyleSheet.absoluteFill}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                  />
+                  <Text style={s.avatarTxt}>{initials}</Text>
+                </>
+              )}
+            </Pressable>
           </View>
         </Animated.View>
 
@@ -556,7 +1007,7 @@ export default function HomeScreen() {
                 <Text style={s.upgradeSub}>Unlimited events, custom domains & more</Text>
               </View>
             </View>
-            <Pressable style={s.upgradeCta} onPress={() => router.push('/billing' as never)}>
+            <Pressable style={s.upgradeCta} onPress={() => setPlanModalOpen(true)}>
               <Text style={s.upgradeCtaTxt}>Upgrade</Text>
             </Pressable>
           </Animated.View>
@@ -636,7 +1087,7 @@ export default function HomeScreen() {
                 <RecentRow
                   key={ev.id}
                   event={ev}
-                  onPress={() => router.push(`/events/${ev.id}` as never)}
+                  onPress={() => setPendingNavEvent(ev)}
                 />
               ))}
             </View>
@@ -644,6 +1095,33 @@ export default function HomeScreen() {
         )}
 
       </ScrollView>
+
+      {/* Recent row → switch event confirmation */}
+      <SwitchEventModal
+        event={pendingNavEvent}
+        onConfirm={handleConfirmNavEvent}
+        onCancel={() => setPendingNavEvent(null)}
+      />
+
+      {/* Carousel swipe -> switch event confirmation */}
+      <SwitchEventModal
+        event={pendingCarouselEvent}
+        onConfirm={handleConfirmCarouselSwitch}
+        onCancel={handleCancelCarouselSwitch}
+      />
+
+      {/* Upgrade plan modal */}
+      <UpgradePlanModal
+        visible={planModalOpen}
+        plan={plan}
+        eventsUsed={usage?.events ?? 0}
+        eventsLimit={limits?.events ?? null}
+        onClose={() => setPlanModalOpen(false)}
+        onBilling={() => {
+          setPlanModalOpen(false);
+          router.push('/profile/billing' as never);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -743,743 +1221,3 @@ const s = StyleSheet.create({
   emptyBtn:    { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 24, paddingVertical: 14, borderRadius: 16, overflow: 'hidden', marginTop: 8 },
   emptyBtnTxt: { fontSize: 15, fontWeight: '800', color: '#fff' },
 });
-
-
-
-
-
-
-
-// /**
-//  * eventapp-mobile/app/(tabs)/index.tsx
-//  * ─────────────────────────────────────
-//  * REDESIGNED — professional-grade home screen
-//  * All data logic preserved. UI layer fully rebuilt.
-//  */
-
-// import React, { useEffect, useCallback, useRef, useState } from 'react';
-// import {
-//   View, Text, ScrollView, StyleSheet, Pressable, RefreshControl,
-//   ActivityIndicator, Dimensions, Animated, FlatList,
-// } from 'react-native';
-// import { SafeAreaView } from 'react-native-safe-area-context';
-// import { useRouter } from 'expo-router';
-// import { Feather } from '@expo/vector-icons';
-// import { LinearGradient } from 'expo-linear-gradient';
-// import { Image } from 'expo-image';
-// import { useAuthStore }   from '@/store/auth.store';
-// import { useEventStore }  from '@/store/event.store';
-// import { useDrawerStore } from '@/store/drawer.store';
-// import { StatusBadge }    from '@/components/ui/Badge';
-// import { Colors }         from '@/constants/colors';
-// import { Event }          from '@/types';
-
-// const { width: SW } = Dimensions.get('window');
-// const CARD_W = SW - 48;
-
-// /* ─── Fallback images per event type ──────────────────────────────── */
-// const EVENT_IMG: Record<string, string> = {
-//   wedding:         'https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80',
-//   conference:      'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=80',
-//   birthday:        'https://images.unsplash.com/photo-1527529482837-4698179dc6ce?w=800&q=80',
-//   concert:         'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=800&q=80',
-//   festival:        'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=800&q=80',
-//   corporate_event: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&q=80',
-//   networking:      'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=800&q=80',
-//   charity:         'https://images.unsplash.com/photo-1617196034183-421b4040ed20?w=800&q=80',
-// };
-// const DEFAULT_IMG = 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&q=80';
-
-// function heroImg(ev: Event | null): string {
-//   if (!ev) return DEFAULT_IMG;
-//   if (ev.cover_image_url) return ev.cover_image_url;
-//   const key = ev.event_type?.toLowerCase();
-//   return key && EVENT_IMG[key] ? EVENT_IMG[key] : DEFAULT_IMG;
-// }
-
-// function fmtDate(iso: string | null | undefined): string {
-//   if (!iso) return '—';
-//   try {
-//     return new Date(iso).toLocaleDateString('en-US', {
-//       weekday: 'short', month: 'short', day: 'numeric',
-//     });
-//   } catch { return '—'; }
-// }
-
-// /* ─── Quick actions config ─────────────────────────────────────────── */
-// const QUICK = [
-//   { icon: 'plus-circle' as const, label: 'Create',  route: '/events/create',  accent: Colors.accent.indigo, grad: ['#4f46e5', '#6366f1'] as const },
-//   { icon: 'layout'      as const, label: 'Builder', route: '/(tabs)/builder', accent: Colors.accent.cyan,   grad: ['#0891b2', '#06b6d4'] as const },
-//   { icon: 'camera'      as const, label: 'Scanner', route: '/(tabs)/scanner', accent: Colors.accent.emerald,grad: ['#059669', '#10b981'] as const },
-//   { icon: 'credit-card' as const, label: 'Tickets', route: '/my-tickets',     accent: Colors.accent.amber,  grad: ['#d97706', '#f59e0b'] as const },
-// ];
-
-// // /* ─── Stat tile ────────────────────────────────────────────────────── */
-// // function StatTile({ value, label, icon, accent }: {
-// //   value: number | string; label: string;
-// //   icon: keyof typeof Feather.glyphMap; accent: string;
-// // }) {
-// //   return (
-// //     <View style={[styles.statTile, { borderColor: `${accent}22` }]}>
-// //       <LinearGradient
-// //         colors={[`${accent}18`, `${accent}06`]}
-// //         style={StyleSheet.absoluteFill}
-// //         start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-// //       />
-// //       <View style={[styles.statIcon, { backgroundColor: `${accent}20` }]}>
-// //         <Feather name={icon} size={14} color={accent} />
-// //       </View>
-// //       <Text style={[styles.statValue, { color: accent }]}>{value}</Text>
-// //       <Text style={styles.statLabel}>{label}</Text>
-// //     </View>
-// //   );
-// // }
-
-// // ─── UPDATED StatTile component ───────────────────────────────────
-// function StatTile({
-//   value, label, icon, accent,
-// }: { value: string | number; label: string; icon: string; accent: string }) {
-//   return (
-//     <View style={[styles.statTile, { borderColor: `${accent}25` }]}>
-//       <LinearGradient
-//         colors={[`${accent}18`, `${accent}08`]}
-//         style={StyleSheet.absoluteFill}
-//         start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-//       />
-//       <View style={[styles.statIcon, { backgroundColor: `${accent}20` }]}>
-//         <Feather name={icon as any} size={14} color={accent} />
-//       </View>
-//       <Text style={[styles.statValue, { color: accent }]} numberOfLines={1} adjustsFontSizeToFit>
-//         {value}
-//       </Text>
-//       <Text style={styles.statLabel} numberOfLines={1}>{label}</Text>
-//       {/* <Text style={[styles.tabLabel, { color }]} numberOfLines={1}>{label}</Text> */}
-//     </View>
-//   );
-// }
-
-// /* ─── Featured event hero card ─────────────────────────────────────── */
-// function FeaturedCard({ event, onPress }: { event: Event; onPress: () => void }) {
-//   const statusCfg = Colors.status[event.status as keyof typeof Colors.status] ?? Colors.status.DRAFT;
-
-//   return (
-//     <Pressable onPress={onPress} style={styles.featuredCard}>
-//       <Image
-//         source={heroImg(event)}
-//         style={StyleSheet.absoluteFill}
-//         contentFit="cover"
-//         transition={300}
-//       />
-//       {/* Dark gradient overlay */}
-//       <LinearGradient
-//         colors={['transparent', 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.88)']}
-//         style={StyleSheet.absoluteFill}
-//         start={{ x: 0, y: 0.2 }} end={{ x: 0, y: 1 }}
-//       />
-//       {/* Top row */}
-//       <View style={styles.featuredTop}>
-//         <View style={[styles.livePill, { backgroundColor: `${statusCfg.bg}` }]}>
-//           <View style={[styles.liveDot, { backgroundColor: statusCfg.dot }]} />
-//           <Text style={[styles.liveTxt, { color: statusCfg.text }]}>
-//             {event.status.charAt(0) + event.status.slice(1).toLowerCase()}
-//           </Text>
-//         </View>
-//         <View style={styles.featuredTopRight}>
-//           <Feather name="arrow-right" size={14} color="rgba(255,255,255,0.6)" />
-//         </View>
-//       </View>
-
-//       {/* Bottom content */}
-//       <View style={styles.featuredBottom}>
-//         <Text style={styles.featuredTitle} numberOfLines={2}>{event.title}</Text>
-//         <View style={styles.featuredMeta}>
-//           <View style={styles.featuredMetaRow}>
-//             <Feather name="calendar" size={11} color="rgba(255,255,255,0.55)" />
-//             <Text style={styles.featuredMetaTxt}>
-//               {fmtDate(event.starts_at_utc ?? event.starts_at)}
-//             </Text>
-//           </View>
-//           {event.location && (
-//             <View style={styles.featuredMetaRow}>
-//               <Feather name="map-pin" size={11} color="rgba(255,255,255,0.55)" />
-//               <Text style={styles.featuredMetaTxt} numberOfLines={1}>{event.location}</Text>
-//             </View>
-//           )}
-//         </View>
-//       </View>
-//     </Pressable>
-//   );
-// }
-
-// /* ─── Recent event row card ────────────────────────────────────────── */
-// function RecentEventCard({ event, onPress }: { event: Event; onPress: () => void }) {
-//   const statusCfg = Colors.status[event.status as keyof typeof Colors.status] ?? Colors.status.DRAFT;
-
-//   return (
-//     <Pressable onPress={onPress} style={styles.recentCard}>
-//       {/* Thumbnail */}
-//       <View style={styles.recentThumb}>
-//         <Image
-//           source={heroImg(event)}
-//           style={StyleSheet.absoluteFill}
-//           contentFit="cover"
-//           transition={200}
-//         />
-//         <LinearGradient
-//           colors={['transparent', 'rgba(0,0,0,0.5)']}
-//           style={StyleSheet.absoluteFill}
-//         />
-//       </View>
-
-//       {/* Info */}
-//       <View style={styles.recentInfo}>
-//         <Text style={styles.recentTitle} numberOfLines={1}>{event.title}</Text>
-//         <View style={styles.recentDateRow}>
-//           <Feather name="calendar" size={10} color={Colors.text.subtle} />
-//           <Text style={styles.recentDate}>
-//             {fmtDate(event.starts_at_utc ?? event.starts_at)}
-//           </Text>
-//         </View>
-//         <View style={[styles.recentStatusPill, { backgroundColor: statusCfg.bg }]}>
-//           <Text style={[styles.recentStatusTxt, { color: statusCfg.text }]}>
-//             {event.status.charAt(0) + event.status.slice(1).toLowerCase()}
-//           </Text>
-//         </View>
-//       </View>
-
-//       {/* Arrow */}
-//       <View style={styles.recentArrow}>
-//         <Feather name="chevron-right" size={16} color={Colors.text.subtle} />
-//       </View>
-//     </Pressable>
-//   );
-// }
-
-// /* ─── Empty state ──────────────────────────────────────────────────── */
-// function EmptyEvents({ onPress }: { onPress: () => void }) {
-//   return (
-//     <View style={styles.emptyWrap}>
-//       <LinearGradient
-//         colors={[`${Colors.accent.indigo}18`, `${Colors.accent.violet}08`]}
-//         style={[StyleSheet.absoluteFill, { borderRadius: 24 }]}
-//       />
-//       <View style={styles.emptyIconWrap}>
-//         <LinearGradient
-//           colors={[Colors.accent.indigo, Colors.accent.violet]}
-//           style={StyleSheet.absoluteFill}
-//           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-//         />
-//         <Feather name="calendar" size={28} color="#fff" />
-//       </View>
-//       <Text style={styles.emptyTitle}>Your first event awaits</Text>
-//       <Text style={styles.emptySub}>
-//         Join thousands of organizers using EventApp to run seamless events — from gatherings to conferences.
-//       </Text>
-//       <Pressable onPress={onPress} style={styles.emptyBtn}>
-//         <LinearGradient
-//           colors={[Colors.accent.indigo, Colors.accent.violet]}
-//           style={StyleSheet.absoluteFill}
-//           start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-//         />
-//         <Feather name="plus" size={16} color="#fff" />
-//         <Text style={styles.emptyBtnTxt}>Create your first event</Text>
-//       </Pressable>
-//       <View style={styles.emptyBadges}>
-//         {['Free to start', 'QR Check-in', 'Ticketing'].map(b => (
-//           <View key={b} style={styles.emptyBadge}>
-//             <Feather name="check" size={10} color={Colors.accent.emerald} />
-//             <Text style={styles.emptyBadgeTxt}>{b}</Text>
-//           </View>
-//         ))}
-//       </View>
-//     </View>
-//   );
-// }
-
-// /* ─── Main screen ──────────────────────────────────────────────────── */
-// export default function HomeScreen() {
-//   const router  = useRouter();
-//   const user    = useAuthStore(s => s.user);
-//   const { events, fetchEvents, loading } = useEventStore();
-
-//   // Entrance animation values
-//   const headerAnim = useRef(new Animated.Value(0)).current;
-//   const statsAnim  = useRef(new Animated.Value(0)).current;
-//   const quickAnim  = useRef(new Animated.Value(0)).current;
-//   const listAnim   = useRef(new Animated.Value(0)).current;
-
-//   useEffect(() => {
-//     fetchEvents();
-//     const seq = (val: Animated.Value, delay: number) =>
-//       Animated.timing(val, { toValue: 1, duration: 420, delay, useNativeDriver: true });
-
-//     Animated.sequence([
-//       seq(headerAnim, 0),
-//       seq(statsAnim,  60),
-//       seq(quickAnim,  120),
-//       seq(listAnim,   180),
-//     ]).start();
-//   }, []);
-
-//   const onRefresh = useCallback(() => fetchEvents(), []);
-
-//   const greeting = () => {
-//     const h = new Date().getHours();
-//     if (h < 12) return 'Good morning';
-//     if (h < 17) return 'Good afternoon';
-//     return 'Good evening';
-//   };
-
-//   const firstName = user?.full_name?.split(' ')[0] ?? 'there';
-//   const isPremium = user?.is_subscribed && user?.subscription_plan === 'premium';
-//   const published = events.filter(e => e.status === 'PUBLISHED').length;
-//   const drafts    = events.filter(e => e.status === 'DRAFT').length;
-//   const recent    = events.slice(0, 5);
-//   const featured  = events.find(e => e.status === 'PUBLISHED') ?? events[0] ?? null;
-
-//   const initials = (user?.full_name ?? 'U')
-//     .split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
-
-//   const animStyle = (anim: Animated.Value) => ({
-//     opacity: anim,
-//     transform: [{
-//       translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }),
-//     }],
-//   });
-
-//   return (
-//     <SafeAreaView style={styles.safe} edges={['top']}>
-//       <ScrollView
-//         style={styles.scroll}
-//         contentContainerStyle={styles.scrollContent}
-//         showsVerticalScrollIndicator={false}
-//         refreshControl={
-//           <RefreshControl
-//             refreshing={loading && events.length > 0}
-//             onRefresh={onRefresh}
-//             tintColor={Colors.accent.indigo}
-//           />
-//         }
-//       >
-
-//         {/* ── Header ────────────────────────────────────────────────── */}
-//         <Animated.View style={[styles.header, animStyle(headerAnim)]}>
-//           <View style={styles.headerLeft}>
-//             <LinearGradient
-//               colors={[Colors.accent.indigo, Colors.accent.violet]}
-//               style={styles.logoMark}
-//               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-//             >
-//               <Feather name="zap" size={14} color="#fff" />
-//             </LinearGradient>
-//             <View>
-//               <Text style={styles.greetingLine}>{greeting()}</Text>
-//               <Text style={styles.nameLine}>{firstName} 👋</Text>
-//             </View>
-//           </View>
-
-//           <View style={styles.headerRight}>
-//             <Pressable style={styles.headerBtn}>
-//               <Feather name="bell" size={18} color={Colors.text.muted} />
-//               <View style={styles.notifDot} />
-//             </Pressable>
-//             <View style={styles.avatarCircle}>
-//               <LinearGradient
-//                 colors={[Colors.accent.indigo, Colors.accent.violet]}
-//                 style={StyleSheet.absoluteFill}
-//                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-//               />
-//               <Text style={styles.avatarTxt}>{initials}</Text>
-//             </View>
-//           </View>
-//         </Animated.View>
-
-//         {/* ── Stats row ─────────────────────────────────────────────── */}
-//         {/* <Animated.View style={[animStyle(statsAnim)]}>
-//           <ScrollView
-//             horizontal
-//             showsHorizontalScrollIndicator={false}
-//             contentContainerStyle={styles.statsRow}
-//           >
-//             <StatTile value={events.length} label="Total"     icon="layers"    accent={Colors.accent.indigo}  />
-//             <StatTile value={published}     label="Published" icon="globe"      accent={Colors.accent.emerald} />
-//             <StatTile value={drafts}        label="Drafts"    icon="edit-2"     accent={Colors.accent.amber}   />
-//             <StatTile value="$0"            label="Revenue"   icon="dollar-sign" accent={Colors.accent.violet} />
-//           </ScrollView>
-//         </Animated.View> */}
-//         <Animated.View style={[animStyle(statsAnim)]}>
-//   <View style={styles.statsRow}>
-//     <StatTile value={events.length} label="Total"     icon="layers"     accent={Colors.accent.indigo}  />
-//     <StatTile value={published}     label="Published" icon="globe"       accent={Colors.accent.emerald} />
-//     <StatTile value={drafts}        label="Drafts"    icon="edit-2"      accent={Colors.accent.amber}   />
-//     <StatTile value="$0"            label="Revenue"   icon="dollar-sign" accent={Colors.accent.violet}  />
-//   </View>
-// </Animated.View>
-
-//         {/* ── Upgrade banner (free users only) ──────────────────────── */}
-//         {!isPremium && (
-//           <Animated.View style={[styles.upgradeBanner, animStyle(statsAnim)]}>
-//             <LinearGradient
-//               colors={['rgba(245,158,11,0.12)', 'rgba(217,119,6,0.06)']}
-//               style={StyleSheet.absoluteFill}
-//               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-//             />
-//             <View style={styles.upgradeLeft}>
-//               <Text style={styles.upgradeEmoji}>⚡</Text>
-//               <View>
-//                 <Text style={styles.upgradeTitle}>Unlock Pro Features</Text>
-//                 <Text style={styles.upgradeSub}>Unlimited events, custom domains & more</Text>
-//               </View>
-//             </View>
-//             <Pressable style={styles.upgradeCta} onPress={() => router.push('/billing' as never)}>
-//               <Text style={styles.upgradeCtaTxt}>Upgrade</Text>
-//             </Pressable>
-//           </Animated.View>
-//         )}
-
-//         {/* ── Quick actions ─────────────────────────────────────────── */}
-//         <Animated.View style={[styles.section, animStyle(quickAnim)]}>
-//           <View style={styles.sectionHeader}>
-//             <Text style={styles.sectionTitle}>Quick Actions</Text>
-//           </View>
-//           <View style={styles.quickRow}>
-//             {QUICK.map(q => (
-//               <Pressable
-//                 key={q.label}
-//                 style={styles.quickBtn}
-//                 onPress={() => router.push(q.route as never)}
-//               >
-//                 <LinearGradient
-//                   colors={q.grad}
-//                   style={styles.quickGrad}
-//                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-//                 >
-//                   <Feather name={q.icon} size={22} color="#fff" />
-//                 </LinearGradient>
-//                 <Text style={styles.quickLabel}>{q.label}</Text>
-//               </Pressable>
-//             ))}
-//           </View>
-//         </Animated.View>
-
-//         {/* ── Featured event ─────────────────────────────────────────── */}
-//         {featured && (
-//           <Animated.View style={[styles.section, animStyle(listAnim)]}>
-//             <View style={styles.sectionHeader}>
-//               <Text style={styles.sectionTitle}>Featured Event</Text>
-//               <Pressable onPress={() => router.push('/(tabs)/events' as never)}>
-//                 <Text style={styles.seeAll}>See all →</Text>
-//               </Pressable>
-//             </View>
-//             <FeaturedCard
-//               event={featured}
-//               onPress={() => router.push(`/events/${featured.id}` as never)}
-//             />
-//           </Animated.View>
-//         )}
-
-//         {/* ── Recent events ─────────────────────────────────────────── */}
-//         <Animated.View style={[styles.section, { paddingBottom: 130 }, animStyle(listAnim)]}>
-//           <View style={styles.sectionHeader}>
-//             <Text style={styles.sectionTitle}>Recent Events</Text>
-//             {events.length > 0 && (
-//               <Pressable onPress={() => router.push('/(tabs)/events' as never)}>
-//                 <Text style={styles.seeAll}>See all →</Text>
-//               </Pressable>
-//             )}
-//           </View>
-
-//           {loading && events.length === 0 ? (
-//             <ActivityIndicator color={Colors.accent.indigo} style={{ marginTop: 40 }} />
-//           ) : events.length === 0 ? (
-//             <EmptyEvents onPress={() => router.push('/events/create' as never)} />
-//           ) : (
-//             <View style={styles.recentList}>
-//               {recent.map(ev => (
-//                 <RecentEventCard
-//                   key={ev.id}
-//                   event={ev}
-//                   onPress={() => router.push(`/events/${ev.id}` as never)}
-//                 />
-//               ))}
-//             </View>
-//           )}
-//         </Animated.View>
-
-//       </ScrollView>
-//     </SafeAreaView>
-//   );
-// }
-
-// /* ─── Styles ───────────────────────────────────────────────────────── */
-// const styles = StyleSheet.create({
-//   safe: {
-//     flex: 1,
-//     backgroundColor: Colors.bg.primary,
-//   },
-//   scroll: { flex: 1 },
-//   scrollContent: { paddingTop: 8 },
-
-//   /* Header */
-//   header: {
-//     flexDirection:  'row',
-//     alignItems:     'center',
-//     justifyContent: 'space-between',
-//     paddingHorizontal: 20,
-//     paddingVertical:   14,
-//   },
-//   headerLeft:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
-//   headerRight:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
-//   logoMark: {
-//     width: 38, height: 38, borderRadius: 12,
-//     alignItems: 'center', justifyContent: 'center',
-//   },
-//   greetingLine: {
-//     fontSize: 11, color: Colors.text.muted,
-//     fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.6,
-//   },
-//   nameLine: {
-//     fontSize: 18, color: '#fff', fontWeight: '900', letterSpacing: -0.4,
-//   },
-//   headerBtn: {
-//     width: 38, height: 38, borderRadius: 12,
-//     backgroundColor: Colors.bg.elevated,
-//     borderWidth: 1, borderColor: Colors.border.DEFAULT,
-//     alignItems: 'center', justifyContent: 'center',
-//   },
-//   notifDot: {
-//     position: 'absolute', top: 8, right: 8,
-//     width: 7, height: 7, borderRadius: 4,
-//     backgroundColor: Colors.accent.amber,
-//     borderWidth: 1.5, borderColor: Colors.bg.primary,
-//   },
-//   avatarCircle: {
-//     width: 38, height: 38, borderRadius: 19,
-//     alignItems: 'center', justifyContent: 'center',
-//     overflow: 'hidden',
-//   },
-//   avatarTxt: {
-//     fontSize: 14, fontWeight: '900', color: '#fff', letterSpacing: 0.5,
-//   },
-
-//   // /* Stats */
-//   // statsRow: {
-//   //   paddingHorizontal: 20, paddingVertical: 6, gap: 10, flexDirection: 'row',
-//   // },
-//   // statTile: {
-//   //   width: 84, borderRadius: 18, borderWidth: 1,
-//   //   padding: 14, gap: 3, overflow: 'hidden',
-//   //   backgroundColor: Colors.bg.card,
-//   // },
-//   // statIcon: {
-//   //   width: 28, height: 28, borderRadius: 9,
-//   //   alignItems: 'center', justifyContent: 'center', marginBottom: 6,
-//   // },
-//   // statValue: {
-//   //   fontSize: 22, fontWeight: '900', letterSpacing: -0.5,
-//   // },
-//   // statLabel: {
-//   //   fontSize: 10, color: Colors.text.muted, fontWeight: '700',
-//   //   textTransform: 'uppercase', letterSpacing: 0.4,
-//   // },
-
-
-
-//   // ─── UPDATED styles (replace statsRow + statTile) ───────────────
-
-//   statsRow: {
-//     paddingHorizontal: 20,
-//     paddingVertical: 6,
-//     gap: 10,
-//     flexDirection: 'row',
-//     // NO fixed width — let tiles size themselves
-//   },
-//   statTile: {
-//     // flex: 1 so all 4 tiles share width equally — no overflow, no clipping
-//     flex: 1,
-//     minWidth: 72,          // prevents extreme squish on tiny screens
-//     borderRadius: 18,
-//     borderWidth: 1,
-//     padding: 12,
-//     gap: 3,
-//     overflow: 'hidden',
-//     backgroundColor: Colors.bg.card,
-//   },
-//   statIcon: {
-//     width: 26,
-//     height: 26,
-//     borderRadius: 8,
-//     alignItems: 'center',
-//     justifyContent: 'center',
-//     marginBottom: 4,
-//   },
-//   statValue: {
-//     fontSize: 20,
-//     fontWeight: '900',
-//     letterSpacing: -0.5,
-//   },
-//   statLabel: {
-//     fontSize: 9,
-//     color: Colors.text.muted,
-//     fontWeight: '700',
-//     textTransform: 'uppercase',
-//     letterSpacing: 0.4,
-//   },
-
-
-//   /* Upgrade banner */
-//   upgradeBanner: {
-//     marginHorizontal: 20, marginTop: 14,
-//     borderRadius: 16, padding: 14,
-//     flexDirection: 'row', alignItems: 'center',
-//     justifyContent: 'space-between',
-//     borderWidth: 1, borderColor: `${Colors.accent.amber}30`,
-//     overflow: 'hidden',
-//   },
-//   upgradeLeft:  { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-//   upgradeEmoji: { fontSize: 22 },
-//   upgradeTitle: { fontSize: 13, fontWeight: '800', color: '#fff' },
-//   upgradeSub:   { fontSize: 11, color: Colors.text.muted, marginTop: 1 },
-//   upgradeCta: {
-//     paddingHorizontal: 14, paddingVertical: 8,
-//     borderRadius: 10, backgroundColor: `${Colors.accent.amber}25`,
-//     borderWidth: 1, borderColor: `${Colors.accent.amber}45`,
-//   },
-//   upgradeCtaTxt: { fontSize: 12, fontWeight: '800', color: Colors.accent.amber },
-
-//   /* Sections */
-//   section: { marginHorizontal: 20, marginTop: 24, gap: 14 },
-//   sectionHeader: {
-//     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-//   },
-//   sectionTitle: {
-//     fontSize: 17, fontWeight: '900', color: '#fff', letterSpacing: -0.3,
-//   },
-//   seeAll: { fontSize: 13, color: Colors.accent.indigo, fontWeight: '700' },
-
-//   /* Quick actions */
-//   quickRow: {
-//     flexDirection: 'row', justifyContent: 'space-between',
-//   },
-//   quickBtn: { alignItems: 'center', gap: 8, flex: 1 },
-//   quickGrad: {
-//     width: (SW - 40 - 36) / 4,
-//     aspectRatio: 1,
-//     borderRadius: 20,
-//     alignItems: 'center',
-//     justifyContent: 'center',
-//   },
-//   quickLabel: {
-//     fontSize: 11, fontWeight: '800', color: Colors.text.muted,
-//     textTransform: 'uppercase', letterSpacing: 0.3,
-//   },
-
-//   /* Featured card */
-//   featuredCard: {
-//     height: 220, borderRadius: 22, overflow: 'hidden',
-//     backgroundColor: Colors.bg.card,
-//     borderWidth: 1, borderColor: Colors.border.subtle,
-//   },
-//   featuredTop: {
-//     position: 'absolute', top: 14, left: 14, right: 14,
-//     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-//   },
-//   livePill: {
-//     flexDirection: 'row', alignItems: 'center', gap: 5,
-//     paddingHorizontal: 10, paddingVertical: 4,
-//     borderRadius: 99,
-//   },
-//   liveDot:  { width: 6, height: 6, borderRadius: 3 },
-//   liveTxt:  { fontSize: 11, fontWeight: '800' },
-//   featuredTopRight: {
-//     width: 28, height: 28, borderRadius: 14,
-//     backgroundColor: 'rgba(0,0,0,0.35)',
-//     alignItems: 'center', justifyContent: 'center',
-//     borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
-//   },
-//   featuredBottom: {
-//     position: 'absolute', bottom: 0, left: 0, right: 0,
-//     padding: 18, gap: 8,
-//   },
-//   featuredTitle: {
-//     fontSize: 20, fontWeight: '900', color: '#fff',
-//     letterSpacing: -0.5, lineHeight: 26,
-//   },
-//   featuredMeta: { flexDirection: 'row', gap: 14, flexWrap: 'wrap' },
-//   featuredMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-//   featuredMetaTxt: { fontSize: 11, color: 'rgba(255,255,255,0.55)', fontWeight: '600', maxWidth: 140 },
-
-//   /* Recent list */
-//   recentList: { gap: 10 },
-//   recentCard: {
-//     flexDirection: 'row', alignItems: 'center',
-//     backgroundColor: Colors.bg.card,
-//     borderRadius: 18, borderWidth: 1, borderColor: Colors.border.subtle,
-//     overflow: 'hidden',
-//   },
-//   recentThumb: {
-//     width: 72, height: 72, backgroundColor: Colors.bg.elevated,
-//   },
-//   recentInfo: {
-//     flex: 1, paddingHorizontal: 14, paddingVertical: 12, gap: 5,
-//   },
-//   recentTitle: {
-//     fontSize: 14, fontWeight: '800', color: '#fff', letterSpacing: -0.2,
-//   },
-//   recentDateRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-//   recentDate:    { fontSize: 11, color: Colors.text.subtle, fontWeight: '600' },
-//   recentStatusPill: {
-//     alignSelf: 'flex-start',
-//     paddingHorizontal: 8, paddingVertical: 2,
-//     borderRadius: 99,
-//   },
-//   recentStatusTxt: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
-//   recentArrow: { paddingRight: 14 },
-
-//   /* Empty state */
-//   emptyWrap: {
-//     alignItems: 'center', borderRadius: 24,
-//     paddingVertical: 40, paddingHorizontal: 24,
-//     gap: 12, overflow: 'hidden',
-//     borderWidth: 1, borderColor: `${Colors.accent.indigo}20`,
-//     backgroundColor: Colors.bg.card,
-//   },
-//   emptyIconWrap: {
-//     width: 68, height: 68, borderRadius: 22, overflow: 'hidden',
-//     alignItems: 'center', justifyContent: 'center', marginBottom: 4,
-//   },
-//   emptyTitle: {
-//     fontSize: 20, fontWeight: '900', color: '#fff',
-//     letterSpacing: -0.4, textAlign: 'center',
-//   },
-//   emptySub: {
-//     fontSize: 13, color: Colors.text.muted, textAlign: 'center',
-//     lineHeight: 20, maxWidth: 280,
-//   },
-//   emptyBtn: {
-//     flexDirection: 'row', alignItems: 'center', gap: 8,
-//     paddingHorizontal: 28, paddingVertical: 14,
-//     borderRadius: 99, overflow: 'hidden', marginTop: 4,
-//   },
-//   emptyBtnTxt: { fontSize: 15, fontWeight: '800', color: '#fff' },
-//   emptyBadges: {
-//     flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center',
-//     marginTop: 4,
-//   },
-//   emptyBadge: {
-//     flexDirection: 'row', alignItems: 'center', gap: 5,
-//     paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99,
-//     backgroundColor: `${Colors.accent.emerald}12`,
-//     borderWidth: 1, borderColor: `${Colors.accent.emerald}25`,
-//   },
-//   emptyBadgeTxt: { fontSize: 11, fontWeight: '700', color: Colors.accent.emerald },
-// });
-
-
-
-
-
-
-
-
-

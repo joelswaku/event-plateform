@@ -1,6 +1,5 @@
 //utils/sendEmail.js
 import nodemailer from "nodemailer";
-import QRCode from "qrcode";
 import { env } from "../config/env.js";
 import { sendBrevoEmail } from "../services/brevo.service.js";
 
@@ -106,21 +105,46 @@ export async function sendPasswordChangedEmail({ to, name }) {
 
 /**
  * Core send function.
- * Uses Brevo SMTP relay when BREVO_SMTP_KEY is set, falls back to legacy Nodemailer.
+ * Priority: Resend → Brevo SMTP → Legacy Nodemailer.
+ * Each provider falls through to the next on failure.
  */
 export async function sendMail({ to, subject, html, name }) {
+  /* 1. Resend — falls through to next provider on any error */
+  if (env.resendApiKey) {
+    try {
+      const { Resend } = await import("resend");
+      const resend = new Resend(env.resendApiKey);
+      const from = `"${env.mailFromName || "Eventos"}" <${env.mailFromEmail}>`;
+      const { data, error } = await resend.emails.send({ from, to, subject, html });
+      if (error) {
+        console.error(`[Resend] ❌ Failed sending to ${to}:`, error.message);
+        if (error.message?.includes("testing emails to your own email")) {
+          console.error(`[Resend] ⚠️  onboarding@resend.dev can only send to your Resend account email.`);
+          console.error(`[Resend] ⚠️  Set MAIL_FROM_EMAIL to a verified domain, or test with your Resend account email.`);
+        }
+        // Fall through to next provider
+      } else {
+        console.log("[Resend] ✅ Email sent:", data.id, "→", to);
+        return { messageId: data.id };
+      }
+    } catch (e) {
+      console.error("[Resend] ❌ Exception:", e.message, "— trying next provider");
+    }
+  }
+
+  /* 2. Brevo SMTP relay */
   if (env.brevoSmtpKey) {
+    console.log("[Brevo] Sending via SMTP →", to);
     return sendBrevoEmail({ to, subject, html, name });
   }
 
-  /* Legacy Nodemailer fallback (Mailtrap / any SMTP) */
+  /* 3. Legacy Nodemailer fallback (Mailtrap / any SMTP) */
   const info = await nodemailerTransporter.sendMail({
     from: `"${env.mailFromName}" <${env.mailFromEmail}>`,
     to,
     subject,
     html,
   });
-
   console.log("[SMTP] Email sent:", info.messageId, "→", to);
   return { messageId: info.messageId };
 }
@@ -158,7 +182,9 @@ export async function sendSeatAssignmentEmail({
 
 export async function sendTicketIssuedEmail({ to, buyerName, eventName, tickets }) {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.FRONTEND_URL || "http://localhost:3000";
+ 
 
+    
   // Tier colors by ticket name
   function getTierStyle(ticketTypeName) {
     const n = (ticketTypeName || "").toLowerCase();
@@ -176,7 +202,7 @@ export async function sendTicketIssuedEmail({ to, buyerName, eventName, tickets 
   const ticketBlocks = tickets.map((ticket, idx) => {
     const tier       = getTierStyle(ticket.ticket_type_name);
     const ticketNum  = ticket.ticket_number || `TKT-${String(ticket.id).slice(0, 8).toUpperCase()}`;
-    const qrUrl      = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/public/tickets/qr/${ticket.qr_token}`;
+    const qrUrl      = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(ticket.qr_token)}`;
     const portalUrl  = `${baseUrl}/my-tickets?email=${encodeURIComponent(to)}&ticket_number=${encodeURIComponent(ticketNum)}`;
 
     return `
@@ -522,6 +548,113 @@ export async function sendEventInvitationEmail({
   });
 }
 
+/* ── Team invite: new user (no account) ─────────────────────────── */
+export async function sendTeamInviteNewEmail({ to, inviteeName, inviterName, eventTitle, code, portalUrl }) {
+  const html = `
+  <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head>
+  <body style="margin:0;padding:0;background:#0a0a12;font-family:Arial,sans-serif">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a12;padding:40px 16px">
+      <tr><td align="center">
+        <table width="100%" style="max-width:520px;background:#111127;border-radius:16px;overflow:hidden;border:1px solid rgba(99,102,241,0.2)" cellpadding="0" cellspacing="0">
+          <tr><td style="background:linear-gradient(135deg,#4f46e5,#6366f1);padding:32px;text-align:center">
+            <p style="margin:0;font-size:32px">👥</p>
+            <h1 style="margin:12px 0 0;font-size:22px;font-weight:900;color:#fff;letter-spacing:-0.5px">You've been invited!</h1>
+          </td></tr>
+          <tr><td style="padding:32px 36px">
+            <p style="margin:0 0 4px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7">
+              Hi <strong style="color:#fff">${inviteeName || "there"}</strong>,
+            </p>
+            <p style="margin:0 0 12px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7">
+              <strong style="color:#fff">${inviterName}</strong> has invited you to help manage
+              <strong style="color:#a78bfa">${eventTitle}</strong> as an admin.
+            </p>
+            <p style="margin:0 0 20px;font-size:14px;color:rgba(255,255,255,0.5);line-height:1.7">
+              Use the code below to access the team portal. You'll create your password there.
+            </p>
+
+            <!-- Code block -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px">
+              <tr><td style="background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:24px;text-align:center">
+                <p style="margin:0 0 6px;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.4)">Your invite code</p>
+                <p style="margin:0;font-size:36px;font-weight:900;letter-spacing:0.15em;color:#a78bfa;font-family:'Courier New',monospace">${code}</p>
+                <p style="margin:8px 0 0;font-size:11px;color:rgba(255,255,255,0.3)">Expires in 24 hours</p>
+              </td></tr>
+            </table>
+
+            <a href="${portalUrl}" style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#6366f1);color:#fff;text-decoration:none;font-size:14px;font-weight:800;padding:14px 32px;border-radius:12px;letter-spacing:0.02em">
+              Go to Team Portal →
+            </a>
+            <p style="margin:20px 0 0;font-size:12px;color:rgba(255,255,255,0.25);line-height:1.6">
+              Portal: ${portalUrl}<br/>
+              Enter your email and the code above. If you didn't expect this, ignore it.
+            </p>
+          </td></tr>
+          <tr><td style="background:rgba(255,255,255,0.03);padding:16px 36px;border-top:1px solid rgba(255,255,255,0.06);text-align:center">
+            <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.2);letter-spacing:0.1em;text-transform:uppercase">Powered by Eventos</p>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body></html>`;
+  return sendMail({ to, subject: `Your invite code to manage "${eventTitle}"`, html });
+}
+
+/* ── Team invite: existing user (has account) ───────────────────── */
+export async function sendTeamInviteExistingEmail({ to, inviteeName, inviterName, eventTitle, code, portalUrl }) {
+  const html = `
+  <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head>
+  <body style="margin:0;padding:0;background:#0a0a12;font-family:Arial,sans-serif">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a12;padding:40px 16px">
+      <tr><td align="center">
+        <table width="100%" style="max-width:520px;background:#111127;border-radius:16px;overflow:hidden;border:1px solid rgba(16,185,129,0.2)" cellpadding="0" cellspacing="0">
+          <tr><td style="background:linear-gradient(135deg,#059669,#10b981);padding:32px;text-align:center">
+            <p style="margin:0;font-size:32px">🎉</p>
+            <h1 style="margin:12px 0 0;font-size:22px;font-weight:900;color:#fff;letter-spacing:-0.5px">You're invited to the team!</h1>
+          </td></tr>
+          <tr><td style="padding:32px 36px">
+            <p style="margin:0 0 8px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7">
+              Hi <strong style="color:#fff">${inviteeName}</strong>,
+            </p>
+            <p style="margin:0 0 12px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7">
+              <strong style="color:#fff">${inviterName}</strong> has invited you to manage
+              <strong style="color:#6ee7b7">${eventTitle}</strong> as an admin.
+            </p>
+
+            <!-- Account notice -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px">
+              <tr><td style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:14px 18px">
+                <p style="margin:0;font-size:13px;color:#6ee7b7;font-weight:700">You already have an Eventos account</p>
+                <p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.45)">Use the portal below — no new account needed. Just enter your email + the code.</p>
+              </td></tr>
+            </table>
+
+            <!-- Code block -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px">
+              <tr><td style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:12px;padding:24px;text-align:center">
+                <p style="margin:0 0 6px;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.4)">Your invite code</p>
+                <p style="margin:0;font-size:36px;font-weight:900;letter-spacing:0.15em;color:#6ee7b7;font-family:'Courier New',monospace">${code}</p>
+                <p style="margin:8px 0 0;font-size:11px;color:rgba(255,255,255,0.3)">Expires in 24 hours</p>
+              </td></tr>
+            </table>
+
+            <a href="${portalUrl}" style="display:inline-block;background:linear-gradient(135deg,#059669,#10b981);color:#fff;text-decoration:none;font-size:14px;font-weight:800;padding:14px 32px;border-radius:12px;letter-spacing:0.02em">
+              Open Team Portal →
+            </a>
+            <p style="margin:20px 0 0;font-size:12px;color:rgba(255,255,255,0.25);line-height:1.6">
+              Portal: ${portalUrl}<br/>
+              Enter your email and the code above.
+            </p>
+          </td></tr>
+          <tr><td style="background:rgba(255,255,255,0.03);padding:16px 36px;border-top:1px solid rgba(255,255,255,0.06);text-align:center">
+            <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.2);letter-spacing:0.1em;text-transform:uppercase">Powered by Eventos</p>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body></html>`;
+  return sendMail({ to, subject: `Your invite code to manage "${eventTitle}"`, html });
+}
+
 export async function sendRsvpConfirmationEmail({
   to,
   guestName,
@@ -537,12 +670,7 @@ export async function sendRsvpConfirmationEmail({
       })
     : null;
 
-  // Generate QR code as a base64 PNG data URL
-  const qrDataUrl = await QRCode.toDataURL(qrToken, {
-    width: 240,
-    margin: 2,
-    color: { dark: "#1C1917", light: "#FFFDF9" },
-  });
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&color=1C1917&bgcolor=FFFDF9&data=${encodeURIComponent(qrToken)}`;
 
   const html = `
 <!DOCTYPE html>
@@ -619,7 +747,7 @@ export async function sendRsvpConfirmationEmail({
               Present this QR code at the entrance for check-in.
             </p>
             <div style="display:inline-block;padding:16px;border:1px solid #e8d9c0;border-radius:12px;background:#fffdf9">
-              <img src="${qrDataUrl}" alt="Entry QR Code" width="200" height="200" style="display:block;border-radius:4px" />
+              <img src="${qrImageUrl}" alt="Entry QR Code" width="200" height="200" style="display:block;border-radius:4px" />
             </div>
             <p style="margin:16px 0 0;font-size:11px;color:#c4bfba;line-height:1.6;word-break:break-all">
               Token: ${qrToken}

@@ -200,13 +200,11 @@ export async function getMyTickets(req, res) {
       });
     }
 
-    // ── 3. Strip QR token from list response — only expose in QR endpoint ───
-    //    The list never hands out the raw token; only the /qr/:token endpoint does,
-    //    and that endpoint requires the token to already be known.
-    const tickets = result.rows.map((row) => {
-      const { qr_token, ...safe } = row; // eslint-disable-line no-unused-vars
-      return stampTicket(safe);          // add HMAC integrity stamp
-    });
+    // ── 3. Include qr_token — user proved ownership via email lookup ────────
+    //    The portal already requires email auth (same bar as the confirmation
+    //    email that ships the QR directly). Keeping the token lets the frontend
+    //    render QR codes inline without N extra round-trips.
+    const tickets = result.rows.map((row) => stampTicket(row));
 
     // ── 4. Non-blocking fraud logging ────────────────────────────────────────
     const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";

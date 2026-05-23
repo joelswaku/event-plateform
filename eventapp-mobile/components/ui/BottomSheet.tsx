@@ -39,7 +39,10 @@ export function BottomSheet({ open, onClose, title, children, maxHeight = 600 }:
 
   const close = () => {
     opacity.value    = withTiming(0, { duration: 180 });
-    translateY.value = withTiming(600, { duration: 200 }, () => runOnJS(onClose)());
+    const cb = onClose;
+    translateY.value = withTiming(600, { duration: 200 }, () => {
+      if (typeof cb === 'function') runOnJS(cb)();
+    });
   };
 
   return (

@@ -35,7 +35,7 @@ export function getCategoryForType(eventType: string): string | null {
 }
 
 export function canAccessTemplate(template: StyleTemplate, plan: string): boolean {
-  return plan === 'premium' || template.style === FREE_STYLE;
+  return plan !== 'free' || template.style === FREE_STYLE;
 }
 
 export function getTemplatesForEventType(eventType: string): StyleTemplate[] {
@@ -147,8 +147,8 @@ export const STYLE_TEMPLATES: StyleTemplate[] = [
     description: 'Celebrate the graduate with a dignified layout featuring schedule and gallery.',
     design: { colors: { bg: '#FAF9F6', accent: '#C9A96E', dark: '#1C1917', text: '#1C1917' } },
     assets: {
-      hero_image:    'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1400&q=85',
-      cover_image:   'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=640&q=80',
+      hero_image:    'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1400&q=85',
+      cover_image:   'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=640&q=80',
       gallery_images: [],
     },
     sections: [
@@ -211,8 +211,8 @@ export const STYLE_TEMPLATES: StyleTemplate[] = [
     description: 'A flowing, gallery-forward layout bathed in soft warmth.',
     design: { colors: { bg: '#FDF5EF', accent: '#B87355', dark: '#271A14', text: '#271A14' } },
     assets: {
-      hero_image:    'https://images.unsplash.com/photo-1487530811015-780780cc5afc?w=1400&q=85',
-      cover_image:   'https://images.unsplash.com/photo-1487530811015-780780cc5afc?w=640&q=80',
+      hero_image:    'https://images.unsplash.com/photo-1508610048659-a06b669e3321?w=1400&q=85',
+      cover_image:   'https://images.unsplash.com/photo-1508610048659-a06b669e3321?w=640&q=80',
       gallery_images: ['https://images.unsplash.com/photo-1490750967868-88df5691cc84?w=800&q=80','https://images.unsplash.com/photo-1444021465936-c6ca81d39b84?w=800&q=80','https://images.unsplash.com/photo-1561369036-c9e2bcca6d52?w=800&q=80'],
     },
     sections: [
@@ -231,8 +231,8 @@ export const STYLE_TEMPLATES: StyleTemplate[] = [
     description: 'Full romantic experience — couple feature, story, countdown, gallery, and registry.',
     design: { colors: { bg: '#FDF5EF', accent: '#B87355', dark: '#271A14', text: '#271A14' } },
     assets: {
-      hero_image:    'https://images.unsplash.com/photo-1533658057034-e83b42ad8b24?w=1400&q=85',
-      cover_image:   'https://images.unsplash.com/photo-1533658057034-e83b42ad8b24?w=640&q=80',
+      hero_image:    'https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=1400&q=85',
+      cover_image:   'https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=640&q=80',
       gallery_images: ['https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80','https://images.unsplash.com/photo-1487530811015-780780cc5afc?w=800&q=80','https://images.unsplash.com/photo-1490750967868-88df5691cc84?w=800&q=80'],
     },
     sections: [
@@ -431,8 +431,8 @@ export const STYLE_TEMPLATES: StyleTemplate[] = [
     description: 'Maximum breathing room, minimum distraction. Let your content speak.',
     design: { colors: { bg: '#F9F9F9', accent: '#888888', dark: '#111111', text: '#222222' } },
     assets: {
-      hero_image:    'https://images.unsplash.com/photo-1617196034183-421b4040ed20?w=1400&q=85',
-      cover_image:   'https://images.unsplash.com/photo-1617196034183-421b4040ed20?w=640&q=80',
+      hero_image:    'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1400&q=85',
+      cover_image:   'https://images.unsplash.com/photo-1497366216548-37526070297c?w=640&q=80',
       gallery_images: [],
     },
     sections: [
@@ -576,8 +576,8 @@ export const STYLE_TEMPLATES: StyleTemplate[] = [
     description: 'The definitive luxury event — couple feature, full timeline, gallery, registry, and grand CTA.',
     design: { colors: { bg: '#0D0C0A', accent: '#D4AF6F', dark: '#0D0C0A', text: '#EDE8DF' } },
     assets: {
-      hero_image:    'https://images.unsplash.com/photo-1551882547-ff40c4a49ce5?w=1400&q=85',
-      cover_image:   'https://images.unsplash.com/photo-1551882547-ff40c4a49ce5?w=640&q=80',
+      hero_image:    'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=1400&q=85',
+      cover_image:   'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=640&q=80',
       gallery_images: ['https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80','https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&q=80'],
     },
     sections: [

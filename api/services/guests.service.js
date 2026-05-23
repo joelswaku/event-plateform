@@ -1,6 +1,7 @@
 
 import { db } from "../config/db.js";
 import crypto from "crypto";
+import { assertCanCreateGuest } from "./planLimits.service.js";
 import { sendMail, sendEventInvitationEmail, sendSeatAssignmentEmail, sendRsvpConfirmationEmail } from "../utils/sendEmail.js";
 import { sendBrevoSms, sendBrevoWhatsapp } from "./brevo.service.js";
 import { createNotificationService, getEventOwnerIdService } from "./notifications.service.js";
@@ -263,6 +264,8 @@ function mapGuest(row) {
     plus_one_allowed: row.plus_one_allowed,
     plus_one_count: row.plus_one_count,
     is_vip: row.is_vip,
+    checked_in_at: row.checked_in_at ?? null,
+    attendance_status: row.attendance_status ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -321,6 +324,7 @@ export async function createGuestService({
 
     await assertOrganizationEventPermission(client, organizationId, userId);
     await assertEventExists(client, eventId, organizationId);
+    await assertCanCreateGuest(client, eventId, userId);
 
     const result = await client.query(
       `
@@ -372,11 +376,12 @@ export async function listGuestsService({ eventId, organizationId, userId }) {
 
     const result = await client.query(
       `
-      SELECT *
-      FROM guests
-      WHERE event_id=$1
-        AND deleted_at IS NULL
-      ORDER BY created_at DESC
+      SELECT g.*, ga.marked_at AS checked_in_at, ga.attendance_status
+      FROM guests g
+      LEFT JOIN guest_attendance ga ON ga.guest_id = g.id AND ga.event_id = g.event_id
+      WHERE g.event_id = $1
+        AND g.deleted_at IS NULL
+      ORDER BY g.created_at DESC
       `,
       [eventId],
     );
@@ -405,9 +410,22 @@ export async function getGuestByIdService({
     await assertOrganizationEventPermission(client, organizationId, userId);
     await assertEventExists(client, eventId, organizationId);
 
-    const guest = await assertGuestBelongsToEvent(client, guestId, eventId);
+    const result = await client.query(
+      `
+      SELECT g.*, ga.marked_at AS checked_in_at, ga.attendance_status
+      FROM guests g
+      LEFT JOIN guest_attendance ga ON ga.guest_id = g.id AND ga.event_id = g.event_id
+      WHERE g.id = $1
+        AND g.event_id = $2
+        AND g.deleted_at IS NULL
+      LIMIT 1
+      `,
+      [guestId, eventId],
+    );
 
-    return mapGuest(guest);
+    if (!result.rows[0]) throw new AppError("Guest not found", 404);
+
+    return mapGuest(result.rows[0]);
   } finally {
     client.release();
   }
@@ -1054,10 +1072,15 @@ export async function checkInGuestByQrTokenService({
     appPlatform = null,
     location = null,
   }) {
-    if (!qrToken || !HEX64_RE.test(String(qrToken).trim())) {
+    const STAMPED_RE = /^([0-9a-f]{64})\.[0-9a-f]{8}$/i;
+    const stampMatch = String(qrToken).trim().match(STAMPED_RE);
+    const cleanToken = stampMatch ? stampMatch[1] : String(qrToken).trim();
+
+    if (!cleanToken || !HEX64_RE.test(cleanToken)) {
       throw new AppError("Invalid QR token format", 400);
     }
-  
+    qrToken = cleanToken;
+
     const client = await db.connect();
   
     try {
@@ -1131,8 +1154,7 @@ export async function checkInGuestByQrTokenService({
   
       let checkinResult;
   
-      try {
-        checkinResult = await client.query(
+      const insertCheckin = async (devId) => client.query(
           `
           INSERT INTO qr_checkins
           (
@@ -1153,16 +1175,27 @@ export async function checkInGuestByQrTokenService({
             qrPass.guest_id,
             eventId,
             userId ?? null,
-            deviceId ?? null,
+            devId,
             appPlatform ?? null,
             location ? JSON.stringify(location) : JSON.stringify({}),
           ]
         );
+
+      await client.query("SAVEPOINT before_checkin");
+      try {
+        checkinResult = await insertCheckin(deviceId ?? null);
+        await client.query("RELEASE SAVEPOINT before_checkin");
       } catch (error) {
+        await client.query("ROLLBACK TO SAVEPOINT before_checkin");
         if (error.code === "23505") {
           throw new AppError("Guest already checked in", 400);
         }
-        throw error;
+        // FK violation on device_id — device not registered; retry without it
+        if (error.code === "23503") {
+          checkinResult = await insertCheckin(null);
+        } else {
+          throw error;
+        }
       }
   
       await client.query(
@@ -1779,6 +1812,14 @@ export async function submitOpenRsvpService({ eventId, payload }) {
         [name, phone, guest.id]
       );
     } else {
+      try {
+        await assertCanCreateGuest(client, eventId, null);
+      } catch (limitErr) {
+        if (limitErr.code === "PLAN_LIMIT_GUESTS") {
+          throw new AppError("This event is no longer accepting new RSVPs.", 403);
+        }
+        throw limitErr;
+      }
       const ins = await client.query(
         `INSERT INTO guests (event_id, full_name, email, phone, plus_one_allowed, plus_one_count, is_vip, created_at, updated_at)
          VALUES ($1, $2, $3, $4, false, 0, false, NOW(), NOW()) RETURNING id`,

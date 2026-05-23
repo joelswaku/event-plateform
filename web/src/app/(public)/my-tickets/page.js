@@ -29,38 +29,17 @@ const API = process.env.NEXT_PUBLIC_API_URL;
 // Ticket theme system — 5 unique visual personalities
 // ─────────────────────────────────────────────────────────────────────────────
 
-const THEMES = [
-  { bg: "linear-gradient(135deg,#1a1535 0%,#0f0d1f 100%)", accent: "#7c6ff7", accent2: "#4f46e5", text: "#c4bfff", muted: "rgba(196,191,255,0.45)", border: "rgba(124,111,247,0.22)", dateBg: "rgba(124,111,247,0.13)", stub: "rgba(124,111,247,0.07)", glow: "rgba(124,111,247,0.18)", pattern: "dots" },
-  { bg: "linear-gradient(135deg,#1f1505 0%,#110c02 100%)", accent: "#e8a000", accent2: "#b87800", text: "#ffd060", muted: "rgba(255,208,96,0.45)",  border: "rgba(232,160,0,0.22)",   dateBg: "rgba(232,160,0,0.11)",   stub: "rgba(232,160,0,0.06)",   glow: "rgba(232,160,0,0.2)",   pattern: "lines" },
-  { bg: "linear-gradient(135deg,#071a18 0%,#030f0e 100%)", accent: "#2dd4bf", accent2: "#0d9488", text: "#7fffd4", muted: "rgba(127,255,212,0.45)", border: "rgba(45,212,191,0.22)",  dateBg: "rgba(45,212,191,0.11)", stub: "rgba(45,212,191,0.06)", glow: "rgba(45,212,191,0.18)", pattern: "grid" },
-  { bg: "linear-gradient(135deg,#1f0810 0%,#110406 100%)", accent: "#f43f5e", accent2: "#be123c", text: "#fda4af", muted: "rgba(253,164,175,0.45)", border: "rgba(244,63,94,0.22)",  dateBg: "rgba(244,63,94,0.11)",  stub: "rgba(244,63,94,0.06)",  glow: "rgba(244,63,94,0.18)",  pattern: "diagonal" },
-  { bg: "linear-gradient(135deg,#04111f 0%,#020a14 100%)", accent: "#38bdf8", accent2: "#0284c7", text: "#7dd3fc", muted: "rgba(125,211,252,0.45)", border: "rgba(56,189,248,0.22)",  dateBg: "rgba(56,189,248,0.11)", stub: "rgba(56,189,248,0.06)", glow: "rgba(56,189,248,0.18)", pattern: "waves" },
-];
-
-function resolveTheme(ticket, idx) {
-  const n = (ticket.ticket_type_name || "").toLowerCase();
-  if (n.includes("vip") || n.includes("premium"))    return THEMES[1];
-  if (n.includes("backstage") || n.includes("rose")) return THEMES[3];
-  if (n.includes("early"))                           return THEMES[2];
-  if (n.includes("student") || n.includes("group"))  return THEMES[4];
-  return THEMES[idx % THEMES.length];
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SVG patterns
-// ─────────────────────────────────────────────────────────────────────────────
-
-function BgPattern({ pattern, color }) {
-  const base = "absolute inset-0 w-full h-full opacity-[0.038]";
-  if (pattern === "lines")
-    return <svg className={base} xmlns="http://www.w3.org/2000/svg"><defs><pattern id="pl" width="24" height="24" patternUnits="userSpaceOnUse"><line x1="0" y1="24" x2="24" y2="0" stroke={color} strokeWidth="1"/></pattern></defs><rect width="100%" height="100%" fill="url(#pl)"/></svg>;
-  if (pattern === "grid")
-    return <svg className={base} xmlns="http://www.w3.org/2000/svg"><defs><pattern id="pg" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0L0 0 0 20" fill="none" stroke={color} strokeWidth="0.8"/></pattern></defs><rect width="100%" height="100%" fill="url(#pg)"/></svg>;
-  if (pattern === "diagonal")
-    return <svg className={base} xmlns="http://www.w3.org/2000/svg"><defs><pattern id="pd" width="12" height="12" patternUnits="userSpaceOnUse"><path d="M0 12L12 0" stroke={color} strokeWidth="1" fill="none"/></pattern></defs><rect width="100%" height="100%" fill="url(#pd)"/></svg>;
-  if (pattern === "waves")
-    return <svg className={base} xmlns="http://www.w3.org/2000/svg"><defs><pattern id="pw" width="40" height="12" patternUnits="userSpaceOnUse"><path d="M0 6Q10 0 20 6Q30 12 40 6" fill="none" stroke={color} strokeWidth="1"/></pattern></defs><rect width="100%" height="100%" fill="url(#pw)"/></svg>;
-  return <svg className={base} xmlns="http://www.w3.org/2000/svg"><defs><pattern id="pp" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.5" fill={color}/></pattern></defs><rect width="100%" height="100%" fill="url(#pp)"/></svg>;
+function getTierStyle(ticketTypeName) {
+  const n = (ticketTypeName || "").toLowerCase();
+  if (n.includes("vip") || n.includes("platinum") || n.includes("premium"))
+    return { accent: "#C9A96E", bg: "#1a1200", badge: "VIP",        icon: "👑", text: "#ffd060",  muted: "rgba(201,169,110,0.55)", border: "rgba(201,169,110,0.3)",  glow: "rgba(201,169,110,0.2)"  };
+  if (n.includes("pro") || n.includes("diamond") || n.includes("all-access"))
+    return { accent: "#a78bfa", bg: "#0d0718", badge: "PRO",        icon: "💎", text: "#c4bfff",  muted: "rgba(167,139,250,0.55)", border: "rgba(167,139,250,0.3)",  glow: "rgba(167,139,250,0.2)"  };
+  if (n.includes("early") || n.includes("bird"))
+    return { accent: "#f59e0b", bg: "#1c1002", badge: "EARLY BIRD", icon: "⚡", text: "#fde68a",  muted: "rgba(245,158,11,0.55)",  border: "rgba(245,158,11,0.3)",   glow: "rgba(245,158,11,0.2)"   };
+  if (n.includes("free") || n.includes("general"))
+    return { accent: "#10b981", bg: "#022c22", badge: "FREE",       icon: "🎁", text: "#a7f3d0",  muted: "rgba(16,185,129,0.55)",  border: "rgba(16,185,129,0.3)",   glow: "rgba(16,185,129,0.2)"   };
+  return   { accent: "#6366f1", bg: "#0f0f1f", badge: "STANDARD",  icon: "🎟️", text: "#c4c6ff",  muted: "rgba(99,102,241,0.55)",  border: "rgba(99,102,241,0.3)",   glow: "rgba(99,102,241,0.2)"   };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -84,13 +63,16 @@ function fmtShort(d) {
   return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-function isUpcoming(d) {
-  return !d || new Date(d) >= new Date();
-}
-
 function partitionTickets(tickets) {
+  const now    = new Date();
   const active = [], past = [];
-  for (const t of tickets) (isUpcoming(t.starts_at_local) ? active : past).push(t);
+  for (const t of tickets) {
+    // Use ends_at if available so an ongoing event stays in "My Tickets";
+    // fall back to starts_at when there's no end date.
+    const cutoff = t.ends_at_local || t.starts_at_local;
+    const isPast = cutoff && new Date(cutoff) < now;
+    (isPast ? past : active).push(t);
+  }
   return { active, past };
 }
 
@@ -132,27 +114,12 @@ function StatusChip({ status }) {
 // QR Modal — fetches token on demand only when user clicks "View QR"
 // ─────────────────────────────────────────────────────────────────────────────
 
-function QrModal({ ticket, email, theme, onClose }) {
-  const [token,   setToken]   = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState("");
-  const date = fmtDate(ticket.starts_at_local);
-
-  useEffect(() => {
-    let ok = true;
-    async function load() {
-      try {
-        const res  = await fetch(`${API}/public/tickets/${ticket.id}/qr-token?email=${encodeURIComponent(email)}`);
-        const data = await res.json();
-        if (!ok) return;
-        if (!res.ok || !data.success) throw new Error(data.message || "Could not load QR");
-        setToken(data.qr_token);
-      } catch (e) { if (ok) setError(e.message); }
-      finally     { if (ok) setLoading(false); }
-    }
-    load();
-    return () => { ok = false; };
-  }, [ticket.id, email]);
+function QrModal({ ticket, tier, onClose }) {
+  const token = ticket.qr_token;
+  const date  = fmtDate(ticket.starts_at_local);
+  const qrUrl = token
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(token)}`
+    : null;
 
   useEffect(() => {
     const fn = (e) => { if (e.key === "Escape") onClose(); };
@@ -163,67 +130,60 @@ function QrModal({ ticket, email, theme, onClose }) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.9)", backdropFilter: "blur(14px)" }}
+      style={{ background: "rgba(0,0,0,0.92)", backdropFilter: "blur(14px)" }}
       onClick={onClose}>
       <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
         transition={{ type: "spring", damping: 28, stiffness: 320 }}
         className="relative w-full max-w-sm overflow-hidden rounded-3xl"
-        style={{ background: theme.bg, border: `1px solid ${theme.border}` }}
+        style={{ background: tier.bg, border: `1px solid ${tier.border}` }}
         onClick={e => e.stopPropagation()}>
-        <BgPattern pattern={theme.pattern} color={theme.accent} />
-        <div className="absolute inset-x-0 top-0 h-px" style={{ background: `linear-gradient(90deg,transparent,${theme.accent},transparent)` }} />
 
-        <div className="relative px-6 pt-6 pb-4">
-          <p className="text-[9px] font-bold uppercase tracking-[0.2em] mb-1" style={{ color: theme.accent }}>{ticket.ticket_type_name || "General Admission"}</p>
-          <h3 className="text-lg font-black leading-tight" style={{ color: theme.text }}>{ticket.event_title}</h3>
-          <p className="text-xs mt-1" style={{ color: theme.muted }}>{date.full}{date.time ? ` · ${date.time}` : ""}</p>
+        {/* Gradient top bar */}
+        <div style={{ height: 4, background: `linear-gradient(90deg,${tier.accent},${tier.accent}40,transparent)` }} />
+
+        <div className="px-6 pt-5 pb-3">
+          <span style={{ display: "inline-block", background: `${tier.accent}20`, border: `1px solid ${tier.accent}40`, color: tier.accent, fontSize: 10, fontWeight: 900, letterSpacing: "0.18em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 99 }}>
+            {tier.icon} {ticket.ticket_type_name || "General Admission"}
+          </span>
+          <h3 className="text-lg font-black leading-tight mt-2" style={{ color: "#fff" }}>{ticket.event_title}</h3>
+          <p className="text-xs mt-0.5" style={{ color: tier.muted }}>{date.full}{date.time ? ` · ${date.time}` : ""}</p>
         </div>
 
         {/* Perforation */}
-        <div className="relative flex items-center px-3 my-1">
-          <div className="absolute -left-3 h-5 w-5 rounded-full" style={{ background: "#07070f" }} />
-          <div className="flex-1 border-t-2 border-dashed" style={{ borderColor: `${theme.accent}28` }} />
-          <div className="absolute -right-3 h-5 w-5 rounded-full" style={{ background: "#07070f" }} />
-        </div>
+        <div className="mx-4 my-1" style={{ borderTop: `2px dashed ${tier.accent}25` }} />
 
-        <div className="relative flex flex-col items-center px-6 py-5 gap-3">
-          {loading ? (
-            <div className="flex h-48 w-48 items-center justify-center rounded-2xl" style={{ background: "rgba(255,255,255,0.04)" }}>
-              <svg className="h-8 w-8 animate-spin" viewBox="0 0 24 24" fill="none" style={{ color: theme.accent }}>
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-              </svg>
-            </div>
-          ) : error ? (
-            <div className="h-48 w-48 flex items-center justify-center text-center">
-              <p className="text-xs" style={{ color: "#f87171" }}>{error}</p>
+        <div className="flex flex-col items-center px-6 py-5 gap-3">
+          {qrUrl ? (
+            <div className="rounded-2xl p-3 bg-white" style={{ boxShadow: `0 0 40px ${tier.glow}` }}>
+              <img src={qrUrl} alt="QR Code" width={176} height={176} className="block" style={{ borderRadius: 6 }} />
             </div>
           ) : (
-            <div className="rounded-2xl p-3 bg-white" style={{ boxShadow: `0 0 40px ${theme.glow}` }}>
-              <img src={`${API}/public/tickets/qr/${token}`} alt="QR Code" className="w-44 h-44 object-contain" />
+            <div className="h-48 w-48 flex items-center justify-center text-center rounded-2xl" style={{ background: "rgba(255,255,255,0.04)" }}>
+              <p className="text-xs" style={{ color: "#f87171" }}>QR not available</p>
             </div>
           )}
           <div className="text-center">
-            <p className="text-[9px] uppercase tracking-widest" style={{ color: theme.muted }}>Ticket</p>
-            <p className="text-sm font-bold font-mono mt-0.5" style={{ color: theme.accent }}>{ticket.ticket_number}</p>
+            <p className="text-[9px] uppercase tracking-widest" style={{ color: tier.muted }}>Ticket No.</p>
+            <p className="text-sm font-bold font-mono mt-0.5" style={{ color: tier.accent }}>{ticket.ticket_number}</p>
           </div>
-          <p className="text-[10px] text-center" style={{ color: theme.muted }}>Show this at the entrance</p>
+          <p className="text-[10px] text-center" style={{ color: tier.muted }}>Show this at the entrance</p>
         </div>
 
-        <div className="relative mx-4 mb-4 rounded-xl px-4 py-2.5 text-center" style={{ background: "rgba(0,0,0,0.3)", border: `1px solid ${theme.border}` }}>
-          <p className="text-[9px] uppercase tracking-widest" style={{ color: theme.muted }}>🔒 Do not share · For your eyes only</p>
+        <div className="mx-4 mb-4 rounded-xl px-4 py-2.5 text-center" style={{ background: "rgba(0,0,0,0.3)", border: `1px solid ${tier.border}` }}>
+          <p className="text-[9px] uppercase tracking-widest" style={{ color: tier.muted }}>🔒 Do not share · For your eyes only</p>
         </div>
 
-        <div className="relative grid grid-cols-2 gap-3 px-6 pb-6">
-          {token && (
-            <a href={`${API}/public/tickets/qr/${token}`} download={`ticket-${ticket.ticket_number}.png`}
+        <div className="grid gap-3 px-6 pb-6" style={{ gridTemplateColumns: qrUrl ? "1fr 1fr" : "1fr" }}>
+          {qrUrl && (
+            <a href={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&data=${encodeURIComponent(token)}`}
+              download={`ticket-${ticket.ticket_number}.png`}
               className="flex items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold"
-              style={{ background: `${theme.accent}18`, border: `1px solid ${theme.border}`, color: theme.accent }}>
+              style={{ background: `${tier.accent}18`, border: `1px solid ${tier.border}`, color: tier.accent }}>
               <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Save PNG
             </a>
           )}
-          <button onClick={onClose} className="rounded-xl py-3 text-xs font-bold col-span-1"
+          <button onClick={onClose} className="rounded-xl py-3 text-xs font-bold"
             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }}>
             Close
           </button>
@@ -234,76 +194,116 @@ function QrModal({ ticket, email, theme, onClose }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Ticket stub card
+// Ticket card — email-matching design
 // ─────────────────────────────────────────────────────────────────────────────
 
 function TicketStub({ ticket, index, email, onShowQr, dimmed }) {
-  const theme = resolveTheme(ticket, index);
+  const tier  = getTierStyle(ticket.ticket_type_name);
   const date  = fmtDate(ticket.starts_at_local);
-  const venue = [ticket.venue_name, ticket.venue_city, ticket.venue_country].filter(Boolean).join(", ") || "Venue TBA";
+  const venue = [ticket.venue_name, ticket.venue_city].filter(Boolean).join(", ");
 
   return (
-    <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
+    <motion.div
+      initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", damping: 22, stiffness: 240, delay: index * 0.06 }}
-      className="relative overflow-hidden"
-      style={{ background: theme.bg, border: `1px solid ${theme.border}`, borderRadius: "22px", opacity: dimmed ? 0.55 : 1 }}>
-      <BgPattern pattern={theme.pattern} color={theme.accent} />
-      <div className="absolute inset-x-0 top-0 h-px" style={{ background: `linear-gradient(90deg,transparent,${theme.accent}70,transparent)` }} />
-      <div className="absolute -top-10 -right-10 h-36 w-36 rounded-full blur-3xl pointer-events-none" style={{ background: theme.glow }} />
+      style={{ borderRadius: 16, overflow: "hidden", border: `1px solid ${tier.accent}40`, opacity: dimmed ? 0.5 : 1 }}>
 
-      <div className="relative flex">
-        {/* Date column */}
-        <div className="flex flex-col items-center justify-center px-4 py-6 shrink-0 gap-0.5"
-          style={{ background: theme.dateBg, borderRight: `2px dashed ${theme.accent}28`, minWidth: "76px" }}>
-          <span className="text-[28px] font-black leading-none" style={{ color: theme.accent }}>{date.day}</span>
-          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: `${theme.accent}99` }}>{date.month}</span>
-          <span className="text-[10px] mt-1" style={{ color: theme.muted }}>{date.year}</span>
-          {date.time && (
-            <><div className="h-px w-8 my-1.5" style={{ background: `${theme.accent}28` }} />
-            <span className="text-[9px] font-mono" style={{ color: theme.muted }}>{date.time}</span></>
-          )}
-        </div>
+      {/* Gradient top bar */}
+      <div style={{ height: 4, background: `linear-gradient(90deg,${tier.accent},${tier.accent}40,transparent)` }} />
 
-        {/* Notch */}
-        <div className="absolute left-[72px] top-1/2 -translate-y-1/2 -translate-x-1/2 h-5 w-5 rounded-full z-10" style={{ background: "#07070f" }} />
-
-        {/* Info */}
-        <div className="flex-1 px-5 py-5 min-w-0">
-          <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: theme.accent }}>
-            {ticket.ticket_type_name || "General Admission"}
-          </p>
-          <h3 className="text-[15px] font-black leading-tight truncate" style={{ color: theme.text }}>{ticket.event_title}</h3>
-
-          <div className="mt-3 space-y-1.5">
-            <div className="flex items-start gap-2">
-              <svg className="shrink-0 mt-0.5" width="10" height="10" fill="none" stroke={theme.muted} strokeWidth="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-              <p className="text-[11px] leading-tight truncate" style={{ color: theme.muted }}>{venue}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <svg className="shrink-0" width="10" height="10" fill="none" stroke={theme.muted} strokeWidth="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-              <p className="text-[10px] font-mono" style={{ color: theme.muted }}>{ticket.ticket_number}</p>
-            </div>
+      {/* Header */}
+      <div style={{ background: tier.bg, padding: "20px 24px 14px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <span style={{ display: "inline-block", background: `${tier.accent}20`, border: `1px solid ${tier.accent}40`, color: tier.accent, fontSize: 10, fontWeight: 900, letterSpacing: "0.18em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 99, whiteSpace: "nowrap" }}>
+              {tier.icon} {tier.badge}
+            </span>
+            <h3 style={{ margin: "8px 0 3px", fontSize: 18, fontWeight: 800, color: "#fff", letterSpacing: -0.3, lineHeight: 1.2 }}>
+              {ticket.ticket_type_name || "General Admission"}
+            </h3>
+            <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.45)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {ticket.event_title}
+            </p>
           </div>
-
-          <div className="mt-4 flex items-center justify-between gap-2 flex-wrap">
-            <StatusChip status={ticket.qr_status} />
-            {ticket.qr_status !== "REVOKED" && (
-              <button onClick={() => onShowQr({ ticket, theme })}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition active:scale-95 shrink-0"
-                style={{ background: `${theme.accent}18`, border: `1px solid ${theme.accent}30`, color: theme.accent }}>
-                <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h3v3h-3v-3h-3z"/></svg>
-                View QR
-              </button>
-            )}
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <p style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: "0.08em", textTransform: "uppercase" }}>Ticket No.</p>
+            <p style={{ margin: "4px 0 0", fontSize: 13, fontWeight: 900, color: tier.accent, fontFamily: "'Courier New',monospace", letterSpacing: "0.08em" }}>
+              {ticket.ticket_number}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="relative mx-4 border-t border-dashed" style={{ borderColor: `${theme.accent}18` }} />
-      <div className="relative flex items-center justify-between px-5 py-2.5" style={{ background: theme.stub }}>
-        <p className="text-[9px] font-mono truncate max-w-[55%]" style={{ color: theme.muted }}>{ticket.buyer_email}</p>
-        <p className="text-[9px] font-mono" style={{ color: theme.muted }}>{fmtShort(ticket.issued_at)}</p>
+      {/* Perforation */}
+      <div style={{ background: tier.bg, padding: "0 24px" }}>
+        <div style={{ borderTop: `2px dashed ${tier.accent}22` }} />
+      </div>
+
+      {/* Body */}
+      <div style={{ background: tier.bg, padding: "16px 24px 20px" }}>
+        <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+
+          {/* Left: info */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ marginBottom: 10 }}>
+              <p style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Ticket Holder</p>
+              <p style={{ margin: "3px 0 0", fontSize: 14, fontWeight: 700, color: "#fff" }}>
+                {ticket.holder_name || ticket.buyer_name || "Guest"}
+              </p>
+            </div>
+
+            {date.full !== "TBA" && (
+              <div style={{ marginBottom: 10 }}>
+                <p style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Date</p>
+                <p style={{ margin: "3px 0 0", fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                  {date.full}{date.time ? ` · ${date.time}` : ""}
+                </p>
+              </div>
+            )}
+
+            {venue && (
+              <div style={{ marginBottom: 12 }}>
+                <p style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Venue</p>
+                <p style={{ margin: "3px 0 0", fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{venue}</p>
+              </div>
+            )}
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <StatusChip status={ticket.qr_status} />
+              {ticket.qr_status !== "REVOKED" && (
+                <button
+                  onClick={() => onShowQr({ ticket, tier })}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, background: tier.accent, color: tier.bg, fontSize: 11, fontWeight: 800, padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer", letterSpacing: "0.04em" }}>
+                  <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                    <rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h3v3h-3v-3h-3z"/>
+                  </svg>
+                  View QR →
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Right: inline QR code */}
+          {ticket.qr_token && (
+            <button
+              onClick={() => onShowQr({ ticket, tier })}
+              style={{ flexShrink: 0, background: "#fff", padding: 6, borderRadius: 10, border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=88x88&margin=4&data=${encodeURIComponent(ticket.qr_token)}`}
+                alt="QR Code" width={76} height={76}
+                style={{ display: "block", borderRadius: 4 }} />
+              <p style={{ margin: 0, fontSize: 9, color: "#999", letterSpacing: "0.04em" }}>tap to enlarge</p>
+            </button>
+          )}
+
+        </div>
+      </div>
+
+      {/* Footer strip */}
+      <div style={{ background: `${tier.accent}08`, borderTop: `1px solid ${tier.accent}15`, padding: "8px 24px", display: "flex", justifyContent: "space-between" }}>
+        <p style={{ margin: 0, fontSize: 9, fontFamily: "monospace", color: "rgba(255,255,255,0.25)" }}>{ticket.buyer_email}</p>
+        <p style={{ margin: 0, fontSize: 9, fontFamily: "monospace", color: "rgba(255,255,255,0.25)" }}>{fmtShort(ticket.issued_at)}</p>
       </div>
     </motion.div>
   );
@@ -335,11 +335,17 @@ function Empty({ label }) {
 // Settings
 // ─────────────────────────────────────────────────────────────────────────────
 
-function Settings({ email, isRegistered, onLogout }) {
+function Settings({ email, isRegistered, onLogout, onBack }) {
   const grad = avatarGrad(email);
   const ini  = initials(email);
   return (
     <div className="space-y-4 max-w-md">
+      <button onClick={onBack}
+        className="flex items-center gap-2 text-xs font-bold mb-1"
+        style={{ color: "rgba(255,255,255,0.4)" }}>
+        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        Back to My Tickets
+      </button>
       <div className="rounded-2xl p-5 space-y-4" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
         <div className="flex items-center gap-4">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-lg font-black text-white" style={{ background: grad }}>{ini}</div>
@@ -384,9 +390,8 @@ function LookupGate({ onAuthenticated, prefillEmail = "" }) {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState("");
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    const q = email.trim().toLowerCase();
+  async function doLookup(emailVal) {
+    const q = emailVal.trim().toLowerCase();
     if (!q || !q.includes("@")) { setError("Enter a valid email address"); return; }
     setError("");
     setLoading(true);
@@ -395,14 +400,30 @@ function LookupGate({ onAuthenticated, prefillEmail = "" }) {
       if (tn.trim()) params.set("ticket_number", tn.trim().toUpperCase());
       const res  = await fetch(`${API}/public/my-tickets?${params}`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Lookup failed");
+      if (res.status === 429) { setError("Too many attempts, wait a few minutes"); return; }
+      if (res.status === 404 || (res.ok && data.tickets?.length === 0)) {
+        setError("No tickets found. Use the exact email from your order confirmation");
+        return;
+      }
+      if (!res.ok) { setError("Something went wrong, try again"); return; }
       onAuthenticated({ email: q, tickets: data.tickets ?? [], isRegistered: false });
-    } catch (err) {
-      setError(err.message);
+    } catch {
+      setError("Something went wrong, try again");
     } finally {
       setLoading(false);
     }
   }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    doLookup(email);
+  }
+
+  // Auto-submit when a valid email arrives via URL param
+  useEffect(() => {
+    const q = prefillEmail.trim().toLowerCase();
+    if (q && q.includes("@")) doLookup(q);
+  }, []); // eslint-disable-line
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-20" style={{ background: "#07070f" }}>
@@ -426,21 +447,6 @@ function LookupGate({ onAuthenticated, prefillEmail = "" }) {
             <p className="text-sm text-center mt-2 mb-7" style={{ color: "rgba(255,255,255,0.35)" }}>
               Enter your checkout email to see your tickets
             </p>
-
-            {/* Sign in link for registered users */}
-            <a href="/login?redirect=/my-tickets"
-              className="flex items-center justify-center gap-2 w-full rounded-xl py-3 mb-5 text-sm font-bold transition"
-              style={{ background: "rgba(124,111,247,0.1)", border: "1px solid rgba(124,111,247,0.25)", color: "#9b8df9" }}>
-              <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-              Sign in with your account
-            </a>
-
-            {/* Divider */}
-            <div className="flex items-center gap-3 mb-5">
-              <div className="h-px flex-1" style={{ background: "rgba(255,255,255,0.07)" }} />
-              <span className="text-[10px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>or continue as guest</span>
-              <div className="h-px flex-1" style={{ background: "rgba(255,255,255,0.07)" }} />
-            </div>
 
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
@@ -617,7 +623,7 @@ function Portal({ email, isRegistered, initialTickets, onLogout }) {
           <AnimatePresence mode="wait">
             {tab === "settings" ? (
               <motion.div key="settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <Settings email={email} isRegistered={isRegistered} onLogout={onLogout} />
+                <Settings email={email} isRegistered={isRegistered} onLogout={onLogout} onBack={() => setTab("active")} />
               </motion.div>
             ) : (
               <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
@@ -631,7 +637,7 @@ function Portal({ email, isRegistered, initialTickets, onLogout }) {
                   ? <div className="space-y-4">{[1, 2].map(i => <Skeleton key={i} />)}</div>
                   : current.length === 0
                   ? <Empty label={tab === "active" ? "No upcoming tickets" : "No past events"} />
-                  : <div className="space-y-5">{current.map((t, i) => <TicketStub key={t.id} ticket={t} index={i} email={email} onShowQr={setQrState} dimmed={tab === "past"} />)}</div>
+                  : <div className="space-y-5">{current.map((t, i) => <TicketStub key={t.id} ticket={t} index={i} email={email} onShowQr={setQrState} dimmed={false} />)}</div>
                 }
               </motion.div>
             )}
@@ -673,7 +679,7 @@ function Portal({ email, isRegistered, initialTickets, onLogout }) {
       </AnimatePresence>
 
       <AnimatePresence>
-        {qrState && <QrModal ticket={qrState.ticket} email={email} theme={qrState.theme} onClose={() => setQrState(null)} />}
+        {qrState && <QrModal ticket={qrState.ticket} tier={qrState.tier} onClose={() => setQrState(null)} />}
       </AnimatePresence>
     </div>
   );
@@ -691,34 +697,47 @@ function Content() {
   // Zustand auth store
   const { user, isAuthenticated, isHydrated, fetchMe, logout } = useAuthStore();
 
-  const [session, setSession] = useState(null);  // { email, tickets, isRegistered }
-  const [booting, setBooting] = useState(true);
+  const [session,      setSession]      = useState(null);  // { email, tickets, isRegistered }
+  const [booting,      setBooting]      = useState(true);
+  const [gatePrefill,  setGatePrefill]  = useState(initEmail);
 
   useEffect(() => {
+    async function fetchWithTimeout(url) {
+      const ctrl  = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8000);
+      try {
+        const res = await fetch(url, { signal: ctrl.signal });
+        return res;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
     async function boot() {
       try {
-        // 1. Try to restore the JWT session
-        const me = await fetchMe();
-
-        if (me?.email) {
-          // Registered user — fetch tickets using their verified email
-          const params = new URLSearchParams({ email: me.email });
-          if (initTn) params.set("ticket_number", initTn);
-          const res  = await fetch(`${API}/public/my-tickets?${params}`);
-          const data = await res.json();
-          setSession({ email: me.email, tickets: data.tickets ?? [], isRegistered: true });
-          return;
-        }
-
-        // 2. Not logged in — try URL email param (guest confirmation email link)
+        // Fast path: email link from ticket confirmation email — skip the
+        // /auth/me → 401 → refresh chain (adds up to ~20 s for guests) and
+        // go straight to the guest ticket lookup.
         if (initEmail) {
           const params = new URLSearchParams({ email: initEmail });
           if (initTn) params.set("ticket_number", initTn);
-          const res  = await fetch(`${API}/public/my-tickets?${params}`);
+          const res  = await fetchWithTimeout(`${API}/public/my-tickets?${params}`);
           const data = await res.json();
           if (data.success) {
             setSession({ email: initEmail.toLowerCase(), tickets: data.tickets ?? [], isRegistered: false });
           }
+          return;
+        }
+
+        // Registered user flow — try to restore JWT session first
+        const me = await fetchMe();
+        if (me?.email) {
+          const params = new URLSearchParams({ email: me.email });
+          if (initTn) params.set("ticket_number", initTn);
+          const res  = await fetchWithTimeout(`${API}/public/my-tickets?${params}`);
+          const data = await res.json();
+          setSession({ email: me.email, tickets: data.tickets ?? [], isRegistered: true });
+          return;
         }
       } catch {
         // silently fall through to the gate
@@ -731,6 +750,7 @@ function Content() {
 
   function handleLogout() {
     if (session?.isRegistered) logout();
+    setGatePrefill("");  // clear prefill so auto-submit doesn't re-fire
     setSession(null);
   }
 
@@ -753,7 +773,7 @@ function Content() {
   }
 
   if (!session) {
-    return <LookupGate onAuthenticated={setSession} prefillEmail={initEmail} />;
+    return <LookupGate onAuthenticated={setSession} prefillEmail={gatePrefill} />;
   }
 
   return (

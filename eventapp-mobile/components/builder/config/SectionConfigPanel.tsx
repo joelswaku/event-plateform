@@ -7,6 +7,8 @@ import CountdownConfigFields from './fields/CountdownConfigFields';
 import FAQConfigFields       from './fields/FAQConfigFields';
 import CoupleConfigFields    from './fields/CoupleConfigFields';
 import StoryConfigFields     from './fields/StoryConfigFields';
+import SpeakersConfigFields  from './fields/SpeakersConfigFields';
+import ScheduleConfigFields  from './fields/ScheduleConfigFields';
 import GenericConfigFields   from './fields/GenericConfigFields';
 
 interface Props {
@@ -25,6 +27,8 @@ export default function SectionConfigPanel({ section, eventId, iosKeyboardInsets
     case 'FAQ':       return <FAQConfigFields       {...p} />;
     case 'COUPLE':    return <CoupleConfigFields    {...p} />;
     case 'STORY':     return <StoryConfigFields     {...p} />;
+    case 'SPEAKERS':  return <SpeakersConfigFields  {...p} />;
+    case 'SCHEDULE':  return <ScheduleConfigFields  {...p} />;
     default:          return <GenericConfigFields   {...p} />;
   }
 }

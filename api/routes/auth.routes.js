@@ -12,7 +12,11 @@ import { verifyEmail } from "../controllers/auth/verifyEmail.controller.js";
 import { forgotPassword } from "../controllers/auth/forgotPassword.controller.js";
 import { resetPassword } from "../controllers/auth/resetPassword.controller.js";
 import { googleLogin } from "../controllers/auth/googleLogin.controller.js";
-import { me } from "../controllers/auth/me.controller.js";
+import { me }             from "../controllers/auth/me.controller.js";
+import { uploadAvatar }   from "../controllers/auth/uploadAvatar.controller.js";
+import { updateProfile }  from "../controllers/auth/updateProfile.controller.js";
+import { changePassword } from "../controllers/auth/changePassword.controller.js";
+import { upload }         from "../middleware/upload.middleware.js";
 
 const router = Router();
 
@@ -50,6 +54,13 @@ router.post("/logout", authenticate, logout);
 
 // Get current user
 router.get("/me", authenticate, me);
+
+// Upload / update profile avatar
+router.patch("/avatar",    authenticate, upload.single("file"), uploadAvatar);
+// Update profile info (name)
+router.patch("/profile",   authenticate, updateProfile);
+// Change password
+router.patch("/password",  authenticate, changePassword);
 
 export default router;
 

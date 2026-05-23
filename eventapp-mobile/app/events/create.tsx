@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable, Switch, Dimensions,
 } from 'react-native';
@@ -7,8 +7,9 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
-import { useEventStore }    from '@/store/event.store';
-import { useTicketStore }   from '@/store/ticket.store';
+import { useEventStore }        from '@/store/event.store';
+import { useTicketStore }       from '@/store/ticket.store';
+import { useSubscriptionStore } from '@/store/subscription.store';
 import { Input }             from '@/components/ui/Input';
 import { Button }           from '@/components/ui/Button';
 import { DateTimePicker }   from '@/components/ui/DateTimePicker';
@@ -109,8 +110,10 @@ interface FormState {
   venue_name:       string;
   venue_address:    string;
   city:             string;
+  zip_code:         string;
   country:          string;
   allow_rsvp:       boolean;
+  open_rsvp:        boolean;
   allow_ticketing:  boolean;
   allow_qr_checkin: boolean;
   allow_donations:  boolean;
@@ -119,22 +122,181 @@ interface FormState {
 const INITIAL: FormState = {
   subcategory: '', event_type: '', title: '', description: '',
   starts_at: null, ends_at: null, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-  venue_name: '', venue_address: '', city: '', country: '',
-  allow_rsvp: true, allow_ticketing: false, allow_qr_checkin: true, allow_donations: false,
+  venue_name: '', venue_address: '', city: '', zip_code: '', country: '',
+  allow_rsvp: true, allow_ticketing: false, allow_qr_checkin: true, allow_donations: false, open_rsvp: false,
 };
+
+/* ─── Upgrade gate shown when event limit is reached ──────────────── */
+function UpgradeGate({ onBack }: { onBack: () => void }) {
+  const router  = useRouter();
+  const prices  = useSubscriptionStore(s => s.prices);
+  const plan    = useSubscriptionStore(s => s.plan);
+  const isStarter = plan === 'starter';
+
+  const heading = isStarter
+    ? 'Starter Limit Reached'
+    : 'Event Limit Reached';
+  const sub = isStarter
+    ? "You've used all 5 Starter events. Upgrade to Pro for unlimited events — no caps, ever."
+    : 'Your free plan includes 1 event. Upgrade to Starter for 5 events, or Pro for unlimited.';
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.root}>
+
+        {/* Header */}
+        <View style={styles.header}>
+          <Pressable onPress={onBack} style={styles.back} hitSlop={8}>
+            <Feather name="arrow-left" size={18} color="#fff" />
+          </Pressable>
+          <Text style={styles.headerTitle}>Create Event</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <ScrollView contentContainerStyle={ug.content} showsVerticalScrollIndicator={false}>
+
+          {/* Lock icon */}
+          <View style={ug.iconWrap}>
+            <LinearGradient
+              colors={['rgba(245,158,11,0.20)', 'rgba(245,158,11,0.06)']}
+              style={StyleSheet.absoluteFill}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            />
+            <Feather name="lock" size={32} color={Colors.accent.amber} />
+          </View>
+
+          <Text style={ug.heading}>{heading}</Text>
+          <Text style={ug.sub}>{sub}</Text>
+
+          {/* Plan cards */}
+          <View style={[ug.planRow, isStarter && { justifyContent: 'center' }]}>
+            {/* Starter — only shown to free users */}
+            {!isStarter && (
+              <View style={[ug.planCard, { borderColor: 'rgba(99,102,241,0.45)' }]}>
+                <View style={ug.planBadge}>
+                  <Text style={ug.planBadgeTxt}>MOST POPULAR</Text>
+                </View>
+                <Text style={[ug.planName, { color: '#818cf8' }]}>Starter</Text>
+                <Text style={[ug.planPrice, { color: '#818cf8' }]}>
+                  {prices.starter?.amount != null ? `$${prices.starter.amount}` : '$19'}
+                </Text>
+                <Text style={ug.planPeriod}>/month</Text>
+                {['5 events', '500 guests', 'All themes', 'Tickets (2% fee)', '1 reminder/guest'].map(f => (
+                  <View key={f} style={ug.featureRow}>
+                    <Feather name="check" size={11} color="#818cf8" />
+                    <Text style={ug.featureTxt}>{f}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Pro */}
+            <View style={[ug.planCard, { borderColor: 'rgba(201,169,110,0.45)', flex: isStarter ? 0 : 1, width: isStarter ? '80%' : undefined }]}>
+              {isStarter && (
+                <View style={[ug.planBadge, { backgroundColor: 'rgba(201,169,110,0.20)' }]}>
+                  <Text style={[ug.planBadgeTxt, { color: '#C9A96E' }]}>RECOMMENDED</Text>
+                </View>
+              )}
+              <Text style={[ug.planName, { color: '#C9A96E' }]}>Pro</Text>
+              <Text style={[ug.planPrice, { color: '#C9A96E' }]}>
+                {prices.pro?.amount != null ? `$${prices.pro.amount}` : '$49'}
+              </Text>
+              <Text style={ug.planPeriod}>/month</Text>
+              {['Unlimited events', 'Unlimited guests', 'All themes', 'Tickets (1.5% fee)', '∞ reminders'].map(f => (
+                <View key={f} style={ug.featureRow}>
+                  <Feather name="check" size={11} color="#C9A96E" />
+                  <Text style={ug.featureTxt}>{f}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* CTA */}
+          <Pressable
+            style={ug.ctaBtn}
+            onPress={() => router.replace('/profile/billing' as never)}
+          >
+            <LinearGradient
+              colors={isStarter ? ['#c9a96e', '#f59e0b'] : [Colors.accent.indigo, '#818cf8']}
+              style={[StyleSheet.absoluteFill, { borderRadius: 16 }]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            />
+            <Feather name="zap" size={16} fill={isStarter ? '#000' : '#fff'} color={isStarter ? '#000' : '#fff'} />
+            <Text style={[ug.ctaTxt, isStarter && { color: '#000' }]}>
+              {isStarter ? 'Upgrade to Pro' : 'View Plans & Upgrade'}
+            </Text>
+          </Pressable>
+
+          <Pressable onPress={onBack} style={ug.laterBtn}>
+            <Text style={ug.laterTxt}>Maybe later</Text>
+          </Pressable>
+
+        </ScrollView>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const ug = StyleSheet.create({
+  content:    { padding: 24, gap: 16, alignItems: 'center' },
+  iconWrap:   { width: 88, height: 88, borderRadius: 26, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(245,158,11,0.30)', marginTop: 16, marginBottom: 4 },
+  heading:    { fontSize: 24, fontWeight: '900', color: '#fff', letterSpacing: -0.5, textAlign: 'center' },
+  sub:        { fontSize: 13, color: Colors.text.muted, textAlign: 'center', lineHeight: 20, maxWidth: 300 },
+  planRow:    { flexDirection: 'row', gap: 10, width: '100%' },
+  planCard:   { flex: 1, backgroundColor: Colors.bg.card, borderRadius: 18, borderWidth: 1, padding: 14, gap: 6, marginTop: 8 },
+  planBadge:  { backgroundColor: 'rgba(99,102,241,0.20)', borderRadius: 99, paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start', marginBottom: 2 },
+  planBadgeTxt:{ fontSize: 8, fontWeight: '900', color: '#818cf8', letterSpacing: 1 },
+  planName:   { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1 },
+  planPrice:  { fontSize: 30, fontWeight: '900', lineHeight: 34 },
+  planPeriod: { fontSize: 11, color: Colors.text.muted, marginTop: -4, marginBottom: 6 },
+  featureRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  featureTxt: { fontSize: 11, color: Colors.text.secondary, fontWeight: '500', flex: 1 },
+  ctaBtn:     { height: 54, width: '100%', borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, overflow: 'hidden', marginTop: 8 },
+  ctaTxt:     { fontSize: 15, fontWeight: '900', color: '#fff' },
+  laterBtn:   { paddingVertical: 12 },
+  laterTxt:   { fontSize: 13, color: Colors.text.muted, fontWeight: '600' },
+});
 
 export default function CreateEventScreen() {
   const router = useRouter();
   const { createEvent }       = useEventStore();
   const { createTicketType }  = useTicketStore();
+  const { isAtEventLimit, fetchSubscription } = useSubscriptionStore();
 
   const [step,         setStep]       = useState(0);
   const [form,         setForm]       = useState<FormState>(INITIAL);
   const [expandedCat, setExpandedCat]= useState<string | null>(null);
   const [saving,      setSaving]     = useState(false);
 
+  useEffect(() => { fetchSubscription(); }, []);
+
+  const atLimit = isAtEventLimit();
+
+  if (atLimit) {
+    return <UpgradeGate onBack={() => router.back()} />;
+  }
+
   const update = (key: keyof FormState, val: unknown) =>
     setForm(f => ({ ...f, [key]: val }));
+
+  // Mutual exclusivity for RSVP / Ticketing / Donations
+  const toggleModule = (key: 'allow_rsvp' | 'allow_ticketing' | 'allow_donations', val: boolean) => {
+    if (val) {
+      setForm(f => ({
+        ...f,
+        allow_rsvp:      key === 'allow_rsvp',
+        allow_ticketing: key === 'allow_ticketing',
+        allow_donations: key === 'allow_donations',
+        open_rsvp: false,
+      }));
+    } else {
+      setForm(f => ({
+        ...f,
+        [key]: false,
+        ...(key === 'allow_rsvp' ? { open_rsvp: false } : {}),
+      }));
+    }
+  };
 
   const canAdvance = () => {
     if (step === 0) return !!form.subcategory;
@@ -156,19 +318,21 @@ export default function CreateEventScreen() {
       venue_name:       form.venue_name,
       venue_address:    form.venue_address,
       city:             form.city,
+      zip_code:         form.zip_code,
       country:          form.country,
       allow_rsvp:       form.allow_rsvp,
+      open_rsvp:        form.open_rsvp,
       allow_ticketing:  form.allow_ticketing,
-      allow_qr_checkin: form.allow_qr_checkin,
+      allow_qr_checkin: true,
       allow_donations:  form.allow_donations,
     });
     setSaving(false);
     if (!result.success) {
-      Toast.show({
-        type: 'error',
-        text1: result.code === 'PLAN_LIMIT_EVENTS' ? 'Free plan limit reached' : (result.message ?? 'Failed'),
-        text2: result.code === 'PLAN_LIMIT_EVENTS' ? 'Upgrade to create unlimited events.' : undefined,
-      });
+      if (result.code === 'PLAN_LIMIT_EVENTS') {
+        router.replace('/profile/billing' as never);
+        return;
+      }
+      Toast.show({ type: 'error', text1: result.message ?? 'Failed to create event' });
       return;
     }
     Toast.show({ type: 'success', text1: '🎉 Event created!' });
@@ -271,8 +435,16 @@ export default function CreateEventScreen() {
                                 sel && { borderColor: cat.color, backgroundColor: `${cat.color}12` },
                               ]}
                               onPress={() => {
-                                update('subcategory', sub.id);
-                                update('event_type', sub.eventType);
+                                const isTicketed = cat.id === 'entertainment';
+                                setForm(f => ({
+                                  ...f,
+                                  subcategory:      sub.id,
+                                  event_type:       sub.eventType,
+                                  allow_rsvp:       !isTicketed,
+                                  allow_ticketing:  isTicketed,
+                                  allow_donations:  false,
+                                  open_rsvp:        false,
+                                }));
                                 setExpandedCat(null);
                               }}
                             >
@@ -353,6 +525,7 @@ export default function CreateEventScreen() {
               <Input label="Venue Name"     placeholder="Madison Square Garden" value={form.venue_name}    onChangeText={t => update('venue_name', t)}    icon="map-pin"  />
               <Input label="Street Address" placeholder="4 Pennsylvania Plaza"  value={form.venue_address} onChangeText={t => update('venue_address', t)} icon="navigation"/>
               <Input label="City"           placeholder="New York"               value={form.city}          onChangeText={t => update('city', t)}          icon="map"      />
+              <Input label="Zip / Postal"   placeholder="10001"                  value={form.zip_code}      onChangeText={t => update('zip_code', t)}      icon="hash"     />
               <Input label="Country"        placeholder="US"                    value={form.country}       onChangeText={t => update('country', t)}       icon="flag"     />
             </View>
           )}
@@ -365,25 +538,19 @@ export default function CreateEventScreen() {
                 icon="users"       label="RSVP"
                 sub="Allow guests to RSVP to this event"
                 value={form.allow_rsvp}       color={Colors.accent.emerald}
-                onChange={v => update('allow_rsvp', v)}
+                onChange={v => toggleModule('allow_rsvp', v)}
               />
               <ToggleRow
                 icon="credit-card" label="Ticketing"
                 sub="Sell free or paid tickets"
                 value={form.allow_ticketing}  color={Colors.accent.amber}
-                onChange={v => update('allow_ticketing', v)}
-              />
-              <ToggleRow
-                icon="camera"      label="QR Check-in"
-                sub="Enable QR code scanning at the door"
-                value={form.allow_qr_checkin} color={Colors.accent.indigo}
-                onChange={v => update('allow_qr_checkin', v)}
+                onChange={v => toggleModule('allow_ticketing', v)}
               />
               <ToggleRow
                 icon="heart"       label="Donations"
                 sub="Accept optional donations at this event"
                 value={form.allow_donations}  color={Colors.accent.violet}
-                onChange={v => update('allow_donations', v)}
+                onChange={v => toggleModule('allow_donations', v)}
               />
             </View>
           )}

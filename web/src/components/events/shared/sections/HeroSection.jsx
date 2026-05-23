@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { Lock, Zap, QrCode, Ticket, CheckCircle, CreditCard, Shield, Timer, Heart, ArrowRight, Loader2 } from "lucide-react";
 
 const EASE = [0.22, 1, 0.36, 1];
 const API  = process.env.NEXT_PUBLIC_API_URL;
@@ -114,10 +115,11 @@ function TicketBlock({
     };
   }
 
-  const [countdown, setCountdown] = useState(() => calcLeft(targetDate));
+  const [countdown, setCountdown] = useState(null);
 
   useEffect(() => {
     if (!targetDate) return;
+    setCountdown(calcLeft(targetDate));
     const id = setInterval(() => setCountdown(calcLeft(targetDate)), 1000);
     return () => clearInterval(id);
   }, [targetDate]);
@@ -147,7 +149,7 @@ function TicketBlock({
           width: "100%",
         }}
       >
-        ðŸŽŸ Ticket Card â€” visible on public page
+        🎟 Ticket Card — visible on public page
       </motion.div>
     );
   }
@@ -172,7 +174,7 @@ function TicketBlock({
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        {/* â•â•â•â•â•â•â•â•â•â•â• OUTER CARD â•â•â•â•â•â•â•â•â•â•â• */}
+        {/* â•â•â•â•â•â•â•â•â•â•â• OUTER CARD â•â•â•â•â•â•â•â•â•â•â• */}
         <div style={{
           position:       "relative",
           borderRadius:   22,
@@ -243,7 +245,7 @@ function TicketBlock({
               letterSpacing: "0.2em",
               color:         isSoldOut ? "rgba(255,255,255,0.25)" : "var(--t-accent,#6366f1)",
             }}>
-              ðŸŽŸ {isSoldOut ? "Event Full" : "Tickets Available"}
+              🎟 {isSoldOut ? "Event Full" : "Tickets Available"}
             </div>
 
             {/* Right: urgency OR sold out */}
@@ -316,10 +318,10 @@ function TicketBlock({
                 paddingTop:    4,
               }}>
                 {[
-                  { icon: "ðŸ”’", text: "Secure checkout" },
-                  { icon: "âš¡", text: "Instant e-ticket" },
-                  { icon: "ðŸ“²", text: "QR code entry" },
-                ].map(({ icon, text }) => (
+                  { icon: Lock,   text: "Secure checkout" },
+                  { icon: Zap,    text: "Instant e-ticket" },
+                  { icon: QrCode, text: "QR code entry" },
+                ].map(({ icon: Icon, text }) => (
                   <span key={text} style={{
                     display:    "flex",
                     alignItems: "center",
@@ -329,16 +331,16 @@ function TicketBlock({
                     color:      "rgba(255,255,255,0.35)",
                     whiteSpace: "nowrap",
                   }}>
-                    {icon} {text}
+                    <Icon size={11} strokeWidth={2.5} /> {text}
                   </span>
                 ))}
               </div>
             )}
           </div>
 
-          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-              COUNTDOWN SECTION â€” only when event has a future date
-          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+              COUNTDOWN SECTION â€" only when event has a future date
+          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           {showCountdown && (
             <div style={{
               margin:     "0 22px 16px",
@@ -357,7 +359,8 @@ function TicketBlock({
                 textAlign:     "center",
                 marginBottom:  10,
               }}>
-                â³ Event Starts In
+                <Timer size={10} strokeWidth={2.5} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
+                Event Starts In
               </p>
 
               {/* Units */}
@@ -451,12 +454,15 @@ function TicketBlock({
                 marginBottom: 14,
               }}>
                 {[
-                  "ðŸŽ« E-ticket emailed instantly",
-                  "âœ… QR code check-in",
-                  "ðŸ’³ Stripe payments",
-                  "ðŸ”’ No hidden fees",
-                ].map((t) => (
-                  <span key={t} style={{
+                  { icon: Ticket,      text: "E-ticket emailed instantly" },
+                  { icon: CheckCircle, text: "QR code check-in" },
+                  { icon: CreditCard,  text: "Stripe payments" },
+                  { icon: Shield,      text: "No hidden fees" },
+                ].map(({ icon: Icon, text }) => (
+                  <span key={text} style={{
+                    display:       "flex",
+                    alignItems:    "center",
+                    gap:           5,
                     padding:       "4px 10px",
                     borderRadius:  99,
                     background:    "rgba(255,255,255,0.05)",
@@ -466,7 +472,8 @@ function TicketBlock({
                     color:         "rgba(255,255,255,0.38)",
                     whiteSpace:    "nowrap",
                   }}>
-                    {t}
+                    <Icon size={10} strokeWidth={2.5} />
+                    {text}
                   </span>
                 ))}
               </div>
@@ -616,10 +623,7 @@ function HeroDonationCard({ event, isEditor, delay, centered }) {
       >
         {/* Header */}
         <div className="flex items-center gap-2.5 border-b px-4 py-3" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-          {/* Heart SVG inline to avoid extra import */}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="#f472b6" stroke="#f472b6" strokeWidth="2">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-          </svg>
+          <Heart size={14} fill="#f472b6" stroke="#f472b6" strokeWidth="2" />
           <p className="text-xs font-semibold uppercase tracking-widest text-white/50">Support this event</p>
         </div>
 
@@ -694,10 +698,21 @@ function HeroDonationCard({ event, isEditor, delay, centered }) {
             className="w-full rounded-xl py-2.5 text-xs font-black uppercase tracking-[0.12em] transition active:scale-[0.98] disabled:opacity-60"
             style={{ background: "var(--t-accent)", color: "var(--t-accent-fg, #000)" }}
           >
-            {submitting ? "Redirectingâ€¦" : `Give ${preset === "custom" ? (custom ? `$${custom}` : "â€¦") : `$${preset}`} â†’`}
+            {submitting ? (
+              <span className="flex items-center justify-center gap-1.5">
+                <Loader2 size={12} className="animate-spin" /> Redirecting…
+              </span>
+            ) : (
+              <span className="flex items-center justify-center gap-1.5">
+                Give {preset === "custom" ? (custom ? `$${custom}` : "…") : `$${preset}`}
+                <ArrowRight size={13} strokeWidth={2.5} />
+              </span>
+            )}
           </button>
 
-          <p className="text-center text-[10px] text-white/20">Secure checkout via Stripe</p>
+          <p className="flex items-center justify-center gap-1 text-center text-[10px] text-white/20">
+            <Lock size={9} strokeWidth={2.5} /> Secure checkout via Stripe
+          </p>
         </form>
       </div>
     </motion.div>
@@ -763,7 +778,7 @@ function getPriceLabel(paidTickets, freeTickets, currency) {
   if (paidTickets.length === 0) return freeTickets.length ? "Free entry" : "";
   const min = Math.min(...paidTickets.map((t) => Number(t.price)));
   const max = Math.max(...paidTickets.map((t) => Number(t.price)));
-  return min === max ? `From ${formatPrice(min, currency)}` : `${formatPrice(min, currency)} â€“ ${formatPrice(max, currency)}`;
+  return min === max ? `From ${formatPrice(min, currency)}` : `${formatPrice(min, currency)} â€" ${formatPrice(max, currency)}`;
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────────
@@ -812,16 +827,21 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
   const isUrgent    = hasLimit && spotsLeft > 0 && spotsLeft <= 20;
   const ticketCount = pubTickets.length;
 
-  // Independent show flags â€” each feature is separate
+  // Independent show flags â€" each feature is separate
   const showTicketBlock   = isEditor ? !!event?.allow_ticketing : isTicketed;
-  const showRsvpBlock     = !!event?.allow_rsvp && !showTicketBlock;
+  const showRsvpBlock     = false; // RSVP is handled exclusively by the sticky panel
   const showDonationBlock = !!event?.allow_donations;
 
   function handleRsvp() {
     window.dispatchEvent(new CustomEvent("open-rsvp-panel"));
   }
   function handleBuyTickets() {
-    if (event?.slug) window.location.href = `/e/${event.slug}/tickets`;
+    const inPageSection = document.getElementById("tickets");
+    if (inPageSection) {
+      inPageSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else if (event?.slug) {
+      window.location.href = `/e/${event.slug}/tickets`;
+    }
   }
 
   const bg           = config.background_color || DEFAULT_BG[theme] || DEFAULT_BG.CLASSIC;

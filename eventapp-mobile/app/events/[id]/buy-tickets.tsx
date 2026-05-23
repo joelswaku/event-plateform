@@ -246,7 +246,7 @@ export default function BuyTicketsScreen() {
       fetchPublicTickets(id),
     ]);
     setEvent(evt);
-    setTickets((tix ?? []).filter(t => t.is_active));
+    setTickets(tix ?? []);
     setLoading(false);
   }, [id]);
 

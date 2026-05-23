@@ -115,13 +115,15 @@ export async function getPublicTicketsService(eventId) {
       id,
       name,
       description,
+      kind,
       price,
       currency,
       quantity_total,
       quantity_sold,
       (quantity_total - quantity_sold) AS available,
       sale_starts_at,
-      sale_ends_at
+      sale_ends_at,
+      is_active
     FROM ticket_types
     WHERE event_id=$1
       AND is_active=true
@@ -154,14 +156,6 @@ export async function getAdminTicketsService(eventId, organizationId) {
   return result.rows;
 }
 
-const ENTERTAINMENT_DASHBOARD_MODES = [
-  "CONCERT", "FESTIVAL", "LIVE_SHOW", "NIGHTCLUB",
-  "THEATER", "COMEDY", "SPORTS", "EXHIBITION",
-];
-
-/* event_type values used by entertainment subcategories */
-const ENTERTAINMENT_EVENT_TYPES = ["CONCERT", "CORPORATE_EVENT"];
-
 export async function getEventsWithTicketsService(organizationId) {
   const result = await db.query(
     `SELECT
@@ -179,13 +173,10 @@ export async function getEventsWithTicketsService(organizationId) {
      LEFT JOIN ticket_types tt ON tt.event_id = e.id AND tt.deleted_at IS NULL
      WHERE e.organization_id = $1
        AND e.deleted_at IS NULL
-       AND (
-         UPPER(e.dashboard_mode) = ANY($2)
-         OR UPPER(e.event_type)  = ANY($3)
-       )
+       AND e.allow_ticketing = true
      GROUP BY e.id
      ORDER BY e.starts_at DESC NULLS LAST`,
-    [organizationId, ENTERTAINMENT_DASHBOARD_MODES, ENTERTAINMENT_EVENT_TYPES]
+    [organizationId]
   );
   return result.rows;
 }

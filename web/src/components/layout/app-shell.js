@@ -10,7 +10,7 @@ export default function AppShell({ children }) {
   const isBuilder = pathname.includes("/builder");
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
+    <div className="min-h-screen bg-(--bg-base) text-(--text-primary)">
       <div className="flex min-h-screen">
 
         {!isBuilder && <DashboardSidebar />}

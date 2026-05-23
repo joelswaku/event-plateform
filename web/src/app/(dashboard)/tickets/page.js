@@ -10,7 +10,8 @@ import {
   Pencil, Trash2, ChevronDown, ChevronUp, AlertTriangle, Save,
   ArrowRight, LayoutTemplate, Palette, Home, CalendarDays, User,
 } from "lucide-react";
-import { useTicketStore } from "@/store/ticket.store";
+import { useTicketStore }  from "@/store/ticket.store";
+import { useEventStore }   from "@/store/event.store";
 import { EVENT_CATEGORIES } from "@/config/event-categories";
 import { api } from "@/lib/api";
 
@@ -21,6 +22,9 @@ const ENTERTAINMENT_SUBS =
 const ENTERTAINMENT_EVENT_TYPES = new Set(
   ENTERTAINMENT_SUBS.map((s) => s.eventType.toUpperCase())
 );
+
+/* All subcategories across all categories for icon/label lookup */
+const ALL_SUBS = EVENT_CATEGORIES.flatMap((c) => c.subcategories);
 
 
 const TYPE_ACCENTS = {
@@ -57,12 +61,12 @@ function getAccentForEvent(event) {
 }
 function getSubForEvent(event) {
   /* Prefer dashboard_mode (precise subcategory id) over event_type (broad) */
-  const byMode = ENTERTAINMENT_SUBS.find(
+  const byMode = ALL_SUBS.find(
     (s) => s.id.toUpperCase() === String(event.dashboard_mode ?? "").toUpperCase()
   );
   if (byMode) return byMode;
   return (
-    ENTERTAINMENT_SUBS.find(
+    ALL_SUBS.find(
       (s) => s.eventType.toUpperCase() === String(event.event_type ?? "").toUpperCase()
     ) ?? null
   );
@@ -83,17 +87,17 @@ function isUpcoming(d) {
 /* ── Skeleton ────────────────────────────────────────────── */
 function CardSkeleton() {
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-5 animate-pulse">
+    <div className="rounded-2xl border border-gray-100 dark:border-white/8 bg-white dark:bg-(--bg-elevated) p-5 animate-pulse">
       <div className="flex items-start gap-3 mb-4">
-        <div className="h-11 w-11 rounded-xl bg-gray-100 shrink-0" />
+        <div className="h-11 w-11 rounded-xl bg-gray-100 dark:bg-white/8 shrink-0" />
         <div className="flex-1 space-y-2">
-          <div className="h-4 w-3/4 rounded bg-gray-100" />
-          <div className="h-3 w-1/2 rounded bg-gray-100" />
+          <div className="h-4 w-3/4 rounded bg-gray-100 dark:bg-white/8" />
+          <div className="h-3 w-1/2 rounded bg-gray-100 dark:bg-white/8" />
         </div>
       </div>
       <div className="flex gap-2">
-        <div className="h-8 flex-1 rounded-lg bg-gray-100" />
-        <div className="h-8 flex-1 rounded-lg bg-gray-100" />
+        <div className="h-8 flex-1 rounded-lg bg-gray-100 dark:bg-white/8" />
+        <div className="h-8 flex-1 rounded-lg bg-gray-100 dark:bg-white/8" />
       </div>
     </div>
   );
@@ -106,7 +110,7 @@ function TicketStatCard({ icon: Icon, label, value, accent, delay, loading }) {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-5"
+      className="relative overflow-hidden rounded-2xl border border-gray-100 dark:border-white/8 bg-white dark:bg-(--bg-elevated) p-5"
     >
       <div
         className="absolute right-0 top-0 h-24 w-24 rounded-full blur-2xl opacity-30"
@@ -114,11 +118,11 @@ function TicketStatCard({ icon: Icon, label, value, accent, delay, loading }) {
       />
       <div className="relative flex items-start justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">{label}</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-white/40">{label}</p>
           {loading ? (
-            <div className="mt-2 h-8 w-16 animate-pulse rounded-lg bg-gray-100" />
+            <div className="mt-2 h-8 w-16 animate-pulse rounded-lg bg-gray-100 dark:bg-white/8" />
           ) : (
-            <p className="mt-1.5 text-3xl font-black text-gray-900">{value}</p>
+            <p className="mt-1.5 text-3xl font-black text-gray-900 dark:text-white">{value}</p>
           )}
         </div>
         <div
@@ -627,13 +631,12 @@ function TicketRow({ ticket, accent, onEdit, onDelete }) {
 
   return (
     <div
-      className="flex items-center gap-3 rounded-xl px-3.5 py-3"
-      style={{ background: "#f9fafb", border: "1px solid #f3f4f6" }}
+      className="flex items-center gap-3 rounded-xl px-3.5 py-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/8"
     >
       <div className="h-2 w-2 shrink-0 rounded-full" style={{ background: ticket.is_active ? accent.from : "#d1d5db" }} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="truncate text-sm font-bold text-gray-800">{ticket.name}</span>
+          <span className="truncate text-sm font-bold text-gray-800 dark:text-white">{ticket.name}</span>
           <span
             className="rounded-full px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider"
             style={{ background: kindStyle.bg, color: kindStyle.text }}
@@ -647,10 +650,10 @@ function TicketRow({ ticket, accent, onEdit, onDelete }) {
           )}
         </div>
         <div className="mt-0.5 flex items-center gap-2">
-          <span className="text-xs font-semibold text-gray-500">
+          <span className="text-xs font-semibold text-gray-500 dark:text-white/50">
             {ticket.kind === "FREE" ? "Free" : fmtPrice(ticket.price, ticket.currency)}
           </span>
-          <span className="text-[10px] text-gray-400">
+          <span className="text-[10px] text-gray-400 dark:text-white/30">
             {sold} sold{total != null ? ` / ${total}` : ""}
           </span>
           {pct !== null && (
@@ -746,7 +749,7 @@ function EventTicketCard({ event, index, onManage, onRefresh }) {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.05, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="group relative overflow-hidden rounded-2xl border border-gray-100 bg-white transition-all duration-300 hover:border-gray-200 hover:shadow-lg hover:shadow-gray-100"
+        className="group relative overflow-hidden rounded-2xl border border-gray-100 dark:border-white/8 bg-white dark:bg-(--bg-elevated) transition-all duration-300 hover:border-gray-200 dark:hover:border-white/15 hover:shadow-lg hover:shadow-gray-100 dark:hover:shadow-none"
       >
         <div className="h-0.5 w-full" style={{ background: `linear-gradient(90deg,${accent.from},${accent.to})` }} />
 
@@ -763,7 +766,7 @@ function EventTicketCard({ event, index, onManage, onRefresh }) {
               {sub?.icon ?? "🎟️"}
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="truncate text-sm font-bold text-gray-900 group-hover/header:text-indigo-700 transition-colors">
+              <h3 className="truncate text-sm font-bold text-gray-900 dark:text-white group-hover/header:text-indigo-600 dark:group-hover/header:text-indigo-400 transition-colors">
                 {event.title}
               </h3>
               <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -792,19 +795,19 @@ function EventTicketCard({ event, index, onManage, onRefresh }) {
 
           {/* metrics */}
           <div className="mb-4 grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-0.5 rounded-xl px-3 py-2.5" style={{ background: "#f9fafb", border: "1px solid #f3f4f6" }}>
+            <div className="flex flex-col gap-0.5 rounded-xl px-3 py-2.5 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/8">
               <div className="flex items-center gap-1.5">
-                <Tag size={11} className="text-gray-400" />
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Ticket types</span>
+                <Tag size={11} className="text-gray-400 dark:text-white/40" />
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-white/40">Ticket types</span>
               </div>
-              <p className="text-xl font-black text-gray-900">{event.ticket_count ?? 0}</p>
+              <p className="text-xl font-black text-gray-900 dark:text-white">{event.ticket_count ?? 0}</p>
             </div>
-            <div className="flex flex-col gap-0.5 rounded-xl px-3 py-2.5" style={{ background: "#f9fafb", border: "1px solid #f3f4f6" }}>
+            <div className="flex flex-col gap-0.5 rounded-xl px-3 py-2.5 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/8">
               <div className="flex items-center gap-1.5">
-                <Users size={11} className="text-gray-400" />
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Tickets sold</span>
+                <Users size={11} className="text-gray-400 dark:text-white/40" />
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-white/40">Tickets sold</span>
               </div>
-              <p className="text-xl font-black text-gray-900">{(event.total_sold ?? 0).toLocaleString()}</p>
+              <p className="text-xl font-black text-gray-900 dark:text-white">{(event.total_sold ?? 0).toLocaleString()}</p>
             </div>
           </div>
 
@@ -861,7 +864,7 @@ function EventTicketCard({ event, index, onManage, onRefresh }) {
             <div className="flex gap-2">
               <button
                 onClick={handleToggle}
-                className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3.5 py-2.5 text-xs font-bold text-gray-600 transition hover:bg-gray-50 active:scale-[0.97]"
+                className="flex items-center gap-1.5 rounded-xl border border-gray-200 dark:border-white/10 px-3.5 py-2.5 text-xs font-bold text-gray-600 dark:text-white/60 transition hover:bg-gray-50 dark:hover:bg-white/5 active:scale-[0.97]"
               >
                 {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 {expanded ? "Hide" : "Tickets"}
@@ -912,7 +915,7 @@ function FilterBar({ search, onSearch, sort, onSort, count }) {
           placeholder="Search events…"
           value={search}
           onChange={(e) => onSearch(e.target.value)}
-          className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-4 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all"
+          className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-(--bg-elevated) py-2.5 pl-9 pr-4 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30 outline-none focus:border-amber-400 dark:focus:border-amber-400 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-400/20 transition-all"
         />
       </div>
       <div className="flex items-center gap-2">
@@ -920,7 +923,7 @@ function FilterBar({ search, onSearch, sort, onSort, count }) {
           <select
             value={sort}
             onChange={(e) => onSort(e.target.value)}
-            className="appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-3 pr-8 text-sm text-gray-700 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all cursor-pointer"
+            className="appearance-none rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-(--bg-elevated) py-2.5 pl-3 pr-8 text-sm text-gray-700 dark:text-white/70 outline-none focus:border-amber-400 dark:focus:border-amber-400 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-400/20 transition-all cursor-pointer"
           >
             {SORT_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -938,14 +941,91 @@ function FilterBar({ search, onSearch, sort, onSort, count }) {
   );
 }
 
+/* ── Enable Ticketing Card ───────────────────────────────── */
+function EnableTicketingCard({ event, index, onGo }) {
+  const accent  = getAccentForEvent(event);
+  const sub     = getSubForEvent(event);
+  const dateStr = fmtDate(event.starts_at_local);
+  const upcoming = isUpcoming(event.starts_at_local);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      className="group relative overflow-hidden rounded-2xl border border-gray-100 dark:border-white/8 bg-white dark:bg-(--bg-elevated) transition-all duration-300 hover:border-gray-200 dark:hover:border-white/15 hover:shadow-lg hover:shadow-gray-100 dark:hover:shadow-none"
+    >
+      <div className="h-0.5 w-full" style={{ background: `linear-gradient(90deg,${accent.from},${accent.to})` }} />
+      <div className="p-5">
+        {/* event info */}
+        <div className="flex items-start gap-3 mb-4">
+          <div
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl leading-none"
+            style={{ background: `linear-gradient(135deg,${accent.from}18,${accent.to}10)`, border: `1px solid ${accent.from}30` }}
+          >
+            {sub?.icon ?? "🎫"}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-sm font-bold text-gray-900 dark:text-white">{event.title}</h3>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <span
+                className="rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider"
+                style={{ background: `${accent.from}15`, color: accent.from }}
+              >
+                {sub?.label ?? event.event_type ?? "Event"}
+              </span>
+              {dateStr && (
+                <span className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-white/35">
+                  <Calendar size={9} /> {dateStr}
+                </span>
+              )}
+              <span
+                className="flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+                style={upcoming ? { background: "#dcfce7", color: "#16a34a" } : { background: "#f3f4f6", color: "#6b7280" }}
+              >
+                {upcoming ? <CheckCircle2 size={8} /> : <Clock size={8} />}
+                {upcoming ? "Upcoming" : "Past"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* status badge */}
+        <div
+          className="mb-4 flex items-center gap-2 rounded-xl px-3 py-2.5"
+          style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.20)" }}
+        >
+          <Ticket size={13} className="shrink-0 text-amber-500" />
+          <p className="text-xs font-semibold text-amber-700 dark:text-amber-300/80">Ticketing not enabled</p>
+          <div className="ml-auto h-2 w-2 rounded-full bg-amber-400/50" />
+        </div>
+
+        {/* CTA */}
+        <button
+          onClick={onGo}
+          className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white transition-all hover:opacity-90 active:scale-[0.98]"
+          style={{
+            background: `linear-gradient(135deg,${accent.from},${accent.to})`,
+            boxShadow: `0 4px 14px ${accent.glow}30`,
+          }}
+        >
+          <Zap size={14} />
+          Enable Ticketing
+          <ChevronRight size={13} className="opacity-70" />
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
 /* ── Empty state ─────────────────────────────────────────── */
-function EmptyState({ hasFilter, onClear, onCreate }) {
+function EmptyState({ hasFilter, onClear, onCreate, hasEvents }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
-      className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-6 py-16 text-center"
+      className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-(--bg-elevated) px-6 py-16 text-center"
     >
       <div
         className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl"
@@ -955,20 +1035,44 @@ function EmptyState({ hasFilter, onClear, onCreate }) {
       </div>
       {hasFilter ? (
         <>
-          <p className="text-base font-bold text-gray-800">No events match your search</p>
-          <p className="mt-1.5 text-sm text-gray-400">Try a different search term.</p>
+          <p className="text-base font-bold text-gray-800 dark:text-white">No events match your search</p>
+          <p className="mt-1.5 text-sm text-gray-400 dark:text-white/40">Try a different search term.</p>
           <button
             onClick={onClear}
-            className="mt-5 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+            className="mt-5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-(--bg-elevated) px-5 py-2.5 text-sm font-semibold text-gray-700 dark:text-white/70 transition hover:bg-gray-50 dark:hover:bg-white/5"
           >
             Clear search
           </button>
         </>
+      ) : hasEvents ? (
+        <>
+          <p className="text-base font-bold text-gray-800 dark:text-white">Ticketing not enabled yet</p>
+          <p className="mt-1.5 max-w-xs text-sm text-gray-400 dark:text-white/40 leading-relaxed">
+            You have events but ticketing isn&apos;t turned on for any of them. Open an event&apos;s settings and enable the Ticketing module.
+          </p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/events"
+              className="flex items-center gap-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-(--bg-elevated) px-5 py-2.5 text-sm font-semibold text-gray-700 dark:text-white/70 transition hover:bg-gray-50 dark:hover:bg-white/5"
+            >
+              <ArrowRight size={14} /> Go to my events
+            </Link>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={onCreate}
+              className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-black"
+              style={{ background: "linear-gradient(135deg,#f59e0b,#ef4444)", boxShadow: "0 8px 24px #f59e0b40" }}
+            >
+              <Plus size={14} /> Create new event
+            </motion.button>
+          </div>
+        </>
       ) : (
         <>
-          <p className="text-base font-bold text-gray-800">No ticketed events yet</p>
-          <p className="mt-1.5 max-w-xs text-sm text-gray-400 leading-relaxed">
-            Create your first Ticketed &amp; Entertainment event — Concerts, Festivals, Live Shows, and more.
+          <p className="text-base font-bold text-gray-800 dark:text-white">No ticketed events yet</p>
+          <p className="mt-1.5 max-w-xs text-sm text-gray-400 dark:text-white/40 leading-relaxed">
+            Create an event and enable the Ticketing module in its settings to start selling tickets.
           </p>
           <motion.button
             whileHover={{ scale: 1.02 }}
@@ -977,7 +1081,7 @@ function EmptyState({ hasFilter, onClear, onCreate }) {
             className="mt-6 flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-black"
             style={{ background: "linear-gradient(135deg,#f59e0b,#ef4444)", boxShadow: "0 8px 24px #f59e0b40" }}
           >
-            <Plus size={15} /> Create your first ticket
+            <Plus size={15} /> Create your first event
           </motion.button>
         </>
       )}
@@ -1048,95 +1152,95 @@ function MobileStatTile({ Icon, label, value, accent, loading }) {
 }
 
 function MobileTicketEventCard({ event, onManage }) {
-  const accent  = getAccentForEvent(event);
-  const sub     = getSubForEvent(event);
   const dateStr = fmtDate(event.starts_at_local);
-  const upcoming = isUpcoming(event.starts_at_local);
+  const loc     = event.city ?? event.location ?? null;
 
   return (
     <button
       onClick={() => onManage(event.id)}
-      className="flex w-full items-center gap-3 overflow-hidden rounded-[18px] border text-left"
-      style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.07)" }}
+      className="flex w-full flex-col gap-[6px] rounded-[16px] border p-4 text-left"
+      style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.08)" }}
     >
-      {/* Accent stripe */}
-      <div className="h-full w-1 shrink-0 self-stretch" style={{ background: `linear-gradient(to bottom, ${accent.from}, ${accent.to})` }} />
-
-      {/* Icon */}
-      <div
-        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] text-xl leading-none"
-        style={{ background: `linear-gradient(135deg,${accent.from}20,${accent.to}12)`, border: `1px solid ${accent.from}28` }}
-      >
-        {sub?.icon ?? "🎟️"}
-      </div>
-
-      {/* Info */}
-      <div className="flex flex-1 flex-col gap-1 py-3 pr-3 min-w-0">
-        <span className="line-clamp-1 text-[14px] font-extrabold tracking-tight text-white">{event.title}</span>
-        <div className="flex items-center gap-2">
-          {dateStr && (
-            <div className="flex items-center gap-1">
-              <Calendar size={10} style={{ color: "rgba(255,255,255,0.30)" }} />
-              <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.30)" }}>{dateStr}</span>
-            </div>
+      <div className="flex items-center gap-[10px]">
+        <div className="flex-1 min-w-0">
+          {event.event_type && (
+            <p
+              className="text-[9px] font-extrabold uppercase"
+              style={{ color: "#6366f1", letterSpacing: "1px" }}
+            >
+              {event.event_type.toUpperCase()}
+            </p>
           )}
-          <span
-            className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
-            style={upcoming ? { background: "rgba(16,185,129,0.15)", color: "#10b981" } : { background: "rgba(107,114,128,0.12)", color: "#6b7280" }}
+          <p
+            className="truncate text-[16px] font-extrabold text-white"
+            style={{ letterSpacing: "-0.3px" }}
           >
-            {upcoming ? <CheckCircle2 size={8} /> : <Clock size={8} />}
-            {upcoming ? "Soon" : "Past"}
-          </span>
+            {event.title}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold" style={{ color: accent.from }}>
-            {event.ticket_count ?? 0} types
-          </span>
-          <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>
-            {(event.total_sold ?? 0).toLocaleString()} sold
-          </span>
-        </div>
+        <ChevronRight size={18} style={{ color: "rgba(255,255,255,0.25)", flexShrink: 0 }} />
       </div>
-
-      <div className="pr-3.5">
-        <ChevronRight size={15} style={{ color: "rgba(255,255,255,0.20)" }} />
-      </div>
+      {(loc || dateStr) && (
+        <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.45)" }}>
+          {loc && <span style={{ color: "#10b981", fontWeight: 700 }}>{loc}</span>}
+          {loc && dateStr && <span> · </span>}
+          {dateStr}
+        </p>
+      )}
     </button>
   );
 }
 
-function MobileTicketsPage({ ticketedEvents, loadingTickets, filtered, stats, search, setSearch, onManage, onCreate, fetchError, onRetry }) {
+function MobileEnableTicketingCard({ event, onGo }) {
+  const dateStr = fmtDate(event.starts_at_local);
+  const loc     = event.city ?? event.location ?? null;
+
+  return (
+    <button
+      onClick={onGo}
+      className="flex w-full flex-col gap-[6px] rounded-[16px] border p-4 text-left"
+      style={{ background: "#0e0e16", borderColor: "rgba(245,158,11,0.18)" }}
+    >
+      <div className="flex items-center gap-[10px]">
+        <div className="flex-1 min-w-0">
+          {event.event_type && (
+            <p className="text-[9px] font-extrabold uppercase" style={{ color: "#6366f1", letterSpacing: "1px" }}>
+              {event.event_type.toUpperCase()}
+            </p>
+          )}
+          <p className="truncate text-[16px] font-extrabold text-white" style={{ letterSpacing: "-0.3px" }}>
+            {event.title}
+          </p>
+        </div>
+        <ChevronRight size={18} style={{ color: "rgba(255,255,255,0.25)", flexShrink: 0 }} />
+      </div>
+      {(loc || dateStr) && (
+        <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.45)" }}>
+          {loc && <span style={{ color: "#10b981", fontWeight: 700 }}>{loc}</span>}
+          {loc && dateStr && <span> · </span>}
+          {dateStr}
+        </p>
+      )}
+      <p className="text-[11px] font-bold" style={{ color: "#f59e0b" }}>
+        Tap to enable ticketing →
+      </p>
+    </button>
+  );
+}
+
+function MobileTicketsPage({ ticketedEvents, loadingTickets, filtered, filteredAllEvents, showSetupMode, stats, search, setSearch, onManage, onNavigateToEvent, onCreate, fetchError, onRetry }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-hidden" style={{ background: "#07070f" }}>
 
       {/* Header */}
       <div
-        className="flex items-center gap-3 px-4 pb-4"
+        className="px-4 pb-2"
         style={{ paddingTop: "max(52px, env(safe-area-inset-top))" }}
       >
-        <div className="flex-1">
-          <div className="flex items-center gap-1.5">
-            <Sparkles size={11} style={{ color: "#f59e0b" }} />
-            <p className="text-[11px] font-black uppercase tracking-[0.5px]" style={{ color: "#f59e0b" }}>
-              Ticketed &amp; Entertainment
-            </p>
-          </div>
-          <p className="text-[22px] font-black tracking-tight text-white">Tickets</p>
-        </div>
-        <button
-          onClick={onCreate}
-          className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-[12px]"
-          style={{ background: "linear-gradient(135deg, #f59e0b, #ef4444)", boxShadow: "0 4px 16px rgba(245,158,11,0.35)" }}
-        >
-          <Plus size={18} className="text-white" />
-        </button>
-      </div>
-
-      {/* Stats row */}
-      <div className="mb-3 flex gap-3 overflow-x-auto px-4 pb-1" style={{ scrollbarWidth: "none" }}>
-        <MobileStatTile Icon={Ticket} label="Events"       value={stats.totalEvents}                 accent="#f59e0b" loading={loadingTickets} />
-        <MobileStatTile Icon={Tag}    label="Ticket Types" value={stats.totalTypes}                  accent="#6366f1" loading={loadingTickets} />
-        <MobileStatTile Icon={Users}  label="Sold"         value={stats.totalSold.toLocaleString()}  accent="#06b6d4" loading={loadingTickets} />
+        <p className="text-[24px] font-black tracking-tight text-white" style={{ letterSpacing: -0.5 }}>Tickets</p>
+        <p className="mt-0.5 text-[13px]" style={{ color: "rgba(255,255,255,0.45)" }}>
+          Manage ticket types and orders
+        </p>
       </div>
 
       {/* Search */}
@@ -1180,30 +1284,46 @@ function MobileTicketsPage({ ticketedEvents, loadingTickets, filtered, stats, se
             [...Array(3)].map((_, i) => (
               <div key={i} className="h-[80px] animate-pulse rounded-[18px]" style={{ background: "#0e0e16" }} />
             ))
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-16 text-center">
+          ) : showSetupMode ? (
+            <>
               <div
-                className="flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-[22px] border"
-                style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.18) 0%, rgba(239,68,68,0.10) 100%)", borderColor: "rgba(245,158,11,0.20)" }}
+                className="flex items-start gap-2.5 rounded-[16px] border px-4 py-3"
+                style={{ background: "rgba(245,158,11,0.08)", borderColor: "rgba(245,158,11,0.20)" }}
               >
-                <Ticket size={28} style={{ color: "#f59e0b" }} />
+                <Zap size={13} style={{ color: "#f59e0b" }} className="shrink-0 mt-0.5" />
+                <p className="text-[12px] leading-[1.55]" style={{ color: "rgba(255,255,255,0.55)" }}>
+                  Tap an event to open its settings and enable the Ticketing module.
+                </p>
               </div>
-              <p className="text-[18px] font-black tracking-tight text-white">
-                {search ? `No results for "${search}"` : "No ticketed events yet"}
-              </p>
-              <p className="text-[13px] leading-5" style={{ color: "rgba(255,255,255,0.40)" }}>
-                {search ? "Try a different search term." : "Create your first Concert, Festival, or Live Show."}
-              </p>
-              {!search && (
-                <button
-                  onClick={onCreate}
-                  className="mt-1 flex items-center gap-2 overflow-hidden rounded-full px-6 py-3"
-                  style={{ background: "linear-gradient(90deg, #f59e0b, #ef4444)" }}
-                >
-                  <Plus size={14} className="text-white" />
-                  <span className="text-[14px] font-extrabold text-white">Create Ticket</span>
-                </button>
+              {filteredAllEvents.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 py-12 text-center">
+                  <p className="text-[15px] font-bold text-white">No results for &ldquo;{search}&rdquo;</p>
+                  <button
+                    onClick={() => setSearch("")}
+                    className="text-[12px] font-semibold text-amber-400"
+                  >
+                    Clear search
+                  </button>
+                </div>
+              ) : (
+                filteredAllEvents.map((event) => (
+                  <MobileEnableTicketingCard
+                    key={event.id}
+                    event={event}
+                    onGo={() => onNavigateToEvent(event.id)}
+                  />
+                ))
               )}
+            </>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center gap-[10px] py-[60px] text-center">
+              <Ticket size={40} style={{ color: "rgba(255,255,255,0.25)" }} />
+              <p className="text-[16px] font-extrabold text-white">
+                {search ? `No results for "${search}"` : "No ticketed events"}
+              </p>
+              <p className="text-[13px] leading-[18px] text-center" style={{ color: "rgba(255,255,255,0.45)", maxWidth: 260 }}>
+                {search ? "Try a different search term." : "Enable ticketing on an event to start selling tickets."}
+              </p>
             </div>
           ) : (
             filtered.map((event) => (
@@ -1222,6 +1342,10 @@ function MobileTicketsPage({ ticketedEvents, loadingTickets, filtered, stats, se
 export default function TicketsPage() {
   const router = useRouter();
 
+  const { events: allEvents, fetchEvents } = useEventStore();
+
+  useEffect(() => { fetchEvents(); }, [fetchEvents]);
+
   const [ticketedEvents, setTicketedEvents] = useState([]);
   const [loadingTickets, setLoadingTickets] = useState(true);
   const [fetchError, setFetchError]         = useState(null);
@@ -1235,12 +1359,7 @@ export default function TicketsPage() {
     api
       .get("/ticket-types/events-with-tickets")
       .then((r) => {
-        const all = r.data.events ?? [];
-        setTicketedEvents(
-          all.filter((e) =>
-            ENTERTAINMENT_EVENT_TYPES.has(String(e.event_type ?? "").toUpperCase())
-          )
-        );
+        setTicketedEvents(r.data.events ?? []);
       })
       .catch((err) => {
         const msg = err?.response?.data?.message ?? err?.message ?? "Failed to load events";
@@ -1288,6 +1407,17 @@ export default function TicketsPage() {
 
   const hasFilter = Boolean(search.trim());
 
+  const filteredAllEvents = useMemo(() => {
+    let list = [...allEvents];
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter((e) => e.title?.toLowerCase().includes(q));
+    }
+    return list;
+  }, [allEvents, search]);
+
+  const showSetupMode = !loadingTickets && ticketedEvents.length === 0 && allEvents.length > 0;
+
   return (
     <>
       {/* ── Mobile layout ── */}
@@ -1296,10 +1426,13 @@ export default function TicketsPage() {
           ticketedEvents={ticketedEvents}
           loadingTickets={loadingTickets}
           filtered={filtered}
+          filteredAllEvents={filteredAllEvents}
+          showSetupMode={showSetupMode}
           stats={stats}
           search={search}
           setSearch={setSearch}
           onManage={navigate}
+          onNavigateToEvent={(id) => router.push(`/events/${id}`)}
           onCreate={() => setShowOverlay(true)}
           fetchError={fetchError}
           onRetry={loadTicketedEvents}
@@ -1318,13 +1451,13 @@ export default function TicketsPage() {
       >
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Sparkles size={12} style={{ color: "#f59e0b" }} />
+            <Ticket size={12} style={{ color: "#f59e0b" }} />
             <p className="text-[11px] font-black uppercase tracking-widest text-amber-500">
-              Ticketed &amp; Entertainment
+              All Ticketed Events
             </p>
           </div>
-          <h1 className="text-2xl font-black text-gray-900">Ticket Dashboard</h1>
-          <p className="mt-1 text-sm text-gray-400">
+          <h1 className="text-2xl font-black text-gray-900 dark:text-white">Ticket Dashboard</h1>
+          <p className="mt-1 text-sm text-gray-400 dark:text-white/40">
             Manage tickets for your entertainment events — edit, delete, and track sales.
           </p>
         </div>
@@ -1353,17 +1486,17 @@ export default function TicketsPage() {
 
       {/* ── error banner ── */}
       {fetchError && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-5 py-3.5">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/10 px-5 py-3.5">
           <div className="flex items-center gap-2.5">
             <AlertTriangle size={16} className="shrink-0 text-red-500" />
             <div>
-              <p className="text-sm font-semibold text-red-700">Could not load ticketed events</p>
-              <p className="text-xs text-red-500">{fetchError}</p>
+              <p className="text-sm font-semibold text-red-700 dark:text-red-400">Could not load ticketed events</p>
+              <p className="text-xs text-red-500 dark:text-red-400/70">{fetchError}</p>
             </div>
           </div>
           <button
             onClick={loadTicketedEvents}
-            className="shrink-0 rounded-xl border border-red-200 bg-white px-4 py-2 text-xs font-bold text-red-600 transition hover:bg-red-50"
+            className="shrink-0 rounded-xl border border-red-200 dark:border-red-500/20 bg-white dark:bg-red-500/10 px-4 py-2 text-xs font-bold text-red-600 dark:text-red-400 transition hover:bg-red-50 dark:hover:bg-red-500/20"
           >
             Retry
           </button>
@@ -1371,13 +1504,13 @@ export default function TicketsPage() {
       )}
 
       {/* ── filter bar ── */}
-      {!loadingTickets && ticketedEvents.length > 0 && (
+      {!loadingTickets && (ticketedEvents.length > 0 || allEvents.length > 0) && (
         <FilterBar
           search={search}
           onSearch={setSearch}
           sort={sort}
           onSort={setSort}
-          count={filtered.length}
+          count={showSetupMode ? filteredAllEvents.length : filtered.length}
         />
       )}
 
@@ -1386,11 +1519,48 @@ export default function TicketsPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => <CardSkeleton key={i} />)}
         </div>
+      ) : showSetupMode ? (
+        <>
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-100 dark:border-amber-400/20 bg-amber-50 dark:bg-amber-400/8 px-5 py-4">
+            <Zap size={15} className="shrink-0 mt-0.5 text-amber-500" />
+            <div>
+              <p className="text-sm font-bold text-amber-800 dark:text-amber-300">
+                Enable ticketing on an event to start selling tickets
+              </p>
+              <p className="mt-0.5 text-xs text-amber-700/70 dark:text-amber-300/55">
+                Click <span className="font-semibold">Enable Ticketing</span> on any event below — it will open the event settings where you can activate the Ticketing module and add ticket tiers.
+              </p>
+            </div>
+          </div>
+          {filteredAllEvents.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-(--bg-elevated) px-6 py-12 text-center">
+              <p className="text-sm font-semibold text-gray-500 dark:text-white/40">No events match &ldquo;{search}&rdquo;</p>
+              <button
+                onClick={() => setSearch("")}
+                className="mt-3 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-(--bg-elevated) px-4 py-2 text-sm font-semibold text-gray-600 dark:text-white/60 transition hover:bg-gray-50 dark:hover:bg-white/5"
+              >
+                Clear search
+              </button>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredAllEvents.map((event, i) => (
+                <EnableTicketingCard
+                  key={event.id}
+                  event={event}
+                  index={i}
+                  onGo={() => router.push(`/events/${event.id}`)}
+                />
+              ))}
+            </div>
+          )}
+        </>
       ) : filtered.length === 0 ? (
         <EmptyState
           hasFilter={hasFilter}
           onClear={() => setSearch("")}
           onCreate={() => setShowOverlay(true)}
+          hasEvents={false}
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1412,10 +1582,10 @@ export default function TicketsPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="flex items-center gap-3 rounded-2xl border border-amber-100 bg-amber-50 px-5 py-3.5"
+          className="flex items-center gap-3 rounded-2xl border border-amber-100 dark:border-amber-400/20 bg-amber-50 dark:bg-amber-400/10 px-5 py-3.5"
         >
           <Zap size={16} className="shrink-0 text-amber-500" />
-          <p className="text-xs text-amber-700">
+          <p className="text-xs text-amber-700 dark:text-amber-300/70">
             <span className="font-bold">Tip:</span> Click{" "}
             <span className="font-semibold">Tickets</span> on a card to view, edit, or delete individual ticket types inline. Click{" "}
             <span className="font-semibold">Manage</span> for full orders and revenue stats.

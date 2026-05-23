@@ -68,6 +68,10 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
 
     // Online path
     try {
+      const STAMPED_RE = /^([0-9a-f]{64})\.[0-9a-f]{8}$/i;
+      const stampMatch = qrToken.match(STAMPED_RE);
+      const cleanToken = stampMatch ? stampMatch[1] : qrToken;
+
       const deviceId = await getDeviceId();
       const res      = await api.post<{
         data: {
@@ -78,7 +82,7 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
           checked_in_at: string;
         };
       }>(`/checkin/events/${eventId}/tickets/checkin`, {
-        qr_token:  qrToken,
+        qr_token:  cleanToken,
         device_id: deviceId,
       });
 

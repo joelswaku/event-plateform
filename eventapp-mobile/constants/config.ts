@@ -5,7 +5,10 @@ export const Config = {
   VERSION:   '1.0.0',
 
   STRIPE: {
-    MONTHLY_PRICE_ID: process.env.EXPO_PUBLIC_STRIPE_MONTHLY_PRICE_ID ?? 'price_1TOoyNGaoI7icxS6KoDugKLZ',
+    STARTER_PRICE_ID: process.env.EXPO_PUBLIC_STRIPE_STARTER_PRICE_ID ?? process.env.EXPO_PUBLIC_STRIPE_MONTHLY_PRICE_ID ?? '',
+    PRO_PRICE_ID:     process.env.EXPO_PUBLIC_STRIPE_PRO_PRICE_ID     ?? '',
+    // legacy — kept for backward compat
+    MONTHLY_PRICE_ID: process.env.EXPO_PUBLIC_STRIPE_MONTHLY_PRICE_ID ?? '',
     YEARLY_PRICE_ID:  process.env.EXPO_PUBLIC_STRIPE_YEARLY_PRICE_ID  ?? '',
   },
 
@@ -26,7 +29,9 @@ export const Config = {
   },
 
   PLAN_LIMITS: {
-    free:    { events: 1, guests: 50 },
-    premium: { events: Infinity, guests: Infinity },
+    free:    { events: 1,        guests: 50 },
+    starter: { events: 5,        guests: 500 },
+    pro:     { events: Infinity, guests: Infinity },
+    enterprise: { events: Infinity, guests: Infinity },
   },
 } as const;

@@ -10,6 +10,7 @@ function handleError(res, error) {
   return res.status(error.statusCode || 500).json({
     success: false,
     message: error.message || "Server error",
+    ...(error.code    && { code: error.code }),
     ...(error.details && { details: error.details }),
   });
 }

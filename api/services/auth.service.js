@@ -1007,10 +1007,11 @@ export async function resetPassword({ token, newPassword }) {
     /* =========================
        3. PREVENT PASSWORD REUSE
     ========================= */
-    const isSame = await bcrypt.compare(newPassword, user.password_hash);
-
-    if (isSame) {
-      throw new Error("Cannot reuse old password");
+    if (user.password_hash) {
+      const isSame = await bcrypt.compare(newPassword, user.password_hash);
+      if (isSame) {
+        throw new Error("Cannot reuse old password");
+      }
     }
 
     /* =========================

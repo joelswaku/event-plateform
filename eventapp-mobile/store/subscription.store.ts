@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '@/lib/api';
 import { openStripeCheckout, STRIPE_SUCCESS_URL, STRIPE_CANCEL_URL } from '@/lib/stripe';
@@ -9,20 +10,49 @@ import { PlanLimits, PlanUsage } from '@/types';
 const GRACE_MS = 5 * 60 * 1000;
 let _paidAt: number | null = null;
 
+function normalizePlan(plan: string | undefined): 'free' | 'starter' | 'pro' | 'enterprise' {
+  if (plan === 'pro' || plan === 'premium' || plan === 'enterprise') return 'pro';
+  if (plan === 'starter') return 'starter';
+  return 'free';
+}
+
 const DEFAULT_LIMITS: PlanLimits = { events: 1, templates: 3, guests: 50 };
+
+const DEFAULT_FEATURES = {
+  lockedTemplates:     true,
+  lockedStyles:        true,
+  freeTemplateStyle:   'CLASSIC' as string | null,
+  stripeTicketing:     false,
+  guestEmailReminders: 0 as number | null,
+  platformFeePercent:  0,
+};
 
 interface LimitCheck { allowed: boolean; reason: string | null }
 
+interface PlanFeatures {
+  lockedTemplates:     boolean;
+  lockedStyles:        boolean;
+  freeTemplateStyle:   string | null;
+  stripeTicketing:     boolean;
+  guestEmailReminders: number | null; // null = unlimited
+  platformFeePercent:  number;
+  [key: string]:       unknown;
+}
+
+interface PriceInfo { amount: number | null; currency: string; interval: string }
+
 interface SubscriptionState {
-  plan:               'free' | 'premium';
+  plan:               'free' | 'starter' | 'pro' | 'enterprise';
   isSubscribed:       boolean;
   subscriptionStatus: 'active' | 'past_due' | 'canceled' | 'trialing' | null;
   currentPeriodEnd:   string | null;
   isLoading:          boolean;
   usage:              PlanUsage;
   limits:             PlanLimits;
+  features:           PlanFeatures;
   upgradeModalOpen:    boolean;
   upgradeModalFeature: string | null;
+  prices:             { starter: PriceInfo | null; pro: PriceInfo | null };
 
   // Computed
   isPremium:      () => boolean;
@@ -36,13 +66,14 @@ interface SubscriptionState {
   openUpgradeModal:  (feature?: string | null) => void;
   closeUpgradeModal: () => void;
   requirePremium:    (feature: string, onAllowed?: () => void) => boolean;
+  fetchPrices:       () => Promise<void>;
 
   // API
   fetchSubscription:    () => Promise<void>;
-  createCheckoutSession:(priceId: string) => Promise<{ success: boolean; canceled?: boolean; message?: string }>;
+  createCheckoutSession:(priceId: string, tier?: 'starter' | 'pro') => Promise<{ success: boolean; canceled?: boolean; message?: string }>;
   verifyAndActivate:    (sessionId: string) => Promise<boolean>;
   openCustomerPortal:   () => Promise<void>;
-  setSubscribed:        (plan?: 'free' | 'premium') => void;
+  setSubscribed:        (plan?: SubscriptionState['plan']) => void;
   setUnsubscribed:      () => void;
 }
 
@@ -56,33 +87,54 @@ export const useSubscriptionStore = create<SubscriptionState>()(
       isLoading:          false,
       usage:              { events: 0 },
       limits:             DEFAULT_LIMITS,
+      features:           DEFAULT_FEATURES,
       upgradeModalOpen:    false,
       upgradeModalFeature: null,
+      prices:             { starter: null, pro: null },
 
       // ── Computed ────────────────────────────────────────────────────────────────
-      isPremium:  () => get().isSubscribed && get().plan === 'premium',
+      isPremium:  () => get().isSubscribed && get().plan !== 'free',
       isPastDue:  () => get().subscriptionStatus === 'past_due',
       isCanceled: () => get().subscriptionStatus === 'canceled',
       isTrialing: () => get().subscriptionStatus === 'trialing',
 
       isAtEventLimit: () => {
-        const { plan, isSubscribed, usage, limits } = get();
-        if (isSubscribed && plan === 'premium') return false;
+        const { usage, limits } = get();
+        if (limits.events === null) return false; // unlimited
         return usage.events >= (limits.events ?? 1);
       },
 
       checkLimit: (feature) => {
-        const { plan, isSubscribed, usage, limits } = get();
-        if (isSubscribed && plan === 'premium') return { allowed: true, reason: null };
+        const { plan, isSubscribed, usage, limits, features } = get();
+        if (isSubscribed && plan !== 'free') {
+          if (feature === 'events') {
+            if (limits.events !== null && usage.events >= limits.events)
+              return { allowed: false, reason: `${plan.charAt(0).toUpperCase() + plan.slice(1)} plan includes ${limits.events} events. Upgrade to Pro for unlimited.` };
+            return { allowed: true, reason: null };
+          }
+          return { allowed: true, reason: null };
+        }
         switch (feature) {
           case 'events':
             return usage.events >= (limits.events ?? 1)
               ? { allowed: false, reason: `Free plan includes ${limits.events} event. Upgrade for unlimited.` }
               : { allowed: true, reason: null };
           case 'templates':
-            return { allowed: false, reason: 'Free plan includes 3 Classic templates. Upgrade to access all 18 styles.' };
+            return features?.lockedTemplates
+              ? { allowed: false, reason: 'Free plan includes Classic templates only. Upgrade to unlock all styles.' }
+              : { allowed: true, reason: null };
+          case 'tickets':
+            return !features?.stripeTicketing
+              ? { allowed: false, reason: 'Ticket selling requires Starter or Pro plan.' }
+              : { allowed: true, reason: null };
+          case 'reminders': {
+            const reminderLimit = features?.guestEmailReminders ?? 0;
+            return reminderLimit === 0
+              ? { allowed: false, reason: 'Email reminders require Starter or Pro plan.' }
+              : { allowed: true, reason: null };
+          }
           default:
-            return { allowed: false, reason: `${feature} requires a Premium plan.` };
+            return { allowed: false, reason: `${feature} requires a paid plan.` };
         }
       },
 
@@ -98,10 +150,20 @@ export const useSubscriptionStore = create<SubscriptionState>()(
         return false;
       },
 
+      // ── Fetch Stripe prices ───────────────────────────────────────────────────────
+      fetchPrices: async () => {
+        try {
+          const res = await api.get<{ data: { starter: PriceInfo | null; pro: PriceInfo | null } }>('/subscription/prices');
+          const data = res.data?.data;
+          if (data) set({ prices: { starter: data.starter ?? null, pro: data.pro ?? null } });
+        } catch { /* non-fatal — UI falls back to hardcoded defaults */ }
+      },
+
       // ── Fetch ─────────────────────────────────────────────────────────────────────
       fetchSubscription: async () => {
         try {
           set({ isLoading: true });
+          get().fetchPrices();
           const res  = await api.get<{ data: {
             is_subscribed?: boolean;
             plan?: string;
@@ -109,6 +171,7 @@ export const useSubscriptionStore = create<SubscriptionState>()(
             current_period_end?: string | null;
             usage?: PlanUsage;
             limits?: PlanLimits;
+            features?: PlanFeatures;
           } }>('/subscription/status');
           const data = res.data?.data ?? {};
           const dbSubscribed = data.is_subscribed ?? false;
@@ -116,12 +179,13 @@ export const useSubscriptionStore = create<SubscriptionState>()(
           if (dbSubscribed) {
             _paidAt = null;
             set({
-              plan:               (data.plan as 'free' | 'premium') ?? 'premium',
+              plan:               normalizePlan(data.plan),
               isSubscribed:       true,
               subscriptionStatus: (data.subscription_status as SubscriptionState['subscriptionStatus']) ?? 'active',
               currentPeriodEnd:   data.current_period_end ?? null,
-              usage:              data.usage  ?? { events: 0 },
-              limits:             data.limits ?? DEFAULT_LIMITS,
+              usage:              data.usage    ?? { events: 0 },
+              limits:             data.limits   ?? DEFAULT_LIMITS,
+              features:           (data.features as PlanFeatures) ?? DEFAULT_FEATURES,
               isLoading:          false,
             });
           } else {
@@ -130,12 +194,13 @@ export const useSubscriptionStore = create<SubscriptionState>()(
               set({ usage: data.usage ?? { events: 0 }, isLoading: false });
             } else {
               set({
-                plan:               'free',
+                plan:               normalizePlan(data.plan),
                 isSubscribed:       false,
                 subscriptionStatus: (data.subscription_status as SubscriptionState['subscriptionStatus']) ?? null,
                 currentPeriodEnd:   data.current_period_end ?? null,
-                usage:              data.usage  ?? { events: 0 },
-                limits:             data.limits ?? DEFAULT_LIMITS,
+                usage:              data.usage    ?? { events: 0 },
+                limits:             data.limits   ?? DEFAULT_LIMITS,
+                features:           (data.features as PlanFeatures) ?? DEFAULT_FEATURES,
                 isLoading:          false,
               });
             }
@@ -146,7 +211,7 @@ export const useSubscriptionStore = create<SubscriptionState>()(
       },
 
       // ── Stripe checkout (in-app browser via expo-web-browser) ─────────────────────
-      createCheckoutSession: async (priceId) => {
+      createCheckoutSession: async (priceId, tier = 'starter') => {
         try {
           set({ isLoading: true });
           // Ask the backend to build a Stripe session with mobile deep-link redirects
@@ -166,8 +231,8 @@ export const useSubscriptionStore = create<SubscriptionState>()(
           const result = await openStripeCheckout(url);
 
           if (result.type === 'subscription_success') {
-            // Optimistically mark as premium while webhook lands
-            get().setSubscribed('premium');
+            // Optimistically mark with the correct tier while the webhook lands
+            get().setSubscribed(tier);
             // Then verify with the API (retries handled by caller if needed)
             await get().verifyAndActivate(result.sessionId);
             return { success: true };
@@ -181,7 +246,7 @@ export const useSubscriptionStore = create<SubscriptionState>()(
         }
       },
 
-      // Verify a completed Stripe checkout session and hard-set subscription state
+      // Verify a completed Stripe checkout session — updates DB, then does a full sync
       verifyAndActivate: async (sessionId) => {
         try {
           const res = await api.get<{ data: {
@@ -193,12 +258,8 @@ export const useSubscriptionStore = create<SubscriptionState>()(
           const data = res.data?.data ?? {};
           if (data.is_subscribed) {
             _paidAt = null; // clear grace — DB is authoritative now
-            set({
-              plan:               (data.plan as 'free' | 'premium') ?? 'premium',
-              isSubscribed:       true,
-              subscriptionStatus: (data.subscription_status as SubscriptionState['subscriptionStatus']) ?? 'active',
-              currentPeriodEnd:   data.current_period_end ?? null,
-            });
+            // Full sync so limits/features reflect what the server now says
+            await get().fetchSubscription();
             return true;
           }
           return false;
@@ -215,7 +276,6 @@ export const useSubscriptionStore = create<SubscriptionState>()(
           set({ isLoading: false });
           // Portal is a full browser experience — open externally (it has its own return_url)
           if (url) {
-            const { Linking } = await import('react-native');
             await Linking.openURL(url);
           }
         } catch {
@@ -223,15 +283,33 @@ export const useSubscriptionStore = create<SubscriptionState>()(
         }
       },
 
-      // Optimistic premium unlock after payment
-      setSubscribed: (plan = 'premium') => {
+      // Optimistic unlock after payment
+      setSubscribed: (plan = 'starter') => {
+        const tier = normalizePlan(plan);
+        const isPro = tier === 'pro';
         _paidAt = Date.now();
-        set({ plan, isSubscribed: true, subscriptionStatus: 'active' });
+        set({
+          plan:               tier,
+          isSubscribed:       true,
+          subscriptionStatus: 'active',
+          limits: isPro
+            ? { events: null, templates: null, guests: null }
+            : { events: 5,    templates: null, guests: 500  },
+          features: isPro
+            ? {
+                lockedTemplates: false, lockedStyles: false, freeTemplateStyle: null,
+                stripeTicketing: true, guestEmailReminders: null, platformFeePercent: 0,
+              }
+            : {
+                lockedTemplates: false, lockedStyles: false, freeTemplateStyle: null,
+                stripeTicketing: true, guestEmailReminders: 1, platformFeePercent: 2,
+              },
+        });
       },
 
       setUnsubscribed: () => {
         _paidAt = null;
-        set({ plan: 'free', isSubscribed: false, subscriptionStatus: 'canceled' });
+        set({ plan: 'free', isSubscribed: false, subscriptionStatus: 'canceled', features: DEFAULT_FEATURES, limits: DEFAULT_LIMITS });
       },
     }),
     {
@@ -242,8 +320,14 @@ export const useSubscriptionStore = create<SubscriptionState>()(
         isSubscribed:       s.isSubscribed,
         subscriptionStatus: s.subscriptionStatus,
         currentPeriodEnd:   s.currentPeriodEnd,
-        // usage is never persisted — always re-fetch from server
+        limits:             s.limits,
+        features:           s.features,
+        // usage is intentionally not persisted — always re-fetch from server
       }),
+      // Normalize legacy "premium" plan name stored in AsyncStorage
+      onRehydrateStorage: () => (state) => {
+        if (state) state.plan = normalizePlan(state.plan);
+      },
     }
   )
 );

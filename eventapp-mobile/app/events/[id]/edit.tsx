@@ -8,12 +8,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useEventStore } from '@/store/event.store';
+import { DateTimePicker } from '@/components/ui/DateTimePicker';
 import { Colors } from '@/constants/colors';
 
-function toLocalIso(utcStr: string | null | undefined): string {
-  if (!utcStr) return '';
-  try { return new Date(utcStr).toISOString().slice(0, 16); }
-  catch { return ''; }
+function toDate(utcStr: string | null | undefined): Date | null {
+  if (!utcStr) return null;
+  try {
+    const d = new Date(utcStr);
+    return isNaN(d.getTime()) ? null : d;
+  } catch { return null; }
 }
 
 export default function EditEventScreen() {
@@ -33,6 +36,7 @@ export default function EditEventScreen() {
 
   /* Load */
   useEffect(() => {
+    ready.current = false; // reset so fresh fetch re-initializes form
     if (id) { fetchEventDashboard(id); fetchEventById(id); }
   }, [id]);
 
@@ -40,6 +44,8 @@ export default function EditEventScreen() {
   useEffect(() => {
     const e = dashboard?.event ?? currentEvent;
     if (!e || ready.current) return;
+    // Skip stale data from a different event
+    if (e.id && e.id !== id) return;
     setFormState({
       title:             e.title             ?? '',
       description:       e.description       ?? '',
@@ -49,9 +55,10 @@ export default function EditEventScreen() {
       venue_address:     e.venue_address     ?? '',
       city:              e.city              ?? '',
       state:             e.state             ?? '',
+      zip_code:          e.zip_code          ?? '',
       country:           e.country           ?? '',
-      starts_at:         toLocalIso(e.starts_at_utc),
-      ends_at:           toLocalIso(e.ends_at_utc),
+      starts_at:         toDate(e.starts_at_utc),
+      ends_at:           toDate(e.ends_at_utc),
       timezone:          e.timezone          ?? '',
       visibility:        e.visibility        ?? 'PRIVATE',
       allow_rsvp:        e.allow_rsvp        ?? false,
@@ -78,9 +85,10 @@ export default function EditEventScreen() {
         venue_address:     form.venue_address,
         city:              form.city,
         state:             form.state,
+        zip_code:          form.zip_code,
         country:           form.country,
-        starts_at:         form.starts_at  || undefined,
-        ends_at:           form.ends_at    || undefined,
+        starts_at:         form.starts_at instanceof Date ? form.starts_at.toISOString() : undefined,
+        ends_at:           form.ends_at   instanceof Date ? form.ends_at.toISOString()   : undefined,
         timezone:          form.timezone,
         visibility:        form.visibility,
         allow_rsvp:        form.allow_rsvp,
@@ -232,44 +240,47 @@ export default function EditEventScreen() {
                 </Field>
               </View>
             </View>
-            <Field label="Country">
-              <TextInput
-                style={s.input}
-                value={form.country}
-                onChangeText={v => change('country', v)}
-                placeholder="Country"
-                placeholderTextColor={Colors.text.subtle}
-                returnKeyType="next"
-              />
-            </Field>
+            <View style={s.row}>
+              <View style={{ flex: 1 }}>
+                <Field label="Zip / Postal">
+                  <TextInput
+                    style={s.input}
+                    value={form.zip_code}
+                    onChangeText={v => change('zip_code', v)}
+                    placeholder="10001"
+                    placeholderTextColor={Colors.text.subtle}
+                    keyboardType="numbers-and-punctuation"
+                  />
+                </Field>
+              </View>
+              <View style={{ flex: 2 }}>
+                <Field label="Country">
+                  <TextInput
+                    style={s.input}
+                    value={form.country}
+                    onChangeText={v => change('country', v)}
+                    placeholder="Country"
+                    placeholderTextColor={Colors.text.subtle}
+                    returnKeyType="next"
+                  />
+                </Field>
+              </View>
+            </View>
           </Section>
 
           {/* ── Date & Time ──────────────────────────────────── */}
           <Section title="Date & Time">
-            <Field label="Start  (YYYY-MM-DD HH:MM)">
-              <TextInput
-                style={s.input}
-                value={form.starts_at}
-                onChangeText={v => change('starts_at', v)}
-                placeholder="2025-09-01T18:00"
-                placeholderTextColor={Colors.text.subtle}
-                autoCapitalize="none"
-                keyboardType="numbers-and-punctuation"
-                returnKeyType="next"
-              />
-            </Field>
-            <Field label="End  (YYYY-MM-DD HH:MM)">
-              <TextInput
-                style={s.input}
-                value={form.ends_at}
-                onChangeText={v => change('ends_at', v)}
-                placeholder="2025-09-01T23:00"
-                placeholderTextColor={Colors.text.subtle}
-                autoCapitalize="none"
-                keyboardType="numbers-and-punctuation"
-                returnKeyType="next"
-              />
-            </Field>
+            <DateTimePicker
+              label="Start Date & Time"
+              value={form.starts_at instanceof Date ? form.starts_at : null}
+              onChange={d => change('starts_at', d)}
+            />
+            <DateTimePicker
+              label="End Date & Time"
+              value={form.ends_at instanceof Date ? form.ends_at : null}
+              onChange={d => change('ends_at', d)}
+              minDate={form.starts_at instanceof Date ? form.starts_at : undefined}
+            />
             <Field label="Timezone">
               <TextInput
                 style={s.input}
@@ -298,14 +309,6 @@ export default function EditEventScreen() {
               sub="Guests can RSVP to this event"
               value={form.allow_rsvp}
               onChange={v => change('allow_rsvp', v)}
-              color={Colors.accent.emerald}
-            />
-            <Divider />
-            <ToggleRow
-              label="Allow Plus Ones"
-              sub="Guests can bring a companion"
-              value={form.allow_plus_ones}
-              onChange={v => change('allow_plus_ones', v)}
               color={Colors.accent.emerald}
             />
             <Divider />

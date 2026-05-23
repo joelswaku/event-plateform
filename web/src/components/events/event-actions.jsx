@@ -49,23 +49,29 @@ export default function EventActions({ event }) {
     <div className="flex flex-wrap gap-2 mt-4">
       {/* DRAFT */}
       {status === "DRAFT" &&
-        btn("Publish", "publish", publishEvent, "bg-green-100")}
+        btn("Publish", "publish", publishEvent,
+          "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400")}
 
       {/* PUBLISHED */}
       {status === "PUBLISHED" && (
         <>
-          {btn("Unpublish", "unpublish", unpublishEvent, "bg-blue-100")}
-          {btn("Cancel", "cancel", cancelEvent, "bg-yellow-100")}
-          {btn("Archive", "archive", archiveEvent, "bg-gray-200")}
+          {btn("Unpublish", "unpublish", unpublishEvent,
+            "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400")}
+          {btn("Cancel", "cancel", cancelEvent,
+            "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400")}
+          {btn("Archive", "archive", archiveEvent,
+            "bg-gray-200 text-gray-700 dark:bg-gray-700/50 dark:text-gray-300")}
         </>
       )}
 
       {/* CANCELLED or ARCHIVED */}
       {(status === "CANCELLED" || status === "ARCHIVED") &&
-        btn("Restore", "restore", restoreEvent, "bg-indigo-100")}
+        btn("Restore", "restore", restoreEvent,
+          "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400")}
 
       {/* ALWAYS */}
-      {btn("Delete", "delete", deleteEvent, "bg-red-100")}
+      {btn("Delete", "delete", deleteEvent,
+        "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400")}
     </div>
   );
 }

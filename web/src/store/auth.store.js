@@ -177,6 +177,43 @@ export const useAuthStore = create(
         }
       },
 
+      updateProfile: async ({ full_name }) => {
+        try {
+          const res = await api.patch("/auth/profile", { full_name });
+          const user = res.data?.data?.user;
+          if (user) set({ user });
+          return { success: true };
+        } catch (err) {
+          return { success: false, message: err?.response?.data?.message || "Update failed" };
+        }
+      },
+
+      changePassword: async ({ currentPassword, newPassword }) => {
+        try {
+          await api.patch("/auth/password", { currentPassword, newPassword });
+          return { success: true };
+        } catch (err) {
+          return { success: false, message: err?.response?.data?.message || "Failed to change password" };
+        }
+      },
+
+      updateAvatar: async (file) => {
+        try {
+          const form = new FormData();
+          form.append("file", file);
+          const res = await api.patch("/auth/avatar", form, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+          const avatarUrl = res.data?.data?.avatar_url;
+          if (avatarUrl) {
+            set((s) => ({ user: s.user ? { ...s.user, avatar_url: avatarUrl } : s.user }));
+          }
+          return { success: true, avatar_url: avatarUrl };
+        } catch (err) {
+          return { success: false, message: err?.response?.data?.message || "Upload failed" };
+        }
+      },
+
       logout: async () => {
         try {
           await api.post("/auth/logout");

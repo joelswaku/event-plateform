@@ -11,12 +11,12 @@ interface ConfirmModalProps {
   cancelText?:  string;
   variant?:     'danger' | 'default';
   onConfirm:    () => void;
-  onClose:      () => void;
+  onClose?:     () => void;
 }
 
 export function ConfirmModal({
   open, title, description, confirmText = 'Confirm', cancelText = 'Cancel',
-  variant = 'default', onConfirm, onClose,
+  variant = 'default', onConfirm, onClose = () => {},
 }: ConfirmModalProps) {
   return (
     <Modal visible={open} transparent animationType="fade" statusBarTranslucent>
@@ -34,7 +34,7 @@ export function ConfirmModal({
             />
             <Button
               label={confirmText}
-              onPress={() => { onConfirm(); onClose(); }}
+              onPress={() => { onClose(); onConfirm(); }}
               variant={variant === 'danger' ? 'danger' : 'primary'}
               accent={variant === 'danger' ? Colors.accent.red : Colors.accent.indigo}
               size="md"

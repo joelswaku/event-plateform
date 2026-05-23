@@ -2,24 +2,45 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 
-const ThemeCtx = createContext({ theme: "light", toggle: () => {} });
+const ThemeCtx = createContext({ theme: "system", resolvedTheme: "light", toggle: () => {} });
+
+function getSystemScheme() {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function applyTheme(resolved) {
+  if (resolved === "dark") document.documentElement.classList.add("dark");
+  else document.documentElement.classList.remove("dark");
+}
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState("light");
+  const [theme, setTheme] = useState("system");
+  const [resolvedTheme, setResolvedTheme] = useState("light");
 
   useEffect(() => {
-    const saved = localStorage.getItem("theme");
-    const system = window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
-    const resolved = saved ?? system;
+    const saved = localStorage.getItem("theme") ?? "system";
+    const resolved = saved === "system" ? getSystemScheme() : saved;
+    setTheme(resolved);         // treat system as its resolved value from here on
+    setResolvedTheme(resolved);
     applyTheme(resolved);
-    setTheme(resolved);
+
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    function onSysChange(e) {
+      if (!localStorage.getItem("theme")) {
+        const r = e.matches ? "dark" : "light";
+        setTheme(r);
+        setResolvedTheme(r);
+        applyTheme(r);
+      }
+    }
+    mq.addEventListener("change", onSysChange);
+    return () => mq.removeEventListener("change", onSysChange);
   }, []);
 
   const toggle = () => {
     setTheme((prev) => {
       const next = prev === "dark" ? "light" : "dark";
+      setResolvedTheme(next);
       applyTheme(next);
       localStorage.setItem("theme", next);
       return next;
@@ -27,19 +48,10 @@ export function ThemeProvider({ children }) {
   };
 
   return (
-    <ThemeCtx.Provider value={{ theme, toggle }}>
+    <ThemeCtx.Provider value={{ theme, resolvedTheme, toggle }}>
       {children}
     </ThemeCtx.Provider>
   );
-}
-
-function applyTheme(theme) {
-  const root = document.documentElement;
-  if (theme === "dark") {
-    root.classList.add("dark");
-  } else {
-    root.classList.remove("dark");
-  }
 }
 
 export const useTheme = () => useContext(ThemeCtx);

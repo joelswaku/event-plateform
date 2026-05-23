@@ -4,7 +4,7 @@ import {
   ActivityIndicator, TextInput, Switch, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -68,7 +68,7 @@ export default function GuestDetailScreen() {
   const { id: eventId, guestId } = useLocalSearchParams<{ id: string; guestId: string }>();
   const router = useRouter();
   const {
-    guests, getGuestById, updateGuest, deleteGuest,
+    guests, getGuestById, getAttendance, updateGuest, deleteGuest,
     sendInvitation, sendQrEmail, manualCheckIn, submitGuestRsvp,
   } = useGuestStore();
 
@@ -85,9 +85,23 @@ export default function GuestDetailScreen() {
 
   const guest = guests.find(g => g.id === guestId);
 
-  useEffect(() => {
-    if (eventId && guestId && !guest) getGuestById(eventId, guestId);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      if (eventId && guestId) {
+        getGuestById(eventId, guestId);
+        getAttendance(eventId);
+      }
+
+      // Poll every 15 s while screen is focused so web check-ins appear automatically
+      const interval = setInterval(() => {
+        if (eventId && guestId) {
+          getGuestById(eventId, guestId);
+          getAttendance(eventId);
+        }
+      }, 15000);
+      return () => clearInterval(interval);
+    }, [eventId, guestId])
+  );
 
   // Sync form when guest loads or edit opens
   useEffect(() => {

@@ -15,23 +15,20 @@ export default function GenericConfigFields({ section, eventId, iosKeyboardInset
   const cfgRef  = useRef<Record<string, unknown>>(section.config ?? {});
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const c = section.config ?? {};
-  const [title, setTitle] = useState(String(c.title ?? ''));
-  const [body,  setBody]  = useState(String(c.body  ?? ''));
+  const [title, setTitle] = useState(section.title ?? '');
+  const [body,  setBody]  = useState(section.body  ?? '');
 
   useEffect(() => {
-    const cfg = section.config ?? {};
-    cfgRef.current = cfg;
-    setTitle(String(cfg.title ?? ''));
-    setBody(String(cfg.body ?? ''));
+    cfgRef.current = section.config ?? {};
+    setTitle(section.title ?? '');
+    setBody(section.body   ?? '');
   }, [section.id]);
 
-  const saveField = (key: string, value: unknown) => {
-    cfgRef.current = { ...cfgRef.current, [key]: value };
+  const saveTopLevel = (key: 'title' | 'body', value: string) => {
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
-      updateSection(eventId, section.id, { config: cfgRef.current });
-    }, 600);
+      updateSection(eventId, section.id, { [key]: value });
+    }, 400);
   };
 
   return (
@@ -42,18 +39,18 @@ export default function GenericConfigFields({ section, eventId, iosKeyboardInset
       automaticallyAdjustKeyboardInsets={iosKeyboardInsets}
       showsVerticalScrollIndicator={false}
     >
-      <Field label="Title">
+      <Field label="Section Title">
         <TextInput
           style={s.input} value={title}
-          onChangeText={v => { setTitle(v); saveField('title', v); }}
+          onChangeText={v => { setTitle(v); saveTopLevel('title', v); }}
           placeholder="Section title"
           placeholderTextColor={MT}
         />
       </Field>
-      <Field label="Body">
+      <Field label="Body Text">
         <TextInput
           style={[s.input, s.textarea]} value={body}
-          onChangeText={v => { setBody(v); saveField('body', v); }}
+          onChangeText={v => { setBody(v); saveTopLevel('body', v); }}
           placeholder="Section content..."
           placeholderTextColor={MT}
           multiline numberOfLines={4}

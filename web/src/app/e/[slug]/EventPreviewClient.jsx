@@ -86,24 +86,26 @@ export default function EventPreviewClient({ slug }) {
 
   return (
     <main className="min-h-screen bg-white">
-      {/* Preview banner */}
-      <div className="sticky top-0 z-50 flex items-center justify-between gap-3 bg-amber-400 px-4 py-2.5">
-        <div className="flex items-center gap-2 text-sm font-semibold text-amber-950">
-          <AlertTriangle className="h-4 w-4 shrink-0" />
-          <span>
-            Preview — this event is not publicly visible yet (status:{" "}
-            <span className="uppercase">{data.event.status}</span>, visibility:{" "}
-            <span className="uppercase">{data.event.visibility}</span>)
-          </span>
+      {/* Preview banner — hidden in mobile app builder (ptoken = mobile JWT) */}
+      {!ptoken && (
+        <div className="sticky top-0 z-50 flex items-center justify-between gap-3 bg-amber-400 px-4 py-2.5">
+          <div className="flex items-center gap-2 text-sm font-semibold text-amber-950">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>
+              Preview — this event is not publicly visible yet (status:{" "}
+              <span className="uppercase">{data.event.status}</span>, visibility:{" "}
+              <span className="uppercase">{data.event.visibility}</span>)
+            </span>
+          </div>
+          <button
+            onClick={() => router.back()}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-amber-950/10 px-3 py-1 text-xs font-semibold text-amber-950 transition hover:bg-amber-950/20"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to dashboard
+          </button>
         </div>
-        <button
-          onClick={() => router.back()}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-amber-950/10 px-3 py-1 text-xs font-semibold text-amber-950 transition hover:bg-amber-950/20"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to dashboard
-        </button>
-      </div>
+      )}
 
       <SharedEventRenderer
         event={enrichedEvent}

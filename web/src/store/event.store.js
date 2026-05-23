@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 
 import { create } from "zustand";
 import { api } from "@/lib/api";
+import { useBuilderStore } from "@/store/builder.store";
 
 export const useEventStore = create((set, get) => ({
   events: [],
@@ -14,6 +15,8 @@ export const useEventStore = create((set, get) => ({
   dashboard: null,
   loading: false,
   error: null,
+  activeEventId: null,
+  setActiveEvent: (id) => set({ activeEventId: id }),
 
 
 fetchEvents: async () => {
@@ -51,10 +54,10 @@ fetchEvents: async () => {
   updateEvent: async (eventId, payload) => {
     try {
       set({ isLoading: true });
-  
+
       const res = await api.patch(`/events/${eventId}`, payload);
       const updated = res.data.data;
-  
+
       set((state) => ({
         events: state.events.map((e) =>
           e.id === updated.id ? updated : e
@@ -65,10 +68,22 @@ fetchEvents: async () => {
         currentEvent: updated,
         isLoading: false,
       }));
-  
+
+      // Sync to builder store so the preview reflects edit-page changes instantly
+      useBuilderStore.setState((state) => {
+        if (!state.builder) return {};
+        return {
+          builder: {
+            ...state.builder,
+            event: { ...(state.builder.event ?? {}), ...updated },
+          },
+        };
+      });
+
       return { success: true, data: updated };
     } catch (err) {
       set({ isLoading: false });
+      toast.error(err?.response?.data?.message || "Failed to save settings");
       return { success: false };
     }
   },

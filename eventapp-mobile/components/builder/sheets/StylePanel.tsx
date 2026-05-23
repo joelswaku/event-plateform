@@ -2,12 +2,12 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 
 const STYLES = [
-  { id: 'CLASSIC', label: 'Classic', accent: '#c9a96e', desc: 'Timeless & refined' },
-  { id: 'MODERN',  label: 'Modern',  accent: '#6c6fee', desc: 'Clean & bold'       },
-  { id: 'MINIMAL', label: 'Minimal', accent: '#d4d0c8', desc: 'Less is more'       },
-  { id: 'FUN',     label: 'Fun',     accent: '#F59E0B', desc: 'Energetic & playful' },
-  { id: 'ELEGANT', label: 'Elegant', accent: '#e2d9c9', desc: 'Sophisticated', premium: true },
-  { id: 'LUXURY',  label: 'Luxury',  accent: '#C9A96E', desc: 'Premium gold',  premium: true },
+  { id: 'CLASSIC', label: 'Classic', accent: '#c9a96e', desc: 'Timeless & refined'  },
+  { id: 'MODERN',  label: 'Modern',  accent: '#6c6fee', desc: 'Clean & bold',        premium: true },
+  { id: 'MINIMAL', label: 'Minimal', accent: '#d4d0c8', desc: 'Less is more',        premium: true },
+  { id: 'FUN',     label: 'Fun',     accent: '#F59E0B', desc: 'Energetic & playful', premium: true },
+  { id: 'ELEGANT', label: 'Elegant', accent: '#e2d9c9', desc: 'Sophisticated',       premium: true },
+  { id: 'LUXURY',  label: 'Luxury',  accent: '#C9A96E', desc: 'Premium gold',        premium: true },
 ];
 
 interface Props {
@@ -43,7 +43,7 @@ export default function StylePanel({ currentStyle, isPremium, onStyleSelect, onU
       })}
       {!isPremium && (
         <TouchableOpacity style={s.banner} onPress={onUpgrade} activeOpacity={0.85}>
-          <Text style={s.bannerTxt}>✦ Unlock Luxury & Elegant — Upgrade to Premium</Text>
+          <Text style={s.bannerTxt}>✦ Unlock all styles — Upgrade to Starter or Pro</Text>
         </TouchableOpacity>
       )}
     </ScrollView>

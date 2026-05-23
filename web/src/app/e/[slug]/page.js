@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { publicApi } from "@/lib/public-api";
 import EventPreviewClient from "./EventPreviewClient";
 import EventPageClient from "./EventPageClient";
+import EventNotAvailable from "./EventNotAvailable";
 
 // ── Data fetching ─────────────────────────────────────────────────────────────
 
@@ -27,6 +28,16 @@ async function fetchEventData(slug, token) {
   }
 
   return null;
+}
+
+async function checkSlug(slug, token) {
+  try {
+    const qs  = token ? `?token=${encodeURIComponent(token)}` : "";
+    const res = await publicApi.get(`/public/pages/${slug}/check${qs}`);
+    return res.data?.data ?? { exists: false };
+  } catch {
+    return { exists: false };
+  }
 }
 
 // ── SEO metadata ──────────────────────────────────────────────────────────────
@@ -61,11 +72,22 @@ export default async function PublicEventPage({ params, searchParams }) {
   }
 
   const data = await fetchEventData(slug, token);
-  if (!data?.event) notFound();
+
+  if (!data?.event) {
+    // Check why it's not available before showing a generic 404
+    const status = await checkSlug(slug, token);
+
+    if (!status.exists) {
+      notFound(); // truly doesn't exist — show Next.js 404
+    }
+
+    // Event exists but is private or not published
+    return <EventNotAvailable reason={status.reason} />;
+  }
 
   return (
     <EventPageClient
-      event={data.event}
+      event={{ ...data.event, speakers: data.speakers || [], schedule_items: data.schedule_items || [] }}
       sections={data.sections || []}
       token={token || null}
     />

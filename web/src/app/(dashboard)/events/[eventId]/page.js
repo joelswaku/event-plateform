@@ -7,13 +7,15 @@ import {
   Users, UserCheck, Ticket, QrCode,
   CalendarDays, MapPin, Globe, Tag,
   Pencil, Eye, Layout, ArrowRight, Clock,
-  BarChart3, Heart, Settings, Plus,
-  Home, User, ChevronRight,
+  BarChart3, Heart, Settings, Plus, UserPlus,
+  Home, User, ChevronRight, Shield, Mail, Crown,
   Share2, MoreHorizontal, ArrowLeft, Camera, ExternalLink,
   Send, EyeOff, Archive, Trash2, RotateCcw, CreditCard,
-  LayoutGrid, CheckCircle,
+  LayoutGrid, CheckCircle, Copy, Check, X as XIcon, Link2,
 } from "lucide-react";
 import { useEventStore }  from "@/store/event.store";
+import { useTeamStore }   from "@/store/team.store";
+import { useAuthStore }   from "@/store/auth.store";
 import StatCard           from "@/components/ui/stat-card";
 import ShareEventCard     from "@/components/events/ShareEventCard";
 import { EVENT_CATEGORIES } from "@/config/event-categories";
@@ -117,16 +119,14 @@ function SectionTitle({ children }) {
 
 // ── Feature modules with toggles (desktop) ───────────────────────────────────
 const MODULE_CFG = {
-  allow_rsvp:       { icon: Users,  label: "RSVP",           desc: "Guest list & tracking", activeBg: "bg-indigo-50 dark:bg-indigo-900/20",  activeIcon: "text-indigo-600 dark:text-indigo-400" },
-  allow_ticketing:  { icon: Ticket, label: "Stripe Ticketing", desc: "Paid ticket sales",    activeBg: "bg-amber-50 dark:bg-amber-900/20",    activeIcon: "text-amber-600 dark:text-amber-400"   },
-  allow_qr_checkin: { icon: QrCode, label: "Express Entry",   desc: "QR scan at the door",  activeBg: "bg-cyan-50 dark:bg-cyan-900/20",      activeIcon: "text-cyan-600 dark:text-cyan-400"     },
-  allow_donations:  { icon: Heart,  label: "Donations",       desc: "Accept contributions",  activeBg: "bg-pink-50 dark:bg-pink-900/20",      activeIcon: "text-pink-600 dark:text-pink-400"     },
+  allow_rsvp:      { icon: Users,  label: "RSVP",            desc: "Guest list & tracking", activeBg: "bg-indigo-50 dark:bg-indigo-900/20", activeIcon: "text-indigo-600 dark:text-indigo-400" },
+  allow_ticketing: { icon: Ticket, label: "Stripe Ticketing", desc: "Paid ticket sales",    activeBg: "bg-amber-50 dark:bg-amber-900/20",   activeIcon: "text-amber-600 dark:text-amber-400"   },
+  allow_donations: { icon: Heart,  label: "Donations",        desc: "Accept contributions", activeBg: "bg-pink-50 dark:bg-pink-900/20",     activeIcon: "text-pink-600 dark:text-pink-400"     },
 };
 const MODULE_HREFS = (eventId) => ({
-  allow_rsvp:       `/events/${eventId}/guests`,
-  allow_ticketing:  `/events/${eventId}/tickets`,
-  allow_qr_checkin: `/events/${eventId}/scanner`,
-  allow_donations:  `/events/${eventId}/donations`,
+  allow_rsvp:      `/events/${eventId}/guests`,
+  allow_ticketing: `/events/${eventId}/tickets`,
+  allow_donations: `/events/${eventId}/donations`,
 });
 
 function FeatureModules({ event, eventId }) {
@@ -137,14 +137,36 @@ function FeatureModules({ event, eventId }) {
   );
   const [saving, setSaving] = useState({});
 
+  const EXCLUSIVE = ['allow_rsvp', 'allow_ticketing', 'allow_donations'];
+
   const toggle = async (e, key) => {
     e.preventDefault(); e.stopPropagation();
     if (saving[key]) return;
     const next = !local[key];
-    setLocal((s) => ({ ...s, [key]: next }));
-    setSaving((s) => ({ ...s, [key]: true }));
-    await updateEvent(eventId, { [key]: next });
-    setSaving((s) => ({ ...s, [key]: false }));
+
+    let payload;
+    let newLocal;
+    if (next && EXCLUSIVE.includes(key)) {
+      payload = {
+        allow_rsvp:      key === 'allow_rsvp',
+        allow_ticketing: key === 'allow_ticketing',
+        allow_donations: key === 'allow_donations',
+        open_rsvp:       false,
+      };
+      newLocal = { ...local, ...payload };
+    } else if (!next && key === 'allow_rsvp') {
+      payload = { allow_rsvp: false, open_rsvp: false };
+      newLocal = { ...local, allow_rsvp: false, open_rsvp: false };
+    } else {
+      payload = { [key]: next };
+      newLocal = { ...local, [key]: next };
+    }
+
+    const affectedKeys = Object.keys(payload);
+    setLocal(newLocal);
+    setSaving((s) => ({ ...s, ...Object.fromEntries(affectedKeys.map((k) => [k, true])) }));
+    await updateEvent(eventId, payload);
+    setSaving((s) => ({ ...s, ...Object.fromEntries(affectedKeys.map((k) => [k, false])) }));
   };
 
   return (
@@ -155,7 +177,7 @@ function FeatureModules({ event, eventId }) {
           <Settings className="h-3 w-3" /> All settings
         </Link>
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         {Object.entries(MODULE_CFG).map(([key, cfg]) => {
           const active = local[key];
           const busy   = !!saving[key];
@@ -303,7 +325,7 @@ function MobileBottomNav() {
   ];
   return (
     <div
-      className="shrink-0 border-t px-1 pt-2"
+      className="relative z-50 shrink-0 border-t px-1 pt-2"
       style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.08)", paddingBottom: "max(10px, env(safe-area-inset-bottom))" }}
     >
       <div className="flex items-end justify-around">
@@ -451,15 +473,267 @@ function MobileActionSheet({ event, eventId, status, isPublic, onShare, onAction
   );
 }
 
+// ── Share sheet ───────────────────────────────────────────────────────────────
+
+function MShareSheet({ event, onClose }) {
+  const [copied, setCopied] = useState(false);
+
+  const url = typeof window !== "undefined"
+    ? `${window.location.origin}/e/${event.slug}`
+    : `/e/${event.slug}`;
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  }
+
+  const enc = encodeURIComponent;
+  const socials = [
+    {
+      label: "Twitter / X",
+      icon: (
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+        </svg>
+      ),
+      accent: "#e7e7e7", bg: "rgba(255,255,255,0.08)", border: "rgba(255,255,255,0.15)",
+      href: `https://twitter.com/intent/tweet?text=${enc(event.title)}&url=${enc(url)}`,
+    },
+    {
+      label: "WhatsApp",
+      icon: (
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+        </svg>
+      ),
+      accent: "#25D366", bg: "rgba(37,211,102,0.12)", border: "rgba(37,211,102,0.28)",
+      href: `https://wa.me/?text=${enc(event.title + " " + url)}`,
+    },
+    {
+      label: "Facebook",
+      icon: (
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+        </svg>
+      ),
+      accent: "#1877F2", bg: "rgba(24,119,242,0.12)", border: "rgba(24,119,242,0.28)",
+      href: `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}`,
+    },
+    {
+      label: "LinkedIn",
+      icon: (
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+          <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+        </svg>
+      ),
+      accent: "#0A66C2", bg: "rgba(10,102,194,0.12)", border: "rgba(10,102,194,0.28)",
+      href: `https://www.linkedin.com/sharing/share-offsite/?url=${enc(url)}`,
+    },
+    {
+      label: "Email",
+      icon: <Send size={17} />,
+      accent: "#6366f1", bg: "rgba(99,102,241,0.12)", border: "rgba(99,102,241,0.28)",
+      href: `mailto:?subject=${enc(event.title)}&body=${enc("You're invited! " + url)}`,
+    },
+  ];
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex flex-col justify-end"
+      style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full rounded-t-[28px] border-t"
+        style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.10)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="h-1 w-10 rounded-full" style={{ background: "rgba(255,255,255,0.18)" }} />
+        </div>
+
+        <div className="flex flex-col gap-5 px-5 pb-10 pt-3" style={{ paddingBottom: "max(40px, env(safe-area-inset-bottom))" }}>
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[18px] font-black text-white">Share Event</p>
+              <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
+                Send this link to your guests
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="flex h-8 w-8 items-center justify-center rounded-full"
+              style={{ background: "rgba(255,255,255,0.08)" }}
+            >
+              <XIcon size={14} style={{ color: "rgba(255,255,255,0.6)" }} />
+            </button>
+          </div>
+
+          {/* URL row */}
+          <div className="flex items-center gap-2">
+            <div
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-[14px] border px-3.5 py-3"
+              style={{ background: "#14141f", borderColor: "rgba(255,255,255,0.08)" }}
+            >
+              <Link2 size={12} style={{ color: "rgba(255,255,255,0.3)", flexShrink: 0 }} />
+              <span className="truncate font-mono text-[11px]" style={{ color: "rgba(255,255,255,0.55)" }}>
+                {url}
+              </span>
+            </div>
+            <button
+              onClick={copyLink}
+              className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[14px] border transition-all active:scale-95"
+              style={{
+                background:   copied ? "rgba(16,185,129,0.18)" : "#14141f",
+                borderColor:  copied ? "rgba(16,185,129,0.40)" : "rgba(255,255,255,0.10)",
+              }}
+              title={copied ? "Copied!" : "Copy link"}
+            >
+              {copied
+                ? <Check size={16} style={{ color: "#10b981" }} />
+                : <Copy size={16} style={{ color: "rgba(255,255,255,0.55)" }} />
+              }
+            </button>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[14px] border active:scale-95"
+              style={{ background: "#14141f", borderColor: "rgba(255,255,255,0.10)" }}
+              title="Open event page"
+            >
+              <ExternalLink size={16} style={{ color: "rgba(255,255,255,0.55)" }} />
+            </a>
+          </div>
+
+          {/* Social options */}
+          <div>
+            <p
+              className="mb-3 text-[10px] font-bold uppercase tracking-[0.7px]"
+              style={{ color: "rgba(255,255,255,0.30)" }}
+            >
+              Share on
+            </p>
+            <div className="grid grid-cols-5 gap-2">
+              {socials.map((s) => (
+                <a
+                  key={s.label}
+                  href={s.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={onClose}
+                  className="flex flex-col items-center gap-2 active:opacity-70"
+                >
+                  <div
+                    className="flex h-12 w-12 items-center justify-center rounded-[16px] border"
+                    style={{ background: s.bg, borderColor: s.border, color: s.accent }}
+                  >
+                    {s.icon}
+                  </div>
+                  <span
+                    className="text-center text-[9px] font-semibold leading-tight"
+                    style={{ color: "rgba(255,255,255,0.35)" }}
+                  >
+                    {s.label}
+                  </span>
+                </a>
+              ))}
+            </div>
+          </div>
+
+          {/* Native share fallback */}
+          {typeof navigator !== "undefined" && typeof navigator.share === "function" && (
+            <button
+              onClick={async () => {
+                onClose();
+                await new Promise((r) => setTimeout(r, 200));
+                try { await navigator.share({ title: event.title, url }); } catch {}
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-[16px] border py-3.5 active:opacity-70"
+              style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.10)" }}
+            >
+              <Share2 size={14} style={{ color: "rgba(255,255,255,0.55)" }} />
+              <span className="text-[13px] font-semibold" style={{ color: "rgba(255,255,255,0.55)" }}>
+                More options…
+              </span>
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, onTicketGate }) {
   const cfg      = sc(event.status);
   const router   = useRouter();
   const status   = (event.status ?? "DRAFT").toUpperCase();
   const countdown = useMobileCountdown(event.starts_at_utc);
-  const { publishEvent, unpublishEvent, archiveEvent, restoreEvent, deleteEvent } = useEventStore();
-  const [loading,  setLoading]  = useState(false);
-  const [modal,    setModal]    = useState(null);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const { updateEvent, publishEvent, unpublishEvent, archiveEvent, restoreEvent, deleteEvent } = useEventStore();
+  const [loading,    setLoading]   = useState(false);
+  const [modal,      setModal]     = useState(null);
+  const [menuOpen,   setMenuOpen]  = useState(false);
+  const [shareOpen,  setShareOpen] = useState(false);
+
+  /* ── Module toggle state ── */
+  const [modLocal, setModLocal] = useState({
+    allow_rsvp:      !!event.allow_rsvp,
+    allow_ticketing: !!event.allow_ticketing,
+    allow_donations: !!event.allow_donations,
+  });
+  const [modSaving,  setModSaving]  = useState({});
+  const [pendingMod, setPendingMod] = useState(null);
+
+  const MOD_ROWS = [
+    { key: 'allow_rsvp',      Icon: Users,       label: 'RSVP',       desc: 'Guest list & RSVP',   color: '#6366f1' },
+    { key: 'allow_ticketing', Icon: CreditCard,  label: 'Ticketing',  desc: 'Sell tickets',         color: '#f59e0b' },
+    { key: 'allow_donations', Icon: Heart,       label: 'Donations',  desc: 'Accept contributions', color: '#f43f5e' },
+  ];
+  const EXCL_MOD = ['allow_rsvp', 'allow_ticketing', 'allow_donations'];
+
+  const requestMod = useCallback((key, afterConfirm) => {
+    if (modSaving[key]) return;
+    const next = !modLocal[key];
+    const row  = MOD_ROWS.find(m => m.key === key);
+    const conflicts = EXCL_MOD
+      .filter(k => k !== key && modLocal[k])
+      .map(k => MOD_ROWS.find(m => m.key === k)?.label)
+      .filter(Boolean);
+    const msg = (next && conflicts.length)
+      ? `Enabling ${row.label} will turn off ${conflicts.join(' & ')}. Only one module can be active at a time.`
+      : next
+      ? `Enable ${row.label} for this event.`
+      : `Disable ${row.label} for this event.`;
+    setPendingMod({ key, next, title: next ? `Enable ${row.label}?` : `Disable ${row.label}?`, msg, color: row.color, Icon: row.Icon, afterConfirm });
+  }, [modLocal, modSaving]);
+
+  const confirmMod = useCallback(async () => {
+    if (!pendingMod) return;
+    const { key, next, afterConfirm } = pendingMod;
+    setPendingMod(null);
+    let payload, newLocal;
+    if (next && EXCL_MOD.includes(key)) {
+      payload  = { allow_rsvp: key === 'allow_rsvp', allow_ticketing: key === 'allow_ticketing', allow_donations: key === 'allow_donations', open_rsvp: false };
+      newLocal = { ...modLocal, ...payload };
+    } else if (!next && key === 'allow_rsvp') {
+      payload  = { allow_rsvp: false, open_rsvp: false };
+      newLocal = { ...modLocal, allow_rsvp: false };
+    } else {
+      payload  = { [key]: next };
+      newLocal = { ...modLocal, [key]: next };
+    }
+    setModLocal(newLocal);
+    const affected = Object.keys(payload);
+    setModSaving(s => ({ ...s, ...Object.fromEntries(affected.map(k => [k, true])) }));
+    await updateEvent(eventId, payload);
+    setModSaving(s => ({ ...s, ...Object.fromEntries(affected.map(k => [k, false])) }));
+    if (afterConfirm) afterConfirm();
+  }, [pendingMod, modLocal, updateEvent, eventId]);
 
   const run = useCallback(async (fn) => {
     setLoading(true);
@@ -501,6 +775,7 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
     { FIcon: Camera,     label: "Scanner",   sub: "QR check-in",         accent: "#10b981", grad: "linear-gradient(135deg,#0891b2,#06b6d4)", href: `/events/${eventId}/scanner`   },
     { FIcon: BarChart3,  label: "Analytics", sub: "Revenue & insights",  accent: "#a78bfa", grad: "linear-gradient(135deg,#7c3aed,#8b5cf6)", href: `/events/${eventId}/analytics` },
     { FIcon: Heart,      label: "Donations", sub: "Track contributions", accent: "#f43f5e", grad: "linear-gradient(135deg,#be185d,#f43f5e)", href: `/events/${eventId}/donations` },
+    { FIcon: UserPlus,   label: "Team",      sub: "Manage admins",       accent: "#06b6d4", grad: "linear-gradient(135deg,#0891b2,#06b6d4)", href: `/events/${eventId}/team`      },
     { FIcon: Settings,   label: "Settings",  sub: "Edit event details",  accent: "#6b7280", grad: "linear-gradient(135deg,#374151,#4b5563)", href: `/events/${eventId}/settings`  },
   ];
 
@@ -578,7 +853,7 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
         </div>
 
         {/* ── Body ── */}
-        <div className="flex flex-col gap-4 px-4 pt-6" style={{ paddingBottom: 40 }}>
+        <div className="flex flex-col gap-4 px-4 pt-6" style={{ paddingBottom: 120 }}>
 
           {/* Countdown */}
           {event.starts_at_utc && !countdown.past && (
@@ -769,7 +1044,7 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
             {event.slug && (
               <button
                 type="button"
-                onClick={handleShare}
+                onClick={() => setShareOpen(true)}
                 className="flex items-center gap-[6px] rounded-full border px-[14px] py-2"
                 style={{ borderColor: "rgba(16,185,129,0.40)", background: "rgba(16,185,129,0.12)" }}
               >
@@ -856,10 +1131,17 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
           {/* Feature grid 2×N */}
           <div className="grid grid-cols-2 gap-3">
             {FEATURES.map(({ FIcon, label, sub, accent, grad, href }) => (
-              <Link
+              <button
                 key={label}
-                href={href}
-                className="relative flex min-h-[120px] flex-col gap-[6px] overflow-hidden rounded-[20px] border p-4"
+                type="button"
+                onClick={() => {
+                  if (label === 'Tickets' && !modLocal.allow_ticketing) {
+                    requestMod('allow_ticketing', () => router.push(href));
+                    return;
+                  }
+                  router.push(href);
+                }}
+                className="relative flex min-h-[120px] flex-col gap-[6px] overflow-hidden rounded-[20px] border p-4 text-left"
                 style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.07)" }}
               >
                 <div className="absolute inset-0 rounded-[20px]" style={{ background: `linear-gradient(135deg, ${accent}14, transparent)` }} />
@@ -874,7 +1156,7 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
                 <div className="absolute bottom-[14px] right-[14px]">
                   <ChevronRight size={13} style={{ color: "rgba(255,255,255,0.2)" }} />
                 </div>
-              </Link>
+              </button>
             ))}
           </div>
 
@@ -917,6 +1199,49 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
 
       <MobileBottomNav />
 
+      {/* Module confirmation sheet */}
+      {pendingMod && (
+        <div
+          className="fixed inset-0 z-[60]"
+          style={{ background: 'rgba(0,0,0,0.65)' }}
+          onClick={() => setPendingMod(null)}
+        >
+          <div
+            className="absolute bottom-0 left-0 right-0 flex flex-col items-center gap-3 rounded-t-[24px] border-t px-6 pt-3"
+            style={{ background: '#0e0e16', borderColor: 'rgba(255,255,255,0.08)', paddingBottom: 'max(28px, env(safe-area-inset-bottom))' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="h-1 w-9 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }} />
+            <div
+              className="mt-1 flex h-[60px] w-[60px] items-center justify-center rounded-[18px]"
+              style={{ background: `${pendingMod.color}18` }}
+            >
+              <pendingMod.Icon size={26} style={{ color: pendingMod.color }} />
+            </div>
+            <p className="text-center text-[18px] font-extrabold text-white">{pendingMod.title}</p>
+            <p className="px-1 text-center text-[13px] leading-[19px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+              {pendingMod.msg}
+            </p>
+            <button
+              type="button"
+              onClick={confirmMod}
+              className="mt-1 w-full rounded-[14px] py-[14px] text-[15px] font-extrabold text-white"
+              style={{ background: pendingMod.color }}
+            >
+              {pendingMod.title.replace('?', '')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPendingMod(null)}
+              className="w-full py-3 text-[14px] font-semibold"
+              style={{ color: 'rgba(255,255,255,0.4)' }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {modal && (
         <MobileConfirmDialog
           title={modal.title}
@@ -933,10 +1258,187 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
           eventId={eventId}
           status={status}
           isPublic={isPublic}
-          onShare={handleShare}
+          onShare={() => { setMenuOpen(false); setShareOpen(true); }}
           onAction={handleMenuAction}
           onClose={() => setMenuOpen(false)}
         />
+      )}
+
+      {shareOpen && (
+        <MShareSheet event={event} onClose={() => setShareOpen(false)} />
+      )}
+    </div>
+  );
+}
+
+// ── Helpers for team card ─────────────────────────────────────────────────────
+function memberInitials(name = "") {
+  return name.trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+}
+const TEAM_ROLE_CFG = {
+  OWNER: { label: "Owner", color: "#f59e0b", Icon: Crown  },
+  ADMIN: { label: "Admin", color: "#6366f1", Icon: Shield },
+};
+
+// ── Desktop Team Card ─────────────────────────────────────────────────────────
+function DesktopTeamCard({ eventId }) {
+  const { members, meta, isLoading, isSubmitting, fetchMembers, inviteMember } = useTeamStore();
+  const [email,  setEmail]  = useState("");
+  const [name,   setName]   = useState("");
+  const [invErr, setInvErr] = useState("");
+  const [notice, setNotice] = useState(""); // "added" | "invited"
+
+  useEffect(() => { if (eventId) fetchMembers(eventId); }, [eventId, fetchMembers]);
+
+  const isOwner    = meta?.currentUserRole === "OWNER";
+  const adminCount = (meta?.current ?? 1) - 1;
+  const maxAdmins  = meta?.maxAdmins ?? 0;
+  const canInvite  = isOwner && meta ? (meta.maxAdmins === null || adminCount < maxAdmins) : false;
+  const planLabel  = meta?.plan ? meta.plan.charAt(0).toUpperCase() + meta.plan.slice(1) : "";
+
+  const handleInvite = async () => {
+    setInvErr(""); setNotice("");
+    if (!email.trim()) { setInvErr("Enter an email address"); return; }
+    const res = await inviteMember(eventId, email.trim(), name.trim());
+    if (res.success) {
+      setEmail(""); setName("");
+      setNotice(res.type === "invited" ? "invited" : "added");
+      setTimeout(() => setNotice(""), 4000);
+    } else {
+      setInvErr(res.error || "Failed to invite");
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+      {/* Header */}
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">Team</h3>
+          {meta && (
+            <span
+              className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+              style={{
+                background: (meta.maxAdmins !== null && adminCount >= maxAdmins) ? "rgba(239,68,68,0.10)" : "rgba(99,102,241,0.10)",
+                color:      (meta.maxAdmins !== null && adminCount >= maxAdmins) ? "#ef4444"               : "#6366f1",
+              }}
+            >
+              {meta.maxAdmins === null
+                ? `Unlimited · ${planLabel}`
+                : `${adminCount}/${maxAdmins} admin${maxAdmins === 1 ? "" : "s"} · ${planLabel}`}
+            </span>
+          )}
+        </div>
+        <Link
+          href={`/events/${eventId}/team`}
+          className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 transition hover:text-indigo-600 dark:hover:text-indigo-400"
+        >
+          <UserPlus className="h-3 w-3" /> Manage
+        </Link>
+      </div>
+
+      {/* Member list */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-6">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+        </div>
+      ) : members.length === 0 ? (
+        <p className="mb-4 text-sm text-gray-400">No admins added yet.</p>
+      ) : (
+        <div className="mb-4 flex flex-col divide-y divide-gray-100 dark:divide-gray-800">
+          {members.map((m) => {
+            const cfg = TEAM_ROLE_CFG[m.role] ?? TEAM_ROLE_CFG.ADMIN;
+            const { Icon } = cfg;
+            return (
+              <div key={m.user_id} className="flex items-center gap-3 py-2.5">
+                <div
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                  style={{ background: cfg.color }}
+                >
+                  {memberInitials(m.full_name)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    {m.full_name || m.email}
+                  </p>
+                  <p className="truncate text-xs text-gray-400">{m.email}</p>
+                </div>
+                <span
+                  className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold"
+                  style={{ background: `${cfg.color}18`, color: cfg.color }}
+                >
+                  <Icon size={9} /> {cfg.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Invite form — always visible for owner */}
+      {isOwner && canInvite && (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Mail size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleInvite()}
+                placeholder="teammate@example.com"
+                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 pl-8 pr-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none focus:border-indigo-400"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleInvite()}
+              placeholder="Their name (optional)"
+              className="flex-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none focus:border-indigo-400"
+            />
+            <button
+              onClick={handleInvite}
+              disabled={isSubmitting}
+              className="flex shrink-0 items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700 transition disabled:opacity-60"
+            >
+              <UserPlus size={13} />
+              {isSubmitting ? "…" : "Invite"}
+            </button>
+          </div>
+        </div>
+      )}
+      {invErr && <p className="mt-1.5 text-xs text-red-500">{invErr}</p>}
+      {notice === "added" && (
+        <p className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-emerald-500">
+          <Check size={12} /> Added — they can log in now.
+        </p>
+      )}
+      {notice === "invited" && (
+        <p className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-indigo-500">
+          <Mail size={12} /> Invite sent — they'll get a signup link by email.
+        </p>
+      )}
+
+      {/* Upgrade prompt when limit hit */}
+      {isOwner && !canInvite && meta?.maxAdmins !== null && (
+        <div className="mt-3 flex items-center gap-2.5 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/30 px-3 py-2.5">
+          <Crown size={13} className="text-amber-500 shrink-0" />
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            Admin limit reached.{" "}
+            <Link href="/settings/billing" className="font-bold underline">Upgrade</Link>{" "}
+            to add more.
+          </p>
+        </div>
+      )}
+
+      {members.length > 1 && (
+        <p className="mt-3 text-[10px] text-gray-400 dark:text-gray-500">
+          Admins can manage guests, tickets &amp; check-ins but cannot delete the event or change billing.
+        </p>
       )}
     </div>
   );
@@ -947,18 +1449,33 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
 // ══════════════════════════════════════════════════════════════════════════════
 export default function EventDetailPage() {
   const { eventId } = useParams();
+  const router      = useRouter();
   const { fetchEventDashboard, dashboard, loading } = useEventStore();
+  const { isHydrated, isAuthenticated } = useAuthStore();
   const [ticketGateOpen, setTicketGateOpen] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
-    if (eventId) fetchEventDashboard(eventId);
-  }, [eventId, fetchEventDashboard]);
+    if (!isHydrated) return;
+    if (!isAuthenticated) { router.replace("/login?redirect=" + encodeURIComponent(`/events/${eventId}`)); return; }
+    if (eventId) fetchEventDashboard(eventId).catch(() => setFetchError(true));
+  }, [eventId, isHydrated, isAuthenticated]);
 
   const event    = dashboard?.event;
   const stats    = dashboard?.stats ?? {};
   const hasFullTicketing = isEntertainmentEvent(event);
   const location = [event?.venue_name, event?.city, event?.country].filter(Boolean).join(", ") || null;
   const isPublic = event?.visibility === "PUBLIC";
+
+  if (fetchError) {
+    return (
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-center px-4">
+        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Could not load event</p>
+        <p className="text-xs text-gray-400">The event may not exist or you don&apos;t have access.</p>
+        <Link href="/events" className="mt-2 text-xs font-semibold text-indigo-600 hover:underline">Back to events</Link>
+      </div>
+    );
+  }
 
   if (loading || !event) {
     return (
@@ -1043,6 +1560,7 @@ export default function EventDetailPage() {
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="space-y-4 lg:col-span-2">
               <ShareEventCard slug={event.slug} customDomain={event.custom_domain} />
+              <DesktopTeamCard eventId={eventId} />
               <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
                 <SectionTitle>Event details</SectionTitle>
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -1068,6 +1586,7 @@ export default function EventDetailPage() {
                 )}
                 <QuickAction label="QR Scanner"   description="Check in on arrival"          href={`/events/${eventId}/scanner`}   icon={QrCode}         />
                 <QuickAction label="Analytics"    description="Views & conversions"           href={`/events/${eventId}/analytics`} icon={BarChart3}      />
+                <QuickAction label="Team"         description="Add admins to your event"      href={`/events/${eventId}/team`}      icon={UserPlus}       />
               </div>
             </div>
           </div>

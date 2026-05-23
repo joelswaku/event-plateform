@@ -184,8 +184,9 @@ function Perf({ color }) {
 
 /* ─── SOCIAL PROOF COUNTER ────────────────────────────────── */
 function ViewerCount({ accent }) {
-  const [count, setCount] = useState(() => Math.floor(Math.random() * 40) + 12);
+  const [count, setCount] = useState(0);
   useEffect(() => {
+    setCount(Math.floor(Math.random() * 40) + 12);
     const id = setInterval(() => {
       setCount((n) => Math.max(8, n + (Math.random() > 0.5 ? 1 : -1)));
     }, 3500);
@@ -613,8 +614,8 @@ function CheckoutModal({ ticket, event, onClose }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Order failed");
-      if (data.data?.payment_required && data.data?.payment_url) {
-        window.location.href = data.data.payment_url;
+      if (data.data?.payment_required && data.data?.checkout_url) {
+        window.location.href = data.data.checkout_url;
         return;
       }
       setStep("success");
@@ -830,14 +831,17 @@ export function PremiumTicketsSection({ section, event, isEditor = false, onEdit
   const [checkout, setCheckout] = useState(null);
 
   useEffect(() => {
-    if (isEditor || !event?.id || !API) return;
+    if (isEditor || !event?.id || !API || !event?.allow_ticketing) return;
     setLoading(true);
     fetch(`${API}/public/events/${event.id}/tickets`)
       .then((r) => r.json())
       .then((d) => setTickets(d.tickets ?? []))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [event?.id, isEditor]);
+  }, [event?.id, isEditor, event?.allow_ticketing]);
+
+  // Hide when ticketing module is disabled (public mode only — still show in editor for config)
+  if (!isEditor && !event?.allow_ticketing) return null;
 
   const display = isEditor ? TICKET_MOCK : tickets;
 
@@ -857,6 +861,7 @@ export function PremiumTicketsSection({ section, event, isEditor = false, onEdit
       <style>{shimmerCSS}</style>
 
       <section
+        id="tickets"
         className="relative overflow-hidden py-20 px-4"
         style={{ background: "#07070f" }}
         onClick={isEditor ? onEdit : undefined}

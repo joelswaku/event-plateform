@@ -173,7 +173,6 @@
  */
 
 import nodemailer from "nodemailer";
-import { BrevoClient } from "@getbrevo/brevo";
 import { env } from "../config/env.js";
 
 /* -------------------------------------------------------------------------- */
@@ -274,15 +273,24 @@ export async function sendBrevoEmail({
     throw new Error("MAIL_FROM_EMAIL is not configured");
   }
 
-  const info = await transporter.sendMail({
-    from: `"${fromName}" <${fromEmail}>`,
-    to: name ? `"${name}" <${to}>` : to,
-    subject,
-    html,
-    text,
-  });
+  let info;
+  try {
+    info = await transporter.sendMail({
+      from: `"${fromName}" <${fromEmail}>`,
+      to: name ? `"${name}" <${to}>` : to,
+      subject,
+      html,
+      text,
+    });
+  } catch (err) {
+    console.error(`[Brevo SMTP] ❌ Failed to send to ${to} — ${err.message}`);
+    console.error(`[Brevo SMTP]    Login: ${env.brevoSmtpLogin}`);
+    console.error(`[Brevo SMTP]    From:  ${fromEmail}`);
+    console.error(`[Brevo SMTP]    Code:  ${err.code}  ResponseCode: ${err.responseCode}`);
+    throw err;
+  }
 
-  console.log(`[Brevo SMTP] Email sent: ${info.messageId} -> ${to}`);
+  console.log(`[Brevo SMTP] ✅ Email sent: ${info.messageId} -> ${to}`);
 
   return {
     messageId: info.messageId,
@@ -299,12 +307,13 @@ let restClient = null;
 /**
  * Create and cache Brevo REST client.
  */
-function getRestClient() {
+async function getRestClient() {
   if (!env.brevoApiKey) {
     return null;
   }
 
   if (!restClient) {
+    const { BrevoClient } = await import("@getbrevo/brevo");
     restClient = new BrevoClient({
       apiKey: env.brevoApiKey,
     });
@@ -329,7 +338,7 @@ export async function sendBrevoSms({ to, message }) {
     throw new Error("sendBrevoSms requires: to and message");
   }
 
-  const client = getRestClient();
+  const client = await getRestClient();
 
   if (!client) {
     console.warn(

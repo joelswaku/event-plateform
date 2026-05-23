@@ -22,21 +22,23 @@
  * All logic, store calls, and API preserved.
  */
 
-import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, ScrollView, StyleSheet,
   Pressable, RefreshControl, Dimensions, Animated,
   ActivityIndicator, Alert, Modal,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather }        from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics       from 'expo-haptics';
 import Toast              from 'react-native-toast-message';
 
-import { useGuestStore }  from '@/store/guest.store';
-import { BottomSheet }    from '@/components/ui/BottomSheet';
+import { useGuestStore }         from '@/store/guest.store';
+import { useSeatingStore }       from '@/store/seating.store';
+import { useSubscriptionStore }  from '@/store/subscription.store';
+import { BottomSheet }     from '@/components/ui/BottomSheet';
 import { Input }          from '@/components/ui/Input';
 import { Colors }         from '@/constants/colors';
 import { GuestStatus }    from '@/types';
@@ -111,83 +113,116 @@ const sc = StyleSheet.create({
 ══════════════════════════════════════════════════════════════ */
 function GuestCard({
   guest, onPress, selectMode = false, selected = false, onToggle,
+  seatInfo, onAssignSeat,
 }: {
   guest: any; onPress: () => void;
   selectMode?: boolean; selected?: boolean; onToggle?: () => void;
+  seatInfo?: { tableName: string; seatNumber: number | null } | null;
+  onAssignSeat?: () => void;
 }) {
   const cfg      = getStatusCfg(guest);
   const initials = getInitials(guest.full_name);
+  const showAssignBtn = !seatInfo && !selectMode;
 
   return (
-    <Pressable
-      style={[gc.card, selected && gc.cardSelected]}
-      onPress={selectMode ? onToggle : onPress}
-      onLongPress={!selectMode ? undefined : undefined}
-    >
-      {/* Selection checkbox */}
-      {selectMode && (
-        <View style={[gc.checkbox, selected && gc.checkboxChecked]}>
-          {selected && <Feather name="check" size={11} color="#fff" />}
-        </View>
-      )}
+    // Outer View — never tappable itself; avoids any nested-Pressable conflicts
+    <View style={[gc.card, selected && gc.cardSelected, showAssignBtn && gc.cardWithFooter]}>
 
-      {/* Avatar */}
-      <View style={[gc.avatar, { backgroundColor: `${cfg.color}20`, borderColor: `${cfg.color}40` }]}>
-        {guest.is_vip && (
-          <View style={gc.vipCrown}>
-            <Text style={{ fontSize: 8 }}>👑</Text>
+      {/* ── Main row — taps → guest detail (or toggle in select mode) ── */}
+      <Pressable
+        style={gc.mainRow}
+        onPress={selectMode ? onToggle : onPress}
+        android_ripple={{ color: 'rgba(255,255,255,0.05)', borderless: false }}
+      >
+        {/* Selection checkbox */}
+        {selectMode && (
+          <View style={[gc.checkbox, selected && gc.checkboxChecked]}>
+            {selected && <Feather name="check" size={11} color="#fff" />}
           </View>
         )}
-        <Text style={[gc.initials, { color: cfg.color }]}>{initials}</Text>
-      </View>
 
-      {/* Info */}
-      <View style={gc.info}>
-        <View style={gc.nameRow}>
-          <Text style={gc.name} numberOfLines={1}>{guest.full_name}</Text>
+        {/* Avatar */}
+        <View style={[gc.avatar, { backgroundColor: `${cfg.color}20`, borderColor: `${cfg.color}40` }]}>
           {guest.is_vip && (
-            <View style={gc.vipBadge}>
-              <Text style={gc.vipTxt}>VIP</Text>
+            <View style={gc.vipCrown}>
+              <Text style={{ fontSize: 8 }}>👑</Text>
             </View>
           )}
+          <Text style={[gc.initials, { color: cfg.color }]}>{initials}</Text>
         </View>
-        {guest.email ? (
-          <Text style={gc.meta} numberOfLines={1}>{guest.email}</Text>
-        ) : guest.phone ? (
-          <Text style={gc.meta} numberOfLines={1}>{guest.phone}</Text>
-        ) : (
-          <Text style={gc.metaEmpty}>No contact info</Text>
-        )}
-        {guest.checked_in_at && (
-          <Text style={gc.checkinTime}>
-            <Feather name="check-circle" size={10} color="#06b6d4" /> {fmtDateTime(guest.checked_in_at)}
-          </Text>
-        )}
-      </View>
 
-      {/* Status pill */}
-      <View style={[gc.statusPill, { backgroundColor: cfg.bg }]}>
-        <View style={[gc.statusDot, { backgroundColor: cfg.dot }]} />
-        <Text style={[gc.statusTxt, { color: cfg.color }]}>{cfg.label}</Text>
-      </View>
+        {/* Info */}
+        <View style={gc.info}>
+          <View style={gc.nameRow}>
+            <Text style={gc.name} numberOfLines={1}>{guest.full_name}</Text>
+            {guest.is_vip && (
+              <View style={gc.vipBadge}>
+                <Text style={gc.vipTxt}>VIP</Text>
+              </View>
+            )}
+          </View>
+          {guest.email ? (
+            <Text style={gc.meta} numberOfLines={1}>{guest.email}</Text>
+          ) : guest.phone ? (
+            <Text style={gc.meta} numberOfLines={1}>{guest.phone}</Text>
+          ) : (
+            <Text style={gc.metaEmpty}>No contact info</Text>
+          )}
+          {seatInfo && (
+            <Text style={gc.seatChip} numberOfLines={1}>
+              {'🪑 '}{seatInfo.tableName}{seatInfo.seatNumber != null ? ` · Seat ${seatInfo.seatNumber}` : ''}
+            </Text>
+          )}
+          {guest.checked_in_at && (
+            <Text style={gc.checkinTime}>
+              <Feather name="check-circle" size={10} color="#06b6d4" /> {fmtDateTime(guest.checked_in_at)}
+            </Text>
+          )}
+        </View>
 
-      {!selectMode && (
-        <Feather name="chevron-right" size={14} color="rgba(255,255,255,0.15)" style={{ marginLeft: 2 }} />
+        {/* Status pill */}
+        <View style={[gc.statusPill, { backgroundColor: cfg.bg }]}>
+          <View style={[gc.statusDot, { backgroundColor: cfg.dot }]} />
+          <Text style={[gc.statusTxt, { color: cfg.color }]}>{cfg.label}</Text>
+        </View>
+
+        {!selectMode && (
+          <Feather name="chevron-right" size={14} color="rgba(255,255,255,0.15)" style={{ marginLeft: 2 }} />
+        )}
+      </Pressable>
+
+      {/* ── Assign Seat footer — completely separate from the main row ── */}
+      {showAssignBtn && (
+        <Pressable
+          style={gc.assignRow}
+          onPress={onAssignSeat}
+          android_ripple={{ color: `${Colors.accent.indigo}20`, borderless: false }}
+        >
+          <Feather name="layout" size={11} color={Colors.accent.indigo} />
+          <Text style={gc.assignSeat}>Assign Seat</Text>
+          <Feather name="chevron-right" size={11} color={Colors.accent.indigo} style={{ marginLeft: 'auto' }} />
+        </Pressable>
       )}
-    </Pressable>
+    </View>
   );
 }
 
 const gc = StyleSheet.create({
   card: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: Colors.bg.card,
     borderRadius: 16, borderWidth: 1, borderColor: Colors.border.subtle,
-    padding: 14,
+    overflow: 'hidden',
   },
   cardSelected: {
     borderColor: `${Colors.accent.indigo}55`,
     backgroundColor: `${Colors.accent.indigo}0a`,
+  },
+  cardWithFooter: {
+    // extra bottom border separation handled by assignRow's borderTop
+  },
+  mainRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    padding: 14,
   },
   checkbox: {
     width: 22, height: 22, borderRadius: 7, flexShrink: 0,
@@ -217,6 +252,7 @@ const gc = StyleSheet.create({
   vipTxt:      { fontSize: 8, fontWeight: '900', color: '#c9a96e', letterSpacing: 0.5 },
   meta:        { fontSize: 12, color: Colors.text.muted },
   metaEmpty:   { fontSize: 12, color: Colors.text.subtle, fontStyle: 'italic' },
+  seatChip:    { fontSize: 11, color: Colors.accent.indigo, fontWeight: '700' },
   checkinTime: { fontSize: 11, color: '#06b6d4', fontWeight: '600' },
   statusPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -225,6 +261,16 @@ const gc = StyleSheet.create({
   },
   statusDot: { width: 5, height: 5, borderRadius: 3 },
   statusTxt: { fontSize: 10, fontWeight: '800' },
+  assignRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderTopWidth: 1, borderTopColor: `${Colors.accent.indigo}18`,
+    backgroundColor: `${Colors.accent.indigo}08`,
+  },
+  assignSeat: {
+    fontSize: 12, fontWeight: '700',
+    color: Colors.accent.indigo, letterSpacing: 0.2,
+  },
 });
 
 /* ══════════════════════════════════════════════════════════════
@@ -303,9 +349,17 @@ export default function GuestsScreen() {
   const router           = useRouter();
   const insets           = useSafeAreaInsets();
   const {
-    guests, dashboard, fetchGuests, fetchDashboard, createGuest,
+    guests, dashboard, fetchGuests, fetchDashboard, getAttendance, createGuest,
     bulkDeleteGuests, bulkSubmitRsvp, bulkSendInvitations,
   } = useGuestStore();
+  const prices    = useSubscriptionStore(s => s.prices);
+  const plan      = useSubscriptionStore(s => s.plan);
+  const isStarter = plan === 'starter';
+
+  const {
+    fetchAssignments, fetchLocations,
+    getAssignmentForGuest, getLocationById,
+  } = useSeatingStore();
 
   const [query,       setQuery]       = useState('');
   const [filter,      setFilter]      = useState<Filter>('ALL');
@@ -313,6 +367,7 @@ export default function GuestsScreen() {
   const [focused,     setFocused]     = useState(false);
   const [newGuest,    setNewGuest]    = useState({ full_name: '', email: '', phone: '', is_vip: false });
   const [adding,      setAdding]      = useState(false);
+  const [limitModal,  setLimitModal]  = useState(false);
 
   /* Bulk selection */
   const [selectMode,   setSelectMode]   = useState(false);
@@ -320,11 +375,25 @@ export default function GuestsScreen() {
   const [bulkLoading,  setBulkLoading]  = useState(false);
   const [rsvpMenu,     setRsvpMenu]     = useState(false);
 
-  useEffect(() => {
-    if (!eventId) return;
-    fetchGuests(eventId);
-    fetchDashboard(eventId);
-  }, [eventId]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!eventId) return;
+      fetchGuests(eventId);
+      fetchDashboard(eventId);
+      getAttendance(eventId);
+      fetchAssignments(eventId);
+      fetchLocations(eventId);
+
+      // Poll every 15 s so check-ins from the web appear automatically
+      const interval = setInterval(() => {
+        if (!eventId) return;
+        fetchGuests(eventId);
+        fetchDashboard(eventId);
+        getAttendance(eventId);
+      }, 15000);
+      return () => clearInterval(interval);
+    }, [eventId])
+  );
 
   const filtered = useMemo(() => {
     return guests
@@ -345,6 +414,8 @@ export default function GuestsScreen() {
     if (!eventId) return;
     fetchGuests(eventId);
     fetchDashboard(eventId);
+    fetchAssignments(eventId);
+    fetchLocations(eventId);
   }, [eventId]);
 
   const handleAdd = async () => {
@@ -359,6 +430,9 @@ export default function GuestsScreen() {
       Toast.show({ type: 'success', text1: '✓ Guest added' });
       setAddOpen(false);
       setNewGuest({ full_name: '', email: '', phone: '', is_vip: false });
+    } else if (result.code === 'PLAN_LIMIT_GUESTS') {
+      setAddOpen(false);
+      setLimitModal(true);
     } else {
       Toast.show({ type: 'error', text1: 'Failed to add guest' });
     }
@@ -602,16 +676,25 @@ export default function GuestsScreen() {
               {filtered.length} {filtered.length === 1 ? 'guest' : 'guests'}
             </Text>
             <View style={s.listItems}>
-              {filtered.map((g: any) => (
-                <GuestCard
-                  key={g.id}
-                  guest={g}
-                  selectMode={selectMode}
-                  selected={selectedIds.has(g.id)}
-                  onToggle={() => toggleSelect(g.id)}
-                  onPress={() => router.push(`/events/${eventId}/guests/${g.id}` as never)}
-                />
-              ))}
+              {filtered.map((g: any) => {
+                const assignment = getAssignmentForGuest(g.id);
+                const location   = assignment ? getLocationById(assignment.seating_table_id) : null;
+                const seatInfo   = assignment && location
+                  ? { tableName: location.location_name, seatNumber: assignment.seat_number }
+                  : null;
+                return (
+                  <GuestCard
+                    key={g.id}
+                    guest={g}
+                    selectMode={selectMode}
+                    selected={selectedIds.has(g.id)}
+                    onToggle={() => toggleSelect(g.id)}
+                    onPress={() => router.push(`/events/${eventId}/guests/${g.id}` as never)}
+                    seatInfo={seatInfo}
+                    onAssignSeat={() => router.push(`/events/${eventId}/seating` as never)}
+                  />
+                );
+              })}
             </View>
           </>
         )}
@@ -667,6 +750,83 @@ export default function GuestsScreen() {
             </Pressable>
           </View>
         </Pressable>
+      </Modal>
+
+      {/* ── GUEST LIMIT MODAL ───────────────────────────────────── */}
+      <Modal visible={limitModal} transparent animationType="fade" onRequestClose={() => setLimitModal(false)}>
+        <View style={lm.overlay}>
+          <View style={lm.card}>
+            {/* Close */}
+            <Pressable style={lm.closeBtn} onPress={() => setLimitModal(false)}>
+              <Feather name="x" size={16} color="rgba(255,255,255,0.4)" />
+            </Pressable>
+
+            {/* Icon */}
+            <LinearGradient colors={['#4f46e5', '#7c3aed']} style={lm.iconWrap}>
+              <Feather name="lock" size={26} color="#fff" />
+            </LinearGradient>
+
+            {/* Badge */}
+            <View style={lm.badge}>
+              <Feather name="zap" size={9} color="#818cf8" />
+              <Text style={lm.badgeTxt}>PLAN LIMIT REACHED</Text>
+            </View>
+
+            {/* Text */}
+            <Text style={lm.title}>Guest Limit Reached</Text>
+            <Text style={lm.sub}>
+              {isStarter
+                ? "You've hit the 500-guest Starter cap. Upgrade to Pro for unlimited guests per event."
+                : 'Free plan allows 50 guests per event. Upgrade to Starter for 500, or Pro for unlimited.'}
+            </Text>
+
+            {/* Plan cards */}
+            <View style={[lm.plans, isStarter && { justifyContent: 'center' }]}>
+              {/* Starter — only shown to free users */}
+              {!isStarter && (
+                <View style={[lm.plan, lm.planStarter]}>
+                  <Text style={lm.planName}>Starter</Text>
+                  <Text style={lm.planPrice}>
+                    {prices.starter?.amount != null ? `$${prices.starter.amount}` : '$19'}
+                    <Text style={lm.planPer}>/mo</Text>
+                  </Text>
+                  <Text style={lm.planDetail}>500 guests · 5 events</Text>
+                </View>
+              )}
+              {/* Pro */}
+              <View style={[lm.plan, lm.planPro, isStarter && { flex: 0, width: '80%' }]}>
+                <View style={lm.bestBadge}><Text style={lm.bestTxt}>{isStarter ? 'UPGRADE' : 'BEST'}</Text></View>
+                <Text style={lm.planName}>Pro</Text>
+                <Text style={[lm.planPrice, { color: '#c9a96e' }]}>
+                  {prices.pro?.amount != null ? `$${prices.pro.amount}` : '$49'}
+                  <Text style={lm.planPer}>/mo</Text>
+                </Text>
+                <Text style={lm.planDetail}>Unlimited guests &amp; events</Text>
+              </View>
+            </View>
+
+            {/* CTA */}
+            <Pressable
+              style={lm.cta}
+              onPress={() => { setLimitModal(false); router.push('/profile/billing' as never); }}
+            >
+              <LinearGradient
+                colors={isStarter ? ['#c9a96e', '#f59e0b'] : ['#6366f1', '#8b5cf6']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <Feather name="zap" size={16} color={isStarter ? '#000' : '#fff'} />
+              <Text style={[lm.ctaTxt, isStarter && { color: '#000' }]}>
+                {isStarter ? 'Upgrade to Pro' : 'Upgrade Now'}
+              </Text>
+            </Pressable>
+
+            {/* Cancel */}
+            <Pressable onPress={() => setLimitModal(false)} style={{ paddingVertical: 6 }}>
+              <Text style={lm.cancelTxt}>Not now</Text>
+            </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* ── ADD GUEST SHEET ─────────────────────────────────────── */}
@@ -814,6 +974,62 @@ const s = StyleSheet.create({
     textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10,
   },
   listItems: { gap: 10 },
+});
+
+/* Guest limit modal */
+const lm = StyleSheet.create({
+  overlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.85)',
+    alignItems: 'center', justifyContent: 'center', padding: 24,
+  },
+  card: {
+    width: '100%', borderRadius: 28, padding: 28,
+    backgroundColor: '#0e0e1a',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center', gap: 14,
+  },
+  closeBtn: {
+    position: 'absolute', top: 14, right: 14,
+    width: 32, height: 32, borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  iconWrap: {
+    width: 68, height: 68, borderRadius: 22,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 2,
+  },
+  badge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 99,
+    backgroundColor: 'rgba(99,102,241,0.12)',
+    borderWidth: 1, borderColor: 'rgba(99,102,241,0.3)',
+  },
+  badgeTxt: { fontSize: 9, fontWeight: '900', color: '#818cf8', letterSpacing: 1.5 },
+  title: { fontSize: 22, fontWeight: '900', color: '#fff', textAlign: 'center', letterSpacing: -0.5 },
+  sub: { fontSize: 13, color: 'rgba(255,255,255,0.45)', textAlign: 'center', lineHeight: 20 },
+  plans: { flexDirection: 'row', gap: 10, width: '100%' },
+  plan: { flex: 1, borderRadius: 18, padding: 14, gap: 4 },
+  planStarter: { backgroundColor: 'rgba(99,102,241,0.1)', borderWidth: 1, borderColor: 'rgba(99,102,241,0.3)' },
+  planPro: { backgroundColor: 'rgba(201,169,110,0.08)', borderWidth: 1, borderColor: 'rgba(201,169,110,0.3)', position: 'relative', overflow: 'hidden' },
+  bestBadge: {
+    position: 'absolute', top: 0, right: 0,
+    backgroundColor: '#c9a96e',
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderBottomLeftRadius: 10,
+  },
+  bestTxt: { fontSize: 8, fontWeight: '900', color: '#000' },
+  planName: { fontSize: 15, fontWeight: '900', color: '#fff' },
+  planPrice: { fontSize: 26, fontWeight: '900', color: '#818cf8' },
+  planPer: { fontSize: 12, fontWeight: '500', color: 'rgba(255,255,255,0.35)' },
+  planDetail: { fontSize: 11, color: 'rgba(255,255,255,0.45)', fontWeight: '500' },
+  cta: {
+    width: '100%', height: 52, borderRadius: 16, marginTop: 4,
+    alignItems: 'center', justifyContent: 'center',
+    flexDirection: 'row', gap: 8, overflow: 'hidden',
+  },
+  ctaTxt: { fontSize: 16, fontWeight: '900', color: '#fff' },
+  cancelTxt: { fontSize: 13, color: 'rgba(255,255,255,0.3)', fontWeight: '600' },
 });
 
 /* Bulk action toolbar */

@@ -104,10 +104,11 @@ export const SECTION_TEMPLATES = {
   STORY: {
     section_type: "STORY",
     title: "Our Story",
-    body: "Share the story behind this event.",
+    body: "Every great event has a story behind it. Share what inspired this gathering, how it came to be, and what makes it special. Let your guests feel connected to the moment before they even arrive.",
     config: {
-      layout: "split",
       image_position: "left",
+      story_image: "",
+      quote: "",
     },
   },
 
@@ -1637,3 +1638,197 @@ export async function selectEventThemeService({
   }
 }
 
+
+/* ── Speaker CRUD ──────────────────────────────────────────────────────────── */
+
+export async function listSpeakersService({ eventId, organizationId, userId }) {
+  const client = await db.connect();
+  try {
+    await assertOrganizationEventPermission(client, organizationId, userId);
+    await assertEventExists(client, eventId, organizationId);
+    const result = await client.query(
+      `SELECT * FROM event_speakers WHERE event_id = $1 AND deleted_at IS NULL ORDER BY created_at ASC`,
+      [eventId]
+    );
+    return result.rows;
+  } finally {
+    client.release();
+  }
+}
+
+export async function updateSpeakerService({ eventId, speakerId, organizationId, userId, payload = {} }) {
+  validateSpeakerPayload(payload);
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    await assertOrganizationEventPermission(client, organizationId, userId);
+    await assertEventExists(client, eventId, organizationId);
+
+    const result = await client.query(
+      `UPDATE event_speakers
+       SET full_name    = $1,
+           title        = $2,
+           bio          = $3,
+           avatar_url   = $4,
+           social_links = $5,
+           updated_at   = NOW()
+       WHERE id = $6 AND event_id = $7 AND deleted_at IS NULL
+       RETURNING *`,
+      [
+        normalizeText(payload.full_name),
+        normalizeText(payload.title),
+        normalizeText(payload.bio),
+        normalizeText(payload.avatar_url),
+        ensureObject(payload.social_links, "social_links"),
+        speakerId,
+        eventId,
+      ]
+    );
+
+    if (!result.rows[0]) throw new AppError("Speaker not found", 404);
+
+    await client.query(
+      `UPDATE event_pages SET draft_updated_at = NOW(), updated_at = NOW() WHERE event_id = $1`,
+      [eventId]
+    );
+
+    await client.query("COMMIT");
+    return result.rows[0];
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function deleteSpeakerService({ eventId, speakerId, organizationId, userId }) {
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    await assertOrganizationEventPermission(client, organizationId, userId);
+    await assertEventExists(client, eventId, organizationId);
+
+    const result = await client.query(
+      `UPDATE event_speakers SET deleted_at = NOW() WHERE id = $1 AND event_id = $2 AND deleted_at IS NULL RETURNING id`,
+      [speakerId, eventId]
+    );
+
+    if (!result.rows[0]) throw new AppError("Speaker not found", 404);
+
+    await client.query(
+      `UPDATE event_pages SET draft_updated_at = NOW(), updated_at = NOW() WHERE event_id = $1`,
+      [eventId]
+    );
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/* =========================
+   SCHEDULE ITEMS
+========================= */
+
+export async function listScheduleItemsService({ eventId, organizationId, userId }) {
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    await assertOrganizationEventPermission(client, organizationId, userId);
+    await assertEventExists(client, eventId, organizationId);
+
+    const result = await client.query(
+      `SELECT * FROM event_schedule_items
+       WHERE event_id = $1 AND deleted_at IS NULL
+       ORDER BY position_order ASC, starts_at ASC`,
+      [eventId]
+    );
+    await client.query("COMMIT");
+    return result.rows;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function updateScheduleItemService({ eventId, itemId, organizationId, userId, payload = {} }) {
+  validateSchedulePayload(payload);
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    await assertOrganizationEventPermission(client, organizationId, userId);
+    await assertEventExists(client, eventId, organizationId);
+
+    const result = await client.query(
+      `UPDATE event_schedule_items
+       SET title          = $1,
+           description    = $2,
+           starts_at      = $3,
+           ends_at        = $4,
+           location       = $5,
+           position_order = $6,
+           updated_at     = NOW()
+       WHERE id = $7 AND event_id = $8 AND deleted_at IS NULL
+       RETURNING *`,
+      [
+        normalizeText(payload.title),
+        normalizeText(payload.description),
+        payload.starts_at,
+        payload.ends_at ?? null,
+        normalizeText(payload.location),
+        payload.position_order ?? 0,
+        itemId,
+        eventId,
+      ]
+    );
+
+    if (!result.rows[0]) throw new AppError("Schedule item not found", 404);
+
+    await client.query(
+      `UPDATE event_pages SET draft_updated_at = NOW(), updated_at = NOW() WHERE event_id = $1`,
+      [eventId]
+    );
+
+    await client.query("COMMIT");
+    return result.rows[0];
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function deleteScheduleItemService({ eventId, itemId, organizationId, userId }) {
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    await assertOrganizationEventPermission(client, organizationId, userId);
+    await assertEventExists(client, eventId, organizationId);
+
+    const result = await client.query(
+      `UPDATE event_schedule_items SET deleted_at = NOW() WHERE id = $1 AND event_id = $2 AND deleted_at IS NULL RETURNING id`,
+      [itemId, eventId]
+    );
+
+    if (!result.rows[0]) throw new AppError("Schedule item not found", 404);
+
+    await client.query(
+      `UPDATE event_pages SET draft_updated_at = NOW(), updated_at = NOW() WHERE event_id = $1`,
+      [eventId]
+    );
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}

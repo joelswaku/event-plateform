@@ -240,7 +240,7 @@ export default function EventDetailScreen() {
   const {
     events, currentEvent, dashboard,
     fetchEvents, fetchEventById, fetchEventDashboard,
-    publishEvent, unpublishEvent, archiveEvent, restoreEvent, deleteEvent,
+    publishEvent, unpublishEvent, archiveEvent, restoreEvent, deleteEvent, updateEvent,
   } = useEventStore();
 
   const [loading,  setLoading]  = useState(false);
@@ -249,6 +249,30 @@ export default function EventDetailScreen() {
   } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuAnim = useRef(new Animated.Value(0)).current;
+
+  /* ── Module toggle state ── */
+  const [modLocal, setModLocal] = useState({
+    allow_rsvp:      false,
+    allow_ticketing: false,
+    allow_donations: false,
+  });
+  const [modSaving,     setModSaving]     = useState<Record<string, boolean>>({});
+  const [pendingModule, setPendingModule] = useState<{
+    key: string; next: boolean; title: string; msg: string;
+    color: string; icon: keyof typeof Feather.glyphMap;
+    afterConfirm?: () => void;
+  } | null>(null);
+
+  const EXCL_MODS = ['allow_rsvp', 'allow_ticketing', 'allow_donations'];
+  const MOD_LABEL: Record<string, string> = {
+    allow_rsvp: 'RSVP', allow_ticketing: 'Ticketing', allow_donations: 'Donations',
+  };
+  const MOD_COLOR: Record<string, string> = {
+    allow_rsvp: Colors.accent.emerald, allow_ticketing: Colors.accent.amber, allow_donations: '#f43f5e',
+  };
+  const MOD_ICON: Record<string, keyof typeof Feather.glyphMap> = {
+    allow_rsvp: 'users', allow_ticketing: 'credit-card', allow_donations: 'heart',
+  };
 
   const refresh = useCallback(() => {
     fetchEvents();
@@ -279,6 +303,73 @@ export default function EventDetailScreen() {
   const status = event?.status ?? 'DRAFT';
   const statusCfg = STATUS[status] ?? STATUS.DRAFT;
   const countdown = useLiveCountdown(event?.starts_at_utc);
+
+  /* Sync modLocal whenever event data updates */
+  useEffect(() => {
+    if (event) {
+      setModLocal({
+        allow_rsvp:      !!event.allow_rsvp,
+        allow_ticketing: !!event.allow_ticketing,
+        allow_donations: !!event.allow_donations,
+      });
+    }
+  }, [event?.allow_rsvp, event?.allow_ticketing, event?.allow_donations]);
+
+  const requestModule = useCallback((key: string, afterConfirm?: () => void) => {
+    if (modSaving[key]) return;
+    const next = !modLocal[key as keyof typeof modLocal];
+    const conflicts = EXCL_MODS
+      .filter(k => k !== key && modLocal[k as keyof typeof modLocal])
+      .map(k => MOD_LABEL[k])
+      .filter(Boolean);
+    const label = MOD_LABEL[key] ?? key;
+    const msg = (next && conflicts.length)
+      ? `Enabling ${label} will turn off ${conflicts.join(' & ')}. Only one module can be active at a time.`
+      : next
+      ? `Enable ${label} for this event.`
+      : `Disable ${label} for this event.`;
+    setPendingModule({
+      key, next,
+      title: next ? `Enable ${label}?` : `Disable ${label}?`,
+      msg,
+      color: MOD_COLOR[key],
+      icon:  MOD_ICON[key],
+      afterConfirm,
+    });
+  }, [modLocal, modSaving]);
+
+  const confirmModule = useCallback(async () => {
+    if (!pendingModule) return;
+    const { key, next, afterConfirm } = pendingModule;
+    setPendingModule(null);
+    let payload: any;
+    let newLocal: typeof modLocal;
+    if (next && EXCL_MODS.includes(key)) {
+      payload  = { allow_rsvp: key === 'allow_rsvp', allow_ticketing: key === 'allow_ticketing', allow_donations: key === 'allow_donations', open_rsvp: false };
+      newLocal = { ...modLocal, allow_rsvp: key === 'allow_rsvp', allow_ticketing: key === 'allow_ticketing', allow_donations: key === 'allow_donations' };
+    } else if (!next && key === 'allow_rsvp') {
+      payload  = { allow_rsvp: false, open_rsvp: false };
+      newLocal = { ...modLocal, allow_rsvp: false };
+    } else {
+      payload  = { [key]: next };
+      newLocal = { ...modLocal, [key]: next };
+    }
+    setModLocal(newLocal);
+    const affected = Object.keys(payload);
+    setModSaving(s => ({ ...s, ...Object.fromEntries(affected.map(k => [k, true])) }));
+    await updateEvent(id, payload);
+    setModSaving(s => ({ ...s, ...Object.fromEntries(affected.map(k => [k, false])) }));
+    await refresh();
+    if (afterConfirm) afterConfirm();
+  }, [pendingModule, modLocal, updateEvent, id, refresh]);
+
+  const handleFeaturePress = useCallback((route: string, label: string) => {
+    if (label === 'Tickets' && !modLocal.allow_ticketing) {
+      requestModule('allow_ticketing', () => router.push(route as never));
+      return;
+    }
+    router.push(route as never);
+  }, [modLocal.allow_ticketing, requestModule, router]);
 
   const run = useCallback(async (fn: () => Promise<any>) => {
     setLoading(true);
@@ -323,6 +414,7 @@ export default function EventDetailScreen() {
     { icon: 'camera'      as const, label: 'Scanner',   sub: 'QR check-in',         accent: Colors.accent.emerald, grad: ['#0891b2','#06b6d4'] as const, route: `/events/${id}/scanner`      },
     { icon: 'bar-chart-2' as const, label: 'Analytics', sub: 'Revenue & insights',  accent: Colors.accent.violet,  grad: ['#7c3aed','#8b5cf6'] as const, route: `/events/${id}/analytics`    },
     { icon: 'heart'       as const, label: 'Donations', sub: 'Track contributions', accent: '#f43f5e',             grad: ['#be185d','#f43f5e'] as const, route: `/events/${id}/donations`    },
+    { icon: 'user-plus'   as const, label: 'Team',      sub: 'Manage admins',       accent: '#06b6d4',             grad: ['#0891b2','#06b6d4'] as const, route: `/events/${id}/team`         },
     { icon: 'settings'    as const, label: 'Settings',  sub: 'Edit event details',  accent: '#6b7280',             grad: ['#374151','#4b5563'] as const, route: `/events/${id}/settings`     },
   ];
 
@@ -361,9 +453,17 @@ export default function EventDetailScreen() {
     MENU_ITEMS.push({
       icon: 'share-2', label: 'Share Event', sub: 'Copy or share the link',
       accent: Colors.accent.emerald,
-      onPress: () => {
+      onPress: async () => {
         closeMenu();
-        Share.share({ message: `${Config.WEB_URL}/e/${event.slug}`, url: `${Config.WEB_URL}/e/${event.slug}` });
+        await new Promise(r => setTimeout(r, 300)); // let menu close before sheet opens
+        try {
+          await Share.share({
+            message: `${Config.WEB_URL}/e/${event.slug}`,
+            url: `${Config.WEB_URL}/e/${event.slug}`,
+          });
+        } catch {
+          // user cancelled or sheet dismissed — no-op
+        }
       },
     });
   }
@@ -569,6 +669,14 @@ export default function EventDetailScreen() {
             {event.slug && (
               <Pressable
                 style={[s.pill, { borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.06)' }]}
+                onPress={async () => {
+                  try {
+                    await Share.share({
+                      message: `${Config.WEB_URL}/e/${event.slug}`,
+                      url: `${Config.WEB_URL}/e/${event.slug}`,
+                    });
+                  } catch { /* user cancelled */ }
+                }}
               >
                 <Feather name="share-2" size={14} color={Colors.text.muted} />
                 <Text style={[s.pillTxt, { color: Colors.text.muted }]}>SHARE</Text>
@@ -677,7 +785,7 @@ export default function EventDetailScreen() {
               <Pressable
                 key={f.label}
                 style={s.featCard}
-                onPress={() => router.push(f.route as never)}
+                onPress={() => handleFeaturePress(f.route, f.label)}
               >
                 {/* Subtle gradient bg */}
                 <LinearGradient
@@ -752,6 +860,30 @@ export default function EventDetailScreen() {
           onClose={() => setModal(null)}
         />
       )}
+
+      {/* ── Module confirmation sheet ─────────────────────── */}
+      <Modal visible={!!pendingModule} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setPendingModule(null)}>
+        <Pressable style={mcs.backdrop} onPress={() => setPendingModule(null)} />
+        {pendingModule && (
+          <View style={mcs.sheet}>
+            <View style={mcs.handle} />
+            <View style={[mcs.iconBubble, { backgroundColor: `${pendingModule.color}18` }]}>
+              <Feather name={pendingModule.icon} size={26} color={pendingModule.color} />
+            </View>
+            <Text style={mcs.title}>{pendingModule.title}</Text>
+            <Text style={mcs.message}>{pendingModule.msg}</Text>
+            <Pressable
+              style={[mcs.confirmBtn, { backgroundColor: pendingModule.color }]}
+              onPress={confirmModule}
+            >
+              <Text style={mcs.confirmText}>{pendingModule.title.replace('?', '')}</Text>
+            </Pressable>
+            <Pressable style={mcs.cancelBtn} onPress={() => setPendingModule(null)}>
+              <Text style={mcs.cancelText}>Cancel</Text>
+            </Pressable>
+          </View>
+        )}
+      </Modal>
 
       {/* ── 3-dot action sheet ─────────────────────────────── */}
       <Modal visible={menuOpen} transparent animationType="none" statusBarTranslucent onRequestClose={closeMenu}>
@@ -1018,6 +1150,30 @@ const ms = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
   },
   cancelTxt: { fontSize: 15, fontWeight: '700', color: Colors.text.muted },
+});
+
+/* ── Module confirmation sheet styles ───────────────────────────── */
+const mcs = StyleSheet.create({
+  backdrop: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  sheet: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: '#0e0e16',
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 24, paddingTop: 12, paddingBottom: 36,
+    alignItems: 'center', gap: 12,
+  },
+  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.15)', marginBottom: 4 },
+  iconBubble: { width: 60, height: 60, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  title:   { fontSize: 18, fontWeight: '800', color: '#fff', textAlign: 'center' },
+  message: { fontSize: 13, color: 'rgba(255,255,255,0.55)', textAlign: 'center', lineHeight: 19, paddingHorizontal: 4, marginBottom: 4 },
+  confirmBtn: { width: '100%', paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
+  confirmText: { fontSize: 15, fontWeight: '800', color: '#fff' },
+  cancelBtn:   { width: '100%', paddingVertical: 12, alignItems: 'center' },
+  cancelText:  { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.4)' },
 });
 
 /* ── Ticket card styles ──────────────────────────────────────────── */

@@ -787,7 +787,7 @@ function MobileTemplateCard({ t, userPlan, applying, onSelect, onPreview }) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) {
-  const { plan, isSubscribed, openUpgradeModal } = useSubscriptionStore();
+  const { plan, isSubscribed, openUpgradeModal, fetchSubscription } = useSubscriptionStore();
   const { applyPreset } = useBuilderStore();
 
   const categoryKey  = useMemo(() => getCategoryForType(eventType), [eventType]);
@@ -803,8 +803,12 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
     setActiveFilter(hasEventType ? "FOR_YOU" : "ALL");
   }, [eventType, hasEventType]);
 
+  useEffect(() => {
+    if (isOpen) fetchSubscription();
+  }, [isOpen]);
+
   const userPlan  = isSubscribed ? plan : "free";
-  const isPremium = userPlan === "premium";
+  const isPremium = isSubscribed && plan !== "free";
 
   const forYouTemplates = useMemo(
     () => (hasEventType ? getTemplatesForEventType(eventType) : ALL_TEMPLATES),

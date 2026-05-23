@@ -3,6 +3,7 @@ import { Router } from "express";
 
 import authRoutes from "./auth.routes.js";
 import eventsRoutes from "./events.routes.js";
+import teamPublicRoutes from "./team.routes.js";
 import guestsRoutes from "./guests.routes.js";
 import guestPublicRoutes from "./guest-public.routes.js";
 import seatRoutes from "./seating.routes.js";
@@ -19,6 +20,7 @@ import engagementRoutes from "./engagement.routes.js";
 import uploadImages from "./media-upload.routes.js";
 import subscriptionRoutes from "./subscription.routes.js";
 import notificationsRoutes from "./notifications.routes.js";
+import testEmailRoute from "./test-email.route.js";
 
 const router = Router();
 
@@ -26,6 +28,7 @@ const router = Router();
 router.use("/auth", authRoutes);
 router.use("/public", publicTicketsRoutes);
 router.use("/public", guestPublicRoutes);
+router.use("/team",  teamPublicRoutes);
 
 // 🔐 CORE FEATURES
 router.use("/events", eventsRoutes);
@@ -54,6 +57,9 @@ router.use("/subscription", subscriptionRoutes);
 
 // 🔔 NOTIFICATIONS
 router.use("/notifications", notificationsRoutes);
+
+// 🧪 TEST
+router.use("/", testEmailRoute);
 
 // 👥 GUESTS — mounted last because it uses router.use(authenticate) globally
 // and is mounted at "/" which matches all paths

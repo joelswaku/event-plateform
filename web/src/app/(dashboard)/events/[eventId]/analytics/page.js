@@ -558,6 +558,70 @@ function IntervalTabs({ value, onChange }) {
   );
 }
 
+// ─── Mobile dark variants ────────────────────────────────────────────────────
+
+function MKpiCard({ icon: Icon, label, value, sub, accent, loading }) {
+  return (
+    <div
+      className="flex flex-col gap-1.5 rounded-[18px] border p-3.5"
+      style={{ borderColor: `${accent}30`, background: `${accent}08` }}
+    >
+      <div
+        className="mb-0.5 flex h-7 w-7 items-center justify-center rounded-[9px]"
+        style={{ background: `${accent}20` }}
+      >
+        <Icon size={13} style={{ color: accent }} />
+      </div>
+      {loading
+        ? <div className="h-6 w-14 animate-pulse rounded-lg" style={{ background: "#14141f" }} />
+        : <p className="text-[22px] font-black leading-none tracking-tight" style={{ color: accent }}>{value}</p>
+      }
+      <p className="text-[10px] font-bold uppercase tracking-[0.4px]" style={{ color: "rgba(255,255,255,0.45)" }}>{label}</p>
+      {sub && !loading && <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>{sub}</p>}
+    </div>
+  );
+}
+
+function MSection({ title, subtitle, children, action }) {
+  return (
+    <div
+      className="flex flex-col gap-3 rounded-[20px] border p-4"
+      style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.06)" }}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-[14px] font-extrabold text-white">{title}</p>
+          {subtitle && (
+            <p className="mt-0.5 text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>{subtitle}</p>
+          )}
+        </div>
+        {action}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function MIntervalTabs({ value, onChange }) {
+  return (
+    <div className="flex gap-1 rounded-xl p-1" style={{ background: "#14141f" }}>
+      {["hour", "day", "month"].map((o) => (
+        <button
+          key={o}
+          onClick={() => onChange(o)}
+          className="rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-all"
+          style={{
+            background: value === o ? "#1e1e2e" : "transparent",
+            color:      value === o ? "#fff" : "rgba(255,255,255,0.35)",
+          }}
+        >
+          {o.charAt(0).toUpperCase() + o.slice(1)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AnalyticsPage() {
@@ -656,8 +720,10 @@ export default function AnalyticsPage() {
   return (
     <>
       {/* ── MOBILE OVERLAY ── */}
-      <div className="sm:hidden fixed inset-0 z-50 flex flex-col overflow-hidden dark"
+      <div className="sm:hidden fixed inset-0 z-50 flex flex-col overflow-hidden"
         style={{ background: "#07070f" }}>
+
+        {/* Header */}
         <div className="flex shrink-0 items-center gap-3 border-b px-4"
           style={{ borderColor: "rgba(255,255,255,0.08)", paddingTop: "max(12px, env(safe-area-inset-top))", paddingBottom: 12 }}>
           <Link href={`/events/${eventId}`}
@@ -675,43 +741,68 @@ export default function AnalyticsPage() {
             <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} style={{ color: "rgba(255,255,255,0.5)" }} />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 pb-8">
-          <div className="space-y-4 dark:text-white">
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="flex flex-col gap-4 p-4 pb-8">
             {error && (
               <div className="rounded-[14px] border px-4 py-3 text-[13px]"
-                style={{ borderColor: "rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)", color: "#ef4444" }}>{error}</div>
+                style={{ borderColor: "rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.08)", color: "#ef4444" }}>
+                {error}
+              </div>
             )}
-            <Section title="Overview" subtitle="Key performance indicators">
-              <div className="grid grid-cols-2 gap-3">
-                <KpiCard icon={DollarSign} label="Revenue"      value={fmtMoney(kpiRevenue)}   sub={`${fmt(kpiBuyers)} buyers`}  color="indigo"  loading={loading.ticketSales} />
-                <KpiCard icon={Ticket}     label="Tickets Sold" value={fmt(kpiTicketsSold)}     sub="paid tickets"                color="violet"  loading={loading.ticketSales} />
-                <KpiCard icon={ScanLine}   label="Check-ins"    value={fmt(kpiCheckins)}        sub="successful scans"            color="emerald" loading={loading.checkins}    />
-                <KpiCard icon={Users}      label="Invited"      value={fmt(kpiInvited)}         sub="total guests"                color="sky"     loading={loading.conversion}  />
-                <KpiCard icon={TrendingUp} label="Conversion"   value={fmtPct(kpiConvRate)}     sub="invited → buyer"             color="amber"   loading={loading.conversion}  />
-                <KpiCard
-                  icon={BarChart3}
-                  label="Total Scans"
+
+            {/* KPI grid */}
+            <MSection title="Overview" subtitle="Key performance indicators">
+              <div className="grid grid-cols-2 gap-2.5">
+                <MKpiCard icon={DollarSign} label="Revenue"      value={fmtMoney(kpiRevenue)}   sub={`${fmt(kpiBuyers)} buyers`}  accent="#6366f1" loading={loading.ticketSales} />
+                <MKpiCard icon={Ticket}     label="Tickets Sold" value={fmt(kpiTicketsSold)}     sub="paid tickets"                accent="#a78bfa" loading={loading.ticketSales} />
+                <MKpiCard icon={ScanLine}   label="Check-ins"    value={fmt(kpiCheckins)}        sub="successful"                  accent="#10b981" loading={loading.checkins}    />
+                <MKpiCard icon={Users}      label="Invited"      value={fmt(kpiInvited)}         sub="total guests"                accent="#06b6d4" loading={loading.conversion}  />
+                <MKpiCard icon={TrendingUp} label="Conversion"   value={fmtPct(kpiConvRate)}     sub="invited → buyer"             accent="#f59e0b" loading={loading.conversion}  />
+                <MKpiCard icon={BarChart3}  label="Total Scans"
                   value={fmt((checkins?.summary?.success ?? 0) + (checkins?.summary?.already_used ?? 0) + (checkins?.summary?.invalid ?? 0))}
-                  sub="all scan attempts"
-                  color="rose"
-                  loading={loading.checkins}
+                  sub="all scan attempts" accent="#ef4444" loading={loading.checkins}
                 />
               </div>
-            </Section>
-            <Section title="Ticket Sales" subtitle="Revenue and sales breakdown">
-              <TicketSalesStats data={ticketSales} loading={loading.ticketSales} />
-            </Section>
-            <Section title="Revenue" subtitle="Revenue trends over time">
-              <RevenueStats data={revenue} loading={loading.revenue} interval={interval} onIntervalChange={setInterval} />
-            </Section>
-            <Section title="Check-in Analytics" subtitle="Scanner activity">
+            </MSection>
+
+            {/* Revenue timeline */}
+            <MSection
+              title="Revenue Timeline"
+              subtitle="Paid orders grouped by period"
+              action={
+                <MIntervalTabs
+                  value={interval}
+                  onChange={(v) => { setInterval(v); setRefreshKey((k) => k + 1); }}
+                />
+              }
+            >
+              <RevenueChart data={revenue ?? []} loading={loading.revenue} />
+            </MSection>
+
+            {/* Ticket types */}
+            <MSection title="Ticket Types" subtitle="Sold, revenue and capacity">
+              <TicketTypesTable data={ticketSales?.by_ticket_type ?? []} loading={loading.ticketSales} />
+            </MSection>
+
+            {/* Conversion funnel */}
+            <MSection title="Conversion Funnel" subtitle="Invited → RSVP → Buyer">
+              <ConversionFunnel data={conversion} loading={loading.conversion} />
+            </MSection>
+
+            {/* Check-in analytics */}
+            <MSection title="Check-in Analytics" subtitle="Scanner activity and outcomes">
               <CheckinStats data={checkins} loading={loading.checkins} />
-            </Section>
-            <Section title="Key Insights" subtitle="Auto-detected patterns">
+            </MSection>
+
+            {/* Key insights */}
+            <MSection title="Key Insights" subtitle="Auto-detected from your event data">
               <InsightsPanel data={insights} loading={loading.insights} />
-            </Section>
+            </MSection>
           </div>
         </div>
+
         <MobileBottomNav />
       </div>
 

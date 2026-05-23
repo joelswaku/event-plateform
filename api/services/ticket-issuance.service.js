@@ -178,14 +178,19 @@ export async function issueTicketsForOrderService(orderId) {
     --------------------------------------
     */
     if (order.buyer_email) {
+      console.log(`[Ticket] Sending email to ${order.buyer_email} for order ${orderId}`);
       sendTicketIssuedEmail({
         to: order.buyer_email,
         buyerName: order.buyer_name,
         eventName: order.event_title,
         tickets: issuedTickets,
+      }).then(() => {
+        console.log(`[Ticket] ✅ Email delivered to ${order.buyer_email}`);
       }).catch((e) => {
-        console.error("Email failed:", e.message);
+        console.error(`[Ticket] ❌ Email FAILED for ${order.buyer_email}:`, e.message);
       });
+    } else {
+      console.warn(`[Ticket] ⚠️  No buyer_email on order ${orderId} — skipping email`);
     }
 
     return issuedTickets;

@@ -322,3 +322,93 @@ export async function selectEventTheme(req, res) {
     return handleControllerError(res, error, "Failed to select theme");
   }
 }
+
+export async function listSpeakers(req, res) {
+  try {
+    const { eventId } = req.params;
+    const speakers = await builderService.listSpeakersService({
+      eventId,
+      organizationId: req.organizationId,
+      userId: req.user?.id,
+    });
+    return res.status(200).json({ success: true, data: speakers });
+  } catch (error) {
+    return handleControllerError(res, error, "Failed to fetch speakers");
+  }
+}
+
+export async function updateSpeaker(req, res) {
+  try {
+    const { eventId, speakerId } = req.params;
+    const speaker = await builderService.updateSpeakerService({
+      eventId,
+      speakerId,
+      organizationId: req.organizationId,
+      userId: req.user?.id,
+      payload: req.body,
+    });
+    return res.status(200).json({ success: true, message: "Speaker updated", data: speaker });
+  } catch (error) {
+    return handleControllerError(res, error, "Failed to update speaker");
+  }
+}
+
+export async function deleteSpeaker(req, res) {
+  try {
+    const { eventId, speakerId } = req.params;
+    await builderService.deleteSpeakerService({
+      eventId,
+      speakerId,
+      organizationId: req.organizationId,
+      userId: req.user?.id,
+    });
+    return res.status(200).json({ success: true, message: "Speaker deleted" });
+  } catch (error) {
+    return handleControllerError(res, error, "Failed to delete speaker");
+  }
+}
+
+export async function listScheduleItems(req, res) {
+  try {
+    const { eventId } = req.params;
+    const items = await builderService.listScheduleItemsService({
+      eventId,
+      organizationId: req.organizationId,
+      userId: req.user?.id,
+    });
+    return res.status(200).json({ success: true, data: items });
+  } catch (error) {
+    return handleControllerError(res, error, "Failed to fetch schedule items");
+  }
+}
+
+export async function updateScheduleItem(req, res) {
+  try {
+    const { eventId, itemId } = req.params;
+    const item = await builderService.updateScheduleItemService({
+      eventId,
+      itemId,
+      organizationId: req.organizationId,
+      userId: req.user?.id,
+      payload: req.body,
+    });
+    return res.status(200).json({ success: true, message: "Schedule item updated", data: item });
+  } catch (error) {
+    return handleControllerError(res, error, "Failed to update schedule item");
+  }
+}
+
+export async function deleteScheduleItem(req, res) {
+  try {
+    const { eventId, itemId } = req.params;
+    await builderService.deleteScheduleItemService({
+      eventId,
+      itemId,
+      organizationId: req.organizationId,
+      userId: req.user?.id,
+    });
+    return res.status(200).json({ success: true, message: "Schedule item deleted" });
+  } catch (error) {
+    return handleControllerError(res, error, "Failed to delete schedule item");
+  }
+}

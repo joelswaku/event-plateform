@@ -177,10 +177,10 @@ function SectionContent({ type,cfg,title,body,event,t }: any) {
     case 'STORY':     return <StoryBlock     cfg={cfg} title={title} body={body} t={t}/>;
     case 'COUPLE':    return <CoupleBlock    cfg={cfg} t={t}/>;
     case 'COUNTDOWN': return <CountdownBlock cfg={cfg} event={event} t={t}/>;
-    case 'SCHEDULE':  return <ScheduleBlock  cfg={cfg} title={title} t={t}/>;
-    case 'VENUE':     return <VenueBlock     cfg={cfg} title={title} t={t}/>;
+    case 'SCHEDULE':  return <ScheduleBlock  cfg={cfg} title={title} t={t} event={event}/>;
+    case 'VENUE':     return <VenueBlock     cfg={cfg} title={title} t={t} event={event}/>;
     case 'GALLERY':   return <GalleryBlock   cfg={cfg} t={t}/>;
-    case 'SPEAKERS':  return <SpeakersBlock  cfg={cfg} t={t}/>;
+    case 'SPEAKERS':  return <SpeakersBlock  cfg={cfg} t={t} event={event}/>;
     case 'TICKETS':   return <TicketsBlock   cfg={cfg} event={event} t={t}/>;
     case 'FAQ':       return <FAQBlock       cfg={cfg} title={title} t={t}/>;
     case 'CTA':       return <CTABlock       cfg={cfg} title={title} body={body} t={t}/>;
@@ -513,9 +513,9 @@ const ab = StyleSheet.create({
    LUXURY:   dark bg, gold left-border per row
    FUN:      "✦ Agenda" label, neobrutalism cards with pastel bg
 ══════════════════════════════════════════════════════════════════ */
-function ScheduleBlock({ cfg, title, t }: any) {
+function ScheduleBlock({ cfg, title, t, event }: any) {
   const th    = cfg._theme ?? 'CLASSIC';
-  const items: any[] = cfg.items || cfg.schedule_items || [];
+  const items: any[] = event?.schedule_items ?? cfg.items ?? cfg.schedule_items ?? [];
   const label = th==='ELEGANT' ? 'PROGRAMME' : th==='FUN' ? "✦ Agenda" : 'SCHEDULE';
   const head  = title || (th==='FUN' ? "What's Happening" : 'Schedule');
 
@@ -673,11 +673,16 @@ const fq = StyleSheet.create({
    MODERN: minimal centered, "Location" eyebrow
    Others: eyebrow + heading + venue name + address + map-pin icon
 ══════════════════════════════════════════════════════════════════ */
-function VenueBlock({ cfg, title, t }: any) {
+function VenueBlock({ cfg, title, t, event }: any) {
   const th      = cfg._theme ?? 'CLASSIC';
-  const name    = cfg.venue_name    || title || 'Venue';
-  const address = cfg.venue_address || cfg.address || '';
-  const city    = [cfg.city,cfg.state,cfg.country].filter(Boolean).join(', ');
+  const name    = cfg.venue_name    || event?.venue_name    || title || 'Venue';
+  const address = cfg.venue_address || event?.venue_address || cfg.address || '';
+  const city    = [
+    cfg.city    || event?.city,
+    cfg.state   || event?.state,
+    cfg.zip_code || event?.zip_code,
+    cfg.country || event?.country,
+  ].filter(Boolean).join(', ');
   const full    = [address,city].filter(Boolean).join(', ');
 
   if (th==='MODERN') return (
@@ -743,9 +748,20 @@ const ve = StyleSheet.create({
    LUXURY: gold bordered dark boxes
    Others: standard bordered boxes with accent numbers
 ══════════════════════════════════════════════════════════════════ */
+function buildTextCountdownMobile(d: ReturnType<typeof calcDiff>) {
+  if (!d) return null;
+  const parts: string[] = [];
+  if (d.d > 0) parts.push(`${d.d} day${d.d !== 1 ? 's' : ''}`);
+  if (d.h > 0) parts.push(`${d.h} hr${d.h !== 1 ? 's' : ''}`);
+  if (d.m > 0) parts.push(`${d.m} min`);
+  if (parts.length === 0) parts.push(`${d.s} sec`);
+  return parts.join(' · ');
+}
+
 function CountdownBlock({ cfg, event, t }: any) {
-  const th  = cfg._theme ?? 'CLASSIC';
-  const iso = cfg.event_date||cfg.starts_at||event?.starts_at_utc||event?.starts_at;
+  const th           = cfg._theme ?? 'CLASSIC';
+  const displayStyle = cfg.display_style ?? 'blocks';
+  const iso          = event?.starts_at_utc || event?.starts_at;
   const [diff, setDiff] = useState(calcDiff(iso));
 
   useEffect(()=>{
@@ -757,6 +773,70 @@ function CountdownBlock({ cfg, event, t }: any) {
   const units = [
     {l:'DAYS',v:diff?.d},{l:'HRS',v:diff?.h},{l:'MIN',v:diff?.m},{l:'SEC',v:diff?.s},
   ];
+
+  if (displayStyle === 'flip') {
+    return (
+      <View style={{padding:16,backgroundColor:t.bg,gap:10}}>
+        {diff ? <Eyebrow text="Event starts in" t={t} /> : null}
+        {!diff && iso ? (
+          <HappeningNowMobile iso={iso} t={t} />
+        ) : (
+          <View style={{flexDirection:'row',gap:4}}>
+            {units.map(u=>(
+              <View key={u.l} style={{flex:1,borderRadius:8,overflow:'hidden',backgroundColor:'rgba(0,0,0,0.55)',alignItems:'center',paddingTop:10,paddingBottom:8}}>
+                <Text style={{fontSize:26,fontWeight:'900',color:'#fff',letterSpacing:-1,lineHeight:28,marginBottom:6}}>
+                  {String(u.v??0).padStart(2,'0')}
+                </Text>
+                <View style={{height:1,backgroundColor:'rgba(255,255,255,0.12)',width:'100%',marginBottom:6}}/>
+                <Text style={{fontSize:7,fontWeight:'700',color:t.accent,letterSpacing:1.5}}>{u.l}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  if (displayStyle === 'minimal') {
+    return (
+      <View style={{padding:16,backgroundColor:t.bg,gap:6}}>
+        {diff ? <Eyebrow text="Event starts in" t={t} /> : null}
+        {!diff && iso ? (
+          <HappeningNowMobile iso={iso} t={t} />
+        ) : (
+          <View style={{flexDirection:'row',alignItems:'center',flexWrap:'wrap'}}>
+            {units.map((u,i)=>(
+              <React.Fragment key={u.l}>
+                <View style={{alignItems:'center',minWidth:36}}>
+                  <Text style={{fontSize:28,fontWeight:'700',color:t.text,letterSpacing:-0.5,lineHeight:30}}>
+                    {String(u.v??0).padStart(2,'0')}
+                  </Text>
+                  <Text style={{fontSize:7,color:t.muted,letterSpacing:1.2,fontWeight:'600',marginTop:2}}>{u.l}</Text>
+                </View>
+                {i<3 && <Text style={{fontSize:22,color:t.muted,marginHorizontal:2,marginBottom:14,opacity:0.5}}>:</Text>}
+              </React.Fragment>
+            ))}
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  if (displayStyle === 'text') {
+    const txt = diff ? buildTextCountdownMobile(diff) : null;
+    return (
+      <View style={{padding:16,backgroundColor:t.bg,gap:8}}>
+        {diff ? <Eyebrow text="Event starts in" t={t} /> : null}
+        {!diff && iso ? (
+          <HappeningNowMobile iso={iso} t={t} />
+        ) : txt ? (
+          <Text style={{fontSize:20,fontWeight:'700',color:t.accent,letterSpacing:-0.3}}>{txt}</Text>
+        ) : (
+          <Text style={{fontSize:13,fontStyle:'italic',color:t.muted}}>No event date set</Text>
+        )}
+      </View>
+    );
+  }
 
   const Box = ({v,l}:{v?:number;l:string}) => {
     const num = String(v??0).padStart(2,'0');
@@ -783,6 +863,14 @@ function CountdownBlock({ cfg, event, t }: any) {
     );
   };
 
+  if (!diff && iso) {
+    return (
+      <View style={{padding:16,backgroundColor:t.bg}}>
+        <HappeningNowMobile iso={iso} t={t} />
+      </View>
+    );
+  }
+
   return (
     <View style={{padding:16,backgroundColor:t.bg,gap:10}}>
       <Eyebrow text="Event starts in" t={t} />
@@ -796,9 +884,99 @@ function CountdownBlock({ cfg, event, t }: any) {
 function calcDiff(iso?:string) {
   if(!iso) return null;
   const ms = new Date(iso).getTime()-Date.now();
-  if(ms<=0) return {d:0,h:0,m:0,s:0};
+  if(ms<=0) return null; // event has started — callers handle this as "Happening Now"
   const s = Math.floor(ms/1000);
   return {d:Math.floor(s/86400),h:Math.floor((s%86400)/3600),m:Math.floor((s%3600)/60),s:s%60};
+}
+
+function calcElapsed(iso?:string): number {
+  if(!iso) return 0;
+  return Math.max(0, Date.now() - new Date(iso).getTime());
+}
+
+function formatElapsedMobile(ms: number): string {
+  if(ms<=0) return 'just started';
+  const s=Math.floor(ms/1000), m=Math.floor(s/60), h=Math.floor(m/60), d=Math.floor(h/24);
+  if(d>0) return `${d}d ${h%24}h ago`;
+  if(h>0) return `${h}h ${m%60}m ago`;
+  if(m>0) return `${m}m ${s%60}s ago`;
+  return 'just started';
+}
+
+function HappeningNowMobile({ iso, t }: { iso?: string; t: any }) {
+  const [elapsed, setElapsed] = React.useState(() => calcElapsed(iso));
+  const dotOpacity = React.useRef(new Animated.Value(1)).current;
+  const ring1 = React.useRef(new Animated.Value(0)).current;
+  const ring2 = React.useRef(new Animated.Value(0)).current;
+  const ring3 = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    if(!iso) return;
+    const id = setInterval(() => setElapsed(calcElapsed(iso)), 1000);
+    return () => clearInterval(id);
+  }, [iso]);
+
+  React.useEffect(() => {
+    // Dot pulse
+    Animated.loop(Animated.sequence([
+      Animated.timing(dotOpacity, { toValue: 0.3, duration: 700, useNativeDriver: true }),
+      Animated.timing(dotOpacity, { toValue: 1,   duration: 700, useNativeDriver: true }),
+    ])).start();
+    // Expanding rings staggered
+    const makeRing = (anim: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(anim, { toValue: 1, duration: 2200, useNativeDriver: true }),
+          Animated.timing(anim, { toValue: 0, duration: 0,    useNativeDriver: true }),
+        ])
+      );
+    makeRing(ring1, 0).start();
+    makeRing(ring2, 700).start();
+    makeRing(ring3, 1400).start();
+  }, []);
+
+  const ringStyle = (anim: Animated.Value) => ({
+    position: 'absolute' as const,
+    width: 56, height: 56,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: t.accent,
+    opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }),
+    transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [1, 4.5] }) }],
+  });
+
+  return (
+    <View style={{ alignItems: 'center', paddingVertical: 20, gap: 12 }}>
+      {/* Pulse rings */}
+      <View style={{ position: 'absolute', top: 20, alignItems: 'center', justifyContent: 'center', width: '100%', height: 56 }}>
+        <Animated.View style={ringStyle(ring1)} />
+        <Animated.View style={ringStyle(ring2)} />
+        <Animated.View style={ringStyle(ring3)} />
+      </View>
+
+      {/* Live badge */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6,
+        paddingHorizontal: 14, paddingVertical: 6,
+        borderRadius: 99,
+        backgroundColor: `${t.accent}18`,
+        borderWidth: 1, borderColor: `${t.accent}44`,
+      }}>
+        <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.accent, opacity: dotOpacity }} />
+        <Text style={{ fontSize: 10, fontWeight: '800', color: t.accent, letterSpacing: 2, textTransform: 'uppercase' }}>Live Now</Text>
+      </View>
+
+      {/* Main text */}
+      <Text style={{ fontSize: 26, fontWeight: '700', color: '#fff', textAlign: 'center', marginTop: 4 }}>
+        Happening Now
+      </Text>
+
+      {/* Elapsed */}
+      <Text style={{ fontSize: 12, color: t.muted, textAlign: 'center' }}>
+        Started {formatElapsedMobile(elapsed)}
+      </Text>
+    </View>
+  );
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -1028,22 +1206,142 @@ function GalleryLightbox({images,start,accent,onClose}:{images:string[];start:nu
    All theme-aware using the same token system
 ────────────────────────────────────────────────────────────────────────────── */
 function StoryBlock({ cfg, title, body, t }: any) {
-  const th=cfg._theme??'CLASSIC';
-  if(th==='FUN') return (
-    <View style={{padding:20,backgroundColor:t.bg}}>
-      <Text style={{fontSize:11,fontWeight:'700',color:t.accent,letterSpacing:2,textTransform:'uppercase',marginBottom:8}}>✦ Story</Text>
-      <FunCard index={1}>
-        <Text style={{fontSize:15,fontWeight:'800',color:'#1a1a1a',marginBottom:6}}>{title||'Our Story'}</Text>
-        <Text style={{fontSize:13,color:'#555',lineHeight:19}} numberOfLines={3}>{body||'Share the story.'}</Text>
-      </FunCard>
+  const th    = cfg._theme ?? 'CLASSIC';
+  const img   = cfg.story_image as string | undefined;
+  const quote = cfg.quote as string | undefined;
+  const lbl   = title || 'Our Story';
+  const txt   = body  || 'Share the story behind this event.';
+
+  // ── LUXURY ──────────────────────────────────────────────────────────────
+  if (th === 'LUXURY') return (
+    <View style={{ backgroundColor: '#0D0C0A' }}>
+      {/* Image with gradient overlay */}
+      <View style={{ height: 180, width: '100%', backgroundColor: '#1a1916', overflow: 'hidden' }}>
+        {img
+          ? <Image source={{ uri: img }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          : <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
+              <Text style={{ fontSize: 32, color: t.accent, opacity: 0.3 }}>◆</Text>
+            </View>}
+        {/* gradient overlay */}
+        <LinearGradient colors={['transparent', 'rgba(13,12,10,0.95)']} style={[StyleSheet.absoluteFill, { justifyContent: 'flex-end', padding: 16 }]}>
+          <Text style={{ fontSize: 9, fontWeight: '700', color: t.accent, letterSpacing: 3, textTransform: 'uppercase', marginBottom: 4 }}>Our Story</Text>
+          <Text style={{ fontSize: 20, fontWeight: '200', fontStyle: 'italic', color: '#fff', textTransform: 'uppercase', letterSpacing: 1.5 }}>{lbl}</Text>
+        </LinearGradient>
+      </View>
+      {/* Body text */}
+      <View style={{ padding: 16, gap: 10 }}>
+        <Text style={{ fontSize: 13, lineHeight: 22, color: 'rgba(237,232,223,0.6)', fontWeight: '300' }} numberOfLines={4}>{txt}</Text>
+        {quote && (
+          <View style={{ borderLeftWidth: 1, borderLeftColor: t.accent, paddingLeft: 12, marginTop: 4 }}>
+            <Text style={{ fontSize: 13, fontStyle: 'italic', color: t.accent, lineHeight: 20 }}>&ldquo;{quote}&rdquo;</Text>
+          </View>
+        )}
+      </View>
     </View>
   );
+
+  // ── MODERN ──────────────────────────────────────────────────────────────
+  if (th === 'MODERN') return (
+    <View style={{ backgroundColor: t.bg, padding: 16 }}>
+      <View style={{ height: 3, width: 40, backgroundColor: t.accent, marginBottom: 10 }} />
+      <Text style={{ fontSize: 20, fontWeight: '900', color: t.text, letterSpacing: -0.5, textTransform: 'uppercase', marginBottom: 10 }}>{lbl}</Text>
+      {img && (
+        <View style={{ height: 140, borderRadius: 0, overflow: 'hidden', marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
+          <Image source={{ uri: img }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <View style={{ position: 'absolute', bottom: 0, right: 0, width: 32, height: 32, backgroundColor: t.accent, opacity: 0.15 }} />
+        </View>
+      )}
+      <Text style={{ fontSize: 13, lineHeight: 20, color: t.muted }} numberOfLines={3}>{txt}</Text>
+      {quote && (
+        <Text style={{ fontSize: 15, fontWeight: '900', color: t.accent, marginTop: 10, letterSpacing: -0.3 }}>&ldquo;{quote}&rdquo;</Text>
+      )}
+    </View>
+  );
+
+  // ── MINIMAL ─────────────────────────────────────────────────────────────
+  if (th === 'MINIMAL') return (
+    <View style={{ backgroundColor: t.bg, padding: 24, gap: 12 }}>
+      <Text style={{ fontSize: 10, fontWeight: '500', color: t.muted, letterSpacing: 3, textTransform: 'uppercase' }}>Our Story</Text>
+      <Text style={{ fontSize: 20, fontWeight: '300', color: t.text, letterSpacing: 0.5 }}>{lbl}</Text>
+      <View style={{ height: 1, backgroundColor: t.border, width: 32, opacity: 0.4 }} />
+      <Text style={{ fontSize: 13, lineHeight: 24, fontWeight: '300', color: t.muted }} numberOfLines={4}>{txt}</Text>
+      {quote && (
+        <View style={{ paddingTop: 8, paddingBottom: 8, borderTopWidth: 1, borderBottomWidth: 1, borderColor: t.border }}>
+          <Text style={{ fontSize: 14, fontStyle: 'italic', color: t.text, textAlign: 'center', lineHeight: 21 }}>&ldquo;{quote}&rdquo;</Text>
+        </View>
+      )}
+      {img && (
+        <View style={{ height: 100, overflow: 'hidden', marginTop: 4 }}>
+          <Image source={{ uri: img }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        </View>
+      )}
+    </View>
+  );
+
+  // ── ELEGANT ─────────────────────────────────────────────────────────────
+  if (th === 'ELEGANT') return (
+    <View style={{ backgroundColor: t.bg, padding: 20, gap: 12, alignItems: 'center' }}>
+      <Text style={{ fontSize: 9, fontWeight: '600', color: t.muted, letterSpacing: 2.5, textTransform: 'uppercase' }}>Our Story</Text>
+      <Text style={{ fontSize: 20, fontWeight: '300', fontStyle: 'italic', color: t.text, textAlign: 'center', letterSpacing: 0.5 }}>{lbl}</Text>
+      <Text style={{ fontSize: 12, color: t.accent, letterSpacing: 4 }}>◆</Text>
+      {img && (
+        <View style={{ height: 130, width: '100%', overflow: 'hidden', borderWidth: 1, borderColor: `${t.accent}33` }}>
+          <Image source={{ uri: img }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        </View>
+      )}
+      <Text style={{ fontSize: 13, lineHeight: 21, fontStyle: 'italic', fontWeight: '300', color: t.muted, textAlign: 'center' }} numberOfLines={3}>{txt}</Text>
+      {quote && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8 }}>
+          <View style={{ flex: 1, height: 1, backgroundColor: t.border }} />
+          <Text style={{ fontSize: 11, fontStyle: 'italic', color: t.accent }}>&ldquo;{quote}&rdquo;</Text>
+          <View style={{ flex: 1, height: 1, backgroundColor: t.border }} />
+        </View>
+      )}
+    </View>
+  );
+
+  // ── FUN ─────────────────────────────────────────────────────────────────
+  if (th === 'FUN') return (
+    <View style={{ backgroundColor: t.bg, padding: 16, gap: 12 }}>
+      <Text style={{ fontSize: 10, fontWeight: '800', color: t.accent, letterSpacing: 2, textTransform: 'uppercase' }}>✦ Our Story</Text>
+      <Text style={{ fontSize: 20, fontWeight: '900', color: t.text, letterSpacing: -0.5, marginBottom: 2 }}>{lbl}</Text>
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        {img && (
+          <View style={{ width: 90, borderRadius: 12, overflow: 'hidden', borderWidth: 2, borderColor: '#1a1a1a', shadowColor: '#1a1a1a', shadowOffset: { width: 4, height: 4 }, shadowOpacity: 1, shadowRadius: 0 }}>
+            <Image source={{ uri: img }} style={{ width: '100%', height: '100%', minHeight: 110 }} resizeMode="cover" />
+          </View>
+        )}
+        <View style={{ flex: 1, gap: 8 }}>
+          <Text style={{ fontSize: 12, lineHeight: 18, color: t.muted }} numberOfLines={3}>{txt}</Text>
+          {quote && (
+            <View style={{ borderRadius: 10, padding: 8, backgroundColor: t.accent, borderWidth: 1.5, borderColor: '#1a1a1a' }}>
+              <Text style={{ fontSize: 11, fontStyle: 'italic', fontWeight: '700', color: '#fff' }}>&ldquo;{quote}&rdquo;</Text>
+            </View>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+
+  // ── CLASSIC (default) ────────────────────────────────────────────────────
   return (
-    <View style={{flexDirection:'row',backgroundColor:t.bg,minHeight:90}}>
-      <View style={{width:4,borderRadius:2,margin:16,backgroundColor:t.accent}} />
-      <View style={{flex:1,paddingVertical:16,paddingRight:16,gap:6}}>
-        <Text style={{fontSize:15,fontWeight:t.hw as any,fontStyle:t.hi,color:t.text}}>{title||'Our Story'}</Text>
-        <Text style={{fontSize:12,lineHeight:18,color:t.muted}} numberOfLines={3}>{body||'Share the story.'}</Text>
+    <View style={{ backgroundColor: t.bg, flexDirection: 'row' }}>
+      {/* Accent image strip or left bar */}
+      {img ? (
+        <View style={{ width: 100, overflow: 'hidden' }}>
+          <Image source={{ uri: img }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <View style={{ position: 'absolute', inset: 0, borderRightWidth: 1, borderColor: `${t.accent}33` }} />
+        </View>
+      ) : (
+        <View style={{ width: 4, margin: 16, borderRadius: 2, backgroundColor: t.accent }} />
+      )}
+      <View style={{ flex: 1, padding: 16, gap: 6 }}>
+        <Text style={{ fontSize: 10, fontWeight: '600', color: t.accent, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 2 }}>Our Story</Text>
+        <Text style={{ fontSize: 15, fontWeight: t.hw as any, fontStyle: t.hi, color: t.text }}>{lbl}</Text>
+        <Text style={{ fontSize: 12, lineHeight: 18, color: t.muted }} numberOfLines={3}>{txt}</Text>
+        {quote && (
+          <Text style={{ fontSize: 12, fontStyle: 'italic', color: t.muted, marginTop: 4, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: t.accent }} numberOfLines={2}>&ldquo;{quote}&rdquo;</Text>
+        )}
       </View>
     </View>
   );
@@ -1072,25 +1370,63 @@ function CoupleBlock({ cfg, t }: any) {
   );
 }
 
-function SpeakersBlock({ cfg, t }: any) {
-  const items:any[]=cfg.speakers||cfg.items||[];
+function SpeakersBlock({ cfg, t, event }: any) {
+  // Prefer live event.speakers from the store; fall back to config items for static previews
+  const items: any[] = event?.speakers?.length ? event.speakers
+    : cfg.speakers?.length ? cfg.speakers
+    : cfg.items?.length    ? cfg.items
+    : [];
+
+  const mock = [
+    { full_name: 'Speaker One',   title: 'Role / Company', avatar_url: '' },
+    { full_name: 'Speaker Two',   title: 'Role / Company', avatar_url: '' },
+    { full_name: 'Speaker Three', title: 'Role / Company', avatar_url: '' },
+  ];
+  const display = items.length > 0 ? items : mock;
+
+  const isFun   = t.accent === '#F59E0B';
+  const avatarR = isFun ? 8 : 999;
+
   return (
-    <View style={{padding:18,backgroundColor:t.bg,gap:10}}>
-      <Eyebrow text="Speakers" t={t} />
-      {items.length===0 ? <Text style={{fontSize:12,color:t.muted}}>No speakers yet</Text>
-      : (
-        <View style={{flexDirection:'row',justifyContent:'space-around',flexWrap:'wrap',gap:12}}>
-          {items.slice(0,4).map((spk:any,i:number)=>(
-            <View key={i} style={{alignItems:'center',gap:6,minWidth:60}}>
-              <View style={{width:48,height:48,borderRadius:24,backgroundColor:`${t.accent}18`,borderWidth:2,borderColor:`${t.accent}50`,alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
-                {spk.image ? <Image source={{uri:spk.image}} style={[StyleSheet.absoluteFill,{borderRadius:24}]} resizeMode="cover" />
-                           : <Feather name="user" size={18} color={t.accent} />}
+    <View style={{ paddingVertical: 18, backgroundColor: t.bg, gap: 10 }}>
+      <View style={{ paddingHorizontal: 18 }}>
+        <Eyebrow text="Speakers" t={t} center />
+      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 18, gap: 14 }}
+      >
+        {display.map((spk: any, i: number) => {
+          const name     = spk.full_name || spk.name || `Speaker ${i + 1}`;
+          const role     = spk.title || spk.role || '';
+          const imgUri   = spk.avatar_url || spk.image || '';
+          const initial  = name[0]?.toUpperCase() ?? 'S';
+
+          return (
+            <View key={spk.id || i} style={{ alignItems: 'center', gap: 8, width: 100 }}>
+              <View style={{
+                width: 68, height: 68, borderRadius: avatarR,
+                backgroundColor: `${t.accent}18`,
+                borderWidth: 2, borderColor: `${t.accent}40`,
+                alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+              }}>
+                {imgUri
+                  ? <Image source={{ uri: imgUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                  : <Text style={{ fontSize: 22, fontWeight: '700', color: t.accent }}>{initial}</Text>}
               </View>
-              <Text style={{fontSize:10,fontWeight:'600',color:t.muted,maxWidth:64,textAlign:'center'}} numberOfLines={1}>{spk.name||`Speaker ${i+1}`}</Text>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: t.text, textAlign: 'center' }} numberOfLines={2}>
+                {name}
+              </Text>
+              {role ? (
+                <Text style={{ fontSize: 10, color: t.accent, textAlign: 'center', marginTop: -4 }} numberOfLines={1}>
+                  {role}
+                </Text>
+              ) : null}
             </View>
-          ))}
-        </View>
-      )}
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }

@@ -41,7 +41,7 @@ export default function GalleryConfigFields({ section, eventId, iosKeyboardInset
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       updateSection(eventId, section.id, { config: cfgRef.current });
-    }, 600);
+    }, 400);
   };
 
   const pickLayout = (l: 'grid' | 'carousel') => {

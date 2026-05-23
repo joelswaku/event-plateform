@@ -404,28 +404,33 @@ export default function EventTicketsPage() {
   const [tickets,  setTickets] = useState([]);
   const [loading,  setLoading] = useState(true);
   const [checkout, setCheckout]= useState(null);
-  const [banner, setBanner] = useState(() => {
-    if (typeof window === "undefined") return null;
-    const p = new URLSearchParams(window.location.search).get("payment");
-    return p === "success" || p === "cancelled" ? p : null;
-  });
+  const [banner, setBanner] = useState(null);
 
   useEffect(() => {
-    if (banner) window.history.replaceState({}, "", window.location.pathname);
-  }, [banner]);
+    const p       = new URLSearchParams(window.location.search).get("payment");
+    const orderId = new URLSearchParams(window.location.search).get("order_id");
+    if (p === "success" || p === "cancelled") {
+      setBanner(p);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    if (p === "success" && orderId) {
+      fetch(`/api/public/orders/${orderId}/confirm`, { method: "POST" }).catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     if (!slug) return;
 
-    // Fetch event + tickets in parallel
+    // Use relative paths so Next.js rewrite proxy handles the target host —
+    // avoids "localhost" resolving to the device's own loopback on mobile browsers.
     Promise.all([
-      fetch(`${process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:5000"}/api/public/pages/${slug}`)
+      fetch(`/api/public/pages/${slug}`)
         .then(r => r.json()).then(d => d.data?.event ?? null).catch(() => null),
-      fetch(`${API}/public/events/${slug}/tickets`)
+      fetch(`/api/public/events/${slug}/tickets`)
         .then(r => r.json()).then(d => d.tickets ?? []).catch(() => []),
     ]).then(([evt, tix]) => {
       if (evt?.id && tix.length === 0) {
-        return fetch(`${API}/public/events/${evt.id}/tickets`)
+        return fetch(`/api/public/events/${evt.id}/tickets`)
           .then(r => r.json())
           .then(d => { setEvent(evt); setTickets(d.tickets ?? []); });
       }

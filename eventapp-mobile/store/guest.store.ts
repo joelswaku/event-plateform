@@ -25,7 +25,7 @@ interface GuestState {
   // Guests
   getGuests:       (eventId: string) => Promise<{ success: boolean; data?: Guest[] }>;
   getGuestById:    (eventId: string, guestId: string) => Promise<{ success: boolean; data?: Guest }>;
-  createGuest:     (eventId: string, payload: Partial<Guest>) => Promise<{ success: boolean; data?: Guest }>;
+  createGuest:     (eventId: string, payload: Partial<Guest>) => Promise<{ success: boolean; data?: Guest; code?: string }>;
   updateGuest:     (eventId: string, guestId: string, payload: Partial<Guest>) => Promise<{ success: boolean }>;
   deleteGuest:     (eventId: string, guestId: string) => Promise<{ success: boolean }>;
   bulkDeleteGuests:(eventId: string, guestIds: string[]) => Promise<{ success: boolean }>;
@@ -97,8 +97,16 @@ export const useGuestStore = create<GuestState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const res = await api.get<{ data: Guest[] }>(`/events/${eventId}/guests`);
-      set({ guests: res.data?.data ?? [], isLoading: false });
-      return { success: true, data: res.data?.data ?? [] };
+      const incoming = res.data?.data ?? [];
+      set((s) => ({
+        guests: incoming.map((g) => {
+          const local = s.guests.find((lg) => lg.id === g.id);
+          // Preserve a locally-confirmed check-in if the API hasn't caught up yet
+          return { ...g, checked_in_at: g.checked_in_at ?? local?.checked_in_at ?? null };
+        }),
+        isLoading: false,
+      }));
+      return { success: true, data: incoming };
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to load guests';
       set({ isLoading: false, error: msg });
@@ -112,7 +120,23 @@ export const useGuestStore = create<GuestState>((set, get) => ({
   getGuestById: async (eventId, guestId) => {
     try {
       const res = await api.get<{ data: Guest }>(`/events/${eventId}/guests/${guestId}`);
-      return { success: true, data: res.data?.data };
+      const guest = res.data?.data;
+      if (guest) {
+        set((s) => ({
+          guests: s.guests.some((g) => g.id === guestId)
+            ? s.guests.map((g) => {
+                if (g.id !== guestId) return g;
+                // Never overwrite a locally-confirmed check-in with a stale null from a
+                // racing GET that started before the POST write was committed to the DB.
+                return {
+                  ...guest,
+                  checked_in_at: guest.checked_in_at ?? g.checked_in_at ?? null,
+                };
+              })
+            : [guest, ...s.guests],
+        }));
+      }
+      return { success: true, data: guest };
     } catch { return { success: false }; }
   },
 
@@ -132,9 +156,11 @@ export const useGuestStore = create<GuestState>((set, get) => ({
       set((s) => ({ guests: guest ? [guest, ...s.guests] : s.guests, isSubmitting: false }));
       return { success: true, data: guest };
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to create guest';
+      const e = err as { response?: { data?: { message?: string; code?: string } } };
+      const msg  = e?.response?.data?.message ?? 'Failed to create guest';
+      const code = e?.response?.data?.code;
       set({ isSubmitting: false, error: msg });
-      return { success: false };
+      return { success: false, code };
     }
   },
 
@@ -229,7 +255,21 @@ export const useGuestStore = create<GuestState>((set, get) => ({
   getAttendance: async (eventId) => {
     try {
       const res = await api.get<{ data: GuestAttendance[] }>(`/events/${eventId}/attendance`);
-      set({ attendance: res.data?.data ?? [] });
+      const raw = res.data?.data ?? [];
+      const checkinMap = new Map<string, string>();
+      for (const a of raw) {
+        const t = a.marked_at ?? a.checked_in_at;
+        if (t && a.attendance_status === 'CHECKED_IN') {
+          checkinMap.set(a.guest_id, t);
+        }
+      }
+      set((s) => ({
+        attendance: raw,
+        guests: s.guests.map((g) => ({
+          ...g,
+          checked_in_at: checkinMap.get(g.id) ?? g.checked_in_at ?? null,
+        })),
+      }));
       return { success: true };
     } catch { return { success: false }; }
   },

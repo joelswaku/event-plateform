@@ -10,7 +10,7 @@ import { useSubscriptionStore } from "@/store/subscription.store";
 export default function SubscriptionGuard({ children, requiredTier = "premium", featureName = null, fallback = null }) {
   const { plan, isSubscribed, openUpgradeModal } = useSubscriptionStore();
 
-  const hasAccess = requiredTier === "free" || (requiredTier === "premium" && isSubscribed && plan === "premium");
+  const hasAccess = requiredTier === "free" || (requiredTier === "premium" && isSubscribed && plan !== "free");
   if (hasAccess) return <>{children}</>;
   if (fallback) return <>{fallback}</>;
 

@@ -6,10 +6,11 @@ import { useRouter, usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Plus, Lock, Zap, CalendarDays, Clock, MapPin, ArrowRight, Sparkles,
-  Search, X, Home, Ticket, User, ChevronRight,
+  Search, X, Home, Ticket, User, ChevronRight, Users,
 } from "lucide-react";
 import { useEventStore }        from "@/store/event.store";
 import { useSubscriptionStore } from "@/store/subscription.store";
+import { useTeamStore }         from "@/store/team.store";
 import PageHeader from "@/components/ui/page-header";
 
 // ── Event cover fallbacks ─────────────────────────────────────────────────────
@@ -54,10 +55,25 @@ const CHIP_COLOR = {
   CANCELLED: "#ef4444",
 };
 
-// ── Free-tier limit banner (desktop) ─────────────────────────────────────────
-function EventLimitBanner({ used, limit, onUpgrade }) {
-  const pct     = Math.min((used / limit) * 100, 100);
-  const atLimit = used >= limit;
+// ── Event limit banner (desktop) ─────────────────────────────────────────────
+function EventLimitBanner({ used, limit, plan, onUpgrade }) {
+  const pct        = Math.min((used / limit) * 100, 100);
+  const atLimit    = used >= limit;
+  const isStarter  = plan === "starter";
+  const planLabel  = isStarter ? "Starter" : "free";
+  const upgradeTarget = isStarter ? "Pro" : "Starter";
+
+  const titleText = atLimit
+    ? `You've reached your ${planLabel} event limit`
+    : `${used} of ${limit} ${planLabel} event${limit > 1 ? "s" : ""} used`;
+
+  const subText = atLimit
+    ? isStarter
+      ? "Upgrade to Pro for unlimited events — no caps, ever."
+      : "Upgrade to Starter for 5 events, or go Pro for unlimited."
+    : isStarter
+      ? `Starter plan includes ${limit} events. Upgrade to Pro for unlimited.`
+      : `Free plan includes ${limit} event. Upgrade for unlimited.`;
 
   return (
     <motion.div
@@ -87,15 +103,9 @@ function EventLimitBanner({ used, limit, onUpgrade }) {
             }
           </div>
           <div>
-            <p className="text-[13px] font-bold text-gray-900">
-              {atLimit ? "You've reached your free event limit" : `${used} of ${limit} free event used`}
-            </p>
-            <p className="mt-0.5 text-[12px] text-gray-500">
-              {atLimit
-                ? "Upgrade to Premium to create unlimited events."
-                : "Free plan includes 1 event. Upgrade for unlimited."}
-            </p>
-            <div className="mt-2.5 h-1.5 w-40 overflow-hidden rounded-full bg-gray-100">
+            <p className="text-[13px] font-bold text-(--text-primary)">{titleText}</p>
+            <p className="mt-0.5 text-[12px] text-(--text-muted)">{subText}</p>
+            <div className="mt-2.5 h-1.5 w-40 overflow-hidden rounded-full bg-(--bg-elevated)">
               <motion.div
                 className="h-full rounded-full"
                 initial={{ width: 0 }}
@@ -115,7 +125,7 @@ function EventLimitBanner({ used, limit, onUpgrade }) {
           onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
         >
           <Zap size={12} fill="currentColor" />
-          Upgrade to Premium
+          Upgrade to {upgradeTarget}
           <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
         </button>
       </div>
@@ -124,14 +134,19 @@ function EventLimitBanner({ used, limit, onUpgrade }) {
 }
 
 // ── Locked create card (desktop) ──────────────────────────────────────────────
-function LockedCreateCard({ onUpgrade }) {
+function LockedCreateCard({ onUpgrade, plan }) {
+  const isStarter    = plan === "starter";
+  const upgradeTarget = isStarter ? "Pro" : "Starter";
+  const subText       = isStarter
+    ? "Upgrade to Pro for unlimited events — no caps, ever."
+    : "Upgrade to Starter for 5 events, or go Pro for unlimited.";
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.35 }}
       onClick={onUpgrade}
-      className="group flex cursor-pointer flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed p-10 text-center transition-all duration-200 hover:border-amber-300 hover:bg-amber-50/50"
+      className="group flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-10 text-center transition-all duration-200 hover:border-amber-300 hover:bg-amber-500/5"
       style={{ borderColor: "rgba(245,158,11,0.3)" }}
     >
       <div className="flex h-12 w-12 items-center justify-center rounded-2xl transition-transform duration-200 group-hover:scale-110"
@@ -139,15 +154,15 @@ function LockedCreateCard({ onUpgrade }) {
         <Lock size={20} style={{ color: "#F59E0B" }} />
       </div>
       <div>
-        <p className="text-[13px] font-bold text-gray-800">Create another event</p>
-        <p className="mt-1 text-[12px] text-gray-400">Upgrade to Premium for unlimited events</p>
+        <p className="text-[13px] font-bold text-(--text-primary)">Create another event</p>
+        <p className="mt-1 text-[12px] text-(--text-muted)">{subText}</p>
       </div>
       <button
         className="flex items-center gap-1.5 rounded-full px-5 py-2 text-[11px] font-bold transition-all active:scale-95"
         style={{ background: "#F59E0B", color: "#000" }}
       >
-        <Sparkles size={11} />
-        Upgrade — $12/mo
+        Upgrade to {upgradeTarget}
+        <ArrowRight size={11} />
       </button>
     </motion.div>
   );
@@ -155,12 +170,9 @@ function LockedCreateCard({ onUpgrade }) {
 
 // ── Desktop event card ────────────────────────────────────────────────────────
 function EventCard({ event, index }) {
-  const statusColor = {
-    DRAFT:     { bg: "bg-gray-100",   text: "text-gray-600"  },
-    PUBLISHED: { bg: "bg-green-100",  text: "text-green-700" },
-    CANCELED:  { bg: "bg-red-100",    text: "text-red-600"   },
-    ARCHIVED:  { bg: "bg-yellow-100", text: "text-yellow-700"},
-  }[event.status?.toUpperCase()] ?? { bg: "bg-gray-100", text: "text-gray-600" };
+  const cfg  = sc(event.status);
+  const img  = heroImg(event);
+  const date = fmtDate(event.starts_at_local ?? event.starts_at_utc);
 
   return (
     <motion.div
@@ -170,38 +182,103 @@ function EventCard({ event, index }) {
     >
       <Link
         href={`/events/${event.id}`}
-        className="group flex flex-col gap-3 rounded-3xl border border-[#e5e7eb] bg-white p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md"
+        className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-(--bg-surface) shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-(--border-hover)"
       >
-        <div className="flex items-center justify-between">
-          <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-indigo-600">
-            {event.event_type}
-          </span>
-          <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusColor.bg} ${statusColor.text}`}>
-            {event.status}
-          </span>
+        {/* Cover image */}
+        <div className="relative h-40 overflow-hidden bg-(--bg-elevated)">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={img}
+            alt={event.title}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-linear-to-b from-black/10 via-transparent to-black/50" />
+          <div
+            className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide backdrop-blur-sm"
+            style={{ background: cfg.bg, color: cfg.text }}
+          >
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: cfg.dot }} />
+            {(event.status ?? "draft").charAt(0).toUpperCase() + (event.status ?? "draft").slice(1).toLowerCase()}
+          </div>
         </div>
-        <h3 className="text-[15px] font-semibold leading-snug text-gray-900 group-hover:text-indigo-600 transition-colors">
-          {event.title}
-        </h3>
-        <div className="flex flex-col gap-1.5">
-          {event.starts_at_local && (
-            <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-              <Clock size={11} />
-              {new Date(event.starts_at_local).toLocaleDateString("en-US", {
-                weekday: "short", month: "short", day: "numeric", year: "numeric",
-              })}
-            </div>
+
+        {/* Card body */}
+        <div className="flex flex-1 flex-col gap-2 p-4">
+          {event.event_type && (
+            <span className="self-start rounded-full bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-indigo-600 dark:text-indigo-400">
+              {event.event_type}
+            </span>
           )}
-          {event.venue_name && (
-            <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-              <MapPin size={11} />
-              {event.venue_name}
-            </div>
-          )}
+          <h3 className="line-clamp-2 text-[15px] font-bold leading-snug text-(--text-primary) transition-colors group-hover:text-(--accent)">
+            {event.title}
+          </h3>
+          <div className="mt-auto flex flex-col gap-1 pt-1">
+            {date && (
+              <div className="flex items-center gap-1.5 text-[11px] text-(--text-muted)">
+                <Clock size={11} />
+                {date}
+              </div>
+            )}
+            {event.venue_name && (
+              <div className="flex items-center gap-1.5 text-[11px] text-(--text-muted)">
+                <MapPin size={11} />
+                <span className="truncate">{event.venue_name}</span>
+              </div>
+            )}
+          </div>
         </div>
-        <div className="mt-1 flex items-center gap-1 text-[11px] font-medium text-gray-300 transition-colors group-hover:text-indigo-500">
-          Open event
-          <ArrowRight size={11} className="transition-transform group-hover:translate-x-0.5" />
+      </Link>
+    </motion.div>
+  );
+}
+
+// ── "Managing" event card (team admin view) ──────────────────────────────────
+function TeamEventCard({ event, index }) {
+  const img  = heroImg(event);
+  const date = fmtDate(event.starts_at_local ?? event.starts_at_utc);
+  const cfg  = sc(event.status);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.35 }}
+    >
+      <Link
+        href={`/events/${event.id}`}
+        className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-(--bg-surface) shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-(--border-hover)"
+      >
+        <div className="relative h-40 overflow-hidden bg-(--bg-elevated)">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={img} alt={event.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+          <div className="absolute inset-0 bg-linear-to-b from-black/10 via-transparent to-black/50" />
+          <div className="absolute left-3 top-3 flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide backdrop-blur-sm"
+            style={{ background: "rgba(99,102,241,0.85)", color: "#fff" }}>
+            <Users size={9} className="shrink-0" />
+            Managing
+          </div>
+        </div>
+        <div className="flex flex-1 flex-col gap-2 p-4">
+          {event.event_type && (
+            <span className="self-start rounded-full bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-indigo-600 dark:text-indigo-400">
+              {event.event_type}
+            </span>
+          )}
+          <h3 className="line-clamp-2 text-[15px] font-bold leading-snug text-(--text-primary) transition-colors group-hover:text-(--accent)">
+            {event.title}
+          </h3>
+          <div className="mt-auto flex flex-col gap-1 pt-1">
+            {date && (
+              <div className="flex items-center gap-1.5 text-[11px] text-(--text-muted)">
+                <Clock size={11} />
+                {date}
+              </div>
+            )}
+            <div className="flex items-center gap-1.5 text-[11px] text-(--text-muted)">
+              <div className="h-1.5 w-1.5 rounded-full" style={{ background: cfg.dot }} />
+              <span>By {event.owner_name}</span>
+            </div>
+          </div>
         </div>
       </Link>
     </motion.div>
@@ -224,7 +301,7 @@ function MobileBottomNav() {
 
   return (
     <div
-      className="shrink-0 border-t px-1 pt-2"
+      className="relative z-50 shrink-0 border-t px-1 pt-2"
       style={{
         background: "#0e0e16",
         borderColor: "rgba(255,255,255,0.08)",
@@ -309,10 +386,46 @@ function MobileEventCard({ event }) {
   );
 }
 
+function MobileTeamEventCard({ event }) {
+  const cfg  = sc(event.status);
+  const date = fmtDate(event.starts_at_local ?? event.starts_at_utc);
+
+  return (
+    <Link
+      href={`/events/${event.id}`}
+      className="flex items-center overflow-hidden rounded-[18px] border"
+      style={{ background: "#0e0e16", borderColor: "rgba(99,102,241,0.18)" }}
+    >
+      <div className="relative h-[80px] w-[80px] shrink-0 overflow-hidden" style={{ background: "#14141f" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={heroImg(event)} alt={event.title} className="h-full w-full object-cover" />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent, rgba(0,0,0,0.45))" }} />
+      </div>
+      <div className="flex flex-1 flex-col gap-1 py-3 px-3">
+        <div className="flex items-center gap-1.5">
+          <Users size={9} style={{ color: "#a78bfa" }} />
+          <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#a78bfa" }}>Managing</span>
+        </div>
+        <span className="line-clamp-1 text-[14px] font-extrabold tracking-tight text-white">{event.title}</span>
+        {date && (
+          <div className="flex items-center gap-1">
+            <Clock size={10} style={{ color: "rgba(255,255,255,0.30)" }} />
+            <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.30)" }}>{date}</span>
+          </div>
+        )}
+        <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>By {event.owner_name}</span>
+      </div>
+      <div className="pr-3.5">
+        <ChevronRight size={16} style={{ color: "rgba(255,255,255,0.20)" }} />
+      </div>
+    </Link>
+  );
+}
+
 function MobileEventsPage({
   events, loading, mobileFiltered, query, setQuery,
   filter, setFilter, counts, handleNewEvent,
-  isPremium, handleUpgrade, eventUsage, eventLimit,
+  isPremium, handleUpgrade, eventUsage, eventLimit, myEvents,
 }) {
   const FILTERS = [
     { key: "ALL",       label: "All" },
@@ -406,7 +519,7 @@ function MobileEventsPage({
 
       {/* List */}
       <div className="flex-1 overflow-y-auto">
-        <div className="flex flex-col gap-3 px-4 pb-6">
+        <div className="flex flex-col gap-3 px-4 pb-28">
 
           {/* Free plan nudge */}
           {!isPremium && (
@@ -472,6 +585,21 @@ function MobileEventsPage({
               <MobileEventCard key={event.id} event={event} />
             ))
           )}
+
+          {/* Managing section */}
+          {myEvents.length > 0 && (
+            <>
+              <div className="flex items-center gap-2 pt-2">
+                <Users size={13} style={{ color: "#a78bfa" }} />
+                <p className="text-[12px] font-extrabold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.40)" }}>
+                  Events you&apos;re managing
+                </p>
+              </div>
+              {myEvents.map((event) => (
+                <MobileTeamEventCard key={event.id} event={event} />
+              ))}
+            </>
+          )}
         </div>
       </div>
 
@@ -490,11 +618,12 @@ export default function EventsPage() {
     plan, isSubscribed, usage, limits,
     isAtEventLimit, openUpgradeModal, fetchSubscription,
   } = useSubscriptionStore();
+  const { myEvents, fetchMyTeamEvents } = useTeamStore();
 
   const [query,  setQuery]  = useState("");
   const [filter, setFilter] = useState("ALL");
 
-  const isPremium  = isSubscribed && plan === "premium";
+  const isPremium  = isSubscribed && plan !== "free";
   const atLimit    = isAtEventLimit();
   const eventUsage = usage?.events ?? events.length;
   const eventLimit = limits?.events ?? 1;
@@ -502,7 +631,8 @@ export default function EventsPage() {
   useEffect(() => {
     fetchEvents();
     fetchSubscription();
-  }, [fetchEvents, fetchSubscription]);
+    fetchMyTeamEvents();
+  }, [fetchEvents, fetchSubscription, fetchMyTeamEvents]);
 
   const handleNewEvent = useCallback(() => {
     if (atLimit) { openUpgradeModal("events"); return; }
@@ -556,6 +686,7 @@ export default function EventsPage() {
           handleUpgrade={handleUpgrade}
           eventUsage={eventUsage}
           eventLimit={eventLimit}
+          myEvents={myEvents}
         />
       </div>
 
@@ -580,7 +711,7 @@ export default function EventsPage() {
               ) : (
                 <button
                   onClick={handleNewEvent}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-[#111827] px-4 py-3 text-sm font-medium text-white transition-all hover:bg-[#1f2937] active:scale-95"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-linear-to-r from-indigo-500 to-purple-600 px-4 py-3 text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95"
                 >
                   <Plus size={15} />
                   New event
@@ -590,44 +721,44 @@ export default function EventsPage() {
           />
 
           {!isPremium && (
-            <EventLimitBanner used={eventUsage} limit={eventLimit} onUpgrade={handleUpgrade} />
+            <EventLimitBanner used={eventUsage} limit={eventLimit} plan={plan} onUpgrade={handleUpgrade} />
           )}
 
           {!loading && events.length > 0 && (
             <div className="relative">
-              <Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-(--text-muted)" />
               <input
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search events by name, venue, type…"
-                className="w-full rounded-2xl border border-gray-200 bg-white py-2.5 pl-9 pr-9 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-indigo-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                className="w-full rounded-2xl border border-border bg-(--bg-surface) py-2.5 pl-9 pr-9 text-sm text-(--text-primary) outline-none placeholder:text-(--text-muted) focus:border-indigo-400"
               />
               {query && (
-                <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-(--text-muted) hover:text-(--text-secondary)">
                   <X size={14} />
                 </button>
               )}
             </div>
           )}
 
-          <div className="rounded-3xl border border-[#e5e7eb] bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
+          <div className="rounded-3xl border border-border bg-(--bg-surface) p-6">
             {loading ? (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {[...Array(3)].map((_, i) => (
-                  <div key={i} className="h-44 animate-pulse rounded-3xl bg-gray-100 dark:bg-gray-800" />
+                  <div key={i} className="h-52 animate-pulse rounded-2xl bg-(--bg-elevated)" />
                 ))}
               </div>
             ) : events.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
-                  <CalendarDays size={24} className="text-gray-400" />
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-(--bg-elevated)">
+                  <CalendarDays size={24} className="text-(--text-muted)" />
                 </div>
-                <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">No events yet</p>
-                <p className="text-xs text-gray-400">Create your first event to get started.</p>
+                <p className="text-sm font-semibold text-(--text-primary)">No events yet</p>
+                <p className="text-xs text-(--text-muted)">Create your first event to get started.</p>
                 <button
                   onClick={handleNewEvent}
-                  className="mt-2 flex items-center gap-2 rounded-2xl bg-[#111827] px-5 py-2.5 text-sm font-medium text-white transition-all hover:bg-[#1f2937]"
+                  className="mt-2 flex items-center gap-2 rounded-2xl bg-linear-to-r from-indigo-500 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90"
                 >
                   <Plus size={14} />
                   Create event
@@ -635,8 +766,8 @@ export default function EventsPage() {
               </div>
             ) : filteredEvents.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
-                <Search size={24} className="text-gray-300 dark:text-gray-600" />
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">No events match &ldquo;{query}&rdquo;</p>
+                <Search size={24} className="text-(--text-muted)" />
+                <p className="text-sm font-medium text-(--text-secondary)">No events match &ldquo;{query}&rdquo;</p>
                 <button onClick={() => setQuery("")} className="text-xs text-indigo-500 hover:underline">Clear search</button>
               </div>
             ) : (
@@ -645,11 +776,29 @@ export default function EventsPage() {
                   <EventCard key={event.id} event={event} index={i} />
                 ))}
                 {!isPremium && atLimit && !query && (
-                  <LockedCreateCard onUpgrade={handleUpgrade} />
+                  <LockedCreateCard onUpgrade={handleUpgrade} plan={plan} />
                 )}
               </div>
             )}
           </div>
+
+          {/* ── Events I'm managing (team admin) ── */}
+          {myEvents.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Users size={16} className="text-indigo-400" />
+                <h2 className="text-sm font-bold text-(--text-primary)">Events you&apos;re managing</h2>
+                <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-[11px] font-bold text-indigo-400">{myEvents.length}</span>
+              </div>
+              <div className="rounded-3xl border border-border bg-(--bg-surface) p-6">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {myEvents.map((event, i) => (
+                    <TeamEventCard key={event.id} event={event} index={i} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>

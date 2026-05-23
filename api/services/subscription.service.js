@@ -2,7 +2,16 @@ import { stripe } from "../config/stripe.js";
 import { db } from "../config/db.js";
 import { getPlanSummary } from "./planLimits.service.js";
 
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+const FRONTEND_URL    = process.env.FRONTEND_URL    || "http://localhost:3000";
+const STARTER_PRICE_ID = process.env.STRIPE_STARTER_PRICE_ID;
+const PRO_PRICE_ID     = process.env.STRIPE_PRO_PRICE_ID;
+
+/** Map a Stripe price ID to our internal plan name. */
+function planFromPriceId(priceId) {
+  if (STARTER_PRICE_ID && priceId === STARTER_PRICE_ID) return "starter";
+  if (PRO_PRICE_ID     && priceId === PRO_PRICE_ID)     return "pro";
+  return "pro"; // unknown paid price → default to pro
+}
 
 export async function getSubscriptionStatusService(userId) {
   const client = await db.connect();
@@ -21,6 +30,16 @@ export async function getSubscriptionStatusService(userId) {
     const summary        = organizationId
       ? await getPlanSummary(client, userId, organizationId)
       : { limits: { events: 1, templates: 3, guests: 50 }, usage: { events: 0 }, features: {}, freeTemplateStyle: "CLASSIC" };
+
+    // Auto-correct legacy "premium" plan name stored before per-tier pricing
+    if (u.is_subscribed && u.subscription_plan === "premium" && u.subscription_id) {
+      try {
+        const sub  = await stripe.subscriptions.retrieve(u.subscription_id, { expand: ["items.data.price"] });
+        const plan = planFromPriceId(sub.items?.data?.[0]?.price?.id);
+        await client.query(`UPDATE users SET subscription_plan = $1 WHERE id = $2`, [plan, userId]);
+        u.subscription_plan = plan;
+      } catch { /* non-fatal — return stored plan if Stripe is unavailable */ }
+    }
 
     return {
       is_subscribed:       u.is_subscribed                    ?? false,
@@ -86,12 +105,13 @@ export async function activateSubscriptionService(checkoutSession) {
     ? checkoutSession.subscription : checkoutSession.subscription?.id;
   if (!subId) return;
 
-  const sub = await stripe.subscriptions.retrieve(subId);
+  const sub    = await stripe.subscriptions.retrieve(subId, { expand: ["items.data.price"] });
+  const plan   = planFromPriceId(sub.items?.data?.[0]?.price?.id);
   await db.query(
     `UPDATE users SET is_subscribed = true, subscription_id = $2, subscription_status = $3,
-     subscription_plan = 'premium', subscription_current_period_end = to_timestamp($4),
+     subscription_plan = $6, subscription_current_period_end = to_timestamp($4),
      stripe_customer_id = COALESCE(stripe_customer_id, $5), updated_at = NOW() WHERE id = $1`,
-    [userId, sub.id, sub.status, sub.current_period_end, checkoutSession.customer]
+    [userId, sub.id, sub.status, sub.current_period_end, checkoutSession.customer, plan]
   );
 }
 
@@ -139,30 +159,58 @@ export async function verifyCheckoutSessionService(userId, sessionId) {
   const subId = typeof sub === "string" ? sub : sub?.id;
   if (!subId) throw Object.assign(new Error("No subscription on session"), { statusCode: 400 });
 
-  const subscription = typeof sub === "string" ? await stripe.subscriptions.retrieve(sub) : sub;
+  const subscription = typeof sub === "string"
+    ? await stripe.subscriptions.retrieve(sub, { expand: ["items.data.price"] })
+    : sub;
 
+  const plan = planFromPriceId(subscription.items?.data?.[0]?.price?.id);
   await db.query(
     `UPDATE users SET is_subscribed = true, subscription_id = $2, subscription_status = $3,
-     subscription_plan = 'premium', subscription_current_period_end = to_timestamp($4),
+     subscription_plan = $6, subscription_current_period_end = to_timestamp($4),
      stripe_customer_id = COALESCE(stripe_customer_id, $5), updated_at = NOW() WHERE id = $1`,
-    [userId, subscription.id, subscription.status, subscription.current_period_end, session.customer]
+    [userId, subscription.id, subscription.status, subscription.current_period_end, session.customer, plan]
   );
 
   return {
     is_subscribed: true,
-    plan: "premium",
+    plan,
     subscription_status: subscription.status,
     current_period_end: subscription.current_period_end,
   };
+}
+
+export async function getStripePricesService() {
+  const starterId = process.env.STRIPE_STARTER_PRICE_ID;
+  const proId     = process.env.STRIPE_PRO_PRICE_ID;
+
+  const [starterRes, proRes] = await Promise.allSettled([
+    starterId ? stripe.prices.retrieve(starterId) : Promise.resolve(null),
+    proId     ? stripe.prices.retrieve(proId)     : Promise.resolve(null),
+  ]);
+
+  const toPrice = (result) => {
+    if (result.status !== "fulfilled" || !result.value) return null;
+    const p = result.value;
+    return {
+      id:       p.id,
+      amount:   p.unit_amount != null ? p.unit_amount / 100 : null,
+      currency: p.currency ?? "usd",
+      interval: p.recurring?.interval ?? "month",
+    };
+  };
+
+  return { starter: toPrice(starterRes), pro: toPrice(proRes) };
 }
 
 export async function updateSubscriptionStatusService(subscription) {
   const userId  = subscription.metadata?.user_id;
   if (!userId) return;
   const isActive = ["active", "trialing"].includes(subscription.status);
+  const priceId  = subscription.items?.data?.[0]?.price?.id;
+  const plan     = isActive ? planFromPriceId(priceId) : "free";
   await db.query(
     `UPDATE users SET is_subscribed = $2, subscription_status = $3, subscription_plan = $4,
      subscription_current_period_end = to_timestamp($5), updated_at = NOW() WHERE id = $1`,
-    [userId, isActive, subscription.status, isActive ? "premium" : "free", subscription.current_period_end]
+    [userId, isActive, subscription.status, plan, subscription.current_period_end]
   );
 }

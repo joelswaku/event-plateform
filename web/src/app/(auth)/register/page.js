@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
@@ -73,9 +73,11 @@ function Field({ label, id, error, touched, children }) {
 }
 
 /* ── Page ────────────────────────────────────────────────────── */
-export default function RegisterPage() {
-  const { register, isLoading, error: serverError } = useAuthStore();
-  const router = useRouter();
+function RegisterForm() {
+  const { register, login, isLoading, error: serverError } = useAuthStore();
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const inviteToken  = searchParams.get("invite");
 
   const [form, setForm] = useState({ full_name: "", email: "", password: "", confirmPassword: "" });
   const [touched, setTouched] = useState({});
@@ -107,7 +109,19 @@ export default function RegisterPage() {
       password:  form.password,
     });
 
-    if (res.success) router.push("/login?registered=1");
+    if (res.success) {
+      if (inviteToken) {
+        // Auto-login so the invite page can immediately accept without another step
+        const loginRes = await login({ email: form.email, password: form.password });
+        if (loginRes.success) {
+          router.push(`/invite/${inviteToken}`);
+        } else {
+          router.push(`/login?redirect=${encodeURIComponent(`/invite/${inviteToken}`)}`);
+        }
+      } else {
+        router.push("/login?registered=1");
+      }
+    }
   };
 
   return (
@@ -236,5 +250,13 @@ export default function RegisterPage() {
 
       <GoogleLoginButton />
     </AuthShell>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
   );
 }

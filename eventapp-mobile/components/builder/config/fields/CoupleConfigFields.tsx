@@ -40,7 +40,7 @@ export default function CoupleConfigFields({ section, eventId, iosKeyboardInsets
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       updateSection(eventId, section.id, { config: cfgRef.current });
-    }, 600);
+    }, 400);
   };
 
   const pickPhoto = async (partner: 1 | 2) => {

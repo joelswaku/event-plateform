@@ -8,8 +8,30 @@
   --background: #f9fafb;
   --foreground: #111827;
   --card:        #ffffff;
-  --border:      #e5e7eb;
+  --border:      #e2e8f0;
   --muted:       #6b7280;
+
+  /* Dashboard surface hierarchy */
+  --bg-base:      #f8fafc;
+  --bg-surface:   #ffffff;
+  --bg-elevated:  #f1f5f9;
+  --border-hover: #cbd5e1;
+
+  /* Dashboard text */
+  --text-primary:   #0f172a;
+  --text-secondary: #334155;
+  --text-muted:     #94a3b8;
+
+  /* Accent */
+  --accent:        #6366f1;
+  --accent-purple: #a78bfa;
+
+  /* Sidebar — always dark for visual contrast */
+  --sidebar-bg:     #0f172a;
+  --sidebar-text:   #e2e8f0;
+  --sidebar-muted:  #64748b;
+  --sidebar-hover:  rgba(255,255,255,0.06);
+  --sidebar-active: rgba(99,102,241,0.20);
 
   /* SVG palette used by the seating table-detail canvas */
   --svg-fill-subtle:      rgba(0,0,0,0.05);
@@ -22,9 +44,31 @@
 .dark {
   --background: #030712;
   --foreground: #f9fafb;
-  --card:        #111827;
-  --border:      #1f2937;
+  --card:        #0f172a;
+  --border:      #1e293b;
   --muted:       #9ca3af;
+
+  /* Dashboard surface hierarchy */
+  --bg-base:      #020817;
+  --bg-surface:   #0f172a;
+  --bg-elevated:  #1e293b;
+  --border-hover: #334155;
+
+  /* Dashboard text */
+  --text-primary:   #f8fafc;
+  --text-secondary: #e2e8f0;
+  --text-muted:     #64748b;
+
+  /* Accent (unchanged) */
+  --accent:        #6366f1;
+  --accent-purple: #a78bfa;
+
+  /* Sidebar in dark mode — slightly deeper */
+  --sidebar-bg:     #020817;
+  --sidebar-text:   #e2e8f0;
+  --sidebar-muted:  #64748b;
+  --sidebar-hover:  rgba(255,255,255,0.05);
+  --sidebar-active: rgba(99,102,241,0.15);
 
   --svg-fill-subtle:      rgba(255,255,255,0.04);
   --svg-stroke:           rgba(255,255,255,0.10);

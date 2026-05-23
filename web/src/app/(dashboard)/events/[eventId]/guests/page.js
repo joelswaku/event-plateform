@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams, usePathname } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import {
@@ -9,9 +9,11 @@ import {
   CheckSquare, Square, LogIn, X, ScanLine, Send,
   ChevronDown, ChevronUp, Search, Home, User,
   CalendarDays, Ticket, ChevronLeft, ChevronRight,
-  CheckCheck,
+  CheckCheck, Lock, Zap,
 } from "lucide-react";
-import { useGuestStore } from "@/store/guest.store";
+import { useGuestStore }         from "@/store/guest.store";
+import { useSeatingStore }       from "@/store/seating.store";
+import { useSubscriptionStore }  from "@/store/subscription.store";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 
@@ -40,7 +42,7 @@ function attendanceBadge(status) {
 }
 
 /* ── Guest card (desktop expandable) ─────────────────────────── */
-function GuestCard({ guest, rsvp, attendance, selected, onSelect, onCheckIn, onInvite, onQr, onSendQr, onEdit, onDelete, sendingQr }) {
+function GuestCard({ guest, rsvp, attendance, selected, onSelect, onCheckIn, onInvite, onQr, onSendQr, onEdit, onDelete, sendingQr, seatLabel, onAssignSeat }) {
   const [expanded, setExpanded] = useState(false);
   const { cls: rsvpCls, label: rsvpLabel } = rsvpBadge(rsvp);
   const attCls  = attendanceBadge(attendance);
@@ -69,6 +71,14 @@ function GuestCard({ guest, rsvp, attendance, selected, onSelect, onCheckIn, onI
           </div>
           {(guest.email || guest.phone) && (
             <p className="mt-1 text-xs text-gray-400 truncate">{guest.email || guest.phone}</p>
+          )}
+          {seatLabel ? (
+            <p className="mt-0.5 text-xs font-semibold text-indigo-400">🪑 {seatLabel}</p>
+          ) : (
+            <button type="button" onClick={onAssignSeat}
+              className="mt-0.5 text-xs text-gray-500 underline underline-offset-2 hover:text-gray-300 text-left">
+              + Assign Seat
+            </button>
           )}
         </div>
         <button
@@ -156,7 +166,7 @@ function MobileBottomNav() {
   );
 }
 
-function MobileGuestRow({ guest, rsvp, attendance, onPress, selectMode = false, selected = false, onToggle }) {
+function MobileGuestRow({ guest, rsvp, attendance, onPress, selectMode = false, selected = false, onToggle, seatLabel, onAssignSeat }) {
   const initials = (guest.full_name || "?").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
   const checkedIn = attendance === "CHECKED_IN" || attendance === "PRESENT";
   const cfg = checkedIn
@@ -168,45 +178,61 @@ function MobileGuestRow({ guest, rsvp, attendance, onPress, selectMode = false, 
     : rsvp === "DECLINED"
     ? { color: "#ef4444", bg: "rgba(239,68,68,0.12)", dot: "#ef4444", label: "Declined" }
     : { color: "rgba(255,255,255,0.35)", bg: "rgba(255,255,255,0.06)", dot: "rgba(255,255,255,0.25)", label: "Pending" };
+  const showAssignBtn = !seatLabel && !selectMode;
   return (
-    <button type="button" onClick={selectMode ? onToggle : onPress}
-      className="flex w-full items-center gap-3 rounded-[16px] border px-4 py-3.5 text-left transition-colors"
+    <div className="rounded-[16px] border overflow-hidden"
       style={{
         background: selected ? "rgba(99,102,241,0.10)" : "#0e0e16",
         borderColor: selected ? "rgba(99,102,241,0.45)" : "rgba(255,255,255,0.07)",
       }}>
-      {selectMode && (
-        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px]"
-          style={{
-            background: selected ? "#6366f1" : "transparent",
-            border: selected ? "1.5px solid #6366f1" : "1.5px solid rgba(255,255,255,0.25)",
-          }}>
-          {selected && <CheckCheck size={11} color="#fff" />}
+      {/* Main row — tapping navigates to guest detail / toggles selection */}
+      <button type="button" onClick={selectMode ? onToggle : onPress}
+        className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors">
+        {selectMode && (
+          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px]"
+            style={{
+              background: selected ? "#6366f1" : "transparent",
+              border: selected ? "1.5px solid #6366f1" : "1.5px solid rgba(255,255,255,0.25)",
+            }}>
+            {selected && <CheckCheck size={11} color="#fff" />}
+          </div>
+        )}
+        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+          style={{ background: `${cfg.color}20`, border: `1.5px solid ${cfg.color}40` }}>
+          {guest.is_vip && <span className="absolute -right-1 -top-1.5 text-[9px]">👑</span>}
+          <span className="text-[13px] font-black" style={{ color: cfg.color }}>{initials}</span>
         </div>
-      )}
-      <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
-        style={{ background: `${cfg.color}20`, border: `1.5px solid ${cfg.color}40` }}>
-        {guest.is_vip && <span className="absolute -right-1 -top-1.5 text-[9px]">👑</span>}
-        <span className="text-[13px] font-black" style={{ color: cfg.color }}>{initials}</span>
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <span className="truncate text-[14px] font-extrabold text-white">{guest.full_name}</span>
-          {guest.is_vip && (
-            <span className="rounded-[4px] px-1 py-0.5 text-[8px] font-black"
-              style={{ background: "rgba(201,169,110,0.15)", color: "#c9a96e", border: "1px solid rgba(201,169,110,0.3)" }}>VIP</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="truncate text-[14px] font-extrabold text-white">{guest.full_name}</span>
+            {guest.is_vip && (
+              <span className="rounded-[4px] px-1 py-0.5 text-[8px] font-black"
+                style={{ background: "rgba(201,169,110,0.15)", color: "#c9a96e", border: "1px solid rgba(201,169,110,0.3)" }}>VIP</span>
+            )}
+          </div>
+          <span className="block truncate text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
+            {guest.email || guest.phone || "No contact info"}
+          </span>
+          {seatLabel && (
+            <span className="text-[10px] font-bold" style={{ color: "#6366f1" }}>🪑 {seatLabel}</span>
           )}
         </div>
-        <span className="block truncate text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
-          {guest.email || guest.phone || "No contact info"}
-        </span>
-      </div>
-      <div className="flex shrink-0 items-center gap-1 rounded-full px-2 py-1" style={{ background: cfg.bg }}>
-        <div className="h-1.5 w-1.5 rounded-full" style={{ background: cfg.dot }} />
-        <span className="text-[10px] font-extrabold" style={{ color: cfg.color }}>{cfg.label}</span>
-      </div>
-      {!selectMode && <ChevronRight size={14} style={{ color: "rgba(255,255,255,0.15)", flexShrink: 0 }} />}
-    </button>
+        <div className="flex shrink-0 items-center gap-1 rounded-full px-2 py-1" style={{ background: cfg.bg }}>
+          <div className="h-1.5 w-1.5 rounded-full" style={{ background: cfg.dot }} />
+          <span className="text-[10px] font-extrabold" style={{ color: cfg.color }}>{cfg.label}</span>
+        </div>
+        {!selectMode && <ChevronRight size={14} style={{ color: "rgba(255,255,255,0.15)", flexShrink: 0 }} />}
+      </button>
+      {/* Assign Seat row — separate non-nested button, only navigates to seating page */}
+      {showAssignBtn && (
+        <button type="button" onClick={onAssignSeat}
+          className="flex w-full items-center gap-2 px-4 py-2.5"
+          style={{ borderTop: "1px solid rgba(99,102,241,0.12)", background: "rgba(99,102,241,0.05)" }}>
+          <span className="text-[11px] font-bold" style={{ color: "#6366f1" }}>+ Assign Seat</span>
+          <ChevronRight size={11} style={{ color: "#6366f1", marginLeft: "auto" }} />
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -219,10 +245,11 @@ const MOBILE_FILTERS = [
 ];
 
 function MobileGuestsPage({
-  eventId, guests, filteredGuests, rsvpMap, attendanceMap,
+  eventId, guests, filteredGuests, rsvpMap, attendanceMap, seatMap,
   isLoading, query, setQuery, mobileFilter, setMobileFilter,
   onAddGuest, onEditGuest,
   onBulkDelete, onBulkInvite, onBulkRsvp,
+  showGuestLimitModal, onDismissLimitModal, onUpgrade, prices, plan,
 }) {
   const goingCount    = guests.filter(g => rsvpMap.get(g.id) === "GOING").length;
   const maybeCount    = guests.filter(g => rsvpMap.get(g.id) === "MAYBE").length;
@@ -337,6 +364,64 @@ function MobileGuestsPage({
         ))}
       </div>
 
+      {/* Guest limit modal (mobile overlay) */}
+      {showGuestLimitModal && (
+        <div className="fixed inset-0 z-[200] flex items-end justify-center pb-8 px-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.82)", backdropFilter: "blur(6px)" }}>
+          <div className="w-full max-w-sm rounded-[28px] p-7 flex flex-col items-center gap-4"
+            style={{ background: "#0e0e1a", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }}>
+            {/* Close */}
+            <button onClick={onDismissLimitModal} className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-xl" style={{ background: "rgba(255,255,255,0.06)" }}>
+              <X size={15} style={{ color: "rgba(255,255,255,0.4)" }} />
+            </button>
+            {/* Icon */}
+            <div className="flex h-16 w-16 items-center justify-center rounded-[22px]" style={{ background: "linear-gradient(135deg,#4f46e5,#7c3aed)" }}>
+              <Lock size={26} color="white" />
+            </div>
+            {/* Badge */}
+            <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5" style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)" }}>
+              <Zap size={9} style={{ color: "#818cf8" }} fill="#818cf8" />
+              <span className="text-[9px] font-black tracking-widest uppercase" style={{ color: "#818cf8" }}>Plan Limit Reached</span>
+            </div>
+            <div className="text-center">
+              <p className="text-[19px] font-black text-white">Guest Limit Reached</p>
+              <p className="mt-1 text-[12px] leading-5" style={{ color: "rgba(255,255,255,0.45)" }}>
+                {plan === "starter"
+                  ? "You've hit the 500-guest Starter cap. Upgrade to Pro for unlimited guests per event."
+                  : "Free plan allows 50 guests per event. Upgrade to Starter for 500, or Pro for unlimited."}
+              </p>
+            </div>
+            {/* Plan cards */}
+            <div className={`grid gap-2.5 w-full ${plan === "starter" ? "grid-cols-1" : "grid-cols-2"}`}>
+              {plan !== "starter" && (
+                <div className="rounded-[18px] p-4" style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)" }}>
+                  <p className="text-[14px] font-black text-white">Starter</p>
+                  <p className="text-[22px] font-black leading-tight" style={{ color: "#818cf8" }}>
+                    {prices?.starter?.amount != null ? `$${prices.starter.amount}` : '$19'}<span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>/mo</span>
+                  </p>
+                  <p className="text-[10px] mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>500 guests · 5 events</p>
+                </div>
+              )}
+              <div className="relative rounded-[18px] p-4 overflow-hidden" style={{ background: "rgba(201,169,110,0.08)", border: "1px solid rgba(201,169,110,0.3)" }}>
+                <div className="absolute top-0 right-0 px-2 py-1 text-[8px] font-black rounded-bl-[10px]" style={{ background: "#c9a96e", color: "#000" }}>{plan === "starter" ? "UPGRADE" : "BEST"}</div>
+                <p className="text-[14px] font-black text-white">Pro</p>
+                <p className="text-[22px] font-black leading-tight" style={{ color: "#c9a96e" }}>
+                  {prices?.pro?.amount != null ? `$${prices.pro.amount}` : '$49'}<span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>/mo</span>
+                </p>
+                <p className="text-[10px] mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>Unlimited guests &amp; events</p>
+              </div>
+            </div>
+            {/* CTA */}
+            <button onClick={onUpgrade} className="w-full py-3.5 rounded-2xl font-black text-sm text-white flex items-center justify-center gap-2"
+              style={{ background: plan === "starter" ? "linear-gradient(135deg,#c9a96e,#f59e0b)" : "linear-gradient(135deg,#6366f1,#8b5cf6)", boxShadow: plan === "starter" ? "0 8px 24px rgba(201,169,110,0.4)" : "0 8px 24px rgba(99,102,241,0.4)", color: plan === "starter" ? "#000" : "#fff" }}>
+              <Zap size={14} fill="currentColor" />
+              {plan === "starter" ? "Upgrade to Pro" : "Upgrade Now"}
+            </button>
+            <button onClick={onDismissLimitModal} className="text-[12px] font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>Not now</button>
+          </div>
+        </div>
+      )}
+
       {/* Search */}
       <div className="shrink-0 px-4 pb-2">
         <div className="flex h-11 items-center gap-2.5 rounded-[14px] border px-3.5"
@@ -421,6 +506,8 @@ function MobileGuestsPage({
                 selectMode={selectMode}
                 selected={selectedIds.has(guest.id)}
                 onToggle={() => toggleSelect(guest.id)}
+                seatLabel={seatMap?.get(guest.id) || null}
+                onAssignSeat={() => window.location.href = `/events/${eventId}/seating`}
               />
             ))}
           </div>
@@ -478,6 +565,9 @@ function MobileGuestsPage({
 ══════════════════════════════════════════════════════════════════ */
 export default function GuestsPage() {
   const { eventId } = useParams();
+  const router = useRouter();
+  const prices = useSubscriptionStore(s => s.prices);
+  const plan   = useSubscriptionStore(s => s.plan);
 
   const {
     guests, rsvps, attendance, selectedGuestIds,
@@ -490,6 +580,11 @@ export default function GuestsPage() {
     isLoading, isSubmitting,
   } = useGuestStore();
 
+  const {
+    fetchAssignments, fetchLocations,
+    assignments: seatAssignments, locations: seatLocations,
+  } = useSeatingStore();
+
   const [query, setQuery]               = useState("");
   const [mobileFilter, setMobileFilter] = useState("ALL");
   const [showModal, setShowModal]       = useState(false);
@@ -498,19 +593,22 @@ export default function GuestsPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting]         = useState(false);
   const [form, setForm]                 = useState(emptyForm);
-  const [qrModal, setQrModal]           = useState(null);
-  const [sendingQrIds, setSendingQrIds] = useState(new Set());
-  const [scanMode, setScanMode]         = useState(false);
-  const [scanToken, setScanToken]       = useState("");
-  const [scanning, setScanning]         = useState(false);
+  const [qrModal, setQrModal]               = useState(null);
+  const [sendingQrIds, setSendingQrIds]     = useState(new Set());
+  const [scanMode, setScanMode]             = useState(false);
+  const [scanToken, setScanToken]           = useState("");
+  const [scanning, setScanning]             = useState(false);
+  const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
 
   useEffect(() => {
     if (!eventId) return;
     getGuests(eventId);
     getRsvps(eventId);
     getAttendance(eventId);
+    fetchAssignments(eventId);
+    fetchLocations(eventId);
     clearSelection();
-  }, [eventId, getGuests, getRsvps, getAttendance, clearSelection]);
+  }, [eventId, getGuests, getRsvps, getAttendance, clearSelection, fetchAssignments, fetchLocations]);
 
   useEffect(() => {
     if (!eventId) return;
@@ -532,6 +630,19 @@ export default function GuestsPage() {
     (attendance || []).forEach((a) => m.set(a.guest_id, a.attendance_status));
     return m;
   }, [attendance]);
+
+  const seatMap = useMemo(() => {
+    const locById = new Map((seatLocations || []).map(l => [l.id, l]));
+    const m = new Map();
+    (seatAssignments || []).forEach(a => {
+      const loc = locById.get(a.seating_table_id);
+      if (loc) {
+        const label = a.seat_number != null ? `${loc.location_name} · Seat ${a.seat_number}` : loc.location_name;
+        m.set(a.guest_id, label);
+      }
+    });
+    return m;
+  }, [seatAssignments, seatLocations]);
 
   const filteredGuests = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -574,7 +685,15 @@ export default function GuestsPage() {
       const res = editingGuest
         ? await updateGuest(eventId, editingGuest.id, payload)
         : await createGuest(eventId, payload);
-      if (!res?.success) { toast.error(editingGuest ? "Update failed" : "Create failed"); return; }
+      if (!res?.success) {
+        if (res?.code === "PLAN_LIMIT_GUESTS") {
+          closeModal();
+          setShowGuestLimitModal(true);
+        } else {
+          toast.error(editingGuest ? "Update failed" : "Create failed");
+        }
+        return;
+      }
       toast.success(editingGuest ? "Guest updated" : "Guest added");
       closeModal();
     } finally { setSubmitting(false); }
@@ -652,6 +771,7 @@ export default function GuestsPage() {
           filteredGuests={filteredGuests}
           rsvpMap={rsvpMap}
           attendanceMap={attendanceMap}
+          seatMap={seatMap}
           isLoading={isLoading}
           query={query}
           setQuery={setQuery}
@@ -671,6 +791,11 @@ export default function GuestsPage() {
             const r = await bulkSubmitRsvp(eventId, ids, status);
             r?.success ? toast.success(`RSVP → ${status}`) : toast.error("Bulk RSVP failed");
           }}
+          showGuestLimitModal={showGuestLimitModal}
+          onDismissLimitModal={() => setShowGuestLimitModal(false)}
+          onUpgrade={() => { setShowGuestLimitModal(false); router.push("/settings/billing"); }}
+          prices={prices}
+          plan={plan}
         />
       </div>
 
@@ -701,6 +826,8 @@ export default function GuestsPage() {
             </button>
           </div>
         </div>
+
+        {/* intentionally empty — limit gate is shown via modal */}
 
         {/* QR Scanner panel */}
         {scanMode && (
@@ -785,7 +912,9 @@ export default function GuestsPage() {
                     onSendQr={() => handleSendQr(guest)}
                     onEdit={() => openEditModal(guest)}
                     onDelete={() => setDeleteTarget(guest)}
-                    sendingQr={sendingQrIds.has(guest.id)} />
+                    sendingQr={sendingQrIds.has(guest.id)}
+                    seatLabel={seatMap.get(guest.id) || null}
+                    onAssignSeat={() => window.location.href = `/events/${eventId}/seating`} />
                 );
               })}
             </div>
@@ -804,6 +933,7 @@ export default function GuestsPage() {
                       <th className="px-5 py-4 font-medium">Guest</th>
                       <th className="px-5 py-4 font-medium">Contact</th>
                       <th className="px-5 py-4 font-medium">VIP</th>
+                      <th className="px-5 py-4 font-medium">Seat</th>
                       <th className="px-5 py-4 font-medium">RSVP</th>
                       <th className="px-5 py-4 font-medium">Attendance</th>
                       <th className="px-5 py-4 text-right font-medium">Actions</th>
@@ -811,12 +941,13 @@ export default function GuestsPage() {
                   </thead>
                   <tbody>
                     {filteredGuests.map((guest) => {
-                      const rsvp      = rsvpMap.get(guest.id) || "PENDING";
-                      const att       = attendanceMap.get(guest.id) || "NOT_MARKED";
-                      const selected  = selectedGuestIds.includes(guest.id);
-                      const checkedIn = att === "CHECKED_IN" || att === "PRESENT";
+                      const rsvp        = rsvpMap.get(guest.id) || "PENDING";
+                      const att         = attendanceMap.get(guest.id) || "NOT_MARKED";
+                      const selected    = selectedGuestIds.includes(guest.id);
+                      const checkedIn   = att === "CHECKED_IN" || att === "PRESENT";
                       const { cls: rsvpCls, label: rsvpLabel } = rsvpBadge(rsvp);
-                      const attCls    = attendanceBadge(att);
+                      const attCls      = attendanceBadge(att);
+                      const seatLabel   = seatMap.get(guest.id) || null;
                       return (
                         <tr key={guest.id} className="border-b border-gray-50 dark:border-gray-800 last:border-b-0 hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
                           <td className="px-5 py-4">
@@ -838,6 +969,11 @@ export default function GuestsPage() {
                             {guest.is_vip
                               ? <span className="rounded-full bg-amber-100 dark:bg-amber-900/30 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-400">⭐ VIP</span>
                               : <span className="text-gray-400">—</span>}
+                          </td>
+                          <td className="px-5 py-4">
+                            {seatLabel
+                              ? <span className="text-xs font-semibold text-indigo-500 dark:text-indigo-400">🪑 {seatLabel}</span>
+                              : <a href={`/events/${eventId}/seating`} className="text-xs text-gray-400 hover:text-indigo-500 underline underline-offset-2">Assign</a>}
                           </td>
                           <td className="px-5 py-4">
                             <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${rsvpCls}`}>{rsvpLabel}</span>
@@ -960,6 +1096,78 @@ export default function GuestsPage() {
               className="w-full inline-flex items-center justify-center gap-2 rounded-2xl border border-violet-200 dark:border-violet-700 px-4 py-2.5 text-sm font-medium text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 disabled:opacity-40 transition">
               <Send className="h-4 w-4" />
               {sendingQrIds.has(qrModal.guest.id) ? "Sending…" : qrModal.guest.email ? `Send to ${qrModal.guest.email}` : "No email on file"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── GUEST LIMIT MODAL (desktop) ── */}
+      {showGuestLimitModal && (
+        <div className="hidden sm:flex fixed inset-0 z-[100] items-center justify-center px-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}>
+          <div className="relative w-full max-w-md rounded-[28px] p-8 flex flex-col items-center gap-5 text-center overflow-hidden"
+            style={{ background: "#0e0e1a", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 32px 100px rgba(0,0,0,0.7)" }}>
+            {/* glow */}
+            <div className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-64 h-64 rounded-full blur-3xl opacity-30"
+              style={{ background: "radial-gradient(circle,#6366f1,transparent 70%)" }} aria-hidden />
+            {/* close */}
+            <button onClick={() => setShowGuestLimitModal(false)}
+              className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-xl"
+              style={{ background: "rgba(255,255,255,0.06)" }}>
+              <X size={15} style={{ color: "rgba(255,255,255,0.4)" }} />
+            </button>
+            {/* icon */}
+            <div className="flex h-[68px] w-[68px] items-center justify-center rounded-[22px]"
+              style={{ background: "linear-gradient(135deg,#4f46e5,#7c3aed)", boxShadow: "0 8px 32px rgba(99,102,241,0.5)" }}>
+              <Lock size={28} color="white" />
+            </div>
+            {/* badge */}
+            <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5"
+              style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)" }}>
+              <Zap size={9} fill="#818cf8" style={{ color: "#818cf8" }} />
+              <span className="text-[9px] font-black tracking-[0.18em] uppercase" style={{ color: "#818cf8" }}>Plan Limit Reached</span>
+            </div>
+            {/* text */}
+            <div>
+              <h2 className="text-[22px] font-black text-white tracking-tight">Guest Limit Reached</h2>
+              <p className="mt-2 text-sm leading-6" style={{ color: "rgba(255,255,255,0.45)" }}>
+                {plan === "starter"
+                  ? <>You&apos;ve hit the 500-guest Starter cap.<br />Upgrade to Pro for unlimited guests per event.</>
+                  : <>Free plan allows 50 guests per event.<br />Upgrade to Starter for 500, or Pro for unlimited.</>}
+              </p>
+            </div>
+            {/* plan cards */}
+            <div className={`grid gap-3 w-full ${plan === "starter" ? "grid-cols-1" : "grid-cols-2"}`}>
+              {plan !== "starter" && (
+                <div className="rounded-[18px] p-4 text-left" style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)" }}>
+                  <p className="text-[14px] font-black text-white">Starter</p>
+                  <p className="text-[24px] font-black leading-tight" style={{ color: "#818cf8" }}>
+                    {prices?.starter?.amount != null ? `$${prices.starter.amount}` : '$19'}<span className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>/mo</span>
+                  </p>
+                  <p className="text-[11px] mt-1.5" style={{ color: "rgba(255,255,255,0.4)" }}>500 guests · 5 events</p>
+                </div>
+              )}
+              <div className="relative rounded-[18px] p-4 text-left overflow-hidden" style={{ background: "rgba(201,169,110,0.08)", border: "1px solid rgba(201,169,110,0.35)" }}>
+                <div className="absolute top-0 right-0 px-2.5 py-1 text-[8px] font-black rounded-bl-[12px]" style={{ background: "#c9a96e", color: "#000" }}>{plan === "starter" ? "UPGRADE" : "BEST"}</div>
+                <p className="text-[14px] font-black text-white">Pro</p>
+                <p className="text-[24px] font-black leading-tight" style={{ color: "#c9a96e" }}>
+                  {prices?.pro?.amount != null ? `$${prices.pro.amount}` : '$49'}<span className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>/mo</span>
+                </p>
+                <p className="text-[11px] mt-1.5" style={{ color: "rgba(255,255,255,0.4)" }}>Unlimited guests &amp; events</p>
+              </div>
+            </div>
+            {/* CTA */}
+            <button
+              onClick={() => { setShowGuestLimitModal(false); router.push("/settings/billing"); }}
+              className="w-full py-3.5 rounded-2xl font-black text-[15px] flex items-center justify-center gap-2"
+              style={plan === "starter"
+                ? { background: "linear-gradient(135deg,#c9a96e,#f59e0b)", boxShadow: "0 8px 28px rgba(201,169,110,0.45)", color: "#000" }
+                : { background: "linear-gradient(135deg,#6366f1,#8b5cf6)", boxShadow: "0 8px 28px rgba(99,102,241,0.45)", color: "#fff" }}>
+              <Zap size={15} fill="currentColor" />
+              {plan === "starter" ? "Upgrade to Pro" : "Upgrade Now"}
+            </button>
+            <button onClick={() => setShowGuestLimitModal(false)} className="text-[12px] font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>
+              Not now
             </button>
           </div>
         </div>

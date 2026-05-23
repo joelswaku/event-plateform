@@ -62,8 +62,8 @@ export default function SharedEventRenderer({
     return "CLASSIC";
   }, [orderedSections]);
 
-  // LUXURY sidebar is 72px wide — shift content right on xl screens only
-  const luxuryShift = themeKey === "LUXURY" ? { paddingLeft: "72px" } : {};
+  // LUXURY sidebar is 72px wide — only visible on xl+, so only shift on xl+
+  const luxuryClass = themeKey === "LUXURY" ? "xl:pl-[72px]" : "";
 
   // ── Empty state ─────────────────────────────────────────────────────────────
   if (orderedSections.length === 0) {
@@ -130,7 +130,7 @@ export default function SharedEventRenderer({
 
   // ── Public mode ─────────────────────────────────────────────────────────────
   return themeWrapper(
-    <div className="min-h-screen" style={{ background: "var(--t-bg)", ...luxuryShift }}>
+    <div className={`min-h-screen ${luxuryClass}`} style={{ background: "var(--t-bg)" }}>
       <ThemedNav event={event} sections={orderedSections} themeKey={themeKey} />
       {orderedSections.map((section) => (
         <div key={section.id} id={`s-${section.id}`}>

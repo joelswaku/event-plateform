@@ -4,15 +4,17 @@ import {
   Animated, Alert, SafeAreaView, ActivityIndicator,
   Keyboard, Platform,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
 import { useBuilderStore }      from '@/store/builder.store';
 import { useSubscriptionStore } from '@/store/subscription.store';
 import { getTemplatesForEventType } from '@/constants/templates';
+import { getToken }             from '@/lib/api';
+import { Config }               from '@/constants/config';
 
 import BuilderTopBar       from '@/components/builder/BuilderTopBar';
-import BuilderCanvas       from '@/components/builder/BuilderCanvas';
 import BottomSheetTabs, { TabKey } from '@/components/builder/BottomSheetTabs';
 import StylePanel          from '@/components/builder/sheets/StylePanel';
 import BlocksPanel         from '@/components/builder/sheets/BlocksPanel';
@@ -20,7 +22,32 @@ import LayersPanel         from '@/components/builder/sheets/LayersPanel';
 import EditPanel           from '@/components/builder/sheets/EditPanel';
 import TemplatePickerModal from '@/components/builder/sheets/TemplatePickerModal';
 
-const SHEET_H = 440;
+const SHEET_H = 560;
+
+/* Injected into the WebView once the page loads.
+   Finds every section wrapper (id="s-{sectionId}") and wires a tap listener
+   that posts a message back to React Native. */
+const INJECTED_JS = `
+(function() {
+  function wire() {
+    document.querySelectorAll('[id^="s-"]').forEach(function(el) {
+      if (el.dataset.rnWired) return;
+      el.dataset.rnWired = '1';
+      el.addEventListener('click', function(e) {
+        var id = el.id.slice(2);
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'section', id: id }));
+      }, { capture: true });
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', wire);
+  } else {
+    wire();
+  }
+  setTimeout(wire, 1500);
+  true;
+})();
+`;
 
 export default function BuilderScreen() {
   const { id: eventId } = useLocalSearchParams<{ id: string }>();
@@ -38,8 +65,8 @@ export default function BuilderScreen() {
   const undo             = useBuilderStore(s => s.undo);
   const redo             = useBuilderStore(s => s.redo);
 
-  const { isSubscribed } = useSubscriptionStore();
-  const isPremium = isSubscribed;
+  const { isSubscribed, plan } = useSubscriptionStore();
+  const isPremium = isSubscribed && plan !== 'free';
 
   const canUndo = historyIdx > 0;
   const canRedo = historyIdx < historyLen - 1;
@@ -49,7 +76,11 @@ export default function BuilderScreen() {
   const [showTemplatePicker, setShowTemplatePicker]  = useState(false);
   const [publishLoading,     setPublishLoading]      = useState(false);
   const [kbOffset,           setKbOffset]            = useState(0);
+  const [webviewLoading,     setWebviewLoading]      = useState(true);
+  const [reloadKey,          setReloadKey]           = useState(0);
   const defaultApplied = useRef(false);
+  const webviewRef     = useRef<WebView>(null);
+  const prevSaveStatus = useRef(saveStatus);
 
   /* Push the bottom sheet above the keyboard */
   useEffect(() => {
@@ -90,6 +121,13 @@ export default function BuilderScreen() {
     }
   }, [isLoading, builder?.sections.length]);
 
+  // ── Derived values (non-hooks) ────────────────────────────────────────────────
+  const slug       = builder?.event?.slug ?? null;
+  const previewUrl = slug
+    ? `${Config.WEB_URL}/e/${slug}?preview=1&ptoken=${getToken() ?? ''}`
+    : null;
+
+  // ── Hooks that depend on builder data ─────────────────────────────────────────
   const sections = useMemo(
     () => [...(builder?.sections ?? [])].sort((a: any, b: any) => (a.position_order ?? 0) - (b.position_order ?? 0)),
     [builder?.sections],
@@ -102,6 +140,7 @@ export default function BuilderScreen() {
 
   const currentStyle = (sections[0]?.config?._theme as string) ?? 'CLASSIC';
 
+  // ── Sheet helpers (plain functions, not hooks) ────────────────────────────────
   const openSheet = (tab: TabKey) => {
     setActiveTab(tab);
     Animated.spring(sheetAnim, {
@@ -115,6 +154,7 @@ export default function BuilderScreen() {
     }).start(() => setActiveTab(null));
   };
 
+  // ── Callbacks ─────────────────────────────────────────────────────────────────
   const handleTabChange = useCallback((tab: TabKey) => {
     if (tab === 'edit' && !selectedSectionId) return;
     if (activeTab === tab) { closeSheet(); return; }
@@ -128,6 +168,17 @@ export default function BuilderScreen() {
     if (activeTab !== 'edit') openSheet('edit');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [activeTab]);
+
+  /* Handle messages from the WebView (section taps forwarded via postMessage) */
+  const handleWebViewMessage = useCallback((event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === 'section' && data.id) {
+        const sec = sections.find((s: any) => s.id === data.id);
+        if (sec) handleSectionSelect(sec);
+      }
+    } catch { /* ignore malformed messages */ }
+  }, [sections, handleSectionSelect]);
 
   const handleStyleSelect = useCallback((style: string) => {
     sections.forEach((sec: any) => {
@@ -149,6 +200,31 @@ export default function BuilderScreen() {
       setPublishLoading(false);
     }
   }, [eventId]);
+
+  // ── Effects that depend on sections / handlers ────────────────────────────────
+
+  /* Reload the WebView when a save completes (saving → saved transition) */
+  useEffect(() => {
+    if (prevSaveStatus.current === 'saving' && saveStatus === 'saved') {
+      setReloadKey(k => k + 1);
+    }
+    prevSaveStatus.current = saveStatus;
+  }, [saveStatus]);
+
+  /* Inject indigo ring around the selected section in the WebView */
+  useEffect(() => {
+    if (!webviewRef.current) return;
+    const ring = selectedSectionId
+      ? `var sel=document.getElementById('s-${selectedSectionId}');if(sel){sel.style.outline='3px solid #6c6fee';sel.style.outlineOffset='-3px';sel.scrollIntoView({behavior:'smooth',block:'nearest'});}`
+      : '';
+    webviewRef.current.injectJavaScript(`
+      (function(){
+        document.querySelectorAll('[id^="s-"]').forEach(function(el){el.style.outline='';el.style.outlineOffset='';});
+        ${ring}
+        true;
+      })();
+    `);
+  }, [selectedSectionId]);
 
   if (!builder && isLoading) {
     return (
@@ -174,15 +250,40 @@ export default function BuilderScreen() {
         />
       </SafeAreaView>
 
-      <View style={{ flex: 1, backgroundColor: '#1a1b1f' }}>
-        <BuilderCanvas
-          sections={sections}
-          selectedSectionId={selectedSectionId}
-          onSectionSelect={handleSectionSelect}
-          eventId={eventId}
-          event={builder?.event ?? null}
-          isLoading={isLoading}
-        />
+      <View style={{ flex: 1, backgroundColor: '#fff' }}>
+        {previewUrl ? (
+          <>
+            <WebView
+              key={reloadKey}
+              ref={webviewRef}
+              source={{ uri: previewUrl }}
+              style={{ flex: 1 }}
+              onLoadStart={() => setWebviewLoading(true)}
+              onLoadEnd={() => setWebviewLoading(false)}
+              onError={() => setWebviewLoading(false)}
+              onMessage={handleWebViewMessage}
+              injectedJavaScript={INJECTED_JS}
+              scrollEnabled
+              showsVerticalScrollIndicator={false}
+              originWhitelist={['*']}
+              javaScriptEnabled
+            />
+            {webviewLoading && (
+              <View style={s.webviewOverlay}>
+                <ActivityIndicator size="large" color="#6c6fee" />
+                <Text style={s.webviewLoadingTxt}>Loading preview…</Text>
+              </View>
+            )}
+          </>
+        ) : (
+          <View style={s.noPreview}>
+            <Text style={s.noPreviewIcon}>🌐</Text>
+            <Text style={s.noPreviewTitle}>Preview unavailable</Text>
+            <Text style={s.noPreviewSub}>
+              {isLoading ? 'Loading event data…' : 'No event slug found — try again after the event loads.'}
+            </Text>
+          </View>
+        )}
       </View>
 
       <SafeAreaView style={{ backgroundColor: '#16181c' }}>
@@ -211,7 +312,7 @@ export default function BuilderScreen() {
                 currentStyle={currentStyle}
                 isPremium={isPremium}
                 onStyleSelect={handleStyleSelect}
-                onUpgrade={() => { closeSheet(); router.push('/profile/upgrade'); }}
+                onUpgrade={() => { closeSheet(); router.push('/profile/billing' as never); }}
               />
             )}
             {activeTab === 'blocks' && (
@@ -242,7 +343,7 @@ export default function BuilderScreen() {
         eventType={builder?.event?.event_type}
         isPremium={isPremium}
         onClose={() => setShowTemplatePicker(false)}
-        onUpgrade={() => { setShowTemplatePicker(false); router.push('/profile/upgrade'); }}
+        onUpgrade={() => { setShowTemplatePicker(false); router.push('/profile/billing' as never); }}
       />
     </View>
   );
@@ -263,4 +364,18 @@ const s = StyleSheet.create({
   },
   handleWrap: { alignItems: 'center', paddingTop: 10, paddingBottom: 4 },
   handle:     { width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.15)' },
+
+  webviewOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#f8f9fa',
+    alignItems: 'center', justifyContent: 'center', gap: 12,
+  },
+  webviewLoadingTxt: { fontSize: 13, color: 'rgba(0,0,0,0.4)' },
+  noPreview: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#1a1b1f', gap: 10, paddingHorizontal: 32,
+  },
+  noPreviewIcon:  { fontSize: 40 },
+  noPreviewTitle: { fontSize: 16, fontWeight: '700', color: 'rgba(255,255,255,0.5)', textAlign: 'center' },
+  noPreviewSub:   { fontSize: 13, color: 'rgba(255,255,255,0.25)', textAlign: 'center', lineHeight: 20 },
 });

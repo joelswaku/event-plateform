@@ -7,15 +7,13 @@ import OpenRsvpModal from "@/components/events/shared/OpenRsvpModal";
 export default function EventPageClient({ event, sections, token }) {
   const enrichedEvent = {
     ...event,
-    // public-pages API returns raw DB column "starts_at"; normalize to the
-    // name the rest of the frontend expects so countdown & SharedEventRenderer work
     starts_at_utc: event.starts_at_utc ?? event.starts_at ?? null,
     ends_at_utc:   event.ends_at_utc   ?? event.ends_at   ?? null,
     speakers: event.speakers || [],
     schedule_items: event.schedule_items || [],
   };
 
-  const showOpenRsvp = enrichedEvent.open_rsvp && enrichedEvent.allow_rsvp && !token;
+  const showOpenRsvp = enrichedEvent.allow_rsvp && enrichedEvent.open_rsvp && !token;
 
   return (
     <>
@@ -27,10 +25,10 @@ export default function EventPageClient({ event, sections, token }) {
         />
       </main>
 
-      {/* Invitation RSVP panel — only mounts when a valid invitation token is present */}
+      {/* Invitation RSVP panel — token-holder gets personal RSVP flow */}
       {token && <RsvpPanel token={token} />}
 
-      {/* Open RSVP — floats for any visitor when the event has open_rsvp enabled */}
+      {/* Open RSVP button — only shown when the organiser has enabled open RSVP */}
       {showOpenRsvp && <OpenRsvpModal eventId={enrichedEvent.id} />}
     </>
   );

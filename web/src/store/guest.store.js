@@ -62,7 +62,7 @@ export const useGuestStore = create((set, get) => ({
       return { success: true, data: newGuest };
     } catch (err) {
       set({ isSubmitting: false, error: err?.response?.data?.message || err.message });
-      return { success: false };
+      return { success: false, code: err?.response?.data?.code };
     }
   },
 

@@ -11,6 +11,7 @@ import Animated, {
   useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing,
 } from 'react-native-reanimated';
 import { useIsFocused } from '@react-navigation/native';
+import Toast               from 'react-native-toast-message';
 import { useScannerStore } from '@/store/scanner.store';
 import { useOfflineSync }  from '@/hooks/useOfflineSync';
 import { ScanResultOverlay } from '@/components/scanner/ScanResultOverlay';
@@ -48,6 +49,21 @@ export default function EventScannerScreen() {
     lastScanRef.current = now;
     const result = await scanTicket(eventId, data.trim());
     setResult(result);
+    if (result.type === 'SUCCESS') {
+      Toast.show({
+        type: 'success',
+        text1: `✅ Checked in — ${result.holder_name ?? 'Guest'}`,
+        text2: result.ticket_type_name ?? undefined,
+        visibilityTime: 3500,
+      });
+    } else if (result.type === 'DUPLICATE') {
+      Toast.show({
+        type: 'error',
+        text1: '⚠️ Already checked in',
+        text2: result.holder_name ?? result.message ?? undefined,
+        visibilityTime: 3500,
+      });
+    }
   }, [eventId, scanTicket]);
 
   const pending = offlineQueue.filter(s => s.eventId === eventId).length;

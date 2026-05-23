@@ -34,6 +34,41 @@ function toMoneyNumber(value) {
   return Number(value || 0);
 }
 
+export async function confirmOrderPaymentService(orderId) {
+  const orderRes = await db.query(
+    `SELECT o.* FROM ticket_orders o WHERE o.id = $1 AND o.deleted_at IS NULL LIMIT 1`,
+    [orderId]
+  );
+  const order = orderRes.rows[0];
+  if (!order) throw new AppError("Order not found", 404);
+
+  if (order.payment_status === "PAID") {
+    return { status: "already_issued" };
+  }
+
+  if (order.provider !== "STRIPE" || !order.provider_payment_intent_id) {
+    throw new AppError("Cannot verify this order", 400);
+  }
+
+  // provider_payment_intent_id is the Stripe Checkout Session ID (cs_...)
+  const session = await stripe.checkout.sessions.retrieve(order.provider_payment_intent_id);
+
+  if (session.payment_status !== "paid") {
+    return { status: "not_paid" };
+  }
+
+  await db.query(
+    `UPDATE ticket_orders
+     SET payment_status = 'PAID', order_status = 'COMPLETED',
+         paid_at = NOW(), updated_at = NOW()
+     WHERE id = $1 AND payment_status != 'PAID'`,
+    [orderId]
+  );
+
+  await issueTicketsForOrderService(orderId);
+  return { status: "issued" };
+}
+
 export async function createTicketOrderService({
   eventId,
   payload,

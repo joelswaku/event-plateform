@@ -1,10 +1,10 @@
 
 "use client";
 
+import { useState, useEffect } from "react";
 import Link          from "next/link";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
-import { useSyncExternalStore } from "react";
 import {
   LayoutDashboard, CalendarDays, PlusSquare, Ticket,
   Settings, Sparkles, ChevronLeft, ChevronRight, X, Star, LogOut,
@@ -33,14 +33,14 @@ function SidebarItem({ item, showExpanded }) {
         !showExpanded ? "justify-center" : ""
       } ${
         active
-          ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300"
-          : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
+          ? "bg-(--sidebar-active) text-(--accent)"
+          : "text-(--sidebar-text) hover:bg-(--sidebar-hover) hover:text-white"
       }`}
     >
       <Icon className="h-4 w-4 shrink-0" />
       {showExpanded && <span className="truncate">{item.label}</span>}
       {!showExpanded && (
-        <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-gray-700">
+        <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
           {item.label}
         </span>
       )}
@@ -55,8 +55,10 @@ export default function DashboardSidebar() {
   const openUpgradeModal = useSubscriptionStore((s) => s.openUpgradeModal);
   const logoutAction     = useAuthStore((s) => s.logout);
 
-  const isClient      = useSyncExternalStore(() => () => {}, () => true, () => false);
-  const safeCollapsed = isClient ? isCollapsed  : false;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  const safeCollapsed  = mounted ? isCollapsed  : false;
+  const safeSubscribed = mounted ? isSubscribed : false;
 
   const showExpanded = !safeCollapsed;
 
@@ -81,26 +83,26 @@ export default function DashboardSidebar() {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-30 flex flex-col border-r border-gray-200 bg-white transition-all duration-300 dark:border-gray-800 dark:bg-gray-950 md:sticky md:top-0 md:h-screen ${
+        className={`fixed inset-y-0 left-0 z-30 flex flex-col border-r border-white/8 bg-(--sidebar-bg) transition-all duration-300 md:sticky md:top-0 md:h-screen ${
           safeCollapsed ? "w-16" : "w-64"
         } ${isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
         {/* Header */}
-        <div className={`flex h-16 items-center border-b border-gray-200 dark:border-gray-800 ${showExpanded ? "justify-between px-4" : "justify-center px-2"}`}>
+        <div className={`flex h-16 items-center border-b border-white/8 ${showExpanded ? "justify-between px-4" : "justify-center px-2"}`}>
           {showExpanded && (
-            <span className="text-sm font-bold text-gray-900 dark:text-white truncate">EventPlatform</span>
+            <span className="text-sm font-bold text-white truncate">EventPlatform</span>
           )}
           <div className="flex items-center gap-1">
             <button
               onClick={toggleCollapsed}
-              className="hidden rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 md:flex"
+              className="hidden rounded-lg p-1.5 text-(--sidebar-muted) hover:bg-(--sidebar-hover) hover:text-white md:flex"
               title={safeCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {safeCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
             </button>
             <button
               onClick={() => setMobileOpen(false)}
-              className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 md:hidden"
+              className="rounded-lg p-1.5 text-(--sidebar-muted) hover:bg-(--sidebar-hover) md:hidden"
             >
               <X className="h-4 w-4" />
             </button>
@@ -108,20 +110,20 @@ export default function DashboardSidebar() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+        <nav className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1">
           {navItems.map((item) => (
             <SidebarItem key={item.href} item={item} showExpanded={showExpanded} />
           ))}
         </nav>
 
         {/* Upgrade banner */}
-        {!isSubscribed && showExpanded && (
-          <div className="mx-3 mb-3 rounded-xl border border-indigo-100 bg-indigo-50 p-3 dark:border-indigo-900 dark:bg-indigo-950/30">
+        {!safeSubscribed && showExpanded && (
+          <div className="shrink-0 mx-3 mb-3 rounded-xl border border-indigo-500/20 bg-indigo-500/10 p-3">
             <div className="flex items-center gap-2 mb-1.5">
-              <Star className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">Go Premium</span>
+              <Star className="h-3.5 w-3.5 text-indigo-400" />
+              <span className="text-xs font-semibold text-indigo-300">Go Premium</span>
             </div>
-            <p className="text-xs text-indigo-600/80 dark:text-indigo-400/80 mb-2.5 leading-relaxed">
+            <p className="text-xs text-indigo-400/70 mb-2.5 leading-relaxed">
               Unlock unlimited events, all templates, and advanced features.
             </p>
             <button
@@ -135,20 +137,19 @@ export default function DashboardSidebar() {
         )}
 
         {/* Footer: Settings + Logout */}
-        <div className={`border-t border-gray-200 dark:border-gray-800 p-3 space-y-1`}>
+        <div className="shrink-0 border-t border-white/8 p-3 space-y-1">
           <Link
-            href="/settings"
-            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100 transition-colors ${!showExpanded ? "justify-center" : ""}`}
+            href="/settings/billing"
+            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-(--sidebar-text) hover:bg-(--sidebar-hover) hover:text-white transition-colors ${!showExpanded ? "justify-center" : ""}`}
             title={!showExpanded ? "Settings" : undefined}
           >
             <Settings className="h-4 w-4 shrink-0" />
             {showExpanded && <span>Settings</span>}
           </Link>
 
-          {/* ── Logout button — calls handleLogout which awaits + navigates ── */}
           <button
             onClick={handleLogout}
-            className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-950/30 dark:hover:text-red-400 transition-colors ${!showExpanded ? "justify-center" : ""}`}
+            className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-(--sidebar-text) hover:bg-red-500/15 hover:text-red-400 transition-colors ${!showExpanded ? "justify-center" : ""}`}
             title={!showExpanded ? "Sign out" : undefined}
           >
             <LogOut className="h-4 w-4 shrink-0" />

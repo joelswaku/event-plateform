@@ -123,7 +123,7 @@ function BuilderContent() {
   const previewWidth = {
     mobile:  "w-[390px]",
     tablet:  "w-[768px]",
-    desktop: "w-full max-w-[1200px]",
+    desktop: "w-full",
   }[device];
 
   if (!builder) {
@@ -139,7 +139,7 @@ function BuilderContent() {
 
   return (
     <div
-      className="flex h-[100dvh] w-full overflow-hidden"
+      className="flex h-screen w-full overflow-hidden"
       style={{ background: "#0e0f11", color: "#f0f1f3" }}
     >
       {/* ── Desktop sidebar ─────────────────────────────────────────── */}
@@ -169,12 +169,12 @@ function BuilderContent() {
         <div className="flex flex-1 overflow-hidden">
 
           {/* Canvas area */}
-          <div className="flex flex-1 overflow-auto" data-canvas-scroll style={{ background: "#1a1b1f" }}>
+          <div className="flex flex-1 min-h-0 overflow-hidden" data-canvas-scroll style={{ background: "#1a1b1f" }}>
 
             {/* ── Mobile canvas: full-width, no device frame ── */}
-            <div className="flex w-full flex-col lg:hidden">
+            <div className="flex w-full flex-col overflow-y-auto lg:hidden">
               <SharedEventRenderer
-                event={builder.event}
+                event={{ ...builder.event, speakers: builder.speakers || [], schedule_items: builder.schedule_items || [] }}
                 sections={builder.sections || []}
                 isEditor
                 onSectionClick={handleSectionClick}
@@ -184,28 +184,30 @@ function BuilderContent() {
             </div>
 
             {/* ── Desktop canvas: device frame ── */}
-            <div className="hidden lg:flex flex-1 items-start justify-center p-6">
-              <div className={`${previewWidth} transition-all duration-300`}>
+            <div className={`hidden lg:flex flex-1 min-h-0 overflow-y-auto ${device !== "desktop" ? "items-start justify-center p-6" : ""}`}>
+              <div className={`${previewWidth} transition-all duration-300 ${device === "desktop" ? "min-h-full" : ""}`}>
                 <div
                   className="overflow-hidden shadow-2xl"
-                  style={{ borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)" }}
+                  style={{ borderRadius: device !== "desktop" ? 12 : 0, border: device !== "desktop" ? "1px solid rgba(255,255,255,0.08)" : "none" }}
                 >
-                  {/* Browser chrome bar */}
-                  <div
-                    className="flex h-10 items-center gap-2 px-4"
-                    style={{ background: "#f5f5f5", borderBottom: "1px solid #e0e0e0" }}
-                  >
-                    <div className="h-2.5 w-2.5 rounded-full bg-red-400" />
-                    <div className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
-                    <div className="h-2.5 w-2.5 rounded-full bg-green-400" />
-                    <div className="ml-3 flex-1 rounded-md bg-white border border-gray-200 px-3 py-1 text-xs text-gray-400">
-                      {builder.event?.slug
-                        ? `yoursite.com/e/${builder.event.slug}`
-                        : "yoursite.com/e/event-slug"}
+                  {/* Browser chrome bar — only for tablet/mobile frames */}
+                  {device !== "desktop" && (
+                    <div
+                      className="flex h-10 items-center gap-2 px-4"
+                      style={{ background: "#f5f5f5", borderBottom: "1px solid #e0e0e0" }}
+                    >
+                      <div className="h-2.5 w-2.5 rounded-full bg-red-400" />
+                      <div className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
+                      <div className="h-2.5 w-2.5 rounded-full bg-green-400" />
+                      <div className="ml-3 flex-1 rounded-md bg-white border border-gray-200 px-3 py-1 text-xs text-gray-400">
+                        {builder.event?.slug
+                          ? `yoursite.com/e/${builder.event.slug}`
+                          : "yoursite.com/e/event-slug"}
+                      </div>
                     </div>
-                  </div>
+                  )}
                   <SharedEventRenderer
-                    event={builder.event}
+                    event={{ ...builder.event, speakers: builder.speakers || [], schedule_items: builder.schedule_items || [] }}
                     sections={builder.sections || []}
                     isEditor
                     onSectionClick={handleSectionClick}

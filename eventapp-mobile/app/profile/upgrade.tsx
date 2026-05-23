@@ -21,22 +21,23 @@ const FEATURES = [
   { icon: 'globe',       text: 'Custom domain support'           },
 ] as const;
 
-type Plan = 'monthly' | 'yearly';
+type Plan = 'starter' | 'pro';
 
 export default function UpgradeScreen() {
   const router = useRouter();
-  const { isPremium, isSubscribed, currentPeriodEnd, createCheckoutSession, openCustomerPortal, fetchSubscription } =
+  const { plan, isPremium, isSubscribed, currentPeriodEnd, createCheckoutSession, openCustomerPortal, fetchSubscription, prices } =
     useSubscriptionStore();
-  const [selectedPlan, setSelectedPlan] = useState<Plan>('monthly');
+  const [selectedPlan, setSelectedPlan] = useState<Plan>('starter');
   const [loading, setLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
 
   const alreadyPremium = isPremium();
+  const planLabel = plan === 'starter' ? 'Starter Plan' : plan === 'pro' ? 'Pro Plan' : 'Free Plan';
 
   const handleUpgrade = async () => {
-    const priceId = selectedPlan === 'yearly'
-      ? Config.STRIPE.YEARLY_PRICE_ID || Config.STRIPE.MONTHLY_PRICE_ID
-      : Config.STRIPE.MONTHLY_PRICE_ID;
+    const priceId = selectedPlan === 'pro'
+      ? Config.STRIPE.PRO_PRICE_ID
+      : Config.STRIPE.STARTER_PRICE_ID;
 
     setLoading(true);
     const result = await createCheckoutSession(priceId);
@@ -76,9 +77,9 @@ export default function UpgradeScreen() {
             <View style={styles.crownWrap}>
               <Text style={styles.crownEmoji}>👑</Text>
             </View>
-            <Text style={styles.heroTitle}>You're Premium</Text>
+            <Text style={styles.heroTitle}>You're on {planLabel}</Text>
             <Text style={styles.heroSub}>
-              All features are unlocked. Thank you for supporting EventApp!
+              All {planLabel} features are active. Thank you for supporting EventApp!
             </Text>
           </LinearGradient>
 
@@ -151,21 +152,27 @@ export default function UpgradeScreen() {
         {/* Plan toggle */}
         <View style={styles.planToggle}>
           <Pressable
-            style={[styles.planOption, selectedPlan === 'monthly' && styles.planOptionActive]}
-            onPress={() => setSelectedPlan('monthly')}
+            style={[styles.planOption, selectedPlan === 'starter' && styles.planOptionActive]}
+            onPress={() => setSelectedPlan('starter')}
           >
-            <Text style={[styles.planOptionLabel, selectedPlan === 'monthly' && styles.planOptionLabelActive]}>Monthly</Text>
-            <Text style={[styles.planOptionPrice, selectedPlan === 'monthly' && { color: Colors.accent.gold }]}>$29/mo</Text>
+            <Text style={[styles.planOptionLabel, selectedPlan === 'starter' && styles.planOptionLabelActive]}>Starter</Text>
+            <Text style={[styles.planOptionPrice, selectedPlan === 'starter' && { color: Colors.accent.gold }]}>
+              {prices.starter?.amount != null ? `$${prices.starter.amount}/mo` : '$5/mo'}
+            </Text>
+            <Text style={[{ fontSize: 10, color: Colors.text.subtle }]}>5 events · 500 guests</Text>
           </Pressable>
           <Pressable
-            style={[styles.planOption, selectedPlan === 'yearly' && styles.planOptionActive]}
-            onPress={() => setSelectedPlan('yearly')}
+            style={[styles.planOption, selectedPlan === 'pro' && styles.planOptionActive]}
+            onPress={() => setSelectedPlan('pro')}
           >
             <View style={styles.saveBadge}>
-              <Text style={styles.saveBadgeText}>Save 43%</Text>
+              <Text style={styles.saveBadgeText}>Best Value</Text>
             </View>
-            <Text style={[styles.planOptionLabel, selectedPlan === 'yearly' && styles.planOptionLabelActive]}>Yearly</Text>
-            <Text style={[styles.planOptionPrice, selectedPlan === 'yearly' && { color: Colors.accent.gold }]}>$199/yr</Text>
+            <Text style={[styles.planOptionLabel, selectedPlan === 'pro' && styles.planOptionLabelActive]}>Pro</Text>
+            <Text style={[styles.planOptionPrice, selectedPlan === 'pro' && { color: Colors.accent.gold }]}>
+              {prices.pro?.amount != null ? `$${prices.pro.amount}/mo` : '$12/mo'}
+            </Text>
+            <Text style={[{ fontSize: 10, color: Colors.text.subtle }]}>Unlimited everything</Text>
           </Pressable>
         </View>
 
@@ -189,7 +196,9 @@ export default function UpgradeScreen() {
             : <>
                 <Feather name="zap" size={17} color={Colors.text.inverse} />
                 <Text style={styles.ctaText}>
-                  {selectedPlan === 'yearly' ? 'Start Premium — $199/yr' : 'Start Premium — $29/mo'}
+                  {selectedPlan === 'pro'
+                    ? `Upgrade to Pro — ${prices.pro?.amount != null ? `$${prices.pro.amount}/mo` : '$12/mo'}`
+                    : `Upgrade to Starter — ${prices.starter?.amount != null ? `$${prices.starter.amount}/mo` : '$5/mo'}`}
                 </Text>
               </>
           }

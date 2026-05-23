@@ -9,7 +9,7 @@
  *    auto-selects the category and starts at step 1 (subcategory picker).
  */
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -26,7 +26,15 @@ import DateTimePicker from "@/components/ui/DateTimePicker";
 const STEPS = ["Category", "Type", "Setup", "Details"];
 
 /* ── Plan limit error card ─────────────────────────────────── */
-function EventLimitCard({ onUpgrade }) {
+function EventLimitCard({ onUpgrade, plan }) {
+  const isStarter = plan === "starter";
+  const badge     = isStarter ? "Starter limit reached"          : "Free plan limit reached";
+  const heading   = isStarter ? "You've used all 5 Starter events" : "You've used your 1 free event";
+  const sub       = isStarter
+    ? "Upgrade to Pro for unlimited events, all themes, and every feature — no caps, ever."
+    : "Upgrade to Starter or Pro for unlimited events, all 18 templates, and every feature — no caps, ever.";
+  const btnLabel  = isStarter ? "Upgrade to Pro" : "Upgrade now";
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -57,11 +65,11 @@ function EventLimitCard({ onUpgrade }) {
             style={{ background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.3)", color: "#F59E0B" }}
           >
             <Sparkles size={9} />
-            Free plan limit reached
+            {badge}
           </div>
-          <h3 className="text-[15px] font-bold text-white">You&apos;ve used your 1 free event</h3>
+          <h3 className="text-[15px] font-bold text-white">{heading}</h3>
           <p className="mt-0.5 text-[12px]" style={{ color: "rgba(255,255,255,0.45)" }}>
-            Upgrade to Premium for unlimited events, all 18 templates, and every feature — no caps, ever.
+            {sub}
           </p>
         </div>
         <button
@@ -70,10 +78,114 @@ function EventLimitCard({ onUpgrade }) {
           style={{ background: "linear-gradient(135deg,#F59E0B,#F97316)", boxShadow: "0 4px 16px rgba(245,158,11,0.4)" }}
         >
           <Zap size={14} fill="currentColor" />
-          Upgrade now
+          {btnLabel}
         </button>
       </div>
     </motion.div>
+  );
+}
+
+/* ── Mobile-only upgrade gate (shown before form when at limit) ── */
+function MobileUpgradeGate({ onBack, plan }) {
+  const router    = useRouter();
+  const prices    = useSubscriptionStore((s) => s.prices);
+  const isStarter = plan === "starter";
+
+  const bannerLabel = isStarter ? "Starter Limit Reached"      : "Event Limit Reached";
+  const bannerTitle = isStarter ? "You've used all 5 Starter events" : "You've used your free event";
+  const bannerSub   = isStarter
+    ? "Upgrade to Pro for unlimited events, all themes, and every feature."
+    : "Upgrade to create unlimited events, access all templates, and unlock every feature.";
+  const ctaLabel    = isStarter ? "Upgrade to Pro"  : "Upgrade Now";
+  const ctaStyle    = isStarter
+    ? { background: "linear-gradient(135deg,#c9a96e,#f59e0b)", boxShadow: "0 8px 24px rgba(201,169,110,0.4)", color: "#000" }
+    : { background: "linear-gradient(135deg,#6366f1,#8b5cf6)", boxShadow: "0 8px 24px rgba(99,102,241,0.4)", color: "#fff" };
+
+  return (
+    <div
+      className="sm:hidden flex flex-col min-h-screen"
+      style={{ background: "#07070f" }}
+    >
+      {/* Header */}
+      <div className="flex items-center gap-3 px-5 pt-14 pb-4">
+        <button onClick={onBack} className="flex items-center justify-center w-9 h-9 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
+          <ChevronLeft size={20} color="#fff" />
+        </button>
+        <span className="text-base font-bold text-white">Create Event</span>
+      </div>
+
+      {/* Gate card */}
+      <div className="flex-1 px-5 pt-4 pb-10 flex flex-col gap-4">
+        {/* Lock banner */}
+        <div className="rounded-2xl p-5 flex flex-col items-center text-center gap-3" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          <div
+            className="flex items-center justify-center w-14 h-14 rounded-2xl"
+            style={isStarter
+              ? { background: "rgba(201,169,110,0.15)", border: "1px solid rgba(201,169,110,0.3)" }
+              : { background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.3)" }}
+          >
+            <Lock size={26} color={isStarter ? "#c9a96e" : "#8b5cf6"} />
+          </div>
+          <div>
+            <p className="text-xs font-black uppercase tracking-widest mb-1" style={{ color: isStarter ? "#c9a96e" : "#8b5cf6" }}>{bannerLabel}</p>
+            <h2 className="text-lg font-black text-white mb-1">{bannerTitle}</h2>
+            <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>{bannerSub}</p>
+          </div>
+        </div>
+
+        {/* Starter card — hidden for starter users (it's their current/passed plan) */}
+        {!isStarter && (
+          <div
+            className="rounded-2xl p-5"
+            style={{ background: "linear-gradient(135deg,rgba(99,102,241,0.12) 0%,rgba(139,92,246,0.08) 100%)", border: "2px solid rgba(99,102,241,0.35)" }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-base font-black text-white">Starter</p>
+                <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>5 events · 500 guests · All themes</p>
+              </div>
+              <div className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest" style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8" }}>
+                Most Popular
+              </div>
+            </div>
+            <p className="text-2xl font-black text-white">
+              {prices?.starter?.amount != null ? `$${prices.starter.amount}` : '$19'}<span className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>/mo</span>
+            </p>
+          </div>
+        )}
+
+        {/* Pro card */}
+        <div
+          className="rounded-2xl p-5"
+          style={{ background: "linear-gradient(135deg,rgba(201,169,110,0.1) 0%,rgba(245,158,11,0.06) 100%)", border: isStarter ? "2px solid rgba(201,169,110,0.5)" : "1px solid rgba(201,169,110,0.25)" }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-base font-black text-white">Pro</p>
+              <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>Unlimited events · Unlimited guests</p>
+            </div>
+            {isStarter && (
+              <div className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest" style={{ background: "rgba(201,169,110,0.2)", color: "#c9a96e" }}>
+                Recommended
+              </div>
+            )}
+          </div>
+          <p className="text-2xl font-black text-white">
+            {prices?.pro?.amount != null ? `$${prices.pro.amount}` : '$49'}<span className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>/mo</span>
+          </p>
+        </div>
+
+        {/* CTA */}
+        <button
+          onClick={() => router.push("/settings/billing")}
+          className="w-full py-4 rounded-2xl font-black text-base flex items-center justify-center gap-2"
+          style={ctaStyle}
+        >
+          <Zap size={16} fill="currentColor" />
+          {ctaLabel}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -181,18 +293,6 @@ const FEATURE_OPTIONS = [
     badge:        "bg-amber-500",
   },
   {
-    key:   "qr",
-    icon:  QrCode,
-    label: "Express Entry",
-    desc:  "Mobile QR scanning for fast, contactless check-in at the door.",
-    detail: ["Mobile QR scanner", "Instant check-in", "Entry analytics"],
-    activeBorder: "border-cyan-400 dark:border-cyan-500",
-    activeBg:     "bg-cyan-50 dark:bg-cyan-900/20",
-    iconBg:       "bg-cyan-100 dark:bg-cyan-900/30",
-    iconColor:    "text-cyan-600 dark:text-cyan-400",
-    badge:        "bg-cyan-500",
-  },
-  {
     key:   "donations",
     icon:  Heart,
     label: "Donations",
@@ -215,9 +315,9 @@ function StepFeatures({ subcategory, features, onChange, onNext, onBack }) {
           <ChevronLeft className="w-4 h-4" /> Back
         </button>
         <span className="text-3xl">{subcategory.icon}</span>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mt-2">Choose your features</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mt-2">Choose your event mode</h2>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Select which modules to enable. You can change these anytime in Settings.
+          Pick one — only one module can be active at a time. Switch anytime in Settings.
         </p>
       </div>
 
@@ -261,7 +361,7 @@ function StepFeatures({ subcategory, features, onChange, onNext, onBack }) {
 
       <div className="flex items-center justify-between pt-2">
         <p className="text-xs text-gray-400">
-          {Object.values(features).filter(Boolean).length} module{Object.values(features).filter(Boolean).length !== 1 ? "s" : ""} selected
+          {Object.values(features).some(Boolean) ? "1 module selected" : "No module selected"}
         </p>
         <button onClick={onNext}
           className="flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold text-white transition active:scale-95"
@@ -278,7 +378,7 @@ function StepDetails({ subcategory, features, onBack, onSubmit, submitting }) {
   const [mode, setMode] = useState(null);
   const [form, setForm] = useState({
     title: "", starts_at: "", ends_at: "", timezone: "UTC",
-    venue_name: "", venue_address: "", city: "", country: "",
+    venue_name: "", venue_address: "", city: "", zip_code: "", country: "",
     description: "", short_description: "",
     visibility: features.ticketing ? "PUBLIC" : "PRIVATE",
   });
@@ -312,13 +412,14 @@ function StepDetails({ subcategory, features, onBack, onSubmit, submitting }) {
       venue_name:        form.venue_name || undefined,
       venue_address:     form.venue_address || undefined,
       city:              form.city || undefined,
+      zip_code:          form.zip_code || undefined,
       country:           form.country || undefined,
       description:       form.description || undefined,
       short_description: form.short_description || undefined,
       visibility:        form.visibility,
       allow_rsvp:        features.rsvp,
       allow_ticketing:   features.ticketing,
-      allow_qr_checkin:  features.qr,
+      allow_qr_checkin:  true,
       allow_donations:   features.donations,
     });
   };
@@ -431,14 +532,24 @@ function StepDetails({ subcategory, features, onBack, onSubmit, submitting }) {
 
       {mode === "advanced" && (
         <>
-          <Field label="Country">
-            <input
-              value={form.country}
-              onChange={(e) => set("country", e.target.value)}
-              placeholder="e.g. United States"
-              className={inputCls}
-            />
-          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Zip / Postal Code">
+              <input
+                value={form.zip_code}
+                onChange={(e) => set("zip_code", e.target.value)}
+                placeholder="10001"
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Country">
+              <input
+                value={form.country}
+                onChange={(e) => set("country", e.target.value)}
+                placeholder="e.g. United States"
+                className={inputCls}
+              />
+            </Field>
+          </div>
 
           <Field label="Short Description">
             <input
@@ -527,18 +638,25 @@ function CreateEventPageInner() {
   const [step, setStep]               = useState(preSelected ? 2 : preCategory ? 1 : 0);
   const [category, setCategory]       = useState(preSelected?.cat ?? preCategory ?? null);
   const [subcategory, setSubcategory] = useState(preSelected?.sub ?? null);
-  const [features, setFeatures]       = useState({ rsvp: true, ticketing: false, qr: false, donations: false });
+  const [features, setFeatures]       = useState(() => ({
+    rsvp:      !(preSelected?.sub?.ticketDefault),
+    ticketing: !!(preSelected?.sub?.ticketDefault),
+    donations: false,
+  }));
   const [submitting, setSubmitting]   = useState(false);
   const [error, setError]             = useState(null);
-  const openUpgradeModal = useSubscriptionStore((s) => s.openUpgradeModal);
+  const { openUpgradeModal, isAtEventLimit, fetchSubscription, plan } = useSubscriptionStore();
+
+  useEffect(() => { fetchSubscription(); }, [fetchSubscription]);
+
+  const atLimit = isAtEventLimit();
 
   // When a subcategory is chosen, seed smart defaults
   const selectSubcategory = (sub) => {
     setSubcategory(sub);
     setFeatures({
-      rsvp:      true,
+      rsvp:      !sub.ticketDefault,
       ticketing: !!sub.ticketDefault,
-      qr:        !!sub.ticketDefault,
       donations: false,
     });
     setStep(2);
@@ -574,6 +692,30 @@ function CreateEventPageInner() {
 
   const backLabel = fromParam === "tickets" ? "Back to tickets" : "Back to events";
   const backPath  = fromParam === "tickets" ? "/tickets" : "/events";
+
+  // Mobile-only upfront gate — shown before the wizard
+  if (atLimit) {
+    return (
+      <>
+        <MobileUpgradeGate onBack={() => router.push(backPath)} plan={plan} />
+        {/* Desktop: show inline EventLimitCard above the wizard */}
+        <div className="hidden sm:flex flex-col h-full min-h-0 overflow-y-auto bg-gray-50 dark:bg-gray-950">
+          <div className="mx-auto w-full max-w-4xl px-4 py-8">
+            <button
+              onClick={() => router.push(backPath)}
+              className="mb-6 flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              {backLabel}
+            </button>
+            <div className="relative">
+              <EventLimitCard onUpgrade={() => openUpgradeModal("events")} plan={plan} />
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-y-auto bg-gray-50 dark:bg-gray-950">
@@ -619,7 +761,7 @@ function CreateEventPageInner() {
 
         {error?.type === "limit" && (
           <div className="relative">
-            <EventLimitCard onUpgrade={() => openUpgradeModal("events")} />
+            <EventLimitCard onUpgrade={() => openUpgradeModal("events")} plan={plan} />
           </div>
         )}
 
@@ -644,7 +786,12 @@ function CreateEventPageInner() {
             <StepFeatures
               subcategory={subcategory}
               features={features}
-              onChange={(key, val) => setFeatures((f) => ({ ...f, [key]: val }))}
+              onChange={(key, val) => setFeatures((f) => {
+                if (!val) return { ...f, [key]: false };
+                const exclusive = ['rsvp', 'ticketing', 'donations'];
+                if (!exclusive.includes(key)) return { ...f, [key]: true };
+                return { ...f, rsvp: key === 'rsvp', ticketing: key === 'ticketing', donations: key === 'donations' };
+              })}
               onNext={() => setStep(3)}
               onBack={() => setStep(1)}
             />
