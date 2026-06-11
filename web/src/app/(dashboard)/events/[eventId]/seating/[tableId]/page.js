@@ -55,9 +55,11 @@ function rectSeats(count, w, h, cx, cy) {
 // ─── Seat SVG Element ─────────────────────────────────────────────────────────
 
 function SeatEl({ pos, idx, guest, isOver, onDragOver, onDragLeave, onDrop, onRemove }) {
+  const [hovered,    setHovered]    = useState(false);
   const bg          = guest ? avatarBg(guest.full_name) : null;
   const strokeColor = isOver ? "#6366f1" : guest ? bg : "var(--svg-stroke)";
   const fillColor   = guest ? bg : isOver ? "rgba(99,102,241,0.2)" : "var(--svg-fill-subtle)";
+  const showTooltip = guest && hovered && !isOver;
 
   return (
     <g transform={`translate(${pos.x},${pos.y})`}
@@ -65,6 +67,8 @@ function SeatEl({ pos, idx, guest, isOver, onDragOver, onDragLeave, onDrop, onRe
       onDragLeave={onDragLeave}
       onDrop={(e) => { e.preventDefault(); onDrop(idx); }}
       onClick={guest ? () => onRemove(idx) : undefined}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{ cursor: guest ? "pointer" : "default" }}>
 
       <circle r={24}
@@ -84,6 +88,19 @@ function SeatEl({ pos, idx, guest, isOver, onDragOver, onDragLeave, onDrop, onRe
             style={{ fill: "var(--svg-text-secondary)", pointerEvents: "none" }}>
             #{idx + 1}
           </text>
+          {/* Full name tooltip on hover */}
+          {showTooltip && (
+            <g style={{ pointerEvents: "none" }}>
+              <rect
+                x={-60} y={-58} width={120} height={22} rx={6}
+                style={{ fill: "var(--card)", stroke: "rgba(255,255,255,0.12)", strokeWidth: 1 }}
+              />
+              <text textAnchor="middle" y={-43} fontSize="10" fontWeight="600"
+                style={{ fill: "var(--foreground)", opacity: 0.85 }}>
+                {guest.full_name.length > 16 ? guest.full_name.slice(0, 14) + "…" : guest.full_name}
+              </text>
+            </g>
+          )}
         </>
       ) : (
         <>
@@ -118,21 +135,38 @@ function TableShape({ shape, w, h, cx, cy }) {
 
 // ─── Draggable Guest Row ──────────────────────────────────────────────────────
 
-function DragRow({ guest, onDragStart }) {
+function DragRow({ guest, onDragStart, isDragging }) {
   return (
-    <div draggable onDragStart={() => onDragStart(guest)}
-      className="flex items-center gap-2.5 rounded-xl border border-foreground/[0.06] bg-foreground/[0.04] px-3 py-2.5 cursor-grab active:cursor-grabbing hover:bg-foreground/[0.08] hover:border-foreground/[0.12] transition select-none">
-      <span className="flex shrink-0 items-center justify-center rounded-full font-bold text-white text-[11px]"
-        style={{ width: 28, height: 28, background: avatarBg(guest.full_name) }}>
+    <div
+      draggable
+      onDragStart={() => onDragStart(guest)}
+      className={`flex items-center rounded-xl border px-3 transition-all select-none cursor-grab active:cursor-grabbing ${
+        isDragging
+          ? "gap-1.5 py-1.5 border-indigo-500/30 bg-indigo-500/10 opacity-50 scale-95"
+          : "gap-2.5 py-2.5 border-foreground/[0.06] bg-foreground/[0.04] hover:bg-foreground/[0.08] hover:border-foreground/[0.12]"
+      }`}
+    >
+      <span
+        className="flex shrink-0 items-center justify-center rounded-full font-bold text-white transition-all"
+        style={{
+          width:      isDragging ? 20 : 28,
+          height:     isDragging ? 20 : 28,
+          background: avatarBg(guest.full_name),
+          fontSize:   isDragging ? "9px" : "11px",
+        }}
+      >
         {getInitials(guest.full_name)}
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-[12px] font-semibold text-foreground/75 truncate flex items-center gap-1">
-          {guest.full_name}{guest.is_vip && <Crown size={9} className="text-amber-400" />}
+        <p className={`font-semibold text-foreground/75 truncate flex items-center gap-1 transition-all ${isDragging ? "text-[10px]" : "text-[12px]"}`}>
+          {guest.full_name}
+          {guest.is_vip && <Crown size={isDragging ? 7 : 9} className="text-amber-400" />}
         </p>
-        {guest.email && <p className="text-[10px] text-foreground/30 truncate">{guest.email}</p>}
+        {!isDragging && guest.email && (
+          <p className="text-[10px] text-foreground/30 truncate">{guest.email}</p>
+        )}
       </div>
-      <UserPlus size={11} className="text-foreground/20 shrink-0" />
+      <UserPlus size={isDragging ? 9 : 11} className="text-foreground/20 shrink-0 transition-all" />
     </div>
   );
 }
@@ -396,7 +430,7 @@ export default function TableDetailPage() {
                 </div>
               ) : (
                 unassigned.map((g) => (
-                  <DragRow key={g.id} guest={g} onDragStart={setDragging} />
+                  <DragRow key={g.id} guest={g} onDragStart={setDragging} isDragging={dragging?.id === g.id} />
                 ))
               )}
             </div>

@@ -7,12 +7,14 @@ import {
   CreditCard, User, Bell, Shield, ChevronRight,
   Calendar, Ticket, HelpCircle, LogOut, Layers,
   Zap, Home, Plus, Star, ExternalLink, Loader2,
-  Check, ArrowRight, BarChart2, Globe,
+  Check, ArrowRight, BarChart2, Globe, Scale,
+  FileText, Lock, BookOpen,
 } from "lucide-react";
 import { useAuthStore }         from "@/store/auth.store";
 import { useSubscriptionStore } from "@/store/subscription.store";
 import PageHeader               from "@/components/ui/page-header";
 import BillingModal             from "@/components/layout/BillingModal";
+import LegalModal               from "@/components/legal/LegalModal";
 
 /* ─────────────────────────────────────────────────────────────────────
    SHARED — bottom navigation (mirrors the events page nav)
@@ -78,8 +80,9 @@ function MobileSettings() {
   const logoutAction = useAuthStore((s) => s.logout);
   const { plan, isSubscribed, fetchSubscription } = useSubscriptionStore();
 
-  const [loggingOut,       setLoggingOut]       = useState(false);
+  const [loggingOut,        setLoggingOut]        = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [legalSlug,         setLegalSlug]         = useState(null);
 
   useEffect(() => { fetchSubscription(); }, [fetchSubscription]);
 
@@ -208,6 +211,17 @@ function MobileSettings() {
             <MobileMenuItem Icon={Bell}       label="Notifications"   href="/settings/notifications" />
             <MobileMenuItem Icon={Shield}     label="Security"        href="/settings/security" />
             <MobileMenuItem Icon={HelpCircle} label="Help & Support"  href="/settings/support" />
+
+            {/* Legal section */}
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+              <p style={{ fontSize: 9, fontWeight: 800, color: "rgba(255,255,255,0.22)", textTransform: "uppercase", letterSpacing: "0.12em", paddingLeft: 4, marginBottom: 4 }}>
+                Legal
+              </p>
+              <MobileMenuItem Icon={FileText} label="Terms of Service" onPress={() => setLegalSlug("terms")}           iconColor="#f59e0b" iconBg="rgba(245,158,11,0.12)" />
+              <MobileMenuItem Icon={Lock}     label="Privacy Policy"  onPress={() => setLegalSlug("privacy-policy")} iconColor="#6366f1" iconBg="rgba(99,102,241,0.12)" />
+              <MobileMenuItem Icon={Scale}    label="Cookies Policy"  onPress={() => setLegalSlug("cookies-policy")} iconColor="#10b981" iconBg="rgba(16,185,129,0.12)" />
+              <MobileMenuItem Icon={BookOpen} label="Acceptable Use"  onPress={() => setLegalSlug("acceptable-use")} iconColor="#a78bfa" iconBg="rgba(167,139,250,0.12)" />
+            </div>
           </div>
 
           {/* Logout — with inline confirmation */}
@@ -265,30 +279,30 @@ function MobileSettings() {
 
       {/* Bottom nav — same as events page */}
       <MobileBottomNav />
+
+      <LegalModal slug={legalSlug} onClose={() => setLegalSlug(null)} />
     </div>
   );
 }
 
-function MobileMenuItem({ Icon, label, href, soon }) {
+function MobileMenuItem({ Icon, label, href, soon, newTab = false, onPress, iconColor = "#6366f1", iconBg = "rgba(99,102,241,0.14)" }) {
   const inner = (
     <div
-      className="flex w-full items-center gap-3 px-1 py-3.5"
+      className="flex w-full items-center gap-3 px-1 py-3"
       style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
     >
       <div
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
-        style={{ backgroundColor: "rgba(99,102,241,0.14)" }}
+        style={{ backgroundColor: iconBg }}
       >
-        <Icon size={16} style={{ color: "#6366f1" }} />
+        <Icon size={16} style={{ color: iconColor }} />
       </div>
       <span style={{ fontSize: 15, fontWeight: 600, color: soon ? "rgba(255,255,255,0.35)" : "#fff", flex: 1 }}>
         {label}
       </span>
       {soon ? (
-        <span
-          className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
-          style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.35)" }}
-        >
+        <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+          style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.35)" }}>
           Soon
         </span>
       ) : (
@@ -298,6 +312,8 @@ function MobileMenuItem({ Icon, label, href, soon }) {
   );
 
   if (soon) return <div className="pointer-events-none">{inner}</div>;
+  if (onPress) return <button onClick={onPress} className="block w-full text-left">{inner}</button>;
+  if (newTab) return <a href={href} target="_blank" rel="noopener noreferrer" className="block">{inner}</a>;
   return <Link href={href} className="block">{inner}</Link>;
 }
 
@@ -373,6 +389,7 @@ function DesktopSettings() {
   const [showLogout,     setShowLogout]    = useState(false);
   const [loggingOut,     setLoggingOut]    = useState(false);
   const [avatarLoading,  setAvatarLoading] = useState(false);
+  const [legalSlug,      setLegalSlug]     = useState(null);
 
   async function handleAvatarFile(e) {
     const file = e.target.files?.[0];
@@ -418,6 +435,7 @@ function DesktopSettings() {
   return (
     <>
       <BillingModal open={billingOpen} onClose={() => setBillingOpen(false)} />
+      <LegalModal slug={legalSlug} onClose={() => setLegalSlug(null)} />
 
       <div className="space-y-5">
 
@@ -563,6 +581,34 @@ function DesktopSettings() {
                 <DesktopNavLink Icon={Bell}       label="Notifications"   href="/settings/notifications" />
                 <DesktopNavLink Icon={Shield}     label="Security"        href="/settings/security" />
                 <DesktopNavLink Icon={HelpCircle} label="Help & Support"  href="/settings/support" />
+              </div>
+            </div>
+
+            {/* Legal */}
+            <div className="rounded-3xl border border-border bg-(--bg-surface) p-4">
+              <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-(--text-muted)">
+                Legal
+              </p>
+              <div className="flex flex-col gap-0.5">
+                {[
+                  { Icon: FileText, label: "Terms of Service", slug: "terms",           color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+                  { Icon: Lock,     label: "Privacy Policy",   slug: "privacy-policy",  color: "#6366f1", bg: "rgba(99,102,241,0.12)" },
+                  { Icon: Scale,    label: "Cookies Policy",   slug: "cookies-policy",  color: "#10b981", bg: "rgba(16,185,129,0.12)" },
+                  { Icon: BookOpen, label: "Acceptable Use",   slug: "acceptable-use",  color: "#a78bfa", bg: "rgba(167,139,250,0.12)" },
+                ].map(({ Icon: I, label, slug, color, bg }) => (
+                  <button
+                    key={slug}
+                    onClick={() => setLegalSlug(slug)}
+                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-(--bg-elevated) w-full text-left"
+                  >
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                      style={{ backgroundColor: bg }}>
+                      <I size={15} style={{ color }} />
+                    </div>
+                    <span className="flex-1 text-sm font-medium text-(--text-secondary)">{label}</span>
+                    <ChevronRight className="h-3.5 w-3.5 text-(--text-muted)" />
+                  </button>
+                ))}
               </div>
             </div>
 

@@ -13,6 +13,8 @@ import {
 import { useSeatingStore } from "@/store/seating.store";
 import { useGuestStore }   from "@/store/guest.store";
 import { useEventStore }   from "@/store/event.store";
+import { useAIStore }      from "@/store/ai.store";
+import UIConfirmModal, { useConfirm } from "@/components/ui/confirm-modal";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -521,9 +523,14 @@ export default function SeatingPage() {
   const [editLoc, setEditLoc] = useState(null);
   const [asgMod,  setAsgMod]  = useState(false);
   const [asgTgt,  setAsgTgt]  = useState(null);
-  const [autoMod, setAutoMod] = useState(false);
-  const [confirm, setConfirm] = useState(false);
-  const [panel,   setPanel]   = useState(true);
+  const [autoMod,    setAutoMod]    = useState(false);
+  const [confirm,    setConfirm]    = useState(false);
+  const [panel,      setPanel]      = useState(true);
+  const { openConfirm, confirmProps: deleteTableConfirmProps } = useConfirm();
+  const [smartOpen,  setSmartOpen]  = useState(false);
+  const [smartNote,  setSmartNote]  = useState("");
+  const [smartTips,  setSmartTips]  = useState(null);
+  const { generateSeating, loading: aiLoading } = useAIStore();
 
   useEffect(() => {
     if (!eventId) return;
@@ -553,9 +560,16 @@ export default function SeatingPage() {
     }
   }
 
-  async function handleDelete(id) {
-    if (!window.confirm("Delete this table and all its seat assignments?")) return;
-    await deleteLocation(eventId, id);
+  function handleDelete(id) {
+    openConfirm({
+      title: "Delete table?",
+      description: "This table and all its seat assignments will be permanently removed.",
+      confirmText: "Delete Table",
+      variant: "danger",
+      onConfirm: async () => {
+        await deleteLocation(eventId, id);
+      },
+    });
   }
 
   async function handleAssign(payload) {
@@ -598,6 +612,11 @@ export default function SeatingPage() {
               <RotateCcw size={12} /> <span className="hidden xs:inline">Clear All</span>
             </button>
           )}
+          <button onClick={() => setSmartOpen((v) => !v)}
+            className="flex items-center gap-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-[11px] font-semibold text-purple-300 hover:bg-purple-500/20 transition">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
+            Smart Seat
+          </button>
           <button onClick={() => setAutoMod(true)}
             className="flex items-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/15 px-3 py-2 text-[11px] font-semibold text-indigo-300 hover:bg-indigo-500/25 transition">
             <Zap size={12} /> Auto-Assign
@@ -618,6 +637,58 @@ export default function SeatingPage() {
           accent={stats.rate >= 80 ? "#f43f5e" : stats.rate >= 50 ? "#f59e0b" : "#10b981"}
           sub={stats.rate >= 90 ? "Almost full" : stats.rate >= 50 ? "Filling up" : "Plenty of space"} />
       </div>
+
+      {/* Smart Seat AI panel */}
+      {smartOpen && (
+        <div className="rounded-2xl border border-purple-500/25 bg-purple-500/8 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
+              <p className="text-sm font-bold text-purple-300">Smart Seat</p>
+            </div>
+            <button onClick={() => setSmartOpen(false)} className="text-purple-400 hover:text-purple-200">
+              <X size={14} />
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <input
+              value={smartNote}
+              onChange={(e) => setSmartNote(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !aiLoading && smartNote.trim() && (async () => {
+                const res = await generateSeating(eventId, { instructions: smartNote });
+                if (res.success && res.data) setSmartTips(res.data);
+              })()}
+              placeholder="e.g. Seat VIPs at front tables, keep families together…"
+              className="flex-1 rounded-xl border border-purple-500/20 bg-purple-500/8 px-3 py-2 text-sm text-white placeholder:text-foreground/25 outline-none focus:border-purple-500/40"
+            />
+            <button
+              onClick={async () => {
+                if (!smartNote.trim() || aiLoading) return;
+                const res = await generateSeating(eventId, { instructions: smartNote });
+                if (res.success && res.data) setSmartTips(res.data);
+              }}
+              disabled={aiLoading || !smartNote.trim()}
+              className="flex items-center gap-1.5 rounded-xl bg-purple-600 px-4 py-2 text-[12px] font-bold text-white hover:bg-purple-500 disabled:opacity-50 transition"
+            >
+              {aiLoading ? <Loader2 size={12} className="animate-spin" /> : null}
+              {aiLoading ? "Thinking…" : "Generate"}
+            </button>
+          </div>
+          {smartTips && (
+            <div className="rounded-xl border border-purple-500/20 bg-foreground/[0.04] p-3 space-y-2">
+              {smartTips.suggestions?.map((s, i) => (
+                <div key={i} className="flex items-start gap-2 text-[12px] text-foreground/70">
+                  <span className="text-purple-400 font-bold shrink-0">•</span>
+                  <span>{s}</span>
+                </div>
+              ))}
+              {smartTips.summary && (
+                <p className="text-[11px] text-purple-300/70 pt-1 border-t border-foreground/[0.06]">{smartTips.summary}</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Content */}
       {initializing ? (
@@ -687,6 +758,7 @@ export default function SeatingPage() {
       <AssignModal   open={asgMod} onClose={() => { setAsgMod(false); setAsgTgt(null); }} target={asgTgt} guests={guests} assignments={assignments} onAssign={handleAssign} saving={saving} />
       <AutoModal     open={autoMod} onClose={() => setAutoMod(false)} onRun={handleAutoAssign} saving={saving} />
       <ConfirmModal  open={confirm} onClose={() => setConfirm(false)} onConfirm={handleClearAll} saving={saving} count={assignments.length} />
+      <UIConfirmModal {...deleteTableConfirmProps} />
     </div>
   );
 }

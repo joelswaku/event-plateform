@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator,
 } from 'react-native';
+import { LegalPageModal } from '@/components/ui/LegalPageModal';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BottomSheet }    from '@/components/ui/BottomSheet';
@@ -24,11 +25,14 @@ interface Form { name: string; email: string; phone: string; }
 
 export function PurchaseSheet({ open, onClose, ticket, eventId }: PurchaseSheetProps) {
   const purchaseTicket = useTicketStore(s => s.purchaseTicket);
-  const [qty,       setQty]       = useState(1);
-  const [form,      setForm]      = useState<Form>({ name: '', email: '', phone: '' });
-  const [error,     setError]     = useState('');
-  const [loading,   setLoading]   = useState(false);
-  const [success,   setSuccess]   = useState(false);
+  const [qty,          setQty]          = useState(1);
+  const [form,         setForm]         = useState<Form>({ name: '', email: '', phone: '' });
+  const [error,        setError]        = useState('');
+  const [loading,      setLoading]      = useState(false);
+  const [success,      setSuccess]      = useState(false);
+  const [termsChecked, setTermsChecked] = useState(false);
+  const [termsTouched, setTermsTouched] = useState(false);
+  const [legalSlug,    setLegalSlug]    = useState<string | null>(null);
 
   if (!ticket) return null;
 
@@ -44,8 +48,10 @@ export function PurchaseSheet({ open, onClose, ticket, eventId }: PurchaseSheetP
   };
 
   const submit = async () => {
+    setTermsTouched(true);
     if (!form.name.trim())         return setError('Full name is required');
     if (!form.email.includes('@')) return setError('Enter a valid email address');
+    if (!termsChecked)             return setError('Please accept the terms to continue.');
     setError('');
     setLoading(true);
 
@@ -132,6 +138,30 @@ export function PurchaseSheet({ open, onClose, ticket, eventId }: PurchaseSheetP
             onChangeText={t => setForm(f => ({ ...f, phone: t }))}
             keyboardType="phone-pad" />
 
+          {/* Terms */}
+          <View style={styles.termsRow}>
+            <Pressable
+              onPress={() => { setTermsChecked(v => !v); setTermsTouched(true); }}
+              hitSlop={8}
+              style={[styles.termsCb, {
+                backgroundColor: termsChecked ? tier.accent : 'rgba(255,255,255,0.05)',
+                borderColor: termsTouched && !termsChecked ? '#ef4444' : termsChecked ? tier.accent : 'rgba(255,255,255,0.22)',
+              }]}>
+              {termsChecked && <Feather name="check" size={10} color="#fff" />}
+            </Pressable>
+            <Text style={styles.termsText}>
+              {'I agree to the '}
+              <Text onPress={() => setLegalSlug('terms')} style={[styles.termsLink, { color: tier.accent }]}>
+                Terms
+              </Text>
+              {' & '}
+              <Text onPress={() => setLegalSlug('privacy-policy')} style={[styles.termsLink, { color: tier.accent }]}>
+                Privacy Policy
+              </Text>
+            </Text>
+          </View>
+          <LegalPageModal slug={legalSlug} onClose={() => setLegalSlug(null)} />
+
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
           {/* Total + CTA */}
@@ -188,6 +218,10 @@ const styles = StyleSheet.create({
   fieldInput: { backgroundColor: Colors.bg.input, borderRadius: 12, borderWidth: 1, borderColor: Colors.border.DEFAULT, paddingHorizontal: 14, paddingVertical: 12, color: '#fff', fontSize: 14 },
 
   error:      { fontSize: 12, color: Colors.accent.red, textAlign: 'center' },
+  termsRow:   { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  termsCb:    { width: 17, height: 17, borderRadius: 5, borderWidth: 2, marginTop: 1, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  termsText:  { flex: 1, fontSize: 11, color: 'rgba(255,255,255,0.42)', lineHeight: 17 },
+  termsLink:  { textDecorationLine: 'underline' },
   totalRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
   totalLabel: { fontSize: 14, fontWeight: '700', color: Colors.text.muted },
   totalValue: { fontSize: 22, fontWeight: '900' },

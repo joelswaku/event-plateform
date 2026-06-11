@@ -28,7 +28,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useIsFocused } from '@react-navigation/native';
 import NetInfo from '@react-native-community/netinfo';
-import Toast from 'react-native-toast-message';
+import { notify } from '@/lib/toast';
 import { useScannerStore } from '@/store/scanner.store';
 import { useEventStore }   from '@/store/event.store';
 import { ScanResultOverlay } from '@/components/scanner/ScanResultOverlay';
@@ -202,26 +202,16 @@ export default function ScannerTab() {
     lastScanRef.current = now;
 
     if (!eventId) {
-      Toast.show({ type: 'info', text1: 'No event selected', text2: 'Tap the event selector above to choose an event' });
+      notify.noEventSelected();
       return;
     }
 
     const result = await scanTicket(eventId, data.trim());
     setLastResult(result);
     if (result.type === 'SUCCESS') {
-      Toast.show({
-        type: 'success',
-        text1: `✅ Checked in — ${result.holder_name ?? 'Guest'}`,
-        text2: result.ticket_type_name ?? undefined,
-        visibilityTime: 3500,
-      });
+      notify.checkinSuccess(result.holder_name ?? result.ticket_type_name);
     } else if (result.type === 'DUPLICATE') {
-      Toast.show({
-        type: 'error',
-        text1: '⚠️ Already checked in',
-        text2: result.holder_name ?? result.message ?? undefined,
-        visibilityTime: 3500,
-      });
+      notify.checkinDuplicate(result.holder_name ?? undefined);
     }
   }, [eventId, scanTicket]);
 
@@ -234,12 +224,7 @@ export default function ScannerTab() {
   const handleSelectEvent = (id: string) => {
     setActiveEvent(id);
     const ev = events.find(e => e.id === id);
-    Toast.show({
-      type:            'success',
-      text1:           '✓ Event selected',
-      text2:           ev?.title ?? '',
-      visibilityTime:  1800,
-    });
+    notify.eventSelected(ev?.title);
   };
 
   const pendingCount = offlineQueue.length;

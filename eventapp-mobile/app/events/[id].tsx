@@ -47,11 +47,14 @@ import * as Haptics       from 'expo-haptics';
 import * as WebBrowser   from 'expo-web-browser';
 
 import { useEventStore }  from '@/store/event.store';
+import { usePlannerStore } from '@/store/planner.store';
 import { Colors }         from '@/constants/colors';
 import { Config }         from '@/constants/config';
 import { getToken }       from '@/lib/api';
 import { ConfirmModal }   from '@/components/ui/ConfirmModal';
 import { fmtDateTime }    from '@/lib/format';
+import { DashboardPermissions } from '@/types';
+import { notify }         from '@/lib/toast';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -243,6 +246,9 @@ export default function EventDetailScreen() {
     publishEvent, unpublishEvent, archiveEvent, restoreEvent, deleteEvent, updateEvent,
   } = useEventStore();
 
+  const { projects: plannerProjects, fetchProjects: fetchPlannerProjects } = usePlannerStore();
+  useEffect(() => { fetchPlannerProjects(); }, []);
+
   const [loading,  setLoading]  = useState(false);
   const [modal,    setModal]    = useState<{
     action: () => Promise<any>; title: string; desc: string; danger: boolean;
@@ -290,6 +296,17 @@ export default function EventDetailScreen() {
   // Merge: individual event (has all flags) + dashboard stats (has live counts)
   const baseEvent   = (currentEvent?.id === id ? currentEvent : null) ?? events.find(e => e.id === id);
   const dashStats   = dashboard?.event?.id === id ? dashboard.stats : null;
+  const userRole    = dashboard?.event?.id === id ? (dashboard.userRole ?? 'OWNER') : 'OWNER';
+  const permissions = dashboard?.event?.id === id ? dashboard.permissions : null;
+
+  // Default full permissions for owners (or when dashboard hasn't loaded yet)
+  const perms: DashboardPermissions = permissions ?? {
+    canEdit: true, canDelete: true, canManageTeam: true,
+    canManageGuests: true, canCheckin: true, canViewAnalytics: true, canPublish: true,
+  };
+
+  const isOwner = !userRole || userRole === 'OWNER';
+
   const event: any  = useMemo(() => {
     if (!baseEvent) return null;
     return {
@@ -374,7 +391,15 @@ export default function EventDetailScreen() {
   const run = useCallback(async (fn: () => Promise<any>) => {
     setLoading(true);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    try { await fn(); await refresh(); } finally { setLoading(false); }
+    try {
+      await fn();
+      await refresh();
+    } catch (error) {
+      console.error('Run error:', error);
+      notify.error('Action failed', 'Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }, [refresh]);
 
   const openMenu = useCallback(() => {
@@ -406,17 +431,22 @@ export default function EventDetailScreen() {
   const date = event.starts_at_local ?? event.starts_at_utc;
 
   /* Feature grid */
-  const FEATURES = [
-    { icon: 'layout'      as const, label: 'Builder',   sub: 'Design event page',   accent: Colors.accent.indigo,  grad: ['#4f46e5','#6366f1'] as const, route: `/events/${id}/builder`      },
-    { icon: 'users'       as const, label: 'Guests',    sub: 'Manage attendees',    accent: Colors.accent.emerald, grad: ['#059669','#10b981'] as const, route: `/events/${id}/guests`       },
-    { icon: 'credit-card' as const, label: 'Tickets',   sub: 'Types & orders',      accent: Colors.accent.amber,   grad: ['#d97706','#f59e0b'] as const, route: `/events/${id}/tickets`      },
-    { icon: 'grid'        as const, label: 'Seating',   sub: 'Seat assignments',    accent: '#06b6d4',             grad: ['#0891b2','#06b6d4'] as const, route: `/events/${id}/seating`      },
-    { icon: 'camera'      as const, label: 'Scanner',   sub: 'QR check-in',         accent: Colors.accent.emerald, grad: ['#0891b2','#06b6d4'] as const, route: `/events/${id}/scanner`      },
-    { icon: 'bar-chart-2' as const, label: 'Analytics', sub: 'Revenue & insights',  accent: Colors.accent.violet,  grad: ['#7c3aed','#8b5cf6'] as const, route: `/events/${id}/analytics`    },
-    { icon: 'heart'       as const, label: 'Donations', sub: 'Track contributions', accent: '#f43f5e',             grad: ['#be185d','#f43f5e'] as const, route: `/events/${id}/donations`    },
-    { icon: 'user-plus'   as const, label: 'Team',      sub: 'Manage admins',       accent: '#06b6d4',             grad: ['#0891b2','#06b6d4'] as const, route: `/events/${id}/team`         },
-    { icon: 'settings'    as const, label: 'Settings',  sub: 'Edit event details',  accent: '#6b7280',             grad: ['#374151','#4b5563'] as const, route: `/events/${id}/settings`     },
+  const plannerProject = plannerProjects.find(p => (p as any).event_id === id || (p as any).eventId === id);
+  const plannerRoute   = plannerProject ? `/planner/${plannerProject.id}` : `/planner/new?eventId=${id}`;
+
+  const ALL_FEATURES = [
+    { icon: 'layout'      as const, label: 'Builder',   sub: 'Design event page',     accent: Colors.accent.indigo,  grad: ['#4f46e5','#6366f1'] as const, route: `/events/${id}/builder`,   show: perms.canEdit           },
+    { icon: 'users'       as const, label: 'Guests',    sub: 'Manage attendees',       accent: Colors.accent.emerald, grad: ['#059669','#10b981'] as const, route: `/events/${id}/guests`,    show: perms.canManageGuests   },
+    { icon: 'credit-card' as const, label: 'Tickets',   sub: 'Types & orders',         accent: Colors.accent.amber,   grad: ['#d97706','#f59e0b'] as const, route: `/events/${id}/tickets`,   show: perms.canEdit           },
+    { icon: 'grid'        as const, label: 'Seating',   sub: 'Seat assignments',       accent: '#06b6d4',             grad: ['#0891b2','#06b6d4'] as const, route: `/events/${id}/seating`,   show: perms.canEdit           },
+    { icon: 'camera'      as const, label: 'Scanner',   sub: 'QR check-in',            accent: Colors.accent.emerald, grad: ['#0891b2','#06b6d4'] as const, route: `/events/${id}/scanner`,   show: perms.canCheckin        },
+    { icon: 'bar-chart-2' as const, label: 'Analytics', sub: 'Revenue & insights',     accent: Colors.accent.violet,  grad: ['#7c3aed','#8b5cf6'] as const, route: `/events/${id}/analytics`, show: perms.canViewAnalytics  },
+    { icon: 'heart'       as const, label: 'Donations', sub: 'Track contributions',    accent: '#f43f5e',             grad: ['#be185d','#f43f5e'] as const, route: `/events/${id}/donations`, show: perms.canEdit           },
+    { icon: 'user-plus'   as const, label: 'Team',      sub: 'Manage admins',          accent: '#06b6d4',             grad: ['#0891b2','#06b6d4'] as const, route: `/events/${id}/team`,      show: perms.canManageTeam     },
+    { icon: 'clipboard'   as const, label: 'Planner',   sub: 'AI-powered event plan',  accent: '#8b5cf6',             grad: ['#7c3aed','#8b5cf6'] as const, route: plannerRoute,              show: perms.canEdit           },
+    { icon: 'settings'    as const, label: 'Settings',  sub: 'Edit event details',     accent: '#6b7280',             grad: ['#374151','#4b5563'] as const, route: `/events/${id}/settings`,  show: perms.canEdit           },
   ];
+  const FEATURES = ALL_FEATURES.filter(f => f.show);
 
   const STAT_ITEMS = [
     { icon: 'users'       as const, label: 'Guests',    value: event.guest_count    ?? 0, accent: Colors.accent.indigo  },
@@ -431,11 +461,13 @@ export default function EventDetailScreen() {
     danger?: boolean; onPress: () => void;
   };
   const MENU_ITEMS: MenuItem[] = [];
-  MENU_ITEMS.push({
-    icon: 'edit-2', label: 'Edit Event', sub: 'Update details & settings',
-    accent: Colors.accent.indigo,
-    onPress: () => { closeMenu(); router.push(`/events/${id}/edit` as never); },
-  });
+  if (perms.canEdit) {
+    MENU_ITEMS.push({
+      icon: 'edit-2', label: 'Edit Event', sub: 'Update details & settings',
+      accent: Colors.accent.indigo,
+      onPress: () => { closeMenu(); router.push(`/events/${id}/edit` as never); },
+    });
+  }
   if (event?.slug) {
     MENU_ITEMS.push({
       icon: 'globe', label: 'See Website',
@@ -455,19 +487,17 @@ export default function EventDetailScreen() {
       accent: Colors.accent.emerald,
       onPress: async () => {
         closeMenu();
-        await new Promise(r => setTimeout(r, 300)); // let menu close before sheet opens
+        await new Promise(r => setTimeout(r, 300));
         try {
           await Share.share({
             message: `${Config.WEB_URL}/e/${event.slug}`,
             url: `${Config.WEB_URL}/e/${event.slug}`,
           });
-        } catch {
-          // user cancelled or sheet dismissed — no-op
-        }
+        } catch { /* user cancelled */ }
       },
     });
   }
-  if (status === 'DRAFT') {
+  if (perms.canPublish && status === 'DRAFT') {
     MENU_ITEMS.push({
       icon: 'send', label: 'Publish Event', sub: 'Make it publicly visible',
       accent: Colors.accent.indigo,
@@ -477,7 +507,7 @@ export default function EventDetailScreen() {
       },
     });
   }
-  if (status === 'PUBLISHED') {
+  if (perms.canPublish && status === 'PUBLISHED') {
     MENU_ITEMS.push({
       icon: 'eye-off', label: 'Unpublish', sub: 'Move back to draft',
       accent: Colors.accent.amber,
@@ -487,7 +517,7 @@ export default function EventDetailScreen() {
       },
     });
   }
-  if (status === 'DRAFT' || status === 'PUBLISHED') {
+  if (perms.canDelete && (status === 'DRAFT' || status === 'PUBLISHED')) {
     MENU_ITEMS.push({
       icon: 'archive', label: 'Archive', sub: 'Hide from dashboard, restorable later',
       accent: Colors.text.subtle,
@@ -497,14 +527,16 @@ export default function EventDetailScreen() {
       },
     });
   }
-  MENU_ITEMS.push({
-    icon: 'trash-2', label: 'Delete Event', sub: 'Permanently erase all data',
-    accent: Colors.accent.red, danger: true,
-    onPress: () => {
-      closeMenu();
-      setModal({ action: () => run(async () => { await deleteEvent(id); router.back(); }), title: 'Delete permanently?', desc: 'All guests, tickets, and data will be erased. This cannot be undone.', danger: true });
-    },
-  });
+  if (perms.canDelete) {
+    MENU_ITEMS.push({
+      icon: 'trash-2', label: 'Delete Event', sub: 'Permanently erase all data',
+      accent: Colors.accent.red, danger: true,
+      onPress: () => {
+        closeMenu();
+        setModal({ action: () => run(async () => { await deleteEvent(id); router.back(); }), title: 'Delete permanently?', desc: 'All guests, tickets, and data will be erased. This cannot be undone.', danger: true });
+      },
+    });
+  }
 
   return (
     <View style={s.root}>
@@ -537,10 +569,18 @@ export default function EventDetailScreen() {
 
           {/* Hero content */}
           <View style={[s.heroContent, { paddingBottom: 24 + insets.top }]}>
-            {/* Status pill */}
-            <View style={[s.statusPill, { backgroundColor: statusCfg.bg }]}>
-              <View style={[s.statusDot, { backgroundColor: statusCfg.dot }]} />
-              <Text style={[s.statusTxt, { color: statusCfg.color }]}>{statusCfg.label}</Text>
+            {/* Status pill + role badge row */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={[s.statusPill, { backgroundColor: statusCfg.bg }]}>
+                <View style={[s.statusDot, { backgroundColor: statusCfg.dot }]} />
+                <Text style={[s.statusTxt, { color: statusCfg.color }]}>{statusCfg.label}</Text>
+              </View>
+              {!isOwner && (
+                <View style={s.roleBadge}>
+                  <Feather name="shield" size={10} color="#a78bfa" />
+                  <Text style={s.roleBadgeTxt}>{userRole.replace(/_/g, ' ')}</Text>
+                </View>
+              )}
             </View>
 
             {/* Title */}
@@ -686,7 +726,7 @@ export default function EventDetailScreen() {
 
           {/* ── Primary CTA ────────────────────────────────────────── */}
           <View style={s.ctaWrap}>
-            {status === 'DRAFT' && (
+            {perms.canPublish && status === 'DRAFT' && (
               <Pressable
                 style={s.ctaBtn}
                 onPress={() => setModal({
@@ -711,7 +751,7 @@ export default function EventDetailScreen() {
               </Pressable>
             )}
 
-            {status === 'PUBLISHED' && (
+            {perms.canPublish && status === 'PUBLISHED' && (
               <Pressable
                 style={[s.ctaBtn, s.ctaBtnOutline, { borderColor: `${Colors.accent.amber}55` }]}
                 onPress={() => setModal({
@@ -731,7 +771,7 @@ export default function EventDetailScreen() {
               </Pressable>
             )}
 
-            {(status === 'ARCHIVED' || status === 'CANCELLED') && (
+            {perms.canDelete && (status === 'ARCHIVED' || status === 'CANCELLED') && (
               <Pressable
                 style={s.ctaBtn}
                 onPress={() => run(() => restoreEvent(id))}
@@ -815,36 +855,38 @@ export default function EventDetailScreen() {
             ))}
           </View>
 
-          {/* ── Archive / Delete ───────────────────────────────────── */}
-          <View style={s.dangerRow}>
-            {(status === 'DRAFT' || status === 'PUBLISHED') && (
+          {/* ── Archive / Delete (owner/admin only) ───────────────── */}
+          {perms.canDelete && (
+            <View style={s.dangerRow}>
+              {(status === 'DRAFT' || status === 'PUBLISHED') && (
+                <Pressable
+                  style={s.archiveBtn}
+                  onPress={() => setModal({
+                    action: () => run(() => archiveEvent(id)),
+                    title: 'Archive event?',
+                    desc: 'Hidden from dashboard but restorable anytime.',
+                    danger: false,
+                  })}
+                >
+                  <Feather name="archive" size={13} color={Colors.text.subtle} />
+                  <Text style={s.archiveTxt}>Archive</Text>
+                </Pressable>
+              )}
+
               <Pressable
-                style={s.archiveBtn}
+                style={s.deleteBtn}
                 onPress={() => setModal({
-                  action: () => run(() => archiveEvent(id)),
-                  title: 'Archive event?',
-                  desc: 'Hidden from dashboard but restorable anytime.',
-                  danger: false,
+                  action: () => run(async () => { await deleteEvent(id); router.back(); }),
+                  title: 'Delete permanently?',
+                  desc: 'All guests, tickets, and data will be erased. This cannot be undone.',
+                  danger: true,
                 })}
               >
-                <Feather name="archive" size={13} color={Colors.text.subtle} />
-                <Text style={s.archiveTxt}>Archive</Text>
+                <Feather name="trash-2" size={13} color={Colors.accent.red} />
+                <Text style={s.deleteTxt}>Delete Event</Text>
               </Pressable>
-            )}
-
-            <Pressable
-              style={s.deleteBtn}
-              onPress={() => setModal({
-                action: () => run(async () => { await deleteEvent(id); router.back(); }),
-                title: 'Delete permanently?',
-                desc: 'All guests, tickets, and data will be erased. This cannot be undone.',
-                danger: true,
-              })}
-            >
-              <Feather name="trash-2" size={13} color={Colors.accent.red} />
-              <Text style={s.deleteTxt}>Delete Event</Text>
-            </Pressable>
-          </View>
+            </View>
+          )}
 
         </View>
       </Animated.ScrollView>
@@ -855,8 +897,17 @@ export default function EventDetailScreen() {
           title={modal.title}
           description={modal.desc}
           confirmText={modal.title.includes('Delete') ? 'Delete' : 'Confirm'}
-          variant={modal.danger ? 'danger' : 'default'}
-          onConfirm={async () => { await modal.action(); setModal(null); }}
+          variant={modal.danger ? 'danger' : 'warning'}
+          onConfirm={async () => {
+            try {
+              await modal.action();
+              setModal(null);
+            } catch (error) {
+              setModal(null);
+              console.error('Modal action error:', error);
+              notify.error('Action failed', 'Please try again.');
+            }
+          }}
           onClose={() => setModal(null)}
         />
       )}
@@ -970,6 +1021,14 @@ const s = StyleSheet.create({
   },
   statusDot: { width: 7, height: 7, borderRadius: 4 },
   statusTxt: { fontSize: 11, fontWeight: '800', letterSpacing: 0.3 },
+  roleBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 9, paddingVertical: 4,
+    borderRadius: 99,
+    backgroundColor: 'rgba(167,139,250,0.18)',
+    borderWidth: 1, borderColor: 'rgba(167,139,250,0.35)',
+  },
+  roleBadgeTxt: { fontSize: 10, fontWeight: '800', color: '#a78bfa', textTransform: 'capitalize', letterSpacing: 0.5 },
   heroTitle: {
     fontSize: 32, fontWeight: '900', color: '#fff',
     letterSpacing: -0.8, lineHeight: 36,
@@ -1433,7 +1492,7 @@ const tc = StyleSheet.create({
 //           title={modal.title}
 //           description={modal.desc}
 //           confirmText={modal.title.includes('Delete') ? 'Delete' : 'Confirm'}
-//           variant={modal.danger ? 'danger' : 'default'}
+//           variant={modal.danger ? 'danger' : 'warning'}
 //           onConfirm={() => modal.action()}
 //           onClose={() => setModal(null)}
 //         />

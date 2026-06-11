@@ -202,7 +202,7 @@ export default function TeamInvitePage() {
 
         </div>
 
-        <div className="px-8 pb-6 text-center text-xs text-gray-400">Powered by Eventos</div>
+        <div className="px-8 pb-6 text-center text-xs text-gray-400">Powered by LiteEvent</div>
       </div>
     </div>
   );

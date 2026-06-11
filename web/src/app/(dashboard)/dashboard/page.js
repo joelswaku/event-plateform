@@ -8,7 +8,7 @@ import {
   PlusCircle, CalendarDays, Ticket, User, Plus,
   Home, Calendar, MapPin, ChevronRight, Check,
   Activity, Users, Search, X, Star, ArrowRight,
-  UserCheck, Camera,
+  UserCheck, Camera, ClipboardList, Layout, QrCode,
 } from "lucide-react";
 
 import BillingModal from "@/components/layout/BillingModal";
@@ -16,13 +16,13 @@ import BillingModal from "@/components/layout/BillingModal";
 import { useAuthStore }         from "@/store/auth.store";
 import { useEventStore }        from "@/store/event.store";
 import { useSubscriptionStore } from "@/store/subscription.store";
-import { useTeamStore }         from "@/store/team.store";
+import { useNotifications }     from "@/hooks/useNotifications";
 
 // Desktop-only components
-import PageHeader  from "@/components/ui/page-header";
-import StatCard    from "@/components/ui/stat-card";
-import EmptyState  from "@/components/ui/empty-state";
-import EventActions from "@/components/events/event-actions";
+import PageHeader    from "@/components/ui/page-header";
+import StatCard      from "@/components/ui/stat-card";
+import EmptyState    from "@/components/ui/empty-state";
+import EventActions  from "@/components/events/event-actions";
 
 // ─── Event cover image fallbacks (same as mobile app) ─────────────────
 const EVENT_IMGS = {
@@ -58,6 +58,28 @@ function getGreeting() {
   if (h < 12) return "Good morning";
   if (h < 17) return "Good afternoon";
   return "Good evening";
+}
+
+// Role badge config
+const ROLE_CFG = {
+  ADMIN:   { bg: "rgba(99,102,241,0.15)",  text: "#818cf8", label: "Admin"   },
+  MANAGER: { bg: "rgba(16,185,129,0.15)",  text: "#10b981", label: "Manager" },
+  STAFF:   { bg: "rgba(245,158,11,0.15)",  text: "#f59e0b", label: "Staff"   },
+  VIEWER:  { bg: "rgba(107,114,128,0.15)", text: "#9ca3af", label: "Viewer"  },
+};
+
+function RoleBadge({ role, className = "" }) {
+  if (!role || role === "OWNER") return null;
+  const cfg = ROLE_CFG[role] ?? ROLE_CFG.ADMIN;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${className}`}
+      style={{ background: cfg.bg, color: cfg.text }}
+    >
+      <Users size={8} />
+      {cfg.label}
+    </span>
+  );
 }
 
 // Status colors matching the mobile app exactly
@@ -221,15 +243,21 @@ function MobileQuickAction({ Icon, label, href, fromColor, toColor }) {
 }
 
 function MobileFeaturedCard({ event }) {
-  const cfg  = sc(event.status);
-  const date = fmtDate(event.starts_at_utc ?? event.starts_at ?? event.starts_at_local);
-  const loc  = event.location || event.city;
+  const cfg    = sc(event.status);
+  const isTeam = event.user_role && event.user_role !== "OWNER";
+  const role   = (event.user_role ?? "ADMIN").replace("_", " ");
+  const date   = fmtDate(event.starts_at_utc ?? event.starts_at ?? event.starts_at_local);
+  const loc    = event.location || event.city;
 
   return (
     <Link
       href={`/events/${event.id}`}
       className="relative block overflow-hidden rounded-[22px] border"
-      style={{ height: 220, borderColor: "rgba(255,255,255,0.06)", background: "#0e0e16" }}
+      style={{
+        height: 220,
+        borderColor: isTeam ? "rgba(251,191,36,0.50)" : "rgba(255,255,255,0.06)",
+        background: "#0e0e16",
+      }}
     >
       {/* Cover image */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -244,17 +272,27 @@ function MobileFeaturedCard({ event }) {
         style={{ background: "linear-gradient(to bottom, transparent 20%, rgba(0,0,0,0.35) 60%, rgba(0,0,0,0.88) 100%)" }}
       />
 
-      {/* Top row: status pill + arrow */}
+      {/* Top row: status/role pill + arrow */}
       <div className="absolute left-3.5 right-3.5 top-3.5 flex items-center justify-between">
-        <div
-          className="flex items-center gap-1.5 rounded-full px-2.5 py-1"
-          style={{ background: cfg.bg }}
-        >
-          <span className="h-1.5 w-1.5 rounded-full" style={{ background: cfg.dot }} />
-          <span className="text-[11px] font-extrabold" style={{ color: cfg.text }}>
-            {event.status.charAt(0) + event.status.slice(1).toLowerCase()}
-          </span>
-        </div>
+        {isTeam ? (
+          <div
+            className="flex items-center gap-1.5 rounded-full px-2.5 py-1"
+            style={{ background: "rgba(251,191,36,0.90)" }}
+          >
+            <Users size={9} style={{ color: "#000" }} />
+            <span className="text-[10px] font-black" style={{ color: "#000" }}>{role}</span>
+          </div>
+        ) : (
+          <div
+            className="flex items-center gap-1.5 rounded-full px-2.5 py-1"
+            style={{ background: cfg.bg }}
+          >
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: cfg.dot }} />
+            <span className="text-[11px] font-extrabold" style={{ color: cfg.text }}>
+              {event.status.charAt(0) + event.status.slice(1).toLowerCase()}
+            </span>
+          </div>
+        )}
         <div
           className="flex h-7 w-7 items-center justify-center rounded-full border"
           style={{ background: "rgba(0,0,0,0.35)", borderColor: "rgba(255,255,255,0.12)" }}
@@ -264,18 +302,25 @@ function MobileFeaturedCard({ event }) {
       </div>
 
       {/* Bottom: title + meta */}
-      <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-2 p-4">
+      <div
+        className="absolute bottom-0 left-0 right-0 flex flex-col gap-2 p-4"
+        style={isTeam ? { background: "rgba(42,29,0,0.85)" } : undefined}
+      >
         <p className="text-[20px] font-black leading-[1.3] tracking-tight text-white line-clamp-2">
           {event.title}
         </p>
         <div className="flex flex-wrap gap-3.5">
           <div className="flex items-center gap-1.5">
-            <Calendar size={11} style={{ color: "rgba(255,255,255,0.55)" }} />
-            <span className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.55)" }}>
+            <Calendar size={11} style={{ color: isTeam ? "rgba(251,191,36,0.6)" : "rgba(255,255,255,0.55)" }} />
+            <span className="text-[11px] font-semibold" style={{ color: isTeam ? "rgba(251,191,36,0.6)" : "rgba(255,255,255,0.55)" }}>
               {date}
             </span>
           </div>
-          {loc && (
+          {isTeam && event.owner_name ? (
+            <span className="text-[11px] font-semibold" style={{ color: "rgba(251,191,36,0.45)" }}>
+              · by {event.owner_name}
+            </span>
+          ) : loc && (
             <div className="flex items-center gap-1.5">
               <MapPin size={11} style={{ color: "rgba(255,255,255,0.55)" }} />
               <span
@@ -293,15 +338,20 @@ function MobileFeaturedCard({ event }) {
 }
 
 function MobileRecentCard({ event, onPress }) {
-  const cfg  = sc(event.status);
-  const date = fmtDate(event.starts_at_utc ?? event.starts_at ?? event.starts_at_local);
+  const cfg    = sc(event.status);
+  const isTeam = event.user_role && event.user_role !== "OWNER";
+  const role   = (ROLE_CFG[event.user_role] ?? ROLE_CFG.ADMIN).label;
+  const date   = fmtDate(event.starts_at_utc ?? event.starts_at ?? event.starts_at_local);
 
   return (
     <button
       type="button"
       onClick={onPress}
       className="flex w-full items-center overflow-hidden rounded-[18px] border text-left"
-      style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.06)" }}
+      style={{
+        background: isTeam ? "#2a1d00" : "#0e0e16",
+        borderColor: isTeam ? "rgba(251,191,36,0.35)" : "rgba(255,255,255,0.06)",
+      }}
     >
       {/* Thumbnail */}
       <div className="relative h-[72px] w-[72px] shrink-0" style={{ background: "#14141f" }}>
@@ -315,31 +365,46 @@ function MobileRecentCard({ event, onPress }) {
 
       {/* Info */}
       <div className="flex flex-1 flex-col gap-[5px] px-3.5 py-3">
-        <span className="truncate text-[14px] font-extrabold tracking-tight text-white">
+        <span
+          className="truncate text-[14px] font-extrabold tracking-tight"
+          style={{ color: isTeam ? "#fef3c7" : "#fff" }}
+        >
           {event.title}
         </span>
         <div className="flex items-center gap-1.5">
-          <Calendar size={10} style={{ color: "rgba(255,255,255,0.25)" }} />
-          <span className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.25)" }}>
+          <Calendar size={10} style={{ color: isTeam ? "rgba(251,191,36,0.6)" : "rgba(255,255,255,0.25)" }} />
+          <span className="text-[11px] font-semibold" style={{ color: isTeam ? "rgba(251,191,36,0.6)" : "rgba(255,255,255,0.25)" }}>
             {date}
           </span>
         </div>
-        <div
-          className="inline-flex self-start rounded-full px-2 py-0.5"
-          style={{ background: cfg.bg }}
-        >
-          <span
-            className="text-[10px] font-extrabold uppercase tracking-[0.5px]"
-            style={{ color: cfg.text }}
+        {isTeam ? (
+          <div
+            className="inline-flex self-start items-center gap-1 rounded-full px-2 py-0.5"
+            style={{ background: "rgba(251,191,36,0.18)" }}
           >
-            {event.status.charAt(0) + event.status.slice(1).toLowerCase()}
-          </span>
-        </div>
+            <Users size={9} style={{ color: "#fbbf24" }} />
+            <span className="text-[9px] font-extrabold uppercase tracking-[0.5px]" style={{ color: "#fbbf24" }}>
+              {role}
+            </span>
+          </div>
+        ) : (
+          <div
+            className="inline-flex self-start rounded-full px-2 py-0.5"
+            style={{ background: cfg.bg }}
+          >
+            <span
+              className="text-[10px] font-extrabold uppercase tracking-[0.5px]"
+              style={{ color: cfg.text }}
+            >
+              {event.status.charAt(0) + event.status.slice(1).toLowerCase()}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Arrow */}
       <div className="pr-3.5">
-        <ChevronRight size={16} style={{ color: "rgba(255,255,255,0.25)" }} />
+        <ChevronRight size={16} style={{ color: isTeam ? "rgba(251,191,36,0.45)" : "rgba(255,255,255,0.25)" }} />
       </div>
     </button>
   );
@@ -368,7 +433,7 @@ function MobileEmptyState() {
         className="relative max-w-[280px] text-center text-[13px] leading-5"
         style={{ color: "rgba(255,255,255,0.45)" }}
       >
-        Join thousands of organizers using EventApp to run seamless events — from gatherings to conferences.
+        Join thousands of organizers using LiteEvent to run seamless events — from gatherings to conferences.
       </p>
       <Link
         href="/events/create"
@@ -405,11 +470,11 @@ function MobileBottomNav() {
   }
 
   const tabs = [
-    { href: "/dashboard", label: "Home",   Icon: Home,         active: pathname === "/dashboard" },
-    { href: "/events",    label: "Events",  Icon: CalendarDays, active: pathname.startsWith("/events") && !pathname.includes("create") },
-    null, // center Create button placeholder
-    { href: "/tickets",   label: "Tickets", Icon: Ticket,       active: pathname === "/tickets" },
-    { href: "/settings",  label: "Account", Icon: User,         active: pathname === "/settings" },
+    { href: "/dashboard", label: "Home",    Icon: Home,          active: pathname === "/dashboard" },
+    { href: "/events",    label: "Events",  Icon: CalendarDays,  active: pathname.startsWith("/events") && !pathname.includes("create") },
+    null, // center Scan FAB
+    { href: "/planner",   label: "Planner", Icon: ClipboardList, active: pathname.startsWith("/planner") },
+    { href: "/settings",  label: "Profile", Icon: User,          active: pathname === "/settings" },
   ];
 
   return (
@@ -425,21 +490,21 @@ function MobileBottomNav() {
         {tabs.map((tab, i) => {
           if (!tab) {
             return (
-              <Link key="create" href="/events/create" className="-mt-5 flex flex-col items-center gap-1">
+              <Link key="scan" href="/events" className="relative z-10 -mt-5 flex flex-col items-center gap-1 transition-transform active:scale-95">
                 <div
                   className="flex h-14 w-14 items-center justify-center rounded-[18px]"
                   style={{
-                    background: "linear-gradient(135deg, #4f46e5, #6366f1)",
-                    boxShadow: "0 4px 20px rgba(99,102,241,0.45)",
+                    background: "linear-gradient(135deg, #059669, #10b981)",
+                    boxShadow: "0 4px 20px rgba(16,185,129,0.50)",
                   }}
                 >
-                  <Plus size={24} className="text-white" />
+                  <QrCode size={22} className="text-white" />
                 </div>
                 <span
                   className="mt-0.5 text-[10px] font-extrabold uppercase tracking-wide"
                   style={{ color: "rgba(255,255,255,0.40)" }}
                 >
-                  Create
+                  Scan
                 </span>
               </Link>
             );
@@ -470,63 +535,78 @@ function MobileSwitchConfirmSheet({ pending, onConfirm, onCancel }) {
   if (!pending) return null;
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center p-6"
+      className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center"
       style={{ background: "rgba(0,0,0,0.72)" }}
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-sm rounded-3xl border p-6 flex flex-col items-center gap-4"
-        style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.08)" }}
+        className="w-full max-w-sm overflow-hidden rounded-t-[28px] border sm:rounded-[24px]"
+        style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.10)" }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Icon bubble */}
-        <div
-          className="flex h-14 w-14 items-center justify-center rounded-2xl border"
-          style={{ background: "rgba(99,102,241,0.12)", borderColor: "rgba(99,102,241,0.25)" }}
-        >
-          <Zap size={22} style={{ color: "#6366f1" }} />
+        {/* Event cover image strip */}
+        <div className="relative h-[110px] w-full overflow-hidden" style={{ background: "#14141f" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={heroImg(pending)} alt={pending.title} className="h-full w-full object-cover" />
+          <div
+            className="absolute inset-0"
+            style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.10) 0%, rgba(14,14,22,0.95) 100%)" }}
+          />
+          {/* Drag handle */}
+          <div className="absolute left-1/2 top-3 h-1 w-10 -translate-x-1/2 rounded-full" style={{ background: "rgba(255,255,255,0.20)" }} />
         </div>
 
-        {/* Heading */}
-        <p className="text-center text-[20px] font-black tracking-tight text-white">
-          Switch Active Event?
-        </p>
+        {/* Content */}
+        <div className="flex flex-col items-center gap-4 px-6 pb-8 pt-5">
+          {/* Icon bubble */}
+          <div
+            className="flex h-14 w-14 items-center justify-center rounded-[18px] border"
+            style={{ background: "rgba(99,102,241,0.15)", borderColor: "rgba(99,102,241,0.30)" }}
+          >
+            <Zap size={22} style={{ color: "#6366f1" }} />
+          </div>
 
-        {/* Event name chip */}
-        <div
-          className="flex w-full items-center gap-2.5 rounded-xl border px-3.5 py-3"
-          style={{ background: "#14141f", borderColor: "rgba(255,255,255,0.08)" }}
-        >
-          <Calendar size={13} style={{ color: "rgba(255,255,255,0.35)" }} />
-          <span className="flex-1 truncate text-[13px] font-bold text-white">
-            {pending.title}
-          </span>
+          {/* Heading */}
+          <p className="text-center text-[20px] font-black tracking-tight text-white" style={{ letterSpacing: "-0.4px" }}>
+            Switch Active Event?
+          </p>
+
+          {/* Event name row */}
+          <div
+            className="flex w-full items-center gap-2.5 rounded-[10px] border px-3 py-[9px]"
+            style={{ background: "#14141f", borderColor: "rgba(255,255,255,0.06)" }}
+          >
+            <Calendar size={13} style={{ color: "rgba(255,255,255,0.45)" }} />
+            <span className="flex-1 text-[13px] font-bold leading-tight" style={{ color: "rgba(255,255,255,0.85)" }}>
+              {pending.title}
+            </span>
+          </div>
+
+          {/* Body */}
+          <p className="text-center text-[13px] leading-[19px]" style={{ color: "rgba(255,255,255,0.45)" }}>
+            The scanner, builder, and guest tools will switch to this event.
+            Any in-progress actions on the current event will not be affected.
+          </p>
+
+          {/* Confirm button */}
+          <button
+            onClick={onConfirm}
+            className="relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-[14px] py-[15px] text-[15px] font-extrabold text-white"
+            style={{ background: "linear-gradient(90deg, #6366f1, #818cf8)" }}
+          >
+            <Check size={15} className="text-white" />
+            Yes, Switch Event
+          </button>
+
+          {/* Cancel */}
+          <button
+            onClick={onCancel}
+            className="py-2 text-[14px] font-semibold"
+            style={{ color: "rgba(255,255,255,0.40)" }}
+          >
+            Cancel
+          </button>
         </div>
-
-        {/* Body */}
-        <p className="text-center text-[13px] leading-5" style={{ color: "rgba(255,255,255,0.45)" }}>
-          The scanner, builder, and guest tools will switch to this event.
-          Any in-progress actions on the current event will not be affected.
-        </p>
-
-        {/* Confirm */}
-        <button
-          onClick={onConfirm}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-[15px] font-extrabold text-white"
-          style={{ background: "linear-gradient(135deg, #4f46e5, #6366f1)" }}
-        >
-          <Check size={16} className="text-white" />
-          Yes, Switch Event
-        </button>
-
-        {/* Cancel */}
-        <button
-          onClick={onCancel}
-          className="py-2 text-[14px] font-semibold"
-          style={{ color: "rgba(255,255,255,0.40)" }}
-        >
-          Cancel
-        </button>
       </div>
     </div>
   );
@@ -642,16 +722,17 @@ function MobileDashboard() {
   const { events, fetchEvents, loading, activeEventId, setActiveEvent, dashboard, fetchEventDashboard } = useEventStore();
   const user          = useAuthStore(s => s.user);
   const { isSubscribed, plan } = useSubscriptionStore();
-  const { myEvents, fetchMyTeamEvents } = useTeamStore();
+  const { unreadCount, refresh: fetchNotifs } = useNotifications();
   const [pendingSwitch,    setPendingSwitch]    = useState(null);
   const [switchTitle,      setSwitchTitle]      = useState(null);
   const [pendingNavEvent,  setPendingNavEvent]  = useState(null);
   const [activeIdx,        setActiveIdx]        = useState(0);
+  const [greeting,         setGreeting]         = useState("Welcome");
   const bannerTimer  = useRef(null);
   const carouselRef  = useRef(null);
 
-  useEffect(() => { fetchEvents(); },        [fetchEvents]);
-  useEffect(() => { fetchMyTeamEvents(); },  [fetchMyTeamEvents]);
+  useEffect(() => { fetchEvents(); fetchNotifs(); }, [fetchEvents, fetchNotifs]);
+  useEffect(() => { setGreeting(getGreeting()); }, []);
 
   useEffect(() => {
     if (!activeEventId && events.length > 0) setActiveEvent(events[0].id);
@@ -674,7 +755,10 @@ function MobileDashboard() {
 
   function handleConfirmNavEvent() {
     if (!pendingNavEvent) return;
-    setActiveEvent(pendingNavEvent.id);
+    // Only switch active event for owned events
+    if (!pendingNavEvent.user_role || pendingNavEvent.user_role === "OWNER") {
+      setActiveEvent(pendingNavEvent.id);
+    }
     const id = pendingNavEvent.id;
     setPendingNavEvent(null);
     router.push(`/events/${id}`);
@@ -686,13 +770,21 @@ function MobileDashboard() {
     ? name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
     : (user?.email?.slice(0, 2).toUpperCase() ?? "U");
 
-  const activeEvent     = events.find(e => e.id === activeEventId) ?? events[0] ?? null;
+  const isTeamActiveMob = (e) => {
+    const status = (e.status ?? '').toUpperCase();
+    if (status === 'ARCHIVED' || status === 'CANCELLED') return false;
+    if (e.runtime_status === 'COMPLETED' && e.ends_at_utc) return false;
+    return true;
+  };
+  const ownEvents     = useMemo(() => events.filter(e => !e.user_role || e.user_role === "OWNER"), [events]);
+  const teamEventsMob = useMemo(() => events.filter(e => e.user_role && e.user_role !== "OWNER" && isTeamActiveMob(e)), [events]);
+  const activeEvent     = ownEvents.find(e => e.id === activeEventId) ?? ownEvents[0] ?? null;
   const activeStats     = dashboard?.event?.id === activeEventId ? dashboard.stats : null;
   const guestCount      = activeStats?.guest_count     ?? 0;
   const attendingCount  = activeStats?.attending_count ?? 0;
   const ticketCount     = activeStats?.ticket_count    ?? 0;
   const checkinCount    = activeStats?.checkin_count   ?? 0;
-  const recent          = events.slice(0, 5);
+  const recent          = events.slice(0, 6);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-hidden" style={{ background: "#07070f" }}>
@@ -715,7 +807,7 @@ function MobileDashboard() {
                 className="text-[11px] font-bold uppercase tracking-[0.6px]"
                 style={{ color: "rgba(255,255,255,0.45)" }}
               >
-                {getGreeting()}
+                {greeting}
               </p>
               <p className="text-[18px] font-black tracking-tight text-white">
                 {firstName} 👋
@@ -724,28 +816,76 @@ function MobileDashboard() {
           </div>
 
           <div className="flex items-center gap-2.5">
-            {/* Bell with amber dot */}
-            <div
+            {/* Bell with dynamic unread badge */}
+            <Link
+              href="/settings"
               className="relative flex h-[38px] w-[38px] items-center justify-center rounded-xl border"
               style={{ background: "#14141f", borderColor: "rgba(255,255,255,0.10)" }}
             >
               <Bell size={18} style={{ color: "rgba(255,255,255,0.45)" }} />
-              <span
-                className="absolute right-[9px] top-[9px] h-[7px] w-[7px] rounded-full border-[1.5px]"
-                style={{ background: "#f59e0b", borderColor: "#07070f" }}
-              />
-            </div>
-            {/* Avatar circle */}
-            <div
+              {unreadCount > 0 ? (
+                <span
+                  className="absolute right-[5px] top-[5px] flex h-[16px] min-w-[16px] items-center justify-center rounded-full border-[1.5px] px-[3px] text-[9px] font-extrabold text-white"
+                  style={{ background: "#6366f1", borderColor: "#07070f" }}
+                >
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              ) : (
+                <span
+                  className="absolute right-[9px] top-[9px] h-[7px] w-[7px] rounded-full border-[1.5px]"
+                  style={{ background: "#f59e0b", borderColor: "#07070f" }}
+                />
+              )}
+            </Link>
+            {/* Avatar circle — image if available, else initials */}
+            <Link
+              href="/settings"
               className="flex h-[38px] w-[38px] items-center justify-center overflow-hidden rounded-full"
               style={{ background: "linear-gradient(135deg, #6366f1, #a78bfa)" }}
             >
-              <span className="text-[14px] font-black tracking-wide text-white select-none">
-                {initials}
-              </span>
-            </div>
+              {user?.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={user.avatar_url} alt={firstName} className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-[14px] font-black tracking-wide text-white select-none">
+                  {initials}
+                </span>
+              )}
+            </Link>
           </div>
         </div>
+
+        {/* ── Super Admin Banner ──────────────────────────────────────────── */}
+        {user?.is_super_admin && (
+          <div
+            className="relative mx-5 mt-2 flex items-center justify-between overflow-hidden rounded-[14px] border px-3 py-3"
+            style={{ background: "rgba(201,169,110,0.10)", borderColor: "rgba(201,169,110,0.30)" }}
+          >
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{ background: "linear-gradient(90deg, rgba(201,169,110,0.14), rgba(245,158,11,0.05))" }}
+              aria-hidden
+            />
+            <div className="relative flex items-center gap-2.5">
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-[10px] border"
+                style={{ background: "rgba(201,169,110,0.15)", borderColor: "rgba(201,169,110,0.25)" }}
+              >
+                <Star size={14} style={{ color: "#c9a96e" }} />
+              </div>
+              <div>
+                <p className="text-[13px] font-extrabold" style={{ color: "#c9a96e" }}>Super Admin Mode</p>
+                <p className="text-[10px]" style={{ color: "rgba(201,169,110,0.60)" }}>Full platform access</p>
+              </div>
+            </div>
+            <span
+              className="relative rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[1.2px]"
+              style={{ background: "rgba(201,169,110,0.15)", border: "1px solid rgba(201,169,110,0.30)", color: "#c9a96e" }}
+            >
+              ADMIN
+            </span>
+          </div>
+        )}
 
         {/* ── Active event banner ───────────────────────────────────────── */}
         {activeEvent && (
@@ -780,7 +920,7 @@ function MobileDashboard() {
 
         {/* ── Active event switcher ──────────────────────────────────────── */}
         <MobileActiveEventToggle
-          events={events}
+          events={ownEvents}
           activeEventId={activeEventId}
           onRequestSwitch={handleRequestSwitch}
         />
@@ -799,41 +939,70 @@ function MobileDashboard() {
           <div className="flex justify-between">
             <MobileQuickAction Icon={PlusCircle}   label="Create"  href="/events/create" fromColor="#4f46e5" toColor="#6366f1" />
             <MobileQuickAction Icon={CalendarDays} label="Events"  href="/events"        fromColor="#0891b2" toColor="#06b6d4" />
+            <MobileQuickAction Icon={Layout}       label="Builder" href="/events"         fromColor="#4f46e5" toColor="#6366f1" />
             <MobileQuickAction Icon={Ticket}       label="Tickets" href="/tickets"        fromColor="#d97706" toColor="#f59e0b" />
-            <MobileQuickAction Icon={Users}        label="Guests"  href="/events"         fromColor="#059669" toColor="#10b981" />
           </div>
         </div>
 
-        {/* ── Events I'm managing ─────────────────────────────────────────── */}
-        {myEvents.length > 0 && (
+        {/* ── Team events ─────────────────────────────────────────────────── */}
+        {teamEventsMob.length > 0 && (
           <div className="px-5 mt-6">
             <div className="flex items-center gap-2 mb-3">
-              <Users size={13} style={{ color: "#a78bfa" }} />
+              <Users size={13} style={{ color: "#fbbf24" }} />
               <p className="text-[12px] font-extrabold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.40)" }}>
                 Events you&apos;re managing
               </p>
+              <span
+                className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                style={{ background: "rgba(251,191,36,0.15)", color: "#fbbf24" }}
+              >
+                {teamEventsMob.length}
+              </span>
             </div>
             <div className="flex flex-col gap-2.5">
-              {myEvents.map((ev) => {
+              {teamEventsMob.map((ev) => {
                 const date = ev.starts_at_local ?? ev.starts_at_utc;
                 const dateStr = date ? new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : null;
+                const roleCfg = ROLE_CFG[ev.user_role] ?? ROLE_CFG.ADMIN;
                 return (
                   <Link
                     key={ev.id}
                     href={`/events/${ev.id}`}
-                    className="flex items-center gap-3 overflow-hidden rounded-[16px] border px-3.5 py-3"
-                    style={{ background: "rgba(99,102,241,0.06)", borderColor: "rgba(99,102,241,0.18)" }}
+                    className="flex items-center gap-3 overflow-hidden rounded-[16px] border py-2.5 pr-3.5"
+                    style={{ background: "#2a1d00", borderColor: "rgba(251,191,36,0.25)" }}
                   >
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: "rgba(99,102,241,0.15)" }}>
-                      <Users size={16} style={{ color: "#a78bfa" }} />
+                    {/* Thumbnail */}
+                    <div className="relative h-[50px] w-[50px] shrink-0 overflow-hidden rounded-l-[14px]" style={{ background: "#14141f" }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={heroImg(ev)} alt={ev.title} className="h-full w-full object-cover" />
+                      <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent, rgba(0,0,0,0.5))" }} />
+                      <div
+                        className="absolute bottom-1 right-1 flex h-[14px] w-[14px] items-center justify-center rounded-[3px]"
+                        style={{ background: "rgba(42,29,0,0.85)" }}
+                      >
+                        <Users size={8} style={{ color: "#fbbf24" }} />
+                      </div>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[13px] font-extrabold text-white truncate">{ev.title}</p>
-                      <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
-                        {dateStr ? `${dateStr} · ` : ""}By {ev.owner_name}
-                      </p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {dateStr && (
+                          <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>{dateStr}</span>
+                        )}
+                        <span
+                          className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide"
+                          style={{ background: "rgba(251,191,36,0.18)", color: "#fbbf24" }}
+                        >
+                          {roleCfg.label}
+                        </span>
+                      </div>
+                      {ev.owner_name && (
+                        <p className="mt-0.5 text-[10px] truncate" style={{ color: "rgba(251,191,36,0.35)" }}>
+                          by {ev.owner_name}
+                        </p>
+                      )}
                     </div>
-                    <ChevronRight size={14} style={{ color: "rgba(255,255,255,0.20)" }} />
+                    <ChevronRight size={14} style={{ color: "rgba(251,191,36,0.35)" }} />
                   </Link>
                 );
               })}
@@ -904,7 +1073,7 @@ function MobileDashboard() {
         <div className="mx-5 mt-6 pb-8">
           <div className="mb-3.5 flex items-center justify-between">
             <p className="text-[17px] font-black tracking-tight text-white">Recent Events</p>
-            {events.length > 0 && (
+            {events.length > 5 && (
               <Link href="/events" className="text-[13px] font-bold" style={{ color: "#6366f1" }}>
                 See all →
               </Link>
@@ -1020,57 +1189,77 @@ function PlanUpgradeBanner({ plan, eventsUsed, eventsLimit, onUpgrade }) {
 
   const cfg    = UPGRADE_CFG[isFree ? "free" : "starter"];
   const usePct = eventsLimit ? Math.min((eventsUsed / eventsLimit) * 100, 100) : 0;
-  const accent = isFree ? "#9ca3af" : "#6366f1";
+  const planAccent = isStarter ? "#6366f1" : "#9ca3af";
 
   return (
     <div
-      className="relative overflow-hidden rounded-2xl px-5 py-4"
+      className="relative overflow-hidden rounded-2xl"
       style={{
-        border:     `1px solid ${isFree ? "rgba(99,102,241,0.22)" : "rgba(201,169,110,0.28)"}`,
-        background: isFree
-          ? "linear-gradient(135deg,rgba(99,102,241,0.06) 0%,rgba(139,92,246,0.03) 100%)"
-          : "linear-gradient(135deg,rgba(201,169,110,0.07) 0%,rgba(245,158,11,0.03) 100%)",
+        background: isStarter
+          ? "linear-gradient(135deg, rgba(15,12,41,0.95) 0%, rgba(10,9,30,0.98) 100%)"
+          : "linear-gradient(135deg, rgba(9,9,20,0.97) 0%, rgba(15,12,41,0.95) 100%)",
+        border: `1px solid ${isStarter ? "rgba(99,102,241,0.18)" : "rgba(255,255,255,0.07)"}`,
       }}
     >
+      {/* Ambient glow */}
       <div
-        className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full blur-3xl"
-        style={{ background: isFree ? "rgba(99,102,241,0.12)" : "rgba(201,169,110,0.14)" }}
+        className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full blur-3xl opacity-30"
+        style={{ background: isStarter ? "rgba(99,102,241,0.4)" : "rgba(139,92,246,0.3)" }}
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute -left-16 -bottom-16 h-48 w-48 rounded-full blur-3xl opacity-20"
+        style={{ background: isStarter ? "rgba(201,169,110,0.5)" : "rgba(99,102,241,0.4)" }}
         aria-hidden
       />
 
-      <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-6">
+      <div className="relative flex flex-col gap-0 lg:flex-row lg:items-center">
 
-        {/* ── Left: label + tagline + compact usage bar ──────────────── */}
-        <div className="flex flex-1 min-w-0 items-center gap-3">
+        {/* ── Left: current plan + usage ───────────────────────────── */}
+        <div className="flex flex-1 items-center gap-3 px-5 py-4">
           <div
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
-            style={{ background: `${accent}22`, border: `1px solid ${accent}33` }}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+            style={{ background: `${planAccent}22`, border: `1px solid ${planAccent}38` }}
           >
-            <Zap className="h-3.5 w-3.5" style={{ color: accent }} fill="currentColor" />
+            <Zap className="h-3.5 w-3.5" style={{ color: planAccent }} fill="currentColor" />
           </div>
+
           <div className="min-w-0 flex-1">
+            {/* Name + badge + events count on one line */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-bold text-(--text-primary)">{cfg.currentLabel}</span>
+              <span className="text-sm font-bold text-white">{cfg.currentLabel}</span>
               <span
-                className="rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-widest"
-                style={{ background: `${accent}20`, color: accent, border: `1px solid ${accent}30` }}
+                className="rounded-full px-1.5 py-px text-[9px] font-black uppercase tracking-widest"
+                style={{ background: `${planAccent}22`, color: planAccent, border: `1px solid ${planAccent}35` }}
               >
-                {isFree ? "FREE" : "STARTER"}
+                {isFree ? "Free" : "Starter"}
               </span>
               {eventsLimit != null && (
-                <span className="text-xs text-(--text-muted)">{eventsUsed}/{eventsLimit} events used</span>
+                <span
+                  className="text-[11px] tabular-nums"
+                  style={{ color: usePct >= 90 ? "#f87171" : "rgba(255,255,255,0.4)" }}
+                >
+                  {eventsUsed}/{eventsLimit} events
+                </span>
               )}
+              <Link
+                href="/settings/billing"
+                className="text-[11px] transition hover:underline"
+                style={{ color: "rgba(255,255,255,0.25)" }}
+              >
+                See plans →
+              </Link>
             </div>
-            <p className="mt-0.5 truncate text-xs text-(--text-muted)">{cfg.tagline}</p>
+            {/* Usage bar */}
             {eventsLimit != null && (
-              <div className="mt-1.5 h-1 w-40 overflow-hidden rounded-full bg-(--bg-base)">
+              <div className="mt-1.5 h-1 w-36 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.07)" }}>
                 <div
                   className="h-full rounded-full transition-all duration-700"
                   style={{
                     width: `${usePct}%`,
                     background: usePct >= 90
                       ? "linear-gradient(90deg,#ef4444,#f97316)"
-                      : isFree ? "linear-gradient(90deg,#4f46e5,#818cf8)" : "linear-gradient(90deg,#c9a96e,#f59e0b)",
+                      : isStarter ? "linear-gradient(90deg,#4f46e5,#818cf8)" : "linear-gradient(90deg,#6b7280,#9ca3af)",
                   }}
                 />
               </div>
@@ -1078,71 +1267,203 @@ function PlanUpgradeBanner({ plan, eventsUsed, eventsLimit, onUpgrade }) {
           </div>
         </div>
 
-        {/* ── Divider ────────────────────────────────────────────────── */}
-        <div className="hidden lg:block h-16 w-px bg-border shrink-0" />
+        {/* ── Divider ───────────────────────────────────────────────── */}
+        <div className="hidden lg:block h-12 w-px shrink-0" style={{ background: "rgba(255,255,255,0.07)" }} />
+        <div className="lg:hidden h-px mx-5" style={{ background: "rgba(255,255,255,0.06)" }} />
 
-        {/* ── Plan cards ─────────────────────────────────────────────── */}
-        <div className={`flex gap-3 ${cfg.plans.length === 1 ? "lg:w-64" : "lg:w-[480px]"}`}>
+        {/* ── Right: plan card(s) ───────────────────────────────────── */}
+        <div className={`flex gap-3 p-4 ${cfg.plans.length === 1 ? "lg:w-[440px]" : "lg:w-[580px]"}`}>
           {cfg.plans.map((p) => (
             <div
               key={p.key}
-              className="relative flex flex-1 flex-col gap-2 overflow-hidden rounded-xl p-3"
+              className="relative flex flex-1 overflow-hidden rounded-xl"
               style={{
-                border:     `1px solid ${p.shadowHex.replace("0.35", "0.25")}`,
-                background: `linear-gradient(135deg,${p.gradFrom}0d 0%,${p.gradTo}06 100%)`,
+                background: `linear-gradient(145deg, ${p.gradFrom}12 0%, ${p.gradTo}08 100%)`,
+                border:     `1px solid ${p.gradFrom}30`,
               }}
             >
-              {p.badge && (
-                <span
-                  className="absolute right-2 top-2 rounded-full px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest"
-                  style={{ background: `linear-gradient(135deg,${p.gradFrom},${p.gradTo})`, color: p.ctaText }}
-                >
-                  {p.badge}
-                </span>
-              )}
+              {/* Top accent line */}
+              <div
+                className="absolute inset-x-0 top-0 h-px"
+                style={{ background: `linear-gradient(90deg, transparent, ${p.gradFrom}70, transparent)` }}
+              />
 
-              {/* Header: icon + name + price in one row */}
-              <div className="flex items-center gap-2">
-                <div
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg"
-                  style={{ background: `linear-gradient(135deg,${p.gradFrom},${p.gradTo})`, boxShadow: `0 2px 8px ${p.shadowHex}` }}
-                >
-                  <Star className="h-3 w-3 fill-white text-white" />
-                </div>
-                <span className="text-xs font-bold text-(--text-primary)">{p.label}</span>
-                <span className="ml-auto text-sm font-black text-(--text-primary)">{p.price}<span className="text-[10px] font-normal text-(--text-muted)">/mo</span></span>
-              </div>
-
-              {/* Perks: 2-col, max 4 */}
-              <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-                {p.perks.slice(0, 4).map((perk) => (
-                  <div key={perk} className="flex items-center gap-1 text-[11px] text-(--text-secondary)">
-                    <Check className="h-2.5 w-2.5 shrink-0" style={{ color: p.gradFrom }} />
-                    {perk}
+              <div className="flex flex-1 items-center gap-4 px-4 py-3">
+                {/* Icon + name + price */}
+                <div className="flex items-center gap-2.5 shrink-0">
+                  <div
+                    className="flex h-7 w-7 items-center justify-center rounded-lg"
+                    style={{ background: `linear-gradient(135deg,${p.gradFrom},${p.gradTo})`, boxShadow: `0 3px 10px ${p.shadowHex}` }}
+                  >
+                    <Star className="h-3 w-3 fill-white text-white" />
                   </div>
-                ))}
-              </div>
+                  <div>
+                    <p className="text-[10px] font-semibold leading-none" style={{ color: "rgba(255,255,255,0.4)" }}>Upgrade to</p>
+                    <p className="text-sm font-black text-white leading-snug">{p.label}</p>
+                  </div>
+                  <div className="pl-1">
+                    <span className="text-base font-black text-white">{p.price}</span>
+                    <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>/mo</span>
+                  </div>
+                </div>
 
-              {/* CTA */}
-              <button
-                onClick={onUpgrade}
-                className="flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition hover:opacity-90"
-                style={{ background: `linear-gradient(135deg,${p.gradFrom},${p.gradTo})`, color: p.ctaText, boxShadow: `0 3px 10px ${p.shadowHex}` }}
-              >
-                <Zap className="h-3 w-3" fill="currentColor" />
-                {p.ctaLabel}
-              </button>
+                {/* Perks — 2 columns */}
+                <div className="hidden sm:grid flex-1 grid-cols-2 gap-x-3 gap-y-1 min-w-0">
+                  {p.perks.slice(0, 4).map((perk) => (
+                    <div key={perk} className="flex items-center gap-1.5 min-w-0">
+                      <Check className="h-2.5 w-2.5 shrink-0" style={{ color: p.gradFrom }} />
+                      <span className="truncate text-[11px]" style={{ color: "rgba(255,255,255,0.6)" }}>{perk}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* CTA */}
+                <button
+                  onClick={onUpgrade}
+                  className="shrink-0 flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold transition hover:opacity-90 active:scale-[0.97]"
+                  style={{
+                    background: `linear-gradient(135deg,${p.gradFrom},${p.gradTo})`,
+                    color:      p.ctaText,
+                    boxShadow:  `0 4px 14px ${p.shadowHex}`,
+                  }}
+                >
+                  <Zap className="h-3 w-3" fill="currentColor" />
+                  {p.ctaLabel}
+                </button>
+              </div>
             </div>
           ))}
         </div>
 
       </div>
+    </div>
+  );
+}
 
-      <div className="relative mt-2 text-right">
-        <Link href="/settings/billing" className="text-[11px] font-medium text-(--text-muted) transition hover:text-(--text-primary)">
-          See all plans →
-        </Link>
-      </div>
+function EventGrid({ events: evList, updatingId, onToggleVisibility, showRoleBadge = false }) {
+  return (
+    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+      {evList.map(event => {
+        const cfg = sc(event.status);
+        const isTeam = showRoleBadge;
+        return (
+          <Link
+            key={event.id}
+            href={`/events/${event.id}`}
+            className="group flex flex-col overflow-hidden rounded-2xl border shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+            style={isTeam ? { borderColor: "rgba(251,191,36,0.35)" } : { borderColor: "var(--border)" }}
+            onMouseEnter={isTeam ? e => e.currentTarget.style.borderColor = "rgba(251,191,36,0.65)" : undefined}
+            onMouseLeave={isTeam ? e => e.currentTarget.style.borderColor = "rgba(251,191,36,0.35)" : undefined}
+          >
+            {/* Cover image */}
+            <div className="relative h-40 shrink-0 overflow-hidden bg-(--bg-elevated)">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={heroImg(event)}
+                alt={event.title}
+                className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 ${isTeam ? "opacity-80" : ""}`}
+              />
+              <div className={`absolute inset-0 bg-linear-to-b from-transparent via-transparent to-black/50 ${isTeam ? "from-purple-900/25" : ""}`} />
+
+              {/* Role badge (team) or Status pill (owned) */}
+              {isTeam ? (
+                <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 backdrop-blur-sm"
+                  style={{ background: "rgba(139,92,246,0.9)", color: "#fff" }}>
+                  <Users size={9} className="shrink-0" />
+                  <span className="text-[10px] font-extrabold uppercase tracking-wide">
+                    {ROLE_CFG[event.user_role]?.label ?? event.user_role ?? "Team"}
+                  </span>
+                </div>
+              ) : (
+                <div
+                  className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 backdrop-blur-sm"
+                  style={{ background: cfg.bg }}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: cfg.dot }} />
+                  <span className="text-[11px] font-bold" style={{ color: cfg.text }}>
+                    {event.status.charAt(0) + event.status.slice(1).toLowerCase()}
+                  </span>
+                </div>
+              )}
+
+              {/* Visibility toggle — only for owned events (team members can't change it) */}
+              {!isTeam && (
+                <button
+                  onClick={e => onToggleVisibility(e, event)}
+                  disabled={updatingId === event.id}
+                  className="absolute right-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-sm transition hover:scale-105 disabled:opacity-60"
+                  style={{
+                    background: event.visibility === "PUBLIC"
+                      ? "rgba(16,185,129,0.80)"
+                      : "rgba(0,0,0,0.45)",
+                  }}
+                >
+                  {updatingId === event.id ? "…" : event.visibility === "PUBLIC" ? "Public" : "Private"}
+                </button>
+              )}
+              {/* Team events: show status in top-right */}
+              {isTeam && (
+                <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full px-2 py-0.5 backdrop-blur-sm"
+                  style={{ background: cfg.bg }}>
+                  <span className="h-1 w-1 rounded-full" style={{ background: cfg.dot }} />
+                  <span className="text-[10px] font-bold" style={{ color: cfg.text }}>
+                    {event.status.charAt(0) + event.status.slice(1).toLowerCase()}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Card body */}
+            <div className="flex flex-1 flex-col gap-2.5 p-4" style={isTeam
+              ? { background: "#2a1d00" }
+              : {}}>
+              {/* Event type chip */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${!isTeam ? "bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400" : ""}`}
+                  style={isTeam ? { background: "rgba(251,191,36,0.16)", color: "#fbbf24" } : {}}>
+                  {(event.event_type ?? "EVENT").replace(/_/g, " ")}
+                </span>
+              </div>
+
+              {/* Title */}
+              <h3 className="line-clamp-2 text-[15px] font-bold leading-snug text-white"
+                style={{ transition: "color 0.2s" }}
+                onMouseEnter={isTeam ? e => e.currentTarget.style.color = "#fde68a" : undefined}
+                onMouseLeave={isTeam ? e => e.currentTarget.style.color = "#fff" : undefined}>
+                {event.title}
+              </h3>
+
+              {/* Owner attribution (team events only) */}
+              {isTeam && event.owner_name && (
+                <p className="flex items-center gap-1 text-xs" style={{ color: "#fbbf24" }}>
+                  <User className="h-3 w-3 shrink-0" />
+                  Owner: <span className="font-semibold">{event.owner_name}</span>
+                </p>
+              )}
+
+              {/* Date + city */}
+              <div
+                className={`flex flex-wrap items-center gap-3 text-xs ${!isTeam ? "text-(--text-muted)" : ""}`}
+                style={isTeam ? { color: "rgba(251,191,36,0.55)" } : {}}
+              >
+                <span className="flex items-center gap-1">
+                  <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                  {fmtDate(event.starts_at_local ?? event.starts_at_utc ?? event.starts_at)}
+                </span>
+                {event.city && (
+                  <span className="flex items-center gap-1 truncate">
+                    <MapPin className="h-3.5 w-3.5 shrink-0" />
+                    {event.city}
+                  </span>
+                )}
+              </div>
+
+              {/* Action buttons — only for owned events */}
+              {!isTeam && <EventActions event={event} />}
+            </div>
+          </Link>
+        );
+      })}
     </div>
   );
 }
@@ -1154,17 +1475,16 @@ function PlanUpgradeBanner({ plan, eventsUsed, eventsLimit, onUpgrade }) {
 function DesktopDashboard() {
   const { events, fetchEvents, loading, updateEvent } = useEventStore();
   const { plan, isSubscribed, usage, limits, fetchSubscription } = useSubscriptionStore();
-  const { myEvents, fetchMyTeamEvents } = useTeamStore();
   const [updatingId,  setUpdatingId]  = useState(null);
   const [query,       setQuery]       = useState("");
   const [billingOpen, setBillingOpen] = useState(false);
+  const [mounted,     setMounted]     = useState(false);
 
   useEffect(() => { fetchEvents(); },        [fetchEvents]);
   useEffect(() => { fetchSubscription(); },  [fetchSubscription]);
-  useEffect(() => { fetchMyTeamEvents(); },  [fetchMyTeamEvents]);
+  useEffect(() => { setMounted(true); },     []);
 
   const isPro     = isSubscribed && (plan === "pro" || plan === "premium" || plan === "enterprise");
-  const isStarter = plan === "starter";
   const showBanner = !isPro;
 
   const eventsUsed  = usage?.events  ?? events.length ?? 0;
@@ -1179,6 +1499,15 @@ function DesktopDashboard() {
       e.event_type?.toLowerCase().includes(q)
     );
   }, [events, query]);
+
+  const isTeamActive = (e) => {
+    const status = (e.status ?? '').toUpperCase();
+    if (status === 'ARCHIVED' || status === 'CANCELLED') return false;
+    if (e.runtime_status === 'COMPLETED' && e.ends_at_utc) return false;
+    return true;
+  };
+  const ownEvents  = useMemo(() => filteredEvents.filter(e => !e.user_role || e.user_role === "OWNER"), [filteredEvents]);
+  const teamEvents = useMemo(() => filteredEvents.filter(e => e.user_role && e.user_role !== "OWNER" && isTeamActive(e)), [filteredEvents]);
 
   const toggleVisibility = async (e, event) => {
     e.preventDefault();
@@ -1210,13 +1539,13 @@ function DesktopDashboard() {
       />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard title="Total events" value={events?.length || 0} subtitle="All created events"   icon={CalendarDays} />
-        <StatCard title="Guests"        value="—"                   subtitle="Per-event details"    icon={Users}        />
-        <StatCard title="Tickets"       value="—"                   subtitle="Sales overview"       icon={Ticket}       />
-        <StatCard title="Activity"      value={loading ? "..." : "Live"} subtitle="Connected to API" icon={Activity}   />
+        <StatCard title="My events"   value={ownEvents.length}          subtitle="Events you own"      icon={CalendarDays} />
+        <StatCard title="Team events" value={teamEvents.length}         subtitle="Events you manage"   icon={Users}        />
+        <StatCard title="Tickets"     value="—"                         subtitle="Sales overview"      icon={Ticket}       />
+        <StatCard title="Activity"    value={loading ? "..." : "Live"}  subtitle="Connected to API"    icon={Activity}     />
       </div>
 
-      {showBanner && (
+      {mounted && showBanner && (
         <PlanUpgradeBanner
           plan={plan}
           eventsUsed={eventsUsed}
@@ -1225,48 +1554,12 @@ function DesktopDashboard() {
         />
       )}
 
-      {/* ── Events I'm managing ── */}
-      {myEvents.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Users size={16} className="text-indigo-400" />
-            <h2 className="text-sm font-bold text-(--text-primary)">Events you&apos;re managing</h2>
-            <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-[11px] font-bold text-indigo-400">{myEvents.length}</span>
-          </div>
-          <div className="rounded-3xl border border-border bg-(--bg-surface) p-6">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {myEvents.map((ev) => {
-                const dateStr = ev.starts_at_local ?? ev.starts_at_utc
-                  ? new Date(ev.starts_at_local ?? ev.starts_at_utc).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-                  : null;
-                return (
-                  <Link
-                    key={ev.id}
-                    href={`/events/${ev.id}`}
-                    className="group flex items-center gap-3.5 rounded-2xl border border-border bg-(--bg-elevated) p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:border-(--border-hover)"
-                  >
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-500/15">
-                      <Users size={18} className="text-indigo-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[14px] font-bold text-(--text-primary) truncate group-hover:text-indigo-400 transition-colors">{ev.title}</p>
-                      <p className="text-[11px] text-(--text-muted) truncate">
-                        {dateStr ? `${dateStr} · ` : ""}By {ev.owner_name}
-                      </p>
-                    </div>
-                    <ChevronRight size={14} className="shrink-0 text-(--text-muted) group-hover:text-indigo-400 transition-colors" />
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* Hide "My Events" section if user has no owned events but has team events */}
+      {!(ownEvents.length === 0 && teamEvents.length > 0) && (
       <div className="rounded-3xl border border-border bg-(--bg-surface) p-6">
         <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-(--text-primary)">Recent events</h2>
+            <h2 className="text-lg font-semibold text-(--text-primary)">My Events</h2>
             <p className="text-sm text-(--text-muted)">Click an event to manage everything.</p>
           </div>
           <div className="relative w-full sm:w-64">
@@ -1278,6 +1571,7 @@ function DesktopDashboard() {
               placeholder="Search events…"
               autoComplete="off"
               className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2 pl-9 pr-8 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:ring-indigo-900/40"
+              suppressHydrationWarning
             />
             {query && (
               <button
@@ -1308,95 +1602,32 @@ function DesktopDashboard() {
               </Link>
             }
           />
-        ) : filteredEvents.length === 0 ? (
+        ) : ownEvents.length === 0 && query ? (
           <div className="flex flex-col items-center gap-2 py-12 text-center">
             <Search className="h-8 w-8 text-gray-300 dark:text-gray-600" />
             <p className="text-sm font-medium text-(--text-secondary)">No events match &ldquo;{query}&rdquo;</p>
             <button onClick={() => setQuery("")} className="text-xs text-indigo-500 hover:underline">Clear search</button>
           </div>
+        ) : ownEvents.length === 0 ? (
+          <p className="py-6 text-sm text-(--text-muted)">No events yet. Create one to get started.</p>
         ) : (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {filteredEvents.map(event => {
-              const cfg = sc(event.status);
-              return (
-                <Link
-                  key={event.id}
-                  href={`/events/${event.id}`}
-                  className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-(--bg-surface) shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-(--border-hover)"
-                >
-                  {/* Cover image */}
-                  <div className="relative h-40 shrink-0 overflow-hidden bg-(--bg-elevated)">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={heroImg(event)}
-                      alt={event.title}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-linear-to-b from-transparent via-transparent to-black/50" />
-
-                    {/* Status pill */}
-                    <div
-                      className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 backdrop-blur-sm"
-                      style={{ background: cfg.bg }}
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: cfg.dot }} />
-                      <span className="text-[11px] font-bold" style={{ color: cfg.text }}>
-                        {event.status.charAt(0) + event.status.slice(1).toLowerCase()}
-                      </span>
-                    </div>
-
-                    {/* Visibility toggle */}
-                    <button
-                      onClick={e => toggleVisibility(e, event)}
-                      disabled={updatingId === event.id}
-                      className="absolute right-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-sm transition hover:scale-105 disabled:opacity-60"
-                      style={{
-                        background: event.visibility === "PUBLIC"
-                          ? "rgba(16,185,129,0.80)"
-                          : "rgba(0,0,0,0.45)",
-                      }}
-                    >
-                      {updatingId === event.id ? "…" : event.visibility === "PUBLIC" ? "Public" : "Private"}
-                    </button>
-                  </div>
-
-                  {/* Card body */}
-                  <div className="flex flex-1 flex-col gap-2.5 p-4">
-                    {/* Event type chip */}
-                    <span className="self-start rounded-full bg-indigo-50 dark:bg-indigo-950/50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                      {(event.event_type ?? "EVENT").replace(/_/g, " ")}
-                    </span>
-
-                    {/* Title */}
-                    <h3 className="line-clamp-2 text-[15px] font-bold leading-snug text-(--text-primary)">
-                      {event.title}
-                    </h3>
-
-                    {/* Date + city */}
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-(--text-muted)">
-                      <span className="flex items-center gap-1">
-                        <CalendarDays className="h-3.5 w-3.5 shrink-0" />
-                        {fmtDate(event.starts_at_local ?? event.starts_at_utc ?? event.starts_at)}
-                      </span>
-                      {event.city && (
-                        <span className="flex items-center gap-1 truncate">
-                          <MapPin className="h-3.5 w-3.5 shrink-0" />
-                          {event.city}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Actions */}
-                    <div className="mt-auto pt-1">
-                      <EventActions event={event} />
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+          <EventGrid events={ownEvents} updatingId={updatingId} onToggleVisibility={toggleVisibility} />
         )}
       </div>
+      )}
+
+      {/* ── Team events section ── */}
+      {teamEvents.length > 0 && (
+        <div className="rounded-3xl border bg-(--bg-surface) p-6" style={{ borderColor: "rgba(139,92,246,0.2)" }}>
+          <div className="mb-5 flex items-center gap-2">
+            <Users size={16} className="text-violet-400" />
+            <h2 className="text-lg font-semibold text-(--text-primary)">Team Events</h2>
+            <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[11px] font-bold text-violet-400">{teamEvents.length}</span>
+            <p className="ml-2 text-sm text-(--text-muted)">Events you&apos;ve been added to manage.</p>
+          </div>
+          <EventGrid events={teamEvents} updatingId={updatingId} onToggleVisibility={toggleVisibility} showRoleBadge />
+        </div>
+      )}
 
     </div>
     </>

@@ -1,5 +1,8 @@
+"use client";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useAuthStore } from "@/store/auth.store";
 
 function TemplateCard({ template: t }) {
   return (
@@ -48,6 +51,11 @@ function TemplateCard({ template: t }) {
 }
 
 export default function TemplatesSection({ freeTemplates, premiumTemplates }) {
+  const [mounted, setMounted] = useState(false);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  useEffect(() => { setMounted(true); }, []);
+  const loggedIn = mounted && isAuthenticated;
+
   return (
     <section id="templates" className="py-24 bg-gray-50">
       <div className="max-w-7xl mx-auto px-6 md:px-12">
@@ -99,10 +107,10 @@ export default function TemplatesSection({ freeTemplates, premiumTemplates }) {
 
         <div className="text-center mt-12">
           <Link
-            href="/register"
+            href={loggedIn ? "/dashboard" : "/register"}
             className="inline-flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white font-bold px-8 py-3.5 rounded-2xl transition-all shadow-lg text-sm"
           >
-            Start Building for Free →
+            {loggedIn ? "Go to Dashboard →" : "Start Building for Free →"}
           </Link>
         </div>
       </div>

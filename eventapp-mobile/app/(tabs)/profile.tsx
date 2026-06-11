@@ -9,6 +9,7 @@ import { useAuthStore }         from '@/store/auth.store';
 import { useDrawerStore }       from '@/store/drawer.store';
 import { useSubscriptionStore } from '@/store/subscription.store';
 import { ConfirmModal }         from '@/components/ui/ConfirmModal';
+import { LegalPageModal }       from '@/components/ui/LegalPageModal';
 import { Colors }               from '@/constants/colors';
 
 export default function ProfileTab() {
@@ -17,8 +18,9 @@ export default function ProfileTab() {
   const user         = useAuthStore(s => s.user);
   const logout       = useAuthStore(s => s.logout);
   const updateAvatar = useAuthStore(s => s.updateAvatar);
-  const [logoutModal,    setLogoutModal]    = useState(false);
   const [avatarLoading,  setAvatarLoading]  = useState(false);
+  const [logoutModal,    setLogoutModal]    = useState(false);
+  const [legalSlug,      setLegalSlug]      = useState<string | null>(null);
 
   async function handlePickAvatar() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -134,6 +136,48 @@ export default function ProfileTab() {
           <MenuItem icon="help-circle" label="Help & Support"  onPress={() => router.push('/profile/support' as never)} />
         </View>
 
+        {/* Super Admin entry — only for super admins */}
+        {user?.is_super_admin && (
+          <Pressable
+            style={styles.superAdminBtn}
+            onPress={() => router.push('/super-admin' as never)}
+          >
+            <View style={styles.superAdminIcon}>
+              <Feather name="shield" size={16} color={Colors.accent.gold} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.superAdminLabel}>Super Admin Panel</Text>
+              <Text style={styles.superAdminSub}>Platform management & controls</Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={Colors.accent.gold} />
+          </Pressable>
+        )}
+
+        {/* Legal section */}
+        <View style={styles.legalSection}>
+          <Text style={styles.legalHeader}>Legal</Text>
+          <View style={styles.legalCard}>
+            {[
+              { icon: 'file-text',  label: 'Terms of Service', slug: 'terms',           color: '#f59e0b' },
+              { icon: 'lock',       label: 'Privacy Policy',   slug: 'privacy-policy',  color: '#6366f1' },
+              { icon: 'shield',     label: 'Cookies Policy',   slug: 'cookies-policy',  color: '#10b981' },
+              { icon: 'book-open',  label: 'Acceptable Use',   slug: 'acceptable-use',  color: '#a78bfa' },
+            ].map(({ icon, label, slug, color }, i, arr) => (
+              <Pressable
+                key={slug}
+                style={[styles.legalItem, i === arr.length - 1 && { borderBottomWidth: 0 }]}
+                onPress={() => setLegalSlug(slug)}
+              >
+                <View style={[styles.legalIconWrap, { backgroundColor: color + '18', borderColor: color + '35' }]}>
+                  <Feather name={icon as any} size={14} color={color} />
+                </View>
+                <Text style={styles.legalLabel}>{label}</Text>
+                <Feather name="chevron-right" size={13} color={Colors.text.subtle} />
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
         {/* Logout */}
         <Pressable
           style={styles.logoutBtn}
@@ -151,9 +195,11 @@ export default function ProfileTab() {
         description="You'll need to log back in to manage your events."
         confirmText="Sign Out"
         variant="danger"
-        onConfirm={() => logout()}
+        onConfirm={() => { logout(); }}
         onClose={() => setLogoutModal(false)}
       />
+
+      <LegalPageModal slug={legalSlug} onClose={() => setLegalSlug(null)} />
     </SafeAreaView>
   );
 }
@@ -266,6 +312,53 @@ const styles = StyleSheet.create({
     justifyContent:  'center',
   },
   menuLabel: { fontSize: 15, fontWeight: '600', color: '#fff' },
+
+  superAdminBtn: {
+    flexDirection:    'row',
+    alignItems:       'center',
+    gap:              12,
+    paddingVertical:  14,
+    paddingHorizontal: 16,
+    borderRadius:     16,
+    backgroundColor:  'rgba(201,169,110,0.08)',
+    borderWidth:      1,
+    borderColor:      'rgba(201,169,110,0.30)',
+  },
+  superAdminIcon: {
+    width:           40,
+    height:          40,
+    borderRadius:    12,
+    backgroundColor: 'rgba(201,169,110,0.14)',
+    alignItems:      'center',
+    justifyContent:  'center',
+  },
+  superAdminLabel: { fontSize: 15, fontWeight: '800', color: Colors.accent.gold },
+  superAdminSub:   { fontSize: 11, color: 'rgba(201,169,110,0.60)', marginTop: 1 },
+
+  /* Legal section */
+  legalSection: { marginTop: 8 },
+  legalHeader: {
+    fontSize: 10, fontWeight: '800', color: 'rgba(255,255,255,0.25)',
+    textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 8,
+  },
+  legalCard: {
+    backgroundColor: Colors.bg.elevated,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.border.subtle,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  legalItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 16, paddingVertical: 13,
+    borderBottomWidth: 1, borderBottomColor: Colors.border.subtle,
+  },
+  legalIconWrap: {
+    width: 32, height: 32, borderRadius: 9,
+    borderWidth: 1, alignItems: 'center', justifyContent: 'center',
+  },
+  legalLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: Colors.text.primary },
 
   logoutBtn: {
     flexDirection:   'row',

@@ -13,17 +13,20 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
-  ChevronLeft, Check, Ticket, Users, Zap, Settings2,
+  ChevronLeft, Check, Ticket, Users,
   Lock, Sparkles, ArrowRight, CalendarDays, LayoutTemplate,
-  QrCode, Heart,
+  Heart,
 } from "lucide-react";
 import { useEventStore } from "@/store/event.store";
 import { useSubscriptionStore } from "@/store/subscription.store";
 import { EVENT_CATEGORIES, RSVP_DEFAULTS, TICKET_DEFAULTS } from "@/config/event-categories";
 import DateTimePicker from "@/components/ui/DateTimePicker";
+import AIGenerateButton from "@/components/ai/AIGenerateButton";
+import { useAIStore } from "@/store/ai.store";
+import { CountrySelector } from "@/components/ui/CountrySelector";
 
 /* ── Wizard steps ──────────────────────────────────────────── */
-const STEPS = ["Category", "Type", "Setup", "Details"];
+const STEPS = ["Category", "Type", "Details", "Settings"];
 
 /* ── Plan limit error card ─────────────────────────────────── */
 function EventLimitCard({ onUpgrade, plan }) {
@@ -192,12 +195,12 @@ function MobileUpgradeGate({ onBack, plan }) {
 /* ── Shared field wrapper ──────────────────────────────────── */
 function Field({ label, error, children }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+    <div className="flex flex-col gap-1.5 sm:gap-2">
+      <label className="text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
         {label}
       </label>
       {children}
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs sm:text-sm text-red-500 font-medium">{error}</p>}
     </div>
   );
 }
@@ -205,23 +208,23 @@ function Field({ label, error, children }) {
 /* ── Step 1: Category grid ─────────────────────────────────── */
 function StepCategory({ onSelect }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">What kind of event?</h2>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Choose the category that best fits your event</p>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">What kind of event?</h2>
+        <p className="mt-1 text-sm sm:text-base text-gray-500 dark:text-gray-400">Choose the category that best fits your event</p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
         {EVENT_CATEGORIES.map((cat) => (
           <button
             key={cat.id}
             onClick={() => onSelect(cat)}
-            className={`flex items-start gap-4 rounded-2xl border-2 p-5 text-left transition hover:shadow-md hover:scale-[1.01] active:scale-[0.99] ${cat.border} ${cat.bg} dark:bg-gray-800 dark:border-gray-700`}
+            className={`flex items-start gap-3 sm:gap-4 rounded-xl sm:rounded-2xl border-2 p-4 sm:p-5 text-left transition hover:shadow-md hover:scale-[1.01] active:scale-[0.99] ${cat.border} ${cat.bg} dark:bg-gray-800 dark:border-gray-700`}
           >
-            <span className="text-3xl mt-0.5">{cat.icon}</span>
+            <span className="text-2xl sm:text-3xl mt-0.5">{cat.icon}</span>
             <div>
-              <p className="font-semibold text-gray-900 dark:text-white text-sm">{cat.label}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{cat.description}</p>
-              <p className="text-xs mt-2" style={{ color: cat.color }}>{cat.subcategories.length} event types</p>
+              <p className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">{cat.label}</p>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">{cat.description}</p>
+              <p className="text-xs sm:text-sm mt-1.5 sm:mt-2" style={{ color: cat.color }}>{cat.subcategories.length} event types</p>
             </div>
           </button>
         ))}
@@ -233,29 +236,29 @@ function StepCategory({ onSelect }) {
 /* ── Step 2: Subcategory ───────────────────────────────────── */
 function StepSubcategory({ category, onSelect, onBack }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="text-center">
         <button
           onClick={onBack}
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mx-auto mb-3"
+          className="flex items-center gap-1 text-sm sm:text-base text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mx-auto mb-3"
         >
           <ChevronLeft className="w-4 h-4" /> Back
         </button>
-        <span className="text-3xl">{category.icon}</span>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mt-2">{category.label}</h2>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Select the specific type</p>
+        <span className="text-3xl sm:text-4xl">{category.icon}</span>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mt-2">{category.label}</h2>
+        <p className="mt-1 text-sm sm:text-base text-gray-500 dark:text-gray-400">Select the specific type</p>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3">
         {category.subcategories.map((sub) => (
           <button
             key={sub.id}
             onClick={() => onSelect(sub)}
-            className={`flex flex-col items-center gap-2 rounded-2xl border-2 p-4 text-center transition hover:shadow-md hover:scale-[1.02] active:scale-[0.99] ${category.border} ${category.bg} dark:bg-gray-800 dark:border-gray-700`}
+            className={`flex flex-col items-center gap-2 rounded-xl sm:rounded-2xl border-2 p-3.5 sm:p-4 text-center transition hover:shadow-md hover:scale-[1.02] active:scale-[0.99] ${category.border} ${category.bg} dark:bg-gray-800 dark:border-gray-700`}
           >
-            <span className="text-2xl">{sub.icon}</span>
-            <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 leading-tight">{sub.label}</p>
+            <span className="text-2xl sm:text-3xl">{sub.icon}</span>
+            <p className="text-xs sm:text-sm font-semibold text-gray-800 dark:text-gray-200 leading-tight">{sub.label}</p>
             {sub.ticketDefault && (
-              <span className="text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">
+              <span className="text-[9px] sm:text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">
                 Ticketed
               </span>
             )}
@@ -272,23 +275,15 @@ const FEATURE_OPTIONS = [
     key:   "rsvp",
     icon:  Users,
     label: "RSVP",
-    desc:  "Collect guest names and emails to track attendance.",
-    detail: ["Guest list & invitations", "RSVP confirmations", "Attendance tracking"],
-    activeBorder: "border-indigo-400 dark:border-indigo-500",
-    activeBg:     "bg-indigo-50 dark:bg-indigo-900/20",
-    iconBg:       "bg-indigo-100 dark:bg-indigo-900/30",
+    desc:  "Allow guests to RSVP to this event",
     iconColor:    "text-indigo-600 dark:text-indigo-400",
     badge:        "bg-indigo-600",
   },
   {
     key:   "ticketing",
     icon:  Ticket,
-    label: "Stripe Ticketing",
-    desc:  "Sell tickets online with Stripe. Multiple tiers supported.",
-    detail: ["Multiple ticket tiers", "Stripe payments", "E-ticket with QR code"],
-    activeBorder: "border-amber-400 dark:border-amber-500",
-    activeBg:     "bg-amber-50 dark:bg-amber-900/20",
-    iconBg:       "bg-amber-100 dark:bg-amber-900/30",
+    label: "Ticketing",
+    desc:  "Sell free or paid tickets",
     iconColor:    "text-amber-600 dark:text-amber-400",
     badge:        "bg-amber-500",
   },
@@ -296,205 +291,146 @@ const FEATURE_OPTIONS = [
     key:   "donations",
     icon:  Heart,
     label: "Donations",
-    desc:  "Accept tips and contributions from supporters via Stripe.",
-    detail: ["Custom amounts", "Anonymous giving", "Contribution dashboard"],
-    activeBorder: "border-pink-400 dark:border-pink-500",
-    activeBg:     "bg-pink-50 dark:bg-pink-900/20",
-    iconBg:       "bg-pink-100 dark:bg-pink-900/30",
+    desc:  "Accept optional donations at this event",
     iconColor:    "text-pink-600 dark:text-pink-400",
     badge:        "bg-pink-500",
   },
 ];
 
-function StepFeatures({ subcategory, features, onChange, onNext, onBack }) {
+function StepFeatures({ subcategory, features, onChange, onNext, onBack, submitting }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="text-center">
         <button onClick={onBack}
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mx-auto mb-3">
+          className="flex items-center gap-1 text-sm sm:text-base text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mx-auto mb-3">
           <ChevronLeft className="w-4 h-4" /> Back
         </button>
-        <span className="text-3xl">{subcategory.icon}</span>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mt-2">Choose your event mode</h2>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        <span className="text-3xl sm:text-4xl">{subcategory.icon}</span>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mt-2">Choose your event mode</h2>
+        <p className="mt-1 text-sm sm:text-base text-gray-500 dark:text-gray-400">
           Pick one — only one module can be active at a time. Switch anytime in Settings.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="space-y-2.5 sm:space-y-3">
         {FEATURE_OPTIONS.map((opt) => {
           const Icon = opt.icon;
           const active = features[opt.key];
           return (
             <button key={opt.key} type="button"
               onClick={() => onChange(opt.key, !active)}
-              className={`relative flex flex-col gap-3 rounded-2xl border-2 p-5 text-left transition hover:shadow-md ${
+              style={{
+                backgroundColor: active ? `${opt.iconColor.replace('text-', '#').replace('dark:', '').split(' ')[0].replace('indigo-600', '#6366f1').replace('amber-600', '#f59e0b').replace('pink-600', '#ec4899')}08` : undefined,
+                borderColor: active ? `${opt.iconColor.replace('text-', '#').replace('dark:', '').split(' ')[0].replace('indigo-600', '#6366f1').replace('amber-600', '#f59e0b').replace('pink-600', '#ec4899')}40` : undefined
+              }}
+              className={`relative w-full flex items-center gap-3 rounded-xl sm:rounded-2xl border p-3.5 sm:p-4 text-left transition-all duration-200 hover:shadow-md active:scale-[0.98] ${
                 active
-                  ? `${opt.activeBorder} ${opt.activeBg}`
-                  : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300"
+                  ? ""
+                  : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
               }`}>
-              {active && (
-                <span className={`absolute right-3 top-3 h-5 w-5 rounded-full flex items-center justify-center ${opt.badge}`}>
-                  <Check className="w-3 h-3 text-white" />
-                </span>
-              )}
-              <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${active ? opt.iconBg : "bg-gray-100 dark:bg-gray-700"}`}>
-                <Icon className={`w-5 h-5 ${active ? opt.iconColor : "text-gray-400 dark:text-gray-500"}`} />
+              {/* Icon */}
+              <div
+                style={{ backgroundColor: active ? `${opt.iconColor.replace('text-', '#').replace('dark:', '').split(' ')[0].replace('indigo-600', '#6366f1').replace('amber-600', '#f59e0b').replace('pink-600', '#ec4899')}20` : undefined }}
+                className={`flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl transition-colors ${!active && "bg-gray-100 dark:bg-gray-700"}`}>
+                <Icon className={`w-5 h-5 sm:w-5 sm:h-5 transition-colors ${active ? opt.iconColor : "text-gray-400 dark:text-gray-500"}`} />
               </div>
-              <div>
-                <p className={`font-bold text-sm ${active ? "text-gray-900 dark:text-white" : "text-gray-600 dark:text-gray-400"}`}>
+
+              {/* Text Content */}
+              <div className="flex-1 min-w-0">
+                <p className={`font-bold text-sm sm:text-base transition-colors ${active ? "text-gray-900 dark:text-white" : "text-gray-600 dark:text-gray-400"}`}>
                   {opt.label}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">{opt.desc}</p>
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">{opt.desc}</p>
               </div>
-              <ul className="space-y-1">
-                {opt.detail.map((d) => (
-                  <li key={d} className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
-                    <Check className={`w-3 h-3 shrink-0 ${active ? "text-emerald-500" : "text-gray-300 dark:text-gray-600"}`} /> {d}
-                  </li>
-                ))}
-              </ul>
+
+              {/* Toggle Switch Visual */}
+              <div className={`relative w-11 h-6 rounded-full transition-colors ${
+                active
+                  ? opt.badge.replace('bg-', 'bg-opacity-70 bg-')
+                  : "bg-gray-200 dark:bg-gray-700"
+              }`}>
+                <div className={`absolute top-0.5 ${active ? 'right-0.5' : 'left-0.5'} w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-200`} />
+              </div>
             </button>
           );
         })}
       </div>
 
-      <div className="flex items-center justify-between pt-2">
-        <p className="text-xs text-gray-400">
-          {Object.values(features).some(Boolean) ? "1 module selected" : "No module selected"}
+      <div className="flex items-center justify-between pt-3 sm:pt-4 mt-2 border-t border-gray-200 dark:border-gray-800">
+        <p className="text-xs sm:text-sm text-gray-400 font-medium">
+          {Object.values(features).some(Boolean) ? "1 module selected" : "Select one module"}
         </p>
-        <button onClick={onNext}
-          className="flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold text-white transition active:scale-95"
+        <button
+          onClick={onNext}
+          disabled={submitting}
+          className="flex items-center justify-center gap-2 rounded-xl px-5 sm:px-6 py-2.5 text-sm sm:text-base font-bold text-white transition active:scale-95 disabled:opacity-60"
           style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)", boxShadow: "0 4px 14px rgba(99,102,241,0.35)" }}>
-          Continue <ArrowRight className="w-4 h-4" />
+          {submitting ? (
+            <><span className="h-4 w-4 sm:h-5 sm:w-5 animate-spin rounded-full border-2 border-white border-t-transparent" /> Creating…</>
+          ) : (
+            <><Check className="w-4 h-4 sm:w-5 sm:h-5" /> Create Event</>
+          )}
         </button>
       </div>
     </div>
   );
 }
 
-/* ── Step 4: Details form ──────────────────────────────────── */
-function StepDetails({ subcategory, features, onBack, onSubmit, submitting }) {
-  const [mode, setMode] = useState(null);
-  const [form, setForm] = useState({
-    title: "", starts_at: "", ends_at: "", timezone: "UTC",
-    venue_name: "", venue_address: "", city: "", zip_code: "", country: "",
-    description: "", short_description: "",
-    visibility: features.ticketing ? "PUBLIC" : "PRIVATE",
-  });
+/* ── Step 3: Details form ──────────────────────────────────── */
+function StepDetails({ subcategory, features, formData, setFormData, onBack, onNext }) {
   const [errors, setErrors] = useState({});
+  const { generateEventContent, loading: aiLoading } = useAIStore();
 
   const inputCls =
-    "w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3.5 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900 transition";
+    "w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 sm:px-3.5 py-2.5 sm:py-3 text-sm sm:text-base text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900 transition";
 
-  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  const set = (k, v) => {
+    setFormData((p) => ({ ...p, [k]: v }));
+    setErrors((e) => ({ ...e, [k]: undefined }));
+  };
 
   const validate = () => {
     const e = {};
-    if (!form.title.trim()) e.title = "Title is required";
-    if (!form.starts_at) e.starts_at = "Start date is required";
+    if (!formData.title.trim()) e.title = "Title is required";
+    if (!formData.starts_at) e.starts_at = "Start date is required";
+    if (!formData.venue_name.trim()) e.venue_name = "Venue name is required";
+    if (!formData.city.trim()) e.city = "City is required";
     return e;
   };
 
-  const handleSubmit = () => {
+  const handleContinue = () => {
     const e = validate();
     if (Object.keys(e).length) { setErrors(e); return; }
-
-    const defaults = features.ticketing ? TICKET_DEFAULTS : RSVP_DEFAULTS;
-    onSubmit({
-      ...defaults,
-      event_type:        subcategory.eventType,
-      dashboard_mode:    subcategory.id,
-      title:             form.title.trim(),
-      starts_at:         form.starts_at,
-      ends_at:           form.ends_at || undefined,
-      timezone:          form.timezone,
-      venue_name:        form.venue_name || undefined,
-      venue_address:     form.venue_address || undefined,
-      city:              form.city || undefined,
-      zip_code:          form.zip_code || undefined,
-      country:           form.country || undefined,
-      description:       form.description || undefined,
-      short_description: form.short_description || undefined,
-      visibility:        form.visibility,
-      allow_rsvp:        features.rsvp,
-      allow_ticketing:   features.ticketing,
-      allow_qr_checkin:  true,
-      allow_donations:   features.donations,
-    });
+    onNext();
   };
 
-  if (!mode) {
-    return (
-      <div className="space-y-6">
-        <div className="text-center">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mx-auto mb-3"
-          >
-            <ChevronLeft className="w-4 h-4" /> Back
-          </button>
-          <span className="text-3xl">{subcategory.icon}</span>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mt-2">Create your event</h2>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">How much detail do you want to add now?</p>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <button
-            onClick={() => setMode("quick")}
-            className="flex flex-col items-center gap-3 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 text-center transition hover:border-indigo-400 hover:shadow-lg"
-          >
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-900/30">
-              <Zap className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            </div>
-            <div>
-              <p className="font-bold text-gray-900 dark:text-white">Quick Setup</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Just title & date. Done in 30 seconds.</p>
-            </div>
-          </button>
-          <button
-            onClick={() => setMode("advanced")}
-            className="flex flex-col items-center gap-3 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 text-center transition hover:border-indigo-400 hover:shadow-lg"
-          >
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700">
-              <Settings2 className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-            </div>
-            <div>
-              <p className="font-bold text-gray-900 dark:text-white">Full Setup</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Add description, visibility & more.</p>
-            </div>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-5">
+      <div className="text-center">
         <button
-          onClick={() => setMode(null)}
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400"
+          onClick={onBack}
+          className="flex items-center gap-1 text-sm sm:text-base text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mx-auto mb-3"
         >
           <ChevronLeft className="w-4 h-4" /> Back
         </button>
-        <span className="text-xs font-semibold text-gray-400">
-          {mode === "quick" ? "Quick Setup" : "Full Setup"}
-        </span>
+        <span className="text-3xl sm:text-4xl">{subcategory.icon}</span>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mt-2">Event Details</h2>
+        <p className="mt-1 text-sm sm:text-base text-gray-500 dark:text-gray-400">Fill in your event information</p>
       </div>
 
       <Field label="Event Title *" error={errors.title}>
         <input
-          value={form.title}
+          value={formData.title}
           onChange={(e) => set("title", e.target.value)}
           placeholder={`e.g. ${subcategory.icon} ${subcategory.label} 2025`}
           className={inputCls}
         />
       </Field>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Start Date & Time *">
           <DateTimePicker
-            value={form.starts_at}
+            value={formData.starts_at}
             onChange={(v) => set("starts_at", v)}
             placeholder="Pick start date & time"
             error={errors.starts_at}
@@ -502,27 +438,27 @@ function StepDetails({ subcategory, features, onBack, onSubmit, submitting }) {
         </Field>
         <Field label="End Date & Time">
           <DateTimePicker
-            value={form.ends_at}
+            value={formData.ends_at}
             onChange={(v) => set("ends_at", v)}
             placeholder="Pick end date & time"
-            minValue={form.starts_at}
+            minValue={formData.starts_at}
             error={errors.ends_at}
           />
         </Field>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Venue Name">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Field label="Venue Name *" error={errors.venue_name}>
           <input
-            value={form.venue_name}
+            value={formData.venue_name}
             onChange={(e) => set("venue_name", e.target.value)}
             placeholder="Venue or Online"
             className={inputCls}
           />
         </Field>
-        <Field label="City">
+        <Field label="City *" error={errors.city}>
           <input
-            value={form.city}
+            value={formData.city}
             onChange={(e) => set("city", e.target.value)}
             placeholder="e.g. New York"
             className={inputCls}
@@ -530,82 +466,50 @@ function StepDetails({ subcategory, features, onBack, onSubmit, submitting }) {
         </Field>
       </div>
 
-      {mode === "advanced" && (
-        <>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Zip / Postal Code">
-              <input
-                value={form.zip_code}
-                onChange={(e) => set("zip_code", e.target.value)}
-                placeholder="10001"
-                className={inputCls}
-              />
-            </Field>
-            <Field label="Country">
-              <input
-                value={form.country}
-                onChange={(e) => set("country", e.target.value)}
-                placeholder="e.g. United States"
-                className={inputCls}
-              />
-            </Field>
-          </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Field label="Zip / Postal Code">
+          <input
+            value={formData.zip_code}
+            onChange={(e) => set("zip_code", e.target.value.replace(/[^0-9]/g, ''))}
+            placeholder="10001"
+            className={inputCls}
+            inputMode="numeric"
+            pattern="[0-9]*"
+          />
+        </Field>
+        <Field label="Country">
+          <CountrySelector
+            value={formData.country}
+            onChange={(country) => set("country", country.code)}
+            placeholder="Select country"
+          />
+        </Field>
+      </div>
 
-          <Field label="Short Description">
-            <input
-              value={form.short_description}
-              onChange={(e) => set("short_description", e.target.value)}
-              placeholder="One-line summary shown in previews"
-              className={inputCls}
-            />
-          </Field>
+      <Field label="Description">
+        <textarea
+          value={formData.description}
+          onChange={(e) => set("description", e.target.value)}
+          placeholder="Tell guests what to expect…"
+          rows={4}
+          className={`${inputCls} resize-none min-h-[100px]`}
+        />
+      </Field>
 
-          <Field label="Description">
-            <textarea
-              value={form.description}
-              onChange={(e) => set("description", e.target.value)}
-              placeholder="Tell guests what to expect…"
-              rows={4}
-              className={`${inputCls} resize-none`}
-            />
-          </Field>
-
-          <Field label="Visibility">
-            <select
-              value={form.visibility}
-              onChange={(e) => set("visibility", e.target.value)}
-              className={inputCls}
-            >
-              <option value="PUBLIC">Public — anyone can find it</option>
-              <option value="PRIVATE">Private — invite only</option>
-            </select>
-          </Field>
-
-          <Field label="Timezone">
-            <select
-              value={form.timezone}
-              onChange={(e) => set("timezone", e.target.value)}
-              className={inputCls}
-            >
-              {Intl.supportedValuesOf("timeZone").map((tz) => (
-                <option key={tz} value={tz}>{tz}</option>
-              ))}
-            </select>
-          </Field>
-        </>
-      )}
+      <Field label="Timezone (Auto-detected)">
+        <input
+          value={formData.timezone}
+          disabled
+          className={`${inputCls} bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-75`}
+        />
+      </Field>
 
       <button
-        onClick={handleSubmit}
-        disabled={submitting}
-        className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white transition disabled:opacity-60"
+        onClick={handleContinue}
+        className="flex w-full items-center justify-center gap-2 rounded-xl py-3 sm:py-3.5 text-sm sm:text-base font-bold text-white transition active:scale-[0.98]"
         style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)", boxShadow: "0 4px 16px rgba(99,102,241,0.35)" }}
       >
-        {submitting ? (
-          <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> Creating…</>
-        ) : (
-          <><Check className="w-4 h-4" /> Create {subcategory.label}</>
-        )}
+        Continue <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
       </button>
     </div>
   );
@@ -643,6 +547,12 @@ function CreateEventPageInner() {
     ticketing: !!(preSelected?.sub?.ticketDefault),
     donations: false,
   }));
+  const [formData, setFormData]       = useState({
+    title: "", starts_at: "", ends_at: "", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    venue_name: "", venue_address: "", city: "", zip_code: "", country: "",
+    description: "", short_description: "",
+    visibility: "PRIVATE",
+  });
   const [submitting, setSubmitting]   = useState(false);
   const [error, setError]             = useState(null);
   const { openUpgradeModal, isAtEventLimit, fetchSubscription, plan } = useSubscriptionStore();
@@ -662,10 +572,33 @@ function CreateEventPageInner() {
     setStep(2);
   };
 
-  const handleSubmit = async (payload) => {
+  const handleSubmit = async () => {
     setSubmitting(true);
     setError(null);
     try {
+      const defaults = features.ticketing ? TICKET_DEFAULTS : RSVP_DEFAULTS;
+      const payload = {
+        ...defaults,
+        event_type:        subcategory.eventType,
+        dashboard_mode:    subcategory.id,
+        title:             formData.title.trim(),
+        starts_at:         formData.starts_at,
+        ends_at:           formData.ends_at || undefined,
+        timezone:          formData.timezone,
+        venue_name:        formData.venue_name || undefined,
+        venue_address:     formData.venue_address || undefined,
+        city:              formData.city || undefined,
+        zip_code:          formData.zip_code || undefined,
+        country:           formData.country || undefined,
+        description:       formData.description || undefined,
+        short_description: formData.short_description || undefined,
+        visibility:        formData.visibility,
+        allow_rsvp:        features.rsvp,
+        allow_ticketing:   features.ticketing,
+        allow_qr_checkin:  true,
+        allow_donations:   features.donations,
+      };
+
       const event = await createEvent(payload);
       if (!event?.id) {
         setError({ type: "generic", message: "Failed to create event. Please try again." });
@@ -719,19 +652,19 @@ function CreateEventPageInner() {
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-y-auto bg-gray-50 dark:bg-gray-950">
-      <div className="mx-auto w-full max-w-4xl px-4 py-8">
+      <div className="mx-auto w-full max-w-4xl px-3 sm:px-4 py-4 sm:py-8">
 
         {/* Back button */}
         <button
           onClick={() => router.push(backPath)}
-          className="mb-6 flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition"
+          className="mb-4 sm:mb-6 flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition"
         >
           <ChevronLeft className="w-4 h-4" />
           {backLabel}
         </button>
 
         {/* Progress indicator */}
-        <div className="mb-8">
+        <div className="mb-4 sm:mb-8">
           <div className="flex items-center justify-between">
             {STEPS.map((s, i) => (
               <div key={s} className="flex items-center gap-2 flex-1 last:flex-none">
@@ -771,7 +704,7 @@ function CreateEventPageInner() {
           </div>
         )}
 
-        <div className="rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 sm:p-8 shadow-sm">
+        <div className="rounded-2xl sm:rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 sm:p-6 md:p-8 shadow-sm">
           {step === 0 && (
             <StepCategory onSelect={(cat) => { setCategory(cat); setStep(1); }} />
           )}
@@ -783,6 +716,16 @@ function CreateEventPageInner() {
             />
           )}
           {step === 2 && subcategory && (
+            <StepDetails
+              subcategory={subcategory}
+              features={features}
+              formData={formData}
+              setFormData={setFormData}
+              onBack={() => setStep(1)}
+              onNext={() => setStep(3)}
+            />
+          )}
+          {step === 3 && subcategory && (
             <StepFeatures
               subcategory={subcategory}
               features={features}
@@ -792,16 +735,8 @@ function CreateEventPageInner() {
                 if (!exclusive.includes(key)) return { ...f, [key]: true };
                 return { ...f, rsvp: key === 'rsvp', ticketing: key === 'ticketing', donations: key === 'donations' };
               })}
-              onNext={() => setStep(3)}
-              onBack={() => setStep(1)}
-            />
-          )}
-          {step === 3 && subcategory && (
-            <StepDetails
-              subcategory={subcategory}
-              features={features}
+              onNext={handleSubmit}
               onBack={() => setStep(2)}
-              onSubmit={handleSubmit}
               submitting={submitting}
             />
           )}
@@ -1384,7 +1319,7 @@ export default function CreateEventPage() {
 //           </div>
 //         )}
 
-//         <div className="rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 sm:p-8 shadow-sm">
+//         <div className="rounded-2xl sm:rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 sm:p-6 md:p-8 shadow-sm">
 //           {step === 0 && (
 //             <StepCategory onSelect={(cat) => { setCategory(cat); setStep(1); }} />
 //           )}

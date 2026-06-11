@@ -20,6 +20,7 @@ interface AuthState {
   updateAvatar: (uri: string, mimeType?: string, fileName?: string) => Promise<{ success: boolean; avatar_url?: string; message?: string }>;
   logout:       () => Promise<void>;
   clearError:   () => void;
+  setUser:      (user: User) => void;
 }
 
 function applyUser(user: User) {
@@ -142,8 +143,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   // ─── Fetch current user ───────────────────────────────────────────────────
   fetchMe: async () => {
     try {
-      const res  = await api.get<{ data: User }>('/auth/me');
-      const user = res.data?.data;
+      const res  = await api.get<{ data: User; user: User }>('/auth/me');
+      const user = res.data?.data ?? (res.data as unknown as { user: User })?.user;
       if (user) {
         applyUser(user);
         await persistSession(user, true);
@@ -186,4 +187,5 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+  setUser:    (user: User) => set({ user }),
 }));

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Image, Alert } from 'react-native';
+import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Image } from 'react-native';
+import { ConfirmModal, useConfirm } from '@/components/ui/ConfirmModal';
 import { Feather } from '@expo/vector-icons';
 import { useBuilderStore } from '@/store/builder.store';
 import { pickAndUploadImage } from '@/lib/imageUpload';
@@ -26,6 +27,7 @@ export default function GalleryConfigFields({ section, eventId, iosKeyboardInset
   const [body,   setBody]   = useState(String(c.body   ?? ''));
   const [layout, setLayout] = useState<'grid' | 'carousel'>((c.layout as 'grid' | 'carousel') ?? 'grid');
   const [images, setImages] = useState<string[]>((c.images as string[]) ?? []);
+  const { confirm, confirmProps } = useConfirm();
 
   useEffect(() => {
     const cfg = section.config ?? {};
@@ -76,6 +78,7 @@ export default function GalleryConfigFields({ section, eventId, iosKeyboardInset
   const slots: (string | null)[] = Array.from({ length: Math.min(slotCount, MAX_IMAGES) }, (_, i) => images[i] ?? null);
 
   return (
+    <>
     <ScrollView
       style={{ flex: 1, backgroundColor: BG }}
       contentContainerStyle={s.scroll}
@@ -132,10 +135,13 @@ export default function GalleryConfigFields({ section, eventId, iosKeyboardInset
             <Pressable
               style={s.clearBtn}
               onPress={() => {
-                Alert.alert('Clear all photos?', 'This will remove all gallery images.', [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Clear', style: 'destructive', onPress: () => { setImages([]); save({ images: [] }); } },
-                ]);
+                confirm({
+                  title: 'Clear all photos?',
+                  message: 'This will remove all gallery images.',
+                  confirmLabel: 'Clear',
+                  variant: 'danger',
+                  onConfirm: () => { setImages([]); save({ images: [] }); },
+                });
               }}
             >
               <Feather name="trash-2" size={11} color="#ef4444" />
@@ -167,6 +173,8 @@ export default function GalleryConfigFields({ section, eventId, iosKeyboardInset
         </View>
       </View>
     </ScrollView>
+    <ConfirmModal {...confirmProps} />
+    </>
   );
 }
 

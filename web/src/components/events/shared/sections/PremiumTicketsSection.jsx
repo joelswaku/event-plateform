@@ -215,212 +215,163 @@ function ViewerCount({ accent }) {
 }
 
 /* ─── TICKET CARD ─────────────────────────────────────────── */
+function tierCode(ticket) {
+  const n = (ticket.name ?? "").toLowerCase();
+  if (ticket.kind === "FREE")                                               return "FREE";
+  if (n.includes("vip") || n.includes("platinum"))                         return "VIP";
+  if (n.includes("early") || n.includes("bird"))                           return "EB";
+  if (n.includes("pro") || n.includes("premium") || n.includes("diamond")) return "PRO";
+  if (n.includes("student") || n.includes("concession"))                   return "STU";
+  return "GA";
+}
+
 function PremiumTicketCard({ ticket, onBuy, delay = 0, isEditor }) {
-  const tierKey = resolveTier(ticket);
-  const cfg     = TIER[tierKey];
+  const tierKey  = resolveTier(ticket);
+  const cfg      = TIER[tierKey];
+  const code     = tierCode(ticket);
 
   const available = ticket.quantity_total != null
     ? ticket.quantity_total - (ticket.quantity_sold ?? 0)
     : null;
-  const isSoldOut = available !== null && available <= 0;
-  const pct       = ticket.quantity_total
+  const isSoldOut  = available !== null && available <= 0;
+  const pct        = ticket.quantity_total
     ? Math.min(((ticket.quantity_sold ?? 0) / ticket.quantity_total) * 100, 100)
     : 0;
-  const isUrgent  = available !== null && available > 0 && available <= 20;
-  const isLow     = available !== null && available > 0 && available <= 50;
+  const isUrgent   = available !== null && available > 0 && available <= 20;
   const isFeatured = tierKey === "vip" || tierKey === "pro";
 
   const features = ticket.description?.includes("·")
     ? ticket.description.split("·").map((f) => f.trim()).filter(Boolean)
-    : ticket.description
-    ? [ticket.description]
-    : [];
+    : ticket.description ? [ticket.description] : [];
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 40, scale: 0.95 }}
+      initial={{ opacity: 0, y: 32, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1], delay }}
       className="relative flex flex-col overflow-hidden rounded-2xl"
       style={{
-        background: cfg.bg,
-        border: `1px solid ${cfg.border}`,
-        boxShadow: isFeatured
-          ? `0 0 0 1px ${cfg.border}, 0 20px 60px ${cfg.glow}`
-          : `0 8px 32px ${cfg.glow}`,
+        border: "1px solid rgba(255,255,255,0.07)",
+        boxShadow: isFeatured ? `0 24px 64px rgba(0,0,0,0.55), 0 0 0 1px ${cfg.border}` : "0 16px 48px rgba(0,0,0,0.45)",
         transform: isFeatured ? "scale(1.03)" : "scale(1)",
         transition: "transform 0.3s ease, box-shadow 0.3s ease",
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = isFeatured ? "scale(1.06) translateY(-6px)" : "translateY(-5px) scale(1.01)";
-        e.currentTarget.style.boxShadow = `0 32px 80px ${cfg.glow}, 0 0 0 1px ${cfg.border}`;
+      onMouseEnter={e => {
+        e.currentTarget.style.transform = isFeatured ? "scale(1.05) translateY(-5px)" : "translateY(-5px) scale(1.01)";
+        e.currentTarget.style.boxShadow = `0 32px 80px rgba(0,0,0,0.60), 0 0 0 1px ${cfg.border}`;
       }}
-      onMouseLeave={(e) => {
+      onMouseLeave={e => {
         e.currentTarget.style.transform = isFeatured ? "scale(1.03)" : "scale(1)";
-        e.currentTarget.style.boxShadow = isFeatured
-          ? `0 0 0 1px ${cfg.border}, 0 20px 60px ${cfg.glow}`
-          : `0 8px 32px ${cfg.glow}`;
+        e.currentTarget.style.boxShadow = isFeatured ? `0 24px 64px rgba(0,0,0,0.55), 0 0 0 1px ${cfg.border}` : "0 16px 48px rgba(0,0,0,0.45)";
       }}
     >
-      {/* Shimmer sweep for VIP/Pro */}
-      {cfg.shimmer && (
-        <div
-          className="pointer-events-none absolute inset-0 -z-0 opacity-20"
-          style={{
-            background: `linear-gradient(105deg, transparent 40%, ${cfg.accent}40 50%, transparent 60%)`,
-            backgroundSize: "200% 100%",
-            animation: "ticketShimmer 3s linear infinite",
-          }}
-        />
-      )}
-
-      {/* Featured crown */}
-      {isFeatured && (
-        <div
-          className="absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-20 blur-2xl"
-          style={{ background: cfg.accent }}
-        />
-      )}
-
-      {/* Urgent badge */}
-      {isUrgent && !isSoldOut && (
-        <div
-          className="absolute -right-1 top-4 flex items-center gap-1 rounded-l-full px-3 py-1 text-[10px] font-black uppercase tracking-widest"
-          style={{
-            background: "linear-gradient(135deg,#ef4444,#dc2626)",
-            color: "#fff",
-            boxShadow: "0 4px 12px rgba(239,68,68,0.5)",
-            animation: "ticketPulse 1.5s ease-in-out infinite",
-          }}
-        >
-          🔥 {available} left
-        </div>
-      )}
-
-      {/* Card header */}
-      <div style={{ padding: "20px 22px 14px" }}>
-        <div className="flex items-start justify-between gap-3">
+      {/* ── Dark header bar ── */}
+      <div className="relative flex items-center justify-between px-5 py-4"
+        style={{ background: "#0c0c12", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+        <div className="flex items-center gap-3">
+          {/* tier code badge */}
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xs font-black tracking-wider"
+            style={{ background: `${cfg.accent}18`, border: `1.5px solid ${cfg.accent}40`, color: cfg.accent }}>
+            {code}
+          </div>
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span
-                className="rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest"
-                style={{
-                  background: `${cfg.accent}18`,
-                  border: `1px solid ${cfg.accent}35`,
-                  color: cfg.accent,
-                }}
-              >
-                {cfg.icon} {cfg.label}
-              </span>
-            </div>
-            <h3
-              className="text-lg font-black leading-tight"
-              style={{ color: "#fff", letterSpacing: "-0.02em" }}
-            >
-              {ticket.name}
-            </h3>
-          </div>
-          <div className="text-right shrink-0">
-            <p
-              className="text-3xl font-black leading-none"
-              style={{
-                color: ticket.kind === "FREE" ? cfg.accent : "#fff",
-                letterSpacing: "-0.04em",
-              }}
-            >
-              {fmt(Number(ticket.price), ticket.currency)}
+            <p className="text-[9px] font-black uppercase tracking-[0.22em]" style={{ color: cfg.accent }}>
+              {cfg.label} Access
             </p>
-            {ticket.kind !== "FREE" && (
-              <p className="text-[11px] mt-0.5" style={{ color: cfg.muted }}>per person</p>
-            )}
+            <p className="text-sm font-bold text-white leading-tight">{ticket.name}</p>
           </div>
         </div>
+        {/* right: status */}
+        {isSoldOut ? (
+          <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full"
+            style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)" }}>
+            Sold Out
+          </span>
+        ) : isUrgent ? (
+          <span className="text-[10px] font-black text-amber-400 flex items-center gap-1">
+            🔥 {available} left
+          </span>
+        ) : isFeatured ? (
+          <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full"
+            style={{ background: `${cfg.accent}20`, color: cfg.accent, border: `1px solid ${cfg.accent}35` }}>
+            Popular
+          </span>
+        ) : null}
       </div>
 
-      {/* Perforation */}
-      <Perf color={cfg.accent} />
+      {/* ── Cream body ── */}
+      <div className="flex flex-col flex-1 px-5 pt-6 pb-5 gap-4" style={{ background: "#f0ebe0" }}>
 
-      {/* Features list */}
-      <div style={{ padding: "10px 22px", flex: 1 }}>
-        {features.length > 0 ? (
-          <ul className="flex flex-col gap-2">
+        {/* Large centered price */}
+        <div className="text-center">
+          <p className="text-[9px] font-bold uppercase tracking-[0.25em] mb-1" style={{ color: "#7a6e5f" }}>per person</p>
+          <p className="leading-none font-black"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "clamp(2.6rem,5vw,3.6rem)", color: "#0f0d0a", letterSpacing: "-0.02em" }}>
+            {ticket.kind === "FREE" ? "Free" : fmt(Number(ticket.price), ticket.currency)}
+          </p>
+          {ticket.kind !== "FREE" && (
+            <p className="text-xs mt-1 font-semibold" style={{ color: "#9a8c7e" }}>
+              {ticket.currency} · incl. fees
+            </p>
+          )}
+        </div>
+
+        {/* Divider */}
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-px" style={{ background: "rgba(0,0,0,0.08)" }} />
+          <div className="w-1.5 h-1.5 rounded-full" style={{ background: "rgba(0,0,0,0.12)" }} />
+          <div className="flex-1 h-px" style={{ background: "rgba(0,0,0,0.08)" }} />
+        </div>
+
+        {/* Features */}
+        {features.length > 0 && (
+          <ul className="space-y-1.5">
             {features.map((f, i) => (
-              <li key={i} className="flex items-start gap-2.5">
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="mt-0.5 shrink-0">
-                  <circle cx="6" cy="6" r="5.5" stroke={cfg.accent} strokeOpacity="0.4" />
-                  <path d="M3.5 6l2 2 3-3" stroke={cfg.accent} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span className="text-[13px] leading-relaxed" style={{ color: cfg.muted }}>{f}</span>
+              <li key={i} className="flex items-start gap-2 text-xs font-semibold" style={{ color: "#4a3f30" }}>
+                <span style={{ color: cfg.accent, fontWeight: 900 }}>✓</span>{f}
               </li>
             ))}
           </ul>
-        ) : (
-          <p className="text-[13px] leading-relaxed" style={{ color: cfg.muted }}>
-            {ticket.description ?? "Full event access included."}
-          </p>
         )}
-      </div>
 
-      {/* Capacity bar */}
-      {ticket.quantity_total != null && (
-        <div style={{ padding: "12px 22px 0" }}>
-          <div className="flex justify-between text-[11px] mb-2" style={{ color: cfg.muted }}>
-            <span style={{ color: isSoldOut ? "rgba(255,255,255,0.3)" : isUrgent ? "#ef4444" : cfg.muted }}>
-              {isSoldOut ? "Sold out" : isUrgent ? `⚠ Only ${available} spots left!` : isLow ? `${available} remaining` : `${available} available`}
-            </span>
-            <span style={{ color: pct >= 90 ? "#ef4444" : cfg.accent, fontWeight: 700 }}>
-              {Math.round(pct)}% sold
-            </span>
+        {/* Capacity bar */}
+        {ticket.quantity_total != null && !isSoldOut && (
+          <div>
+            <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#9a8c7e" }}>
+              <span>{isUrgent ? `⚠ ${available} spots left` : `${available} available`}</span>
+              <span style={{ color: cfg.accent }}>{Math.round(pct)}% filled</span>
+            </div>
+            <div style={{ height: 3, borderRadius: 99, background: "rgba(0,0,0,0.10)", overflow: "hidden" }}>
+              <motion.div
+                initial={{ width: 0 }} animate={{ width: `${pct}%` }}
+                transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1], delay: delay + 0.3 }}
+                style={{ height: "100%", borderRadius: 99, background: isUrgent ? "#ef4444" : cfg.accent }}
+              />
+            </div>
           </div>
-          <div style={{ height: 4, borderRadius: 99, background: `${cfg.accent}15`, overflow: "hidden" }}>
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${pct}%` }}
-              transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1], delay: delay + 0.3 }}
-              style={{
-                height: "100%",
-                borderRadius: 99,
-                background: isSoldOut ? "rgba(255,255,255,0.15)"
-                  : isUrgent ? "linear-gradient(90deg,#ef4444,#dc2626)"
-                  : `linear-gradient(90deg,${cfg.accent},${cfg.accent}bb)`,
-                boxShadow: !isSoldOut ? `0 0 8px ${cfg.glow}` : "none",
-              }}
-            />
-          </div>
+        )}
+
+        {/* Dual CTA */}
+        <div className="flex flex-col gap-2 mt-auto">
+          <button
+            onClick={() => !isSoldOut && !isEditor && onBuy(ticket)}
+            disabled={isSoldOut || isEditor}
+            className="w-full py-3.5 text-sm font-black uppercase tracking-widest transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl"
+            style={{ background: isSoldOut ? "rgba(0,0,0,0.12)" : "#0f0d0a", color: isSoldOut ? "#9a8c7e" : "#f0ebe0", letterSpacing: "0.08em" }}>
+            {isSoldOut ? "Sold Out" : ticket.kind === "FREE" ? "Reserve Free Spot" : "Buy Now →"}
+          </button>
+          {!isSoldOut && !isEditor && (
+            <button
+              onClick={() => onBuy(ticket)}
+              className="w-full py-2.5 text-xs font-bold uppercase tracking-widest transition-all active:scale-[0.98] rounded-xl"
+              style={{ background: "transparent", color: "#4a3f30", border: "1.5px solid rgba(0,0,0,0.18)", letterSpacing: "0.10em" }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = cfg.accent}
+              onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.18)"}>
+              {ticket.kind === "FREE" ? "Learn More" : "Reserve a Spot"}
+            </button>
+          )}
         </div>
-      )}
 
-      {/* CTA */}
-      <div style={{ padding: "14px 22px 20px" }}>
-        <motion.button
-          whileHover={!isSoldOut ? { scale: 1.02 } : {}}
-          whileTap={!isSoldOut ? { scale: 0.97 } : {}}
-          onClick={() => !isSoldOut && !isEditor && onBuy(ticket)}
-          disabled={isSoldOut || isEditor}
-          className="w-full rounded-xl py-3.5 text-sm font-black uppercase tracking-wide transition-all"
-          style={{
-            background: isSoldOut
-              ? "rgba(255,255,255,0.05)"
-              : `linear-gradient(135deg,${cfg.accent},${cfg.accent}bb)`,
-            color: isSoldOut ? "rgba(255,255,255,0.2)" : cfg.dark,
-            border: "none",
-            cursor: isSoldOut ? "not-allowed" : "pointer",
-            letterSpacing: "0.05em",
-            boxShadow: !isSoldOut ? `0 6px 24px ${cfg.glow}` : "none",
-          }}
-        >
-          {isSoldOut
-            ? "Sold Out"
-            : ticket.kind === "FREE"
-            ? "Reserve Free Spot →"
-            : `Get ${cfg.label} Ticket →`}
-        </motion.button>
-
-        {!isSoldOut && ticket.kind !== "FREE" && (
-          <p className="mt-2 text-center text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>
-            🔒 Secure checkout · Instant e-ticket
-          </p>
-        )}
       </div>
     </motion.div>
   );
@@ -438,9 +389,7 @@ function TicketHeroHeader({ event, tickets, accentColor }) {
 
   const priceLabel  = paidTickets.length === 0
     ? (freeTickets.length ? "Free entry" : "")
-    : minPrice === maxPrice
-    ? `From ${fmt(minPrice, currency)}`
-    : `${fmt(minPrice, currency)} – ${fmt(maxPrice, currency)}`;
+    : `From ${fmt(minPrice, currency)}`;
 
   const totalCap    = tickets.reduce((s, t) => s + (t.quantity_total ?? 0), 0);
   const totalSold   = tickets.reduce((s, t) => s + (t.quantity_sold ?? 0), 0);

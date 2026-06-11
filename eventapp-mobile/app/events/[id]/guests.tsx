@@ -26,14 +26,15 @@ import React, { useState, useMemo, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, ScrollView, StyleSheet,
   Pressable, RefreshControl, Dimensions, Animated,
-  ActivityIndicator, Alert, Modal,
+  ActivityIndicator, Modal,
 } from 'react-native';
+import { ConfirmModal, useConfirm } from '@/components/ui/ConfirmModal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather }        from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics       from 'expo-haptics';
-import Toast              from 'react-native-toast-message';
+import { notify } from '@/lib/toast';
 
 import { useGuestStore }         from '@/store/guest.store';
 import { useSeatingStore }       from '@/store/seating.store';
@@ -374,6 +375,7 @@ export default function GuestsScreen() {
   const [selectedIds,  setSelectedIds]  = useState<Set<string>>(new Set());
   const [bulkLoading,  setBulkLoading]  = useState(false);
   const [rsvpMenu,     setRsvpMenu]     = useState(false);
+  const { confirm, confirmProps } = useConfirm();
 
   useFocusEffect(
     useCallback(() => {
@@ -420,21 +422,21 @@ export default function GuestsScreen() {
 
   const handleAdd = async () => {
     if (!newGuest.full_name.trim()) {
-      Toast.show({ type: 'error', text1: 'Full name is required' });
+      notify.nameRequired();
       return;
     }
     setAdding(true);
     const result = await createGuest(eventId!, newGuest);
     setAdding(false);
     if (result.success) {
-      Toast.show({ type: 'success', text1: '✓ Guest added' });
+      notify.guestAdded();
       setAddOpen(false);
       setNewGuest({ full_name: '', email: '', phone: '', is_vip: false });
     } else if (result.code === 'PLAN_LIMIT_GUESTS') {
       setAddOpen(false);
       setLimitModal(true);
     } else {
-      Toast.show({ type: 'error', text1: 'Failed to add guest' });
+      notify.guestFailed();
     }
   };
 
@@ -463,37 +465,33 @@ export default function GuestsScreen() {
   }, []);
 
   const handleBulkDelete = useCallback(() => {
-    Alert.alert(
-      'Delete Guests',
-      `Remove ${selectedIds.size} guest${selectedIds.size !== 1 ? 's' : ''}? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete', style: 'destructive',
-          onPress: async () => {
-            setBulkLoading(true);
-            const res = await bulkDeleteGuests(eventId!, Array.from(selectedIds));
-            setBulkLoading(false);
-            if (res.success) {
-              Toast.show({ type: 'success', text1: `${selectedIds.size} guest${selectedIds.size !== 1 ? 's' : ''} deleted` });
-              exitSelectMode();
-            } else {
-              Toast.show({ type: 'error', text1: 'Bulk delete failed' });
-            }
-          },
-        },
-      ],
-    );
-  }, [selectedIds, eventId, bulkDeleteGuests, exitSelectMode]);
+    confirm({
+      title: 'Delete Guests',
+      message: `Remove ${selectedIds.size} guest${selectedIds.size !== 1 ? 's' : ''}? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      variant: 'danger',
+      onConfirm: async () => {
+        setBulkLoading(true);
+        const res = await bulkDeleteGuests(eventId!, Array.from(selectedIds));
+        setBulkLoading(false);
+        if (res.success) {
+          notify.guestDeleted(selectedIds.size);
+          exitSelectMode();
+        } else {
+          notify.bulkDeleteFailed();
+        }
+      },
+    });
+  }, [selectedIds, eventId, bulkDeleteGuests, exitSelectMode, confirm]);
 
   const handleBulkInvite = useCallback(async () => {
     setBulkLoading(true);
     const res = await bulkSendInvitations(eventId!, Array.from(selectedIds));
     setBulkLoading(false);
     if (res.success) {
-      Toast.show({ type: 'success', text1: `Invitations sent to ${selectedIds.size} guest${selectedIds.size !== 1 ? 's' : ''}` });
+      notify.invitesSent(selectedIds.size);
     } else {
-      Toast.show({ type: 'error', text1: 'Failed to send invitations' });
+      notify.invitesFailed();
     }
   }, [selectedIds, eventId, bulkSendInvitations]);
 
@@ -503,9 +501,9 @@ export default function GuestsScreen() {
     const res = await bulkSubmitRsvp(eventId!, Array.from(selectedIds), status);
     setBulkLoading(false);
     if (res.success) {
-      Toast.show({ type: 'success', text1: `RSVP set to ${status.toLowerCase()} for ${selectedIds.size} guest${selectedIds.size !== 1 ? 's' : ''}` });
+      notify.rsvpUpdated(status, selectedIds.size);
     } else {
-      Toast.show({ type: 'error', text1: 'Failed to update RSVP' });
+      notify.rsvpFailed();
     }
   }, [selectedIds, eventId, bulkSubmitRsvp]);
 
@@ -731,7 +729,7 @@ export default function GuestsScreen() {
       )}
 
       {/* ── RSVP MENU MODAL ─────────────────────────────────────── */}
-      <Modal visible={rsvpMenu} transparent animationType="fade" onRequestClose={() => setRsvpMenu(false)}>
+      <Modal visible={rsvpMenu} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setRsvpMenu(false)}>
         <Pressable style={rm.overlay} onPress={() => setRsvpMenu(false)}>
           <View style={rm.sheet}>
             <Text style={rm.title}>Set RSVP for {selectedIds.size} guest{selectedIds.size !== 1 ? 's' : ''}</Text>
@@ -753,7 +751,7 @@ export default function GuestsScreen() {
       </Modal>
 
       {/* ── GUEST LIMIT MODAL ───────────────────────────────────── */}
-      <Modal visible={limitModal} transparent animationType="fade" onRequestClose={() => setLimitModal(false)}>
+      <Modal visible={limitModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setLimitModal(false)}>
         <View style={lm.overlay}>
           <View style={lm.card}>
             {/* Close */}
@@ -895,6 +893,7 @@ export default function GuestsScreen() {
         </View>
       </BottomSheet>
 
+      <ConfirmModal {...confirmProps} />
     </SafeAreaView>
   );
 }

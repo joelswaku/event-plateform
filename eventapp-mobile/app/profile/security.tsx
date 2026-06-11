@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, ScrollView, StyleSheet, Pressable,
-  Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
+  ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import api from '@/lib/api';
 import { Colors } from '@/constants/colors';
+import { toast } from '@/lib/toast';
+import { InfoModal, useInfo } from '@/components/ui/ConfirmModal';
 
 export default function SecurityScreen() {
   const router = useRouter();
@@ -20,18 +22,19 @@ export default function SecurityScreen() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew,     setShowNew]     = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const { info, infoProps } = useInfo();
 
   async function handleSave() {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      Alert.alert('Validation', 'Please fill in all fields.');
+      info({ title: 'Validation', message: 'Please fill in all fields.', variant: 'warning' });
       return;
     }
     if (newPassword.length < 8) {
-      Alert.alert('Validation', 'New password must be at least 8 characters.');
+      info({ title: 'Validation', message: 'New password must be at least 8 characters.', variant: 'warning' });
       return;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert('Validation', 'New passwords do not match.');
+      info({ title: 'Validation', message: 'New passwords do not match.', variant: 'warning' });
       return;
     }
 
@@ -41,12 +44,12 @@ export default function SecurityScreen() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      Alert.alert('Success', 'Your password has been updated.');
+      toast.success('Success', 'Your password has been updated.');
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
         'Could not update password. Please check your current password and try again.';
-      Alert.alert('Error', msg);
+      toast.error('Error', msg);
     } finally {
       setSaving(false);
     }
@@ -143,6 +146,7 @@ export default function SecurityScreen() {
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
+      <InfoModal {...infoProps} />
     </SafeAreaView>
   );
 }

@@ -21,6 +21,13 @@ import uploadImages from "./media-upload.routes.js";
 import subscriptionRoutes from "./subscription.routes.js";
 import notificationsRoutes from "./notifications.routes.js";
 import testEmailRoute from "./test-email.route.js";
+import aiRoutes from "./ai.routes.js";
+import plannerRoutes from "./planner.routes.js";
+import googlePlacesRoutes from "./google-places.routes.js";
+import superAdminRoutes from "./superAdmin.routes.js";
+import vendorsRoutes from "./vendors.routes.js";
+import organizersRoutes from "./organizers.routes.js";
+import chatRoutes from "./chat.routes.js";
 
 const router = Router();
 
@@ -57,6 +64,31 @@ router.use("/subscription", subscriptionRoutes);
 
 // 🔔 NOTIFICATIONS
 router.use("/notifications", notificationsRoutes);
+
+// 🤖 AI
+router.use("/ai", aiRoutes);
+
+// 📋 PLANNER
+router.use("/planner", plannerRoutes);
+
+// 🗺️ GOOGLE PLACES PROXY
+router.use("/google-places", googlePlacesRoutes);
+
+// 🏪 VENDOR PORTAL
+router.use("/vendors", vendorsRoutes);
+
+// 💬 CHAT / MESSAGING
+router.use("/chat", chatRoutes);
+
+// 📜 LEGAL PAGES (public)
+import { getPublicLegalPage } from "../controllers/legal.controller.js";
+router.get("/public/legal/:slug", getPublicLegalPage);
+
+// 🎯 ORGANIZER PORTAL
+router.use("/organizers", organizersRoutes);
+
+// 👑 SUPER ADMIN
+router.use("/super-admin", superAdminRoutes);
 
 // 🧪 TEST
 router.use("/", testEmailRoute);

@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable, RefreshControl,
 } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import Toast from 'react-native-toast-message';
+import { notify } from '@/lib/toast';
 import { useTicketStore }  from '@/store/ticket.store';
 import { TicketTypeCard }  from '@/components/tickets/TicketTypeCard';
 import { BottomSheet }     from '@/components/ui/BottomSheet';
@@ -46,7 +47,7 @@ export default function EventTicketsScreen() {
   };
 
   const save = async () => {
-    if (!form.name.trim()) return Toast.show({ type: 'error', text1: 'Ticket name is required' });
+    if (!form.name.trim()) return notify.ticketRequired();
     setSaving(true);
     const payload = {
       name:           form.name.trim(),
@@ -61,12 +62,12 @@ export default function EventTicketsScreen() {
     else            res = await createTicketType(eventId!, payload);
     setSaving(false);
     if (res.success) {
-      Toast.show({ type: 'success', text1: editTarget ? 'Ticket updated' : 'Ticket created' });
+      editTarget ? notify.ticketUpdated() : notify.ticketCreated();
       setSheetOpen(false);
       fetchTicketTypes(eventId!);
       fetchStats(eventId!);
     } else {
-      Toast.show({ type: 'error', text1: 'Failed to save ticket' });
+      notify.ticketFailed();
     }
   };
 
@@ -95,6 +96,44 @@ export default function EventTicketsScreen() {
             <KPI label="Orders"   value={stats.paid_orders}                  accent={Colors.accent.indigo}  />
             <KPI label="Issued"   value={stats.total_issued}                 accent={Colors.accent.amber}   />
             <KPI label="Checked"  value={stats.checked_in}                   accent={Colors.accent.violet}  />
+          </View>
+        )}
+
+        {/* Charts */}
+        {stats && stats.total_issued > 0 && (
+          <View style={{ gap: 10 }}>
+            <DonutChart
+              title="Ticket status"
+              centerLabel={stats.total_issued}
+              centerSub="issued"
+              segments={[
+                { label: 'Active',     count: stats.active_tickets ?? (stats.total_issued - stats.checked_in - (stats.revoked ?? 0)), color: '#6366f1' },
+                { label: 'Checked in', count: stats.checked_in,     color: '#10b981' },
+                { label: 'Revoked',    count: stats.revoked ?? 0,   color: '#f43f5e' },
+              ]}
+            />
+            <DonutChart
+              title="Orders"
+              centerLabel={stats.total_orders}
+              centerSub="orders"
+              segments={[
+                { label: 'Paid',    count: stats.paid_orders,                        color: '#10b981' },
+                { label: 'Pending', count: stats.total_orders - stats.paid_orders,   color: '#f59e0b' },
+              ]}
+            />
+            <DonutChart
+              title="By ticket kind"
+              centerLabel={ticketTypes.reduce((s, t) => s + (t.quantity_sold ?? 0), 0)}
+              centerSub="sold"
+              segments={ticketTypes.reduce((acc: Seg[], t) => {
+                const ex = acc.find(s => s.label === t.kind);
+                if (ex) ex.count += (t.quantity_sold ?? 0);
+                else acc.push({ label: t.kind, count: t.quantity_sold ?? 0,
+                  color: t.kind === 'FREE' ? '#10b981' : t.kind === 'PAID' ? '#6366f1' : '#f59e0b' });
+                return acc;
+              }, [])}
+            />
+            <CapacityBars ticketTypes={ticketTypes} />
           </View>
         )}
 
@@ -184,6 +223,102 @@ function KPI({ label, value, accent }: { label: string; value: string | number; 
     </View>
   );
 }
+
+/* ── Donut chart ─────────────────────────────────────────── */
+interface Seg { label: string; count: number; color: string; }
+function DonutChart({ title, segments, centerLabel, centerSub }: { title: string; segments: Seg[]; centerLabel?: number | string; centerSub?: string }) {
+  const total = segments.reduce((s, g) => s + g.count, 0);
+  const R = 34, cx = 42, cy = 42, sw = 10;
+  const circ = 2 * Math.PI * R;
+  let off = 0;
+  const arcs = segments.map(seg => {
+    const dash = total > 0 ? (seg.count / total) * circ : 0;
+    const arc  = { ...seg, dash, off };
+    off += dash;
+    return arc;
+  });
+  return (
+    <View style={ch.card}>
+      <Text style={ch.title}>{title}</Text>
+      <View style={ch.row}>
+        <View style={{ width: 84, height: 84 }}>
+          <Svg width={84} height={84} viewBox="0 0 84 84">
+            <Circle cx={cx} cy={cy} r={R} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={sw} />
+            {total > 0 && arcs.map((arc, i) => (
+              <Circle key={i} cx={cx} cy={cy} r={R} fill="none"
+                stroke={arc.color} strokeWidth={sw}
+                strokeDasharray={`${arc.dash} ${circ - arc.dash}`}
+                strokeDashoffset={-arc.off}
+                rotation={-90} originX={cx} originY={cy}
+              />
+            ))}
+          </Svg>
+          <View style={ch.centre}>
+            <Text style={ch.centreNum}>{centerLabel ?? total}</Text>
+            <Text style={ch.centreSub}>{centerSub ?? 'total'}</Text>
+          </View>
+        </View>
+        <View style={{ flex: 1, gap: 6 }}>
+          {segments.map(seg => (
+            <View key={seg.label} style={ch.legendRow}>
+              <View style={[ch.dot, { backgroundColor: seg.color }]} />
+              <Text style={ch.legendLbl} numberOfLines={1}>{seg.label}</Text>
+              <Text style={ch.legendCnt}>{seg.count}</Text>
+              <Text style={ch.legendPct}>{total > 0 ? `${Math.round(seg.count / total * 100)}%` : '—'}</Text>
+            </View>
+          ))}
+          {total === 0 && <Text style={ch.empty}>No data yet</Text>}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/* ── Capacity bars ───────────────────────────────────────── */
+function CapacityBars({ ticketTypes }: { ticketTypes: any[] }) {
+  const withCap = ticketTypes.filter(t => t.quantity_total);
+  if (withCap.length === 0) return null;
+  return (
+    <View style={ch.card}>
+      <Text style={ch.title}>Capacity fill</Text>
+      <View style={{ gap: 10 }}>
+        {withCap.map(t => {
+          const pct  = Math.min(((t.quantity_sold ?? 0) / t.quantity_total) * 100, 100);
+          const color = pct >= 100 ? '#f43f5e' : pct >= 80 ? '#f59e0b' : '#6366f1';
+          return (
+            <View key={t.id}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.70)' }} numberOfLines={1}>{t.name}</Text>
+                <Text style={{ fontSize: 11, fontWeight: '800', color }}>
+                  {t.quantity_sold ?? 0}/{t.quantity_total} · {pct.toFixed(0)}%
+                  {pct >= 100 ? ' 🔴' : pct >= 80 ? ' 🟡' : ''}
+                </Text>
+              </View>
+              <View style={{ height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.07)', overflow: 'hidden' }}>
+                <View style={{ height: 6, borderRadius: 3, width: `${pct}%` as any, backgroundColor: color }} />
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const ch = StyleSheet.create({
+  card:      { borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: Colors.bg.elevated, padding: 14 },
+  title:     { fontSize: 9, fontWeight: '800', color: 'rgba(255,255,255,0.28)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 },
+  row:       { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  centre:    { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  centreNum: { fontSize: 17, fontWeight: '900', color: '#fff', lineHeight: 19 },
+  centreSub: { fontSize: 7, fontWeight: '700', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: 0.5 },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  dot:       { width: 7, height: 7, borderRadius: 4 },
+  legendLbl: { flex: 1, fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.52)' },
+  legendCnt: { fontSize: 11, fontWeight: '900', color: '#fff' },
+  legendPct: { fontSize: 9, color: 'rgba(255,255,255,0.25)', width: 30, textAlign: 'right' },
+  empty:     { fontSize: 11, color: 'rgba(255,255,255,0.22)', fontStyle: 'italic' },
+});
 
 const styles = StyleSheet.create({
   safe:    { flex: 1, backgroundColor: Colors.bg.primary },

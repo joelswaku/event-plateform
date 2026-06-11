@@ -147,43 +147,43 @@ function validateUpdatePayload(payload = {}) {
 }
 
 /**
- * Ensure the current user can manage events in this organization
+ * Ensure the current user can manage events in this organization.
+ * Checks organization_members first; falls back to event_members so that
+ * invited team members (who are not org members) can manage their events.
  */
 async function assertOrganizationEventPermission(
   client,
   organizationId,
   userId,
+  eventId = null,
 ) {
   const result = await client.query(
-    `
-    SELECT role
-    FROM organization_members
-    WHERE organization_id = $1
-      AND user_id = $2
-      AND deleted_at IS NULL
-    LIMIT 1
-    `,
+    `SELECT role FROM organization_members
+     WHERE organization_id = $1 AND user_id = $2 AND deleted_at IS NULL LIMIT 1`,
     [organizationId, userId],
   );
 
   const membership = result.rows[0];
 
-  if (!membership) {
-    throw new AppError("You do not belong to this organization", 403);
+  if (membership) {
+    const allowedRoles = ["owner", "admin", "event_manager", "OWNER", "ADMIN", "EVENT_MANAGER"];
+    if (!allowedRoles.includes(membership.role)) {
+      throw new AppError("You do not have permission to manage events", 403);
+    }
+    return membership;
   }
 
-  const allowedRoles = [
-    "owner",
-    "admin",
-    "event_manager",
-    "OWNER",
-    "ADMIN",
-    "EVENT_MANAGER",
-  ];
-
-  if (!allowedRoles.includes(membership.role)) {
-    throw new AppError("You do not have permission to manage events", 403);
+  // Fallback: team member with explicit event-level membership
+  if (eventId) {
+    const { rows } = await client.query(
+      `SELECT role FROM event_members
+       WHERE event_id = $1 AND user_id = $2 AND deleted_at IS NULL LIMIT 1`,
+      [eventId, userId],
+    );
+    if (rows[0]) return rows[0];
   }
+
+  throw new AppError("You do not have permission to manage this event", 403);
 }
 
 /**
@@ -313,6 +313,10 @@ function mapEvent(row) {
     created_at: row.created_at,
     updated_at: row.updated_at,
     deleted_at: row.deleted_at,
+
+    user_role:  row.user_role  ?? null,
+    owner_name: row.owner_name ?? null,
+    org_name:   row.org_name   ?? null,
   };
 }
 
@@ -511,85 +515,119 @@ export async function createEventService({ userId, organizationId, payload }) {
 
 /**
  * LIST EVENTS
+ * Returns all events the user can access:
+ *   1. Events in their own organization
+ *   2. Events they're a direct member of (event_members)
+ *   3. Events in any organization they belong to (organization_members)
  */
-export async function listEventsService({ organizationId, query = {} }) {
+export async function listEventsService({ organizationId, userId, query = {} }) {
   if (!organizationId) throw new AppError("Organization is required", 400);
+
+  // Auto-link any email-only pending event_members to this user (idempotent)
+  if (userId) {
+    try {
+      await db.query(
+        `UPDATE event_members em
+         SET user_id = $1, email = NULL
+         FROM users u
+         WHERE u.id = $1
+           AND em.user_id IS NULL
+           AND em.deleted_at IS NULL
+           AND em.email IS NOT NULL
+           AND LOWER(em.email) = LOWER(u.email)`,
+        [userId],
+      );
+    } catch { /* email column may not exist on older deploys */ }
+  }
 
   const page = Math.max(Number(query.page || 1), 1);
   const limit = Math.min(Math.max(Number(query.limit || 20), 1), 100);
   const offset = (page - 1) * limit;
 
-  const allowedSortFields = [
-    "created_at",
-    "updated_at",
-    "starts_at",
-    "ends_at",
-    "title",
-    "status",
-  ];
+  const allowedSortFields = ["created_at", "updated_at", "starts_at", "ends_at", "title", "status"];
+  const sortBy    = allowedSortFields.includes(query.sort_by) ? `e.${query.sort_by}` : "e.created_at";
+  const sortOrder = String(query.sort_order || "desc").toLowerCase() === "asc" ? "ASC" : "DESC";
 
-  const sortBy = allowedSortFields.includes(query.sort_by)
-    ? query.sort_by
-    : "created_at";
+  // $1 = organizationId (user's personal org)
+  // $2 = userId (used for event_members + organization_members joins)
+  const values = [organizationId, userId ?? null];
 
-  const sortOrder =
-    String(query.sort_order || "desc").toLowerCase() === "asc" ? "ASC" : "DESC";
-
-  const values = [organizationId];
-  const where = [`organization_id = $1`, `deleted_at IS NULL`];
+  // Dynamic filters — numbered from $3 onward
+  const filters = [`e.deleted_at IS NULL`];
 
   if (query.status) {
     values.push(query.status);
-    where.push(`status = $${values.length}`);
+    filters.push(`e.status = $${values.length}`);
   }
-
   if (query.event_type) {
     values.push(query.event_type);
-    where.push(`event_type = $${values.length}`);
+    filters.push(`e.event_type = $${values.length}`);
   }
-
   if (query.visibility) {
     values.push(query.visibility);
-    where.push(`visibility = $${values.length}`);
+    filters.push(`e.visibility = $${values.length}`);
   }
-
   if (query.search) {
     values.push(`%${query.search}%`);
-    where.push(
-      `(title ILIKE $${values.length} OR COALESCE(description, '') ILIKE $${values.length})`,
-    );
+    filters.push(`(e.title ILIKE $${values.length} OR COALESCE(e.description, '') ILIKE $${values.length})`);
   }
-
   if (query.start_date) {
     values.push(query.start_date);
-    where.push(`starts_at >= $${values.length}`);
+    filters.push(`e.starts_at >= $${values.length}`);
   }
-
   if (query.end_date) {
     values.push(query.end_date);
-    where.push(`ends_at <= $${values.length}`);
+    filters.push(`e.ends_at <= $${values.length}`);
   }
 
-  const whereClause = where.join(" AND ");
+  const filterClause = filters.join(" AND ");
+
+  // Access predicate: own org OR explicit event member OR org member
+  const accessClause = `(
+    e.organization_id = $1
+    OR em.user_id IS NOT NULL
+    OR om.user_id IS NOT NULL
+  )`;
+
+  const joins = `
+    LEFT JOIN event_members em
+      ON em.event_id = e.id
+      AND em.user_id = $2
+      AND em.deleted_at IS NULL
+    LEFT JOIN organization_members om
+      ON om.organization_id = e.organization_id
+      AND om.user_id = $2
+    LEFT JOIN organizations org ON org.id = e.organization_id
+    LEFT JOIN users u_owner     ON u_owner.id = org.owner_user_id
+  `;
 
   const countResult = await db.query(
-    `
-    SELECT COUNT(*)::int AS total
-    FROM events
-    WHERE ${whereClause}
-    `,
+    `SELECT COUNT(DISTINCT e.id)::int AS total
+     FROM events e
+     ${joins}
+     WHERE ${filterClause} AND ${accessClause}`,
     values,
   );
 
+  const sortCol = sortBy.replace("e.", "");
   const dataResult = await db.query(
-    `
-    SELECT *
-    FROM events
-    WHERE ${whereClause}
-    ORDER BY ${sortBy} ${sortOrder}
-    LIMIT $${values.length + 1}
-    OFFSET $${values.length + 2}
-    `,
+    `SELECT * FROM (
+       SELECT DISTINCT ON (e.id)
+         e.*,
+         CASE
+           WHEN e.organization_id = $1 THEN 'OWNER'
+           ELSE COALESCE(em.role::TEXT, om.role::TEXT, 'VIEWER')
+         END AS user_role,
+         u_owner.full_name AS owner_name,
+         org.name          AS org_name
+       FROM events e
+       ${joins}
+       WHERE ${filterClause} AND ${accessClause}
+       ORDER BY e.id, (em.user_id IS NULL) ASC
+     ) AS _deduped
+     ORDER BY ${sortCol} ${sortOrder}
+     LIMIT $${values.length + 1}
+     OFFSET $${values.length + 2}`,
     [...values, limit, offset],
   );
 
@@ -611,8 +649,9 @@ export async function listEventsService({ organizationId, query = {} }) {
 
 /**
  * GET ONE EVENT
+ * Allows access when user owns the event (via org) OR is an event_members ADMIN.
  */
-export async function getEventByIdService({ eventId, organizationId }) {
+export async function getEventByIdService({ eventId, organizationId, userId }) {
   if (!eventId) throw new AppError("Event id is required", 400);
   if (!organizationId) throw new AppError("Organization is required", 400);
 
@@ -621,11 +660,19 @@ export async function getEventByIdService({ eventId, organizationId }) {
     SELECT *
     FROM events
     WHERE id = $1
-      AND organization_id = $2
       AND deleted_at IS NULL
+      AND (
+        organization_id = $2
+        OR EXISTS (
+          SELECT 1 FROM event_members em
+          WHERE em.event_id = events.id
+            AND em.user_id = $3
+            AND em.deleted_at IS NULL
+        )
+      )
     LIMIT 1
     `,
-    [eventId, organizationId],
+    [eventId, organizationId, userId ?? null],
   );
 
   const event = result.rows[0];
@@ -654,7 +701,7 @@ export async function updateEventService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
+    await assertOwnerOnly(client, eventId, userId);
 
     const existing = await findEventById(client, eventId, organizationId);
     if (!existing) {
@@ -879,7 +926,7 @@ export async function deleteEventService({ eventId, organizationId, userId }) {
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
+    await assertOwnerOnly(client, eventId, userId);
 
     const result = await client.query(
       `
@@ -922,7 +969,7 @@ export async function publishEventService({ eventId, organizationId, userId }) {
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
 
     const event = await findEventById(client, eventId, organizationId);
     if (!event) throw new AppError("Event not found", 404);
@@ -1006,7 +1053,7 @@ export async function unpublishEventService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
 
     const event = await findEventById(client, eventId, organizationId);
     if (!event) throw new AppError("Event not found", 404);
@@ -1047,6 +1094,60 @@ export async function unpublishEventService({
 }
 
 /**
+ * Shared helper — only the event OWNER (org owner or event_members OWNER) may
+ * perform destructive operations (delete, archive, cancel, restore).
+ */
+async function assertOwnerOnly(client, eventId, userId) {
+  // Look up the user's explicit role in event_members.
+  // - Role = 'OWNER'  → event creator, allowed.
+  // - Role = anything else (ADMIN, MANAGER …) → team member, denied.
+  // - No row at all → org-level owner with no explicit membership row, allowed.
+  const { rows } = await client.query(
+    `SELECT role::TEXT AS role
+     FROM event_members
+     WHERE event_id = $1 AND user_id = $2 AND deleted_at IS NULL
+     LIMIT 1`,
+    [eventId, userId],
+  );
+  if (rows[0] && rows[0].role !== 'OWNER') {
+    throw new AppError("Only the event owner can perform this action", 403);
+  }
+}
+
+/**
+ * ARCHIVE EVENT
+ */
+export async function archiveEventService({ eventId, organizationId, userId }) {
+  if (!userId) throw new AppError("Unauthorized", 401);
+  if (!eventId) throw new AppError("Event id is required", 400);
+  if (!organizationId) throw new AppError("Organization is required", 400);
+
+  const client = await db.connect();
+
+  try {
+    await client.query("BEGIN");
+    await assertOwnerOnly(client, eventId, userId);
+
+    const result = await client.query(
+      `UPDATE events
+       SET status = 'ARCHIVED', updated_at = NOW()
+       WHERE id = $1 AND organization_id = $2 AND deleted_at IS NULL
+       RETURNING *`,
+      [eventId, organizationId],
+    );
+    if (result.rowCount === 0) throw new AppError("Event not found", 404);
+
+    await client.query("COMMIT");
+    return mapEvent(result.rows[0]);
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
  * CANCEL EVENT
  */
 export async function cancelEventService({ eventId, organizationId, userId }) {
@@ -1059,7 +1160,7 @@ export async function cancelEventService({ eventId, organizationId, userId }) {
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
+    await assertOwnerOnly(client, eventId, userId);
 
     const event = await findEventById(client, eventId, organizationId);
     if (!event) throw new AppError("Event not found", 404);
@@ -1106,7 +1207,7 @@ export async function restoreEventService({ eventId, organizationId, userId }) {
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
+    await assertOwnerOnly(client, eventId, userId);
 
     const event = await findEventById(client, eventId, organizationId, {
       includeDeleted: true,
@@ -1154,7 +1255,7 @@ export async function duplicateEventService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
 
     const event = await findEventById(client, eventId, organizationId);
     if (!event) throw new AppError("Event not found", 404);
@@ -1251,18 +1352,53 @@ export async function duplicateEventService({
   }
 }
 
+const DASHBOARD_ROLE_PERMISSIONS = {
+  OWNER:         { canEdit: true,  canDelete: true,  canManageTeam: true,  canManageGuests: true,  canCheckin: true,  canViewAnalytics: true,  canPublish: true  },
+  ADMIN:         { canEdit: false, canDelete: false, canManageTeam: true,  canManageGuests: true,  canCheckin: true,  canViewAnalytics: true,  canPublish: true  },
+  MANAGER:       { canEdit: false, canDelete: false, canManageTeam: false, canManageGuests: true,  canCheckin: true,  canViewAnalytics: true,  canPublish: false },
+  STAFF:         { canEdit: false, canDelete: false, canManageTeam: false, canManageGuests: true,  canCheckin: true,  canViewAnalytics: false, canPublish: false },
+  CHECKIN_AGENT: { canEdit: false, canDelete: false, canManageTeam: false, canManageGuests: false, canCheckin: true,  canViewAnalytics: false, canPublish: false },
+  VIEWER:        { canEdit: false, canDelete: false, canManageTeam: false, canManageGuests: false, canCheckin: false, canViewAnalytics: true,  canPublish: false },
+};
+
 /**
  * EVENT DASHBOARD
+ * Allows access when user owns the event (via org) OR is an event_members ADMIN.
  */
-export async function getEventDashboardService({ eventId, organizationId }) {
+export async function getEventDashboardService({ eventId, organizationId, userId }) {
   if (!eventId) throw new AppError("Event id is required", 400);
   if (!organizationId) throw new AppError("Organization is required", 400);
 
   const client = await db.connect();
 
   try {
-    const event = await findEventById(client, eventId, organizationId);
+    // Check org ownership first; fall back to event_members for team admins.
+    let event = await findEventById(client, eventId, organizationId);
+    if (!event && userId) {
+      const r = await client.query(
+        `SELECT * FROM events
+         WHERE id = $1 AND deleted_at IS NULL
+           AND EXISTS (
+             SELECT 1 FROM event_members em
+             WHERE em.event_id = events.id
+               AND em.user_id = $2
+               AND em.deleted_at IS NULL
+           )
+         LIMIT 1`,
+        [eventId, userId],
+      );
+      event = r.rows[0] || null;
+    }
     if (!event) throw new AppError("Event not found", 404);
+
+    // Resolve the user's role in this event and derive permissions
+    const roleRow = userId ? await client.query(
+      `SELECT role FROM event_members WHERE event_id = $1 AND user_id = $2 AND deleted_at IS NULL LIMIT 1`,
+      [eventId, userId]
+    ) : { rows: [] };
+    const userRole    = roleRow.rows[0]?.role ?? 'OWNER';
+    const isTeamMember = userRole !== 'OWNER';
+    const permissions  = DASHBOARD_ROLE_PERMISSIONS[userRole] ?? DASHBOARD_ROLE_PERMISSIONS.OWNER;
 
     const [
       guestCountResult,
@@ -1319,6 +1455,9 @@ export async function getEventDashboardService({ eventId, organizationId }) {
 
     return {
       event: mapEvent(event),
+      isTeamMember,
+      userRole,
+      permissions,
       stats: {
         guest_count: guestCountResult.rows[0]?.total || 0,
         attending_count: attendingCountResult.rows[0]?.total || 0,

@@ -6,11 +6,10 @@ import { useRouter, usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Plus, Lock, Zap, CalendarDays, Clock, MapPin, ArrowRight, Sparkles,
-  Search, X, Home, Ticket, User, ChevronRight, Users,
+  Search, X, Home, Ticket, User, ChevronRight, Users, History,
 } from "lucide-react";
 import { useEventStore }        from "@/store/event.store";
 import { useSubscriptionStore } from "@/store/subscription.store";
-import { useTeamStore }         from "@/store/team.store";
 import PageHeader from "@/components/ui/page-header";
 
 // ── Event cover fallbacks ─────────────────────────────────────────────────────
@@ -232,11 +231,13 @@ function EventCard({ event, index }) {
   );
 }
 
-// ── "Managing" event card (team admin view) ──────────────────────────────────
+// ── "Managing" event card (team member view) ─────────────────────────────────
+const ROLE_LABEL = { ADMIN: "Admin", MANAGER: "Manager", STAFF: "Staff", CHECKIN_AGENT: "Check-in", VIEWER: "Viewer" };
 function TeamEventCard({ event, index }) {
-  const img  = heroImg(event);
-  const date = fmtDate(event.starts_at_local ?? event.starts_at_utc);
-  const cfg  = sc(event.status);
+  const img   = heroImg(event);
+  const date  = fmtDate(event.starts_at_local ?? event.starts_at_utc);
+  const cfg   = sc(event.status);
+  const role  = ROLE_LABEL[event.user_role] ?? event.user_role ?? "Team";
 
   return (
     <motion.div
@@ -246,38 +247,54 @@ function TeamEventCard({ event, index }) {
     >
       <Link
         href={`/events/${event.id}`}
-        className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-(--bg-surface) shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-(--border-hover)"
+        className="group flex flex-col overflow-hidden rounded-2xl border bg-(--bg-surface) shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+        style={{ borderColor: "rgba(139,92,246,0.25)", boxShadow: "0 0 0 0 transparent" }}
+        onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(139,92,246,0.55)"}
+        onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(139,92,246,0.25)"}
       >
-        <div className="relative h-40 overflow-hidden bg-(--bg-elevated)">
+        {/* Cover */}
+        <div className="relative h-40 overflow-hidden" style={{ background: "#0f0a1e" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={img} alt={event.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-          <div className="absolute inset-0 bg-linear-to-b from-black/10 via-transparent to-black/50" />
-          <div className="absolute left-3 top-3 flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide backdrop-blur-sm"
-            style={{ background: "rgba(99,102,241,0.85)", color: "#fff" }}>
+          <img src={img} alt={event.title} className="h-full w-full object-cover opacity-80 transition-transform duration-500 group-hover:scale-105" />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(88,28,135,0.35), rgba(0,0,0,0.6))" }} />
+          {/* Role badge */}
+          <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide backdrop-blur-sm"
+            style={{ background: "rgba(139,92,246,0.9)", color: "#fff" }}>
             <Users size={9} className="shrink-0" />
-            Managing
+            {role}
+          </div>
+          {/* Status badge */}
+          <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold backdrop-blur-sm"
+            style={{ background: cfg.bg, color: cfg.text }}>
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: cfg.dot }} />
+            {(event.status ?? "draft").charAt(0).toUpperCase() + (event.status ?? "draft").slice(1).toLowerCase()}
           </div>
         </div>
-        <div className="flex flex-1 flex-col gap-2 p-4">
+
+        {/* Body */}
+        <div className="flex flex-1 flex-col gap-2 p-4" style={{ background: "#2a1d00" }}>
           {event.event_type && (
-            <span className="self-start rounded-full bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-indigo-600 dark:text-indigo-400">
+            <span className="self-start rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em]"
+              style={{ background: "rgba(251,191,36,0.16)", color: "#fbbf24" }}>
               {event.event_type}
             </span>
           )}
-          <h3 className="line-clamp-2 text-[15px] font-bold leading-snug text-(--text-primary) transition-colors group-hover:text-(--accent)">
+          <h3 className="line-clamp-2 text-[15px] font-bold leading-snug text-white transition-colors group-hover:text-amber-300">
             {event.title}
           </h3>
-          <div className="mt-auto flex flex-col gap-1 pt-1">
+          <div className="mt-auto flex flex-col gap-1 pt-1 border-t" style={{ borderColor: "rgba(251,191,36,0.14)" }}>
             {date && (
               <div className="flex items-center gap-1.5 text-[11px] text-(--text-muted)">
                 <Clock size={11} />
                 {date}
               </div>
             )}
-            <div className="flex items-center gap-1.5 text-[11px] text-(--text-muted)">
-              <div className="h-1.5 w-1.5 rounded-full" style={{ background: cfg.dot }} />
-              <span>By {event.owner_name}</span>
-            </div>
+            {event.owner_name && (
+              <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "#a78bfa" }}>
+                <User size={10} />
+                <span>Owner: {event.owner_name}</span>
+              </div>
+            )}
           </div>
         </div>
       </Link>
@@ -387,36 +404,54 @@ function MobileEventCard({ event }) {
 }
 
 function MobileTeamEventCard({ event }) {
-  const cfg  = sc(event.status);
   const date = fmtDate(event.starts_at_local ?? event.starts_at_utc);
+  const role = ROLE_LABEL[event.user_role] ?? event.user_role ?? "Team";
 
   return (
     <Link
       href={`/events/${event.id}`}
       className="flex items-center overflow-hidden rounded-[18px] border"
-      style={{ background: "#0e0e16", borderColor: "rgba(99,102,241,0.18)" }}
+      style={{ background: "#2a1d00", borderColor: "rgba(251,191,36,0.30)" }}
     >
-      <div className="relative h-[80px] w-[80px] shrink-0 overflow-hidden" style={{ background: "#14141f" }}>
+      {/* Thumbnail */}
+      <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden" style={{ background: "#14141f" }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={heroImg(event)} alt={event.title} className="h-full w-full object-cover" />
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent, rgba(0,0,0,0.45))" }} />
-      </div>
-      <div className="flex flex-1 flex-col gap-1 py-3 px-3">
-        <div className="flex items-center gap-1.5">
-          <Users size={9} style={{ color: "#a78bfa" }} />
-          <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#a78bfa" }}>Managing</span>
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent, rgba(0,0,0,0.50))" }} />
+        {/* Small users badge on thumb */}
+        <div
+          className="absolute bottom-1 right-1 flex h-[14px] w-[14px] items-center justify-center rounded-[3px]"
+          style={{ background: "rgba(42,29,0,0.85)" }}
+        >
+          <Users size={8} style={{ color: "#fbbf24" }} />
         </div>
-        <span className="line-clamp-1 text-[14px] font-extrabold tracking-tight text-white">{event.title}</span>
+      </div>
+
+      {/* Info */}
+      <div className="flex flex-1 flex-col gap-[3px] px-3 py-2.5 min-w-0">
+        <span className="line-clamp-1 text-[13px] font-extrabold tracking-tight" style={{ color: "#fef3c7" }}>
+          {event.title}
+        </span>
         {date && (
           <div className="flex items-center gap-1">
-            <Clock size={10} style={{ color: "rgba(255,255,255,0.30)" }} />
-            <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.30)" }}>{date}</span>
+            <CalendarDays size={9} style={{ color: "rgba(251,191,36,0.55)" }} />
+            <span className="text-[10px] font-semibold" style={{ color: "rgba(251,191,36,0.55)" }}>{date}</span>
           </div>
         )}
-        <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>By {event.owner_name}</span>
+        {event.owner_name && (
+          <span className="text-[10px]" style={{ color: "rgba(251,191,36,0.40)" }}>by {event.owner_name}</span>
+        )}
       </div>
-      <div className="pr-3.5">
-        <ChevronRight size={16} style={{ color: "rgba(255,255,255,0.20)" }} />
+
+      {/* Role badge + arrow — pinned to right end */}
+      <div className="flex shrink-0 items-center gap-1.5 pr-3">
+        <div
+          className="flex items-center gap-1 rounded-full px-2 py-[3px]"
+          style={{ background: "rgba(251,191,36,0.18)" }}
+        >
+          <span className="text-[9px] font-extrabold uppercase tracking-wide" style={{ color: "#fbbf24" }}>{role}</span>
+        </div>
+        <ChevronRight size={14} style={{ color: "rgba(251,191,36,0.45)" }} />
       </div>
     </Link>
   );
@@ -560,16 +595,18 @@ function MobileEventsPage({
                 <CalendarDays size={28} style={{ color: "#6366f1" }} />
               </div>
               <p className="text-[18px] font-black tracking-tight text-white">
-                {query ? `No results for "${query}"` : filter !== "ALL" ? `No ${filter.toLowerCase()} events` : "No events yet"}
+                {query ? `No results for "${query}"` : filter !== "ALL" ? `No ${filter.toLowerCase()} events` : myEvents.length > 0 ? "No owned events" : "No events yet"}
               </p>
               <p className="text-[13px] leading-5" style={{ color: "rgba(255,255,255,0.40)" }}>
                 {query
                   ? "Try a different search term."
                   : filter !== "ALL"
                   ? "Events with this status will appear here."
+                  : myEvents.length > 0
+                  ? "Events you're managing appear below."
                   : "Create your first event to get started."}
               </p>
-              {!query && filter === "ALL" && (
+              {!query && filter === "ALL" && myEvents.length === 0 && (
                 <button
                   onClick={handleNewEvent}
                   className="mt-1 flex items-center gap-2 overflow-hidden rounded-full px-6 py-3"
@@ -591,9 +628,12 @@ function MobileEventsPage({
             <>
               <div className="flex items-center gap-2 pt-2">
                 <Users size={13} style={{ color: "#a78bfa" }} />
-                <p className="text-[12px] font-extrabold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.40)" }}>
+                <p className="text-[12px] font-extrabold uppercase tracking-wide" style={{ color: "#a78bfa" }}>
                   Events you&apos;re managing
                 </p>
+                <div className="rounded-full px-1.5 py-0.5 text-[9px] font-black" style={{ background: "rgba(124,58,237,0.25)", color: "#a78bfa" }}>
+                  {myEvents.length}
+                </div>
               </div>
               {myEvents.map((event) => (
                 <MobileTeamEventCard key={event.id} event={event} />
@@ -608,6 +648,32 @@ function MobileEventsPage({
   );
 }
 
+// ── Past / ended events collapsible section ───────────────────────────────────
+function PastEventsSection({ events }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="space-y-3">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 text-sm text-(--text-muted) hover:text-(--text-secondary) transition-colors"
+      >
+        <History size={14} />
+        <span className="font-medium">{open ? "Hide" : "Show"} past events</span>
+        <span className="rounded-full bg-(--bg-elevated) px-2 py-0.5 text-[11px] font-bold">{events.length}</span>
+      </button>
+      {open && (
+        <div className="rounded-3xl border border-border bg-(--bg-surface) p-6 opacity-70">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {events.map((event, i) => (
+              <EventCard key={event.id} event={event} index={i} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // PAGE
 // ══════════════════════════════════════════════════════════════════════════════
@@ -618,8 +684,6 @@ export default function EventsPage() {
     plan, isSubscribed, usage, limits,
     isAtEventLimit, openUpgradeModal, fetchSubscription,
   } = useSubscriptionStore();
-  const { myEvents, fetchMyTeamEvents } = useTeamStore();
-
   const [query,  setQuery]  = useState("");
   const [filter, setFilter] = useState("ALL");
 
@@ -628,11 +692,22 @@ export default function EventsPage() {
   const eventUsage = usage?.events ?? events.length;
   const eventLimit = limits?.events ?? 1;
 
+  // Team events disappear when ended; owner's own events always stay visible
+  const isTeamActive = (e) => {
+    const status = (e.status ?? '').toUpperCase();
+    if (status === 'ARCHIVED' || status === 'CANCELLED') return false;
+    if (e.runtime_status === 'COMPLETED' && e.ends_at_utc) return false;
+    return true;
+  };
+
+  // Owner events: always shown. Team events: only while active.
+  const ownedEvents = useMemo(() => events.filter(e => !e.user_role || e.user_role === 'OWNER'), [events]);
+  const teamEvents  = useMemo(() => events.filter(e => e.user_role && e.user_role !== 'OWNER' && isTeamActive(e)), [events]);
+
   useEffect(() => {
     fetchEvents();
     fetchSubscription();
-    fetchMyTeamEvents();
-  }, [fetchEvents, fetchSubscription, fetchMyTeamEvents]);
+  }, [fetchEvents, fetchSubscription]);
 
   const handleNewEvent = useCallback(() => {
     if (atLimit) { openUpgradeModal("events"); return; }
@@ -641,39 +716,39 @@ export default function EventsPage() {
 
   const handleUpgrade = useCallback(() => openUpgradeModal("events"), [openUpgradeModal]);
 
-  // Desktop: search only
+  // Desktop: search only (owned events only — team events shown separately)
   const filteredEvents = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return events;
-    return events.filter((e) =>
+    if (!q) return ownedEvents;
+    return ownedEvents.filter((e) =>
       [e.title, e.venue_name, e.event_type, e.status, e.city, e.country]
         .some((v) => v && String(v).toLowerCase().includes(q))
     );
-  }, [events, query]);
+  }, [ownedEvents, query]);
 
-  // Mobile: search + status filter
+  // Mobile: search + status filter (owned events only — team events shown separately)
   const mobileFiltered = useMemo(() => {
-    let list = filter !== "ALL" ? events.filter(e => e.status === filter) : events;
+    let list = filter !== "ALL" ? ownedEvents.filter(e => e.status === filter) : ownedEvents;
     const q  = query.trim().toLowerCase();
     if (q) list = list.filter(e =>
       [e.title, e.venue_name, e.event_type, e.status, e.city, e.country]
         .some(v => v && String(v).toLowerCase().includes(q))
     );
     return list;
-  }, [events, filter, query]);
+  }, [ownedEvents, filter, query]);
 
   const counts = useMemo(() => {
-    const c = { ALL: events.length };
-    for (const e of events) c[e.status] = (c[e.status] ?? 0) + 1;
+    const c = { ALL: ownedEvents.length };
+    for (const e of ownedEvents) c[e.status] = (c[e.status] ?? 0) + 1;
     return c;
-  }, [events]);
+  }, [ownedEvents]);
 
   return (
     <>
       {/* ── Mobile layout ── */}
       <div className="sm:hidden">
         <MobileEventsPage
-          events={events}
+          events={ownedEvents}
           loading={loading}
           mobileFiltered={mobileFiltered}
           query={query}
@@ -686,7 +761,7 @@ export default function EventsPage() {
           handleUpgrade={handleUpgrade}
           eventUsage={eventUsage}
           eventLimit={eventLimit}
-          myEvents={myEvents}
+          myEvents={teamEvents}
         />
       </div>
 
@@ -724,7 +799,7 @@ export default function EventsPage() {
             <EventLimitBanner used={eventUsage} limit={eventLimit} plan={plan} onUpgrade={handleUpgrade} />
           )}
 
-          {!loading && events.length > 0 && (
+          {!loading && ownedEvents.length > 0 && (
             <div className="relative">
               <Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-(--text-muted)" />
               <input
@@ -733,6 +808,7 @@ export default function EventsPage() {
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search events by name, venue, type…"
                 className="w-full rounded-2xl border border-border bg-(--bg-surface) py-2.5 pl-9 pr-9 text-sm text-(--text-primary) outline-none placeholder:text-(--text-muted) focus:border-indigo-400"
+                suppressHydrationWarning
               />
               {query && (
                 <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-(--text-muted) hover:text-(--text-secondary)">
@@ -749,20 +825,28 @@ export default function EventsPage() {
                   <div key={i} className="h-52 animate-pulse rounded-2xl bg-(--bg-elevated)" />
                 ))}
               </div>
-            ) : events.length === 0 ? (
+            ) : ownedEvents.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-(--bg-elevated)">
                   <CalendarDays size={24} className="text-(--text-muted)" />
                 </div>
-                <p className="text-sm font-semibold text-(--text-primary)">No events yet</p>
-                <p className="text-xs text-(--text-muted)">Create your first event to get started.</p>
-                <button
-                  onClick={handleNewEvent}
-                  className="mt-2 flex items-center gap-2 rounded-2xl bg-linear-to-r from-indigo-500 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90"
-                >
-                  <Plus size={14} />
-                  Create event
-                </button>
+                <p className="text-sm font-semibold text-(--text-primary)">
+                  {teamEvents.length > 0 ? "No owned events" : "No events yet"}
+                </p>
+                <p className="text-xs text-(--text-muted)">
+                  {teamEvents.length > 0
+                    ? "Events you're managing appear in the section below."
+                    : "Create your first event to get started."}
+                </p>
+                {teamEvents.length === 0 && (
+                  <button
+                    onClick={handleNewEvent}
+                    className="mt-2 flex items-center gap-2 rounded-2xl bg-linear-to-r from-indigo-500 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90"
+                  >
+                    <Plus size={14} />
+                    Create event
+                  </button>
+                )}
               </div>
             ) : filteredEvents.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
@@ -782,23 +866,24 @@ export default function EventsPage() {
             )}
           </div>
 
-          {/* ── Events I'm managing (team admin) ── */}
-          {myEvents.length > 0 && (
+          {/* ── Events I'm managing (team member) ── */}
+          {teamEvents.length > 0 && (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <Users size={16} className="text-indigo-400" />
+                <Users size={16} className="text-violet-400" />
                 <h2 className="text-sm font-bold text-(--text-primary)">Events you&apos;re managing</h2>
-                <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-[11px] font-bold text-indigo-400">{myEvents.length}</span>
+                <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[11px] font-bold text-violet-400">{teamEvents.length}</span>
               </div>
-              <div className="rounded-3xl border border-border bg-(--bg-surface) p-6">
+              <div className="rounded-3xl border border-violet-500/15 bg-(--bg-surface) p-6">
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {myEvents.map((event, i) => (
+                  {teamEvents.map((event, i) => (
                     <TeamEventCard key={event.id} event={event} index={i} />
                   ))}
                 </div>
               </div>
             </div>
           )}
+
         </div>
       </div>
     </>

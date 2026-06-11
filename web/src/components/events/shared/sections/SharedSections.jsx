@@ -2068,19 +2068,18 @@ function TicketCheckoutModal({ ticket, event, onClose, theme }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // DONATIONS
 // ══════════════════════════════════════════════════════════════════════════════
-const PRESET_AMOUNTS = [10, 25, 50, 100];
-const DONATION_API = process.env.NEXT_PUBLIC_API_URL;
+const DONATION_API          = process.env.NEXT_PUBLIC_API_URL;
+const DONATION_PRESET_DEFAULT = [5, 10, 25];
 
 export function DonationsSection({ section, event, isEditor = false, onEdit }) {
-  const theme = section.config?._theme || "CLASSIC";
-
-  const [preset,      setPreset]      = useState(25);
-  const [custom,      setCustom]      = useState("");
-  const [form,        setForm]        = useState({ name: "", email: "", message: "" });
-  const [anonymous,   setAnonymous]   = useState(false);
-  const [submitting,  setSubmitting]  = useState(false);
-  const [error,       setError]       = useState("");
-  const [donated,     setDonated]     = useState(() => {
+  const [freq,       setFreq]       = useState("once");
+  const [preset,     setPreset]     = useState(null);
+  const [custom,     setCustom]     = useState("");
+  const [name,       setName]       = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error,      setError]      = useState("");
+  const [donConfig,  setDonConfig]  = useState({ amounts: [], message: "" });
+  const [donated,    setDonated]    = useState(() => {
     if (typeof window === "undefined") return false;
     return new URLSearchParams(window.location.search).get("donation") === "success";
   });
@@ -2089,54 +2088,60 @@ export function DonationsSection({ section, event, isEditor = false, onEdit }) {
     if (donated) window.history.replaceState({}, "", window.location.pathname);
   }, [donated]);
 
-  const amount = preset === "custom" ? Number(custom) : preset;
+  useEffect(() => {
+    if (!event?.id) return;
+    fetch(`${DONATION_API}/engagement/events/${event.id}/donation-config`)
+      .then(r => r.json())
+      .then(d => { if (d?.data) setDonConfig(d.data); })
+      .catch(() => {});
+  }, [event?.id]);
+
+  const presets = donConfig.amounts?.length === 3 ? donConfig.amounts : DONATION_PRESET_DEFAULT;
+  const amount  = preset === "custom" ? Number(custom) : (preset ?? 0);
 
   async function handleDonate(e) {
     e.preventDefault();
-    if (!form.email.trim()) return setError("Email is required");
-    if (!/\S+@\S+\.\S+/.test(form.email)) return setError("Enter a valid email");
-    if (!amount || amount <= 0) return setError("Enter a valid donation amount");
+    if (!amount || amount <= 0) return setError("Please select or enter a donation amount");
     setError("");
     setSubmitting(true);
     try {
       const res = await fetch(`${DONATION_API}/engagement/events/${event?.id}/donations`, {
-        method: "POST",
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          donor_name:  anonymous ? null : form.name.trim() || null,
-          donor_email: form.email.trim().toLowerCase(),
-          amount,
-          currency: "USD",
-          message:     form.message.trim() || undefined,
-          is_anonymous: anonymous,
+          donor_name: name.trim() || null,
+          amount, currency: "USD",
+          frequency: freq,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Donation failed");
-      if (data.data?.checkout_url) {
-        window.location.href = data.data.checkout_url;
-      }
+      if (data.data?.checkout_url) window.location.href = data.data.checkout_url;
+      else setDonated(true);
     } catch (err) {
       setError(err.message);
       setSubmitting(false);
     }
   }
 
-  const showEditor = isEditor;
-  // Hide everywhere (editor included) when donations are disabled
   if (!event?.allow_donations && !donated) return null;
+
+  const inputStyle = {
+    background: "rgba(255,255,255,0.07)",
+    border: "1px solid rgba(255,255,255,0.13)",
+  };
 
   return (
     <section
       id="donations"
-      className={`px-6 py-24 sm:py-32 ${showEditor ? "cursor-pointer ring-inset hover:ring-2 hover:ring-indigo-400/60 relative" : ""}`}
+      className={`px-6 py-20 sm:py-28 ${isEditor ? "cursor-pointer ring-inset hover:ring-2 hover:ring-indigo-400/60 relative" : ""}`}
       style={{ background: "var(--t-dark-surface)" }}
-      onClick={showEditor ? onEdit : undefined}
+      onClick={isEditor ? onEdit : undefined}
     >
-      <div className="mx-auto max-w-xl">
+      <div className="mx-auto max-w-lg">
 
         {/* Thank-you state */}
-        {donated && !showEditor && (
+        {donated && !isEditor && (
           <FadeUp className="text-center space-y-4">
             <div className="text-5xl">💛</div>
             <SectionHeading center light>Thank you!</SectionHeading>
@@ -2144,120 +2149,123 @@ export function DonationsSection({ section, event, isEditor = false, onEdit }) {
             <button onClick={() => setDonated(false)}
               className="mt-4 text-xs uppercase tracking-widest underline"
               style={{ color: "rgba(255,255,255,0.45)" }}>
-              Make another donation
+              Donate again
             </button>
           </FadeUp>
         )}
 
-        {/* Donation form */}
-        {(!donated || showEditor) && (
-          <>
-            <FadeUp className="text-center">
+        {/* Donation card — matches hero card design */}
+        {(!donated || isEditor) && (
+          <FadeUp>
+            {/* Section heading above the card */}
+            <div className="text-center mb-8">
               <SectionEyebrow center>Give</SectionEyebrow>
-              <SectionHeading center light>{section.title || "Make a Gift"}</SectionHeading>
-              {section.body && <SectionBody center light>{section.body}</SectionBody>}
-              {theme !== "MODERN" && theme !== "MINIMAL" && <Ornament center />}
-            </FadeUp>
+              <SectionHeading center light>{section.title || "Make a Donation"}</SectionHeading>
+            </div>
 
-            <FadeUp delay={0.15} className="mt-10 space-y-6">
+            <div
+              className="w-full overflow-hidden rounded-2xl"
+              style={{ background: "rgba(10,10,20,0.72)", border: "1px solid rgba(255,255,255,0.14)", backdropFilter: "blur(22px)", boxShadow: "0 24px 64px rgba(0,0,0,0.50)" }}
+            >
+              {/* top accent bar */}
+              <div className="h-1 w-full" style={{ background: "linear-gradient(90deg,#be185d,#f43f5e,#fb923c)" }} />
 
-              {/* Preset amounts */}
-              <div>
-                <p className="mb-3 text-center text-[10px] font-semibold uppercase tracking-[0.3em] text-white/40">Select Amount</p>
-                <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-                  {PRESET_AMOUNTS.map((a) => (
+              {/* header */}
+              <div className="px-7 pt-6 pb-4">
+                <p className="text-base sm:text-lg font-bold text-white leading-snug">
+                  {donConfig.message || section.body || "Every contribution makes a difference."}
+                </p>
+              </div>
+
+              <form
+                onSubmit={isEditor ? (e) => e.preventDefault() : handleDonate}
+                className="px-7 pb-7 space-y-4"
+              >
+                {/* One Time / Monthly */}
+                <div
+                  className="flex rounded-xl p-1 gap-1"
+                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}
+                >
+                  {[["once", "One Time"], ["monthly", "Monthly"]].map(([val, label]) => (
+                    <button key={val} type="button"
+                      onClick={isEditor ? undefined : () => setFreq(val)}
+                      className="flex-1 rounded-lg py-2.5 text-sm font-black tracking-wide transition-all"
+                      style={freq === val
+                        ? { background: "var(--t-accent)", color: "var(--t-accent-fg,#000)" }
+                        : { color: "rgba(255,255,255,0.45)" }
+                      }
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Amount presets */}
+                <div className="grid grid-cols-3 gap-2">
+                  {presets.map((a) => (
                     <button key={a} type="button"
-                      onClick={showEditor ? undefined : () => { setPreset(a); setCustom(""); }}
-                      className="py-3 text-sm font-semibold transition active:scale-95"
+                      onClick={isEditor ? undefined : () => { setPreset(a); setCustom(""); setError(""); }}
+                      className="py-4 text-base font-black transition-all active:scale-95"
                       style={{
-                        borderRadius: "var(--t-radius, 6px)",
-                        border: preset === a ? "1.5px solid var(--t-accent)" : "1px solid rgba(255,255,255,0.15)",
-                        background: preset === a ? "var(--t-accent)" : "transparent",
-                        color: preset === a ? "#000" : "rgba(255,255,255,0.75)",
-                      }}>
+                        borderRadius: 14,
+                        border: preset === a ? "2px solid var(--t-accent)" : "1px solid rgba(255,255,255,0.13)",
+                        background: preset === a ? "var(--t-accent)" : "rgba(255,255,255,0.05)",
+                        color: preset === a ? "var(--t-accent-fg,#000)" : "rgba(255,255,255,0.80)",
+                        boxShadow: preset === a ? "0 4px 20px rgba(244,63,94,0.35)" : "none",
+                      }}
+                    >
                       ${a}
                     </button>
                   ))}
-                  <button type="button"
-                    onClick={showEditor ? undefined : () => setPreset("custom")}
-                    className="py-3 text-sm font-semibold transition active:scale-95 col-span-4 sm:col-span-1"
-                    style={{
-                      borderRadius: "var(--t-radius, 6px)",
-                      border: preset === "custom" ? "1.5px solid var(--t-accent)" : "1px solid rgba(255,255,255,0.15)",
-                      background: preset === "custom" ? "var(--t-accent)" : "transparent",
-                      color: preset === "custom" ? "#000" : "rgba(255,255,255,0.75)",
-                    }}>
-                    Custom
-                  </button>
-                </div>
-                {preset === "custom" && (
-                  <div className="mt-3 flex items-center gap-2">
-                    <span className="text-white/50 text-sm">$</span>
-                    <input type="number" min="1" step="1" value={custom}
-                      onChange={e => setCustom(e.target.value)}
-                      placeholder="Enter amount"
-                      className="flex-1 bg-transparent border-b py-2 text-lg font-semibold text-white placeholder-white/25 outline-none"
-                      style={{ borderColor: "rgba(255,255,255,0.2)" }} />
-                  </div>
-                )}
-              </div>
-
-              {/* Form fields */}
-              <form onSubmit={showEditor ? (e) => e.preventDefault() : handleDonate} className="space-y-4">
-                {[
-                  { key: "name",    label: anonymous ? "Name (hidden)" : "Your Name",  type: "text",  placeholder: "Optional", required: false },
-                  { key: "email",   label: "Email",                                     type: "email", placeholder: "your@email.com", required: true },
-                ].map(({ key, label, type, placeholder, required }) => (
-                  <div key={key}>
-                    <label className="block text-[10px] font-semibold uppercase tracking-[0.25em] mb-1.5 text-white/40">{label}</label>
-                    <input type={type} value={form[key]} placeholder={placeholder}
-                      onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                      required={required}
-                      className="w-full bg-transparent border-b py-2.5 text-sm text-white placeholder-white/25 outline-none transition"
-                      style={{ borderColor: "rgba(255,255,255,0.18)" }}
-                      onFocus={e => e.target.style.borderColor = "var(--t-accent)"}
-                      onBlur={e  => e.target.style.borderColor = "rgba(255,255,255,0.18)"} />
-                  </div>
-                ))}
-
-                <div>
-                  <label className="block text-[10px] font-semibold uppercase tracking-[0.25em] mb-1.5 text-white/40">Message (optional)</label>
-                  <textarea rows={2} value={form.message} placeholder="Leave a kind word…"
-                    onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
-                    className="w-full bg-transparent border-b py-2.5 text-sm text-white placeholder-white/25 outline-none resize-none transition"
-                    style={{ borderColor: "rgba(255,255,255,0.18)" }}
-                    onFocus={e => e.target.style.borderColor = "var(--t-accent)"}
-                    onBlur={e  => e.target.style.borderColor = "rgba(255,255,255,0.18)"} />
                 </div>
 
-                <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                  <div onClick={() => !showEditor && setAnonymous(v => !v)}
-                    className="w-10 h-6 rounded-full transition-colors flex items-center px-1"
-                    style={{ background: anonymous ? "var(--t-accent)" : "rgba(255,255,255,0.12)" }}>
-                    <div className="w-4 h-4 rounded-full bg-white shadow transition-transform"
-                      style={{ transform: anonymous ? "translateX(16px)" : "translateX(0)" }} />
-                  </div>
-                  <span className="text-xs text-white/50">Donate anonymously</span>
-                </label>
+                {/* Custom amount */}
+                <div
+                  className="flex items-center gap-2 rounded-xl px-4 py-3"
+                  style={preset === "custom"
+                    ? { ...inputStyle, border: "1.5px solid var(--t-accent)" }
+                    : inputStyle}
+                >
+                  <span className="text-base font-bold text-white/35">$</span>
+                  <input
+                    type="number" min="1"
+                    value={preset === "custom" ? custom : ""}
+                    placeholder="Other amount"
+                    onFocus={isEditor ? undefined : () => setPreset("custom")}
+                    onChange={(e) => { setPreset("custom"); setCustom(e.target.value); setError(""); }}
+                    className="flex-1 bg-transparent text-base font-semibold text-white placeholder-white/25 outline-none"
+                  />
+                </div>
 
-                {error && <p className="text-sm text-rose-400">{error}</p>}
+                {/* Name */}
+                <input
+                  type="text" value={name}
+                  placeholder="Your name (optional)"
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full rounded-xl px-4 py-3 text-base font-medium text-white placeholder-white/30 outline-none"
+                  style={inputStyle}
+                />
 
-                <button type="submit" disabled={submitting || showEditor}
-                  className="w-full py-4 text-sm font-bold uppercase tracking-[0.15em] transition active:scale-[0.98] disabled:opacity-50 mt-2"
-                  style={{
-                    background: "var(--t-accent)",
-                    color: "var(--t-accent-fg, #000)",
-                    borderRadius: "var(--t-radius, 6px)",
-                  }}>
-                  {submitting ? "Redirecting…" : `Give ${ preset === "custom" ? (custom ? `$${custom}` : "…") : `$${preset}` } →`}
+                {error && <p className="text-sm font-semibold text-rose-400">{error}</p>}
+
+                {/* CTA */}
+                <button type="submit" disabled={submitting || isEditor}
+                  className="w-full rounded-xl py-4 text-sm font-black uppercase tracking-widest transition-all active:scale-[0.98] disabled:opacity-60"
+                  style={{ background: "var(--t-accent)", color: "var(--t-accent-fg,#000)", boxShadow: "0 8px 28px rgba(244,63,94,0.40)" }}
+                >
+                  {submitting
+                    ? "Processing…"
+                    : `${freq === "monthly" ? "Give Monthly" : "Donate"}${amount > 0 ? ` — $${amount}` : ""} →`
+                  }
                 </button>
-              </form>
 
-            </FadeUp>
-          </>
+                <p className="text-center text-[11px] text-white/20">Secure payment via Stripe</p>
+              </form>
+            </div>
+          </FadeUp>
         )}
       </div>
-      {showEditor && <EditorBadge label="DONATIONS" />}
+      {isEditor && <EditorBadge label="DONATIONS" />}
     </section>
   );
 }
@@ -2387,145 +2395,284 @@ export function FAQSection({ section, isEditor = false, onEdit }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // CTA
 // ══════════════════════════════════════════════════════════════════════════════
+
+// ── Ticket CTA card — editorial cream/dark design (matches /tickets page) ────
+function TicketCTACard({ ticket, onBuy, isEditor }) {
+  function tierCode(t) {
+    const n = (t.name ?? "").toLowerCase();
+    if (t.kind === "FREE")                                                return "FREE";
+    if (n.includes("vip") || n.includes("platinum"))                     return "VIP";
+    if (n.includes("early") || n.includes("bird"))                       return "EB";
+    if (n.includes("pro") || n.includes("premium") || n.includes("diamond")) return "PRO";
+    return "GA";
+  }
+  function resolveTierLocal(t) {
+    const n = (t.name ?? "").toLowerCase();
+    if (t.kind === "FREE") return { accent: "#10b981", label: "Free", code: "FREE" };
+    if (n.includes("vip") || n.includes("platinum")) return { accent: "#C9A96E", label: "VIP", code: "VIP" };
+    if (n.includes("early") || n.includes("bird"))   return { accent: "#f59e0b", label: "Early Bird", code: "EB" };
+    if (n.includes("pro") || n.includes("premium"))  return { accent: "#a78bfa", label: "Premium", code: "PRO" };
+    return { accent: "#6366f1", label: "Standard", code: "GA" };
+  }
+  const tier = resolveTierLocal(ticket);
+  const available = ticket.quantity_total != null ? ticket.quantity_total - (ticket.quantity_sold ?? 0) : null;
+  const isSoldOut  = available !== null && available <= 0;
+  const isUrgent   = available !== null && available > 0 && available <= 20;
+  const pct        = ticket.quantity_total ? Math.min(((ticket.quantity_sold ?? 0) / ticket.quantity_total) * 100, 100) : 0;
+  const fmtLocal   = (n) => n === 0 ? "Free" : new Intl.NumberFormat("en-US", { style: "currency", currency: ticket.currency ?? "USD", maximumFractionDigits: 0 }).format(n);
+
+  return (
+    <div className="overflow-hidden rounded-2xl" style={{ border: "1px solid rgba(255,255,255,0.07)", boxShadow: "0 16px 48px rgba(0,0,0,0.45)" }}>
+      {/* Dark header */}
+      <div className="flex items-center justify-between px-5 py-4"
+        style={{ background: "#0c0c12", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black"
+            style={{ background: `${tier.accent}18`, border: `1.5px solid ${tier.accent}40`, color: tier.accent }}>
+            {tier.code}
+          </div>
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[0.22em]" style={{ color: tier.accent }}>{tier.label} Access</p>
+            <p className="text-sm font-bold text-white leading-tight">{ticket.name}</p>
+          </div>
+        </div>
+        {isSoldOut ? (
+          <span className="text-[10px] font-black px-2.5 py-1 rounded-full" style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)" }}>Sold Out</span>
+        ) : isUrgent ? (
+          <span className="text-[10px] font-black text-amber-400">🔥 {available} left</span>
+        ) : null}
+      </div>
+      {/* Cream body */}
+      <div className="flex flex-col gap-4 px-5 pt-5 pb-5" style={{ background: "#f0ebe0" }}>
+        <div className="text-center">
+          <p className="text-[9px] font-bold uppercase tracking-[0.25em] mb-1" style={{ color: "#7a6e5f" }}>per person</p>
+          <p className="leading-none font-black" style={{ fontFamily: "var(--t-font-heading,'Playfair Display',Georgia,serif)", fontSize: "clamp(2.8rem,5vw,4rem)", color: "#0f0d0a", letterSpacing: "-0.02em" }}>
+            {fmtLocal(Number(ticket.price))}
+          </p>
+        </div>
+        {ticket.quantity_total != null && !isSoldOut && (
+          <div>
+            <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: "#9a8c7e" }}>
+              <span>{isUrgent ? `⚠ ${available} spots left` : `${available} available`}</span>
+              <span style={{ color: tier.accent }}>{Math.round(pct)}% filled</span>
+            </div>
+            <div style={{ height: 3, borderRadius: 99, background: "rgba(0,0,0,0.10)", overflow: "hidden" }}>
+              <div style={{ height: "100%", borderRadius: 99, background: isUrgent ? "#ef4444" : tier.accent, width: `${pct}%`, transition: "width 1s ease" }} />
+            </div>
+          </div>
+        )}
+        <div className="flex flex-col gap-2">
+          <button onClick={() => !isSoldOut && !isEditor && onBuy(ticket)} disabled={isSoldOut || isEditor}
+            className="w-full py-3.5 text-sm font-black uppercase tracking-widest transition-all active:scale-[0.98] disabled:opacity-40 rounded-xl"
+            style={{ background: isSoldOut ? "rgba(0,0,0,0.12)" : "#0f0d0a", color: isSoldOut ? "#9a8c7e" : "#f0ebe0", letterSpacing: "0.08em" }}>
+            {isSoldOut ? "Sold Out" : ticket.kind === "FREE" ? "Reserve Free Spot" : "Buy Now →"}
+          </button>
+          {!isSoldOut && !isEditor && (
+            <button onClick={() => onBuy(ticket)}
+              className="w-full py-2.5 text-xs font-bold uppercase transition-all active:scale-[0.98] rounded-xl"
+              style={{ background: "transparent", color: "#4a3f30", border: "1.5px solid rgba(0,0,0,0.18)", letterSpacing: "0.10em" }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = tier.accent}
+              onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.18)"}>
+              {ticket.kind === "FREE" ? "Learn More" : "Reserve a Spot"}
+            </button>
+          )}
+        </div>
+        <p className="text-center text-[10px] font-semibold uppercase tracking-widest" style={{ color: "rgba(0,0,0,0.20)", letterSpacing: "0.12em" }}>
+          🔒 Secure checkout · Instant e-ticket
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // DONATION CHECKOUT CARD — shown inside CTASection when allow_donations is on
+// Matches the HeroDonationCard design exactly.
 // ══════════════════════════════════════════════════════════════════════════════
-const DONATION_PRESETS_CTA = [10, 25, 50, 100];
+const DONATION_CTA_DEFAULTS = [5, 10, 25];
 
 function DonationCheckoutCard({ event, isEditor }) {
   const API = process.env.NEXT_PUBLIC_API_URL;
-  const [preset,     setPreset]     = useState(25);
+
+  const [freq,       setFreq]       = useState("once");
+  const [preset,     setPreset]     = useState(null);
   const [custom,     setCustom]     = useState("");
-  const [email,      setEmail]      = useState("");
   const [name,       setName]       = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [done,       setDone]       = useState(false);
   const [error,      setError]      = useState("");
+  const [donConfig,  setDonConfig]  = useState({ amounts: [], message: "" });
 
-  const amount = preset === "custom" ? Number(custom) : preset;
+  useEffect(() => {
+    if (!event?.id) return;
+    fetch(`${API}/engagement/events/${event.id}/donation-config`)
+      .then(r => r.json())
+      .then(d => { if (d?.data) setDonConfig(d.data); })
+      .catch(() => {});
+  }, [event?.id]);
+
+  const presets = donConfig.amounts?.length === 3 ? donConfig.amounts : DONATION_CTA_DEFAULTS;
+  const amount  = preset === "custom" ? Number(custom) : (preset ?? 0);
+
+  const inputStyle = {
+    background: "rgba(255,255,255,0.07)",
+    border: "1px solid rgba(255,255,255,0.13)",
+  };
 
   async function handleDonate(e) {
     e.preventDefault();
-    if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) return setError("Valid email required");
-    if (!amount || amount <= 0) return setError("Select or enter an amount");
+    if (!amount || amount <= 0) return setError("Please select or enter an amount");
     setError("");
     setSubmitting(true);
     try {
       const res = await fetch(`${API}/engagement/events/${event?.id}/donations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          donor_name:  name.trim() || null,
-          donor_email: email.trim().toLowerCase(),
-          amount,
-          currency: "USD",
-        }),
+        body: JSON.stringify({ donor_name: name.trim() || null, amount, currency: "USD", frequency: freq }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Donation failed");
       if (data.data?.checkout_url) window.location.href = data.data.checkout_url;
+      else setDone(true);
     } catch (err) {
       setError(err.message);
       setSubmitting(false);
     }
   }
 
+  const ROSE = "#f43f5e";
+
+  if (done) {
+    return (
+      <div className="mx-auto mt-10 w-full overflow-hidden rounded-2xl text-center"
+        style={{ boxShadow: "0 24px 60px rgba(0,0,0,0.50)" }}>
+        <div className="h-1 w-full" style={{ background: `linear-gradient(90deg,#be185d,${ROSE},#fb923c)` }} />
+        <div className="px-8 py-12" style={{ background: "#f0ebe0" }}>
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl"
+            style={{ background: "rgba(244,63,94,0.10)", border: "1px solid rgba(244,63,94,0.20)" }}>
+            <Heart className="h-7 w-7" fill={ROSE} stroke={ROSE} />
+          </div>
+          <p style={{ fontFamily: "var(--t-font-heading,'Playfair Display',Georgia,serif)", fontSize: "1.6rem", fontWeight: 900, color: "#0f0d0a", marginBottom: 6 }}>
+            Thank you! 💝
+          </p>
+          <p className="text-sm font-semibold" style={{ color: "#7a6e5f" }}>
+            Your {freq === "monthly" ? "monthly " : ""}donation of <strong style={{ color: ROSE }}>${amount}</strong> means a lot.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="mx-auto mt-10 w-full max-w-sm">
-      <div
-        className="overflow-hidden rounded-2xl"
-        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", backdropFilter: "blur(16px)" }}
-      >
-        {/* Card header */}
-        <div className="flex items-center gap-3 border-b px-5 py-4" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: "rgba(244,114,182,0.15)" }}>
-            <Heart className="h-4 w-4" style={{ color: "#f472b6" }} />
-          </div>
-          <div>
-            <p className="text-sm font-bold leading-tight text-white">Support this event</p>
-            <p className="mt-0.5 text-[11px] text-white/40">Any amount makes a difference</p>
-          </div>
+    <div className="mx-auto mt-10 w-full overflow-hidden rounded-2xl"
+      style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.06)" }}>
+
+      {/* ── Dark header ── */}
+      <div className="flex items-center gap-3 px-5 py-4"
+        style={{ background: "#0c0814", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+          style={{ background: "rgba(244,63,94,0.15)", border: "1px solid rgba(244,63,94,0.28)" }}>
+          <Heart className="h-4 w-4" fill={ROSE} stroke={ROSE} />
+        </div>
+        <div>
+          <p className="text-[9px] font-black uppercase tracking-[0.20em]" style={{ color: "rgba(244,63,94,0.70)" }}>
+            Support this event
+          </p>
+          <p className="text-sm font-bold text-white leading-tight">
+            {donConfig.message || "Every contribution makes a difference."}
+          </p>
+        </div>
+      </div>
+
+      {/* ── Cream body ── */}
+      <form onSubmit={isEditor ? (e) => e.preventDefault() : handleDonate}
+        className="flex flex-col gap-4 px-5 sm:px-6 pt-5 pb-5 sm:pb-6"
+        style={{ background: "#f0ebe0" }}>
+
+        {/* One Time / Monthly */}
+        <div className="flex rounded-xl p-1 gap-1"
+          style={{ background: "rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.10)" }}>
+          {[["once", "One Time"], ["monthly", "Monthly"]].map(([val, label]) => (
+            <button key={val} type="button"
+              onClick={isEditor ? undefined : () => setFreq(val)}
+              className="flex-1 rounded-lg py-2 text-xs font-black tracking-wide transition-all"
+              style={freq === val ? { background: "#0f0d0a", color: "#f0ebe0" } : { color: "#7a6e5f" }}>
+              {label}
+            </button>
+          ))}
         </div>
 
-        {/* Card body */}
-        <form
-          onSubmit={isEditor ? (e) => e.preventDefault() : handleDonate}
-          className="space-y-3 px-5 py-5"
-        >
-          {/* Preset amounts */}
-          <div className="grid grid-cols-4 gap-1.5">
-            {DONATION_PRESETS_CTA.map((a) => (
-              <button
-                key={a}
-                type="button"
-                onClick={isEditor ? undefined : () => { setPreset(a); setCustom(""); }}
-                className="py-2 text-xs font-bold transition active:scale-95"
-                style={{
-                  borderRadius: "10px",
-                  border: preset === a ? "1.5px solid var(--t-accent)" : "1px solid rgba(255,255,255,0.12)",
-                  background: preset === a ? "var(--t-accent)" : "rgba(255,255,255,0.03)",
-                  color: preset === a ? "#000" : "rgba(255,255,255,0.65)",
-                }}
-              >
-                ${a}
-              </button>
-            ))}
-          </div>
+        {/* Preset amounts */}
+        <div className="grid grid-cols-3 gap-2">
+          {presets.map((a) => (
+            <button key={a} type="button"
+              onClick={isEditor ? undefined : () => { setPreset(a); setCustom(""); setError(""); }}
+              className="py-4 font-black transition-all active:scale-95"
+              style={{
+                borderRadius: 14,
+                fontFamily: "var(--t-font-heading,'Playfair Display',Georgia,serif)",
+                fontSize: "clamp(1.2rem,2.5vw,1.6rem)",
+                border: preset === a ? `2px solid ${ROSE}` : "1.5px solid rgba(0,0,0,0.12)",
+                background: preset === a ? ROSE : "rgba(0,0,0,0.05)",
+                color: preset === a ? "#fff" : "#0f0d0a",
+                boxShadow: preset === a ? `0 6px 20px rgba(244,63,94,0.28)` : "none",
+              }}>
+              ${a}
+            </button>
+          ))}
+        </div>
 
-          {/* Custom amount */}
-          <div
-            className="flex items-center gap-2 rounded-xl px-3 py-2.5"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)" }}
-          >
-            <span className="text-sm font-medium text-white/35">$</span>
-            <input
-              type="number"
-              min="1"
-              value={preset === "custom" ? custom : ""}
-              placeholder={preset !== "custom" ? String(preset) : "Custom amount"}
-              onFocus={isEditor ? undefined : () => setPreset("custom")}
-              onChange={(e) => { setPreset("custom"); setCustom(e.target.value); }}
-              className="flex-1 bg-transparent text-sm text-white placeholder-white/25 outline-none"
-            />
-            <span className="text-[10px] text-white/25 uppercase tracking-widest">USD</span>
-          </div>
-
-          {/* Name (optional) */}
-          <input
-            type="text"
-            value={name}
-            placeholder="Your name (optional)"
-            onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-xl px-3 py-2.5 text-sm text-white placeholder-white/25 outline-none"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)" }}
+        {/* Custom amount */}
+        <div className="flex items-center gap-2 rounded-xl px-4 py-3"
+          style={{ background: "rgba(0,0,0,0.05)", border: preset === "custom" ? `1.5px solid ${ROSE}` : "1.5px solid rgba(0,0,0,0.12)" }}>
+          <span className="text-sm font-bold" style={{ color: "#9a8c7e" }}>$</span>
+          <input type="number" min="1"
+            value={preset === "custom" ? custom : ""}
+            placeholder="Other amount"
+            onFocus={isEditor ? undefined : () => setPreset("custom")}
+            onChange={(e) => { setPreset("custom"); setCustom(e.target.value); setError(""); }}
+            className="flex-1 bg-transparent text-sm font-semibold outline-none placeholder-[#b0a89a]"
+            style={{ color: "#0f0d0a" }}
           />
+        </div>
 
-          {/* Email */}
-          <input
-            type="email"
-            required
-            value={email}
-            placeholder="your@email.com"
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-xl px-3 py-2.5 text-sm text-white placeholder-white/25 outline-none"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)" }}
-          />
+        {/* Name */}
+        <input type="text" value={name} placeholder="Your name (optional)"
+          onChange={(e) => setName(e.target.value)}
+          className="w-full rounded-xl px-4 py-3 text-sm font-medium outline-none placeholder-[#b0a89a]"
+          style={{ background: "rgba(0,0,0,0.05)", border: "1.5px solid rgba(0,0,0,0.12)", color: "#0f0d0a" }}
+          onFocus={e => e.target.style.borderColor = ROSE}
+          onBlur={e => e.target.style.borderColor = "rgba(0,0,0,0.12)"}
+        />
 
-          {error && <p className="text-xs text-rose-400">{error}</p>}
+        {error && <p className="text-xs font-semibold" style={{ color: ROSE }}>{error}</p>}
 
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={submitting || isEditor}
-            className="w-full rounded-xl py-3 text-sm font-black uppercase tracking-[0.12em] transition active:scale-[0.98] disabled:opacity-60"
-            style={{ background: "var(--t-accent)", color: "var(--t-accent-fg, #000)" }}
-          >
+        {/* Dual CTA */}
+        <div className="flex flex-col gap-2">
+          <button type="submit" disabled={submitting || isEditor}
+            className="w-full rounded-xl py-3.5 text-sm font-black uppercase tracking-widest transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+            style={{ background: "#0f0d0a", color: "#f0ebe0", letterSpacing: "0.08em" }}>
             {submitting
-              ? "Redirecting…"
-              : `Give ${preset === "custom" ? (custom ? `$${custom}` : "…") : `$${preset}`} →`}
+              ? "Processing…"
+              : <><Heart className="h-3.5 w-3.5" fill="#f0ebe0" stroke="#f0ebe0" />
+                  {freq === "monthly" ? "Give Monthly" : "Donate"}{amount > 0 ? ` — $${amount}` : ""}</>
+            }
           </button>
+          {!isEditor && !submitting && (
+            <button type="button" onClick={handleDonate}
+              className="w-full rounded-xl py-2.5 text-xs font-bold uppercase transition-all active:scale-[0.98]"
+              style={{ background: "transparent", color: "#4a3f30", border: "1.5px solid rgba(0,0,0,0.18)", letterSpacing: "0.10em" }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = ROSE}
+              onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.18)"}>
+              Reserve Contribution
+            </button>
+          )}
+        </div>
 
-          <p className="text-center text-[10px] text-white/25">Secure checkout via Stripe</p>
-        </form>
-      </div>
+        <p className="text-center text-[10px] font-semibold uppercase tracking-widest"
+          style={{ color: "rgba(0,0,0,0.22)", letterSpacing: "0.12em" }}>
+          Secure payment via Stripe
+        </p>
+      </form>
     </div>
   );
 }
@@ -2588,6 +2735,21 @@ export function CTASection({ section, event, isEditor = false, onEdit }) {
     button: config.button_text || "Buy Tickets",
   };
 
+  // Ticket cards block — defined AFTER showTicketingMode to avoid TDZ error
+  const TicketCardsBlock = showTicketingMode && pubTickets.length > 0 ? (
+    <div className={`mt-8 w-full mx-auto grid gap-5 ${
+      pubTickets.length === 1
+        ? "max-w-md sm:max-w-lg"
+        : pubTickets.length === 2
+        ? "sm:grid-cols-2 max-w-3xl"
+        : "sm:grid-cols-3 max-w-5xl"
+    }`}>
+      {pubTickets.map((t) => (
+        <TicketCTACard key={t.id} ticket={t} onBuy={handleBuyTickets} isEditor={isEditor} />
+      ))}
+    </div>
+  ) : null;
+
   // ── MODERN: Left-aligned, full-width button ──────────────────────────────
   if (theme === "MODERN") {
     return (
@@ -2603,25 +2765,18 @@ export function CTASection({ section, event, isEditor = false, onEdit }) {
               {showTicketingMode ? ticketCTA.title : (section.title || "Join Us")}
             </h2>
             {showTicketingMode ? (
-              <div className="mt-5 max-w-lg space-y-3">
-                <p className="text-base text-white/50">{ticketCTA.body}</p>
-                {priceLabel && <p className="text-lg font-black" style={{ color: "var(--t-accent)" }}>{priceLabel}</p>}
-                {hasLimit && spotsLeft > 0 && spotsLeft < 50 && (
-                  <p className="text-xs font-bold uppercase tracking-widest text-red-400">⚡ Only {spotsLeft} spots left</p>
-                )}
-              </div>
+              <p className="mt-5 max-w-lg text-base text-white/50">{ticketCTA.body}</p>
             ) : (
               section.body && <p className="mt-5 max-w-lg text-base text-white/50">{section.body}</p>
             )}
-            {(showTicketingMode || isEditor || hasToken) && (
-              <button
-                onClick={!isEditor ? (showTicketingMode ? handleBuyTickets : handleRsvp) : undefined}
+            {/* Ticket cards */}
+            {TicketCardsBlock}
+            {/* RSVP button fallback (no tickets yet) */}
+            {!showTicketingMode && (isEditor || hasToken) && (
+              <button onClick={!isEditor ? handleRsvp : undefined}
                 className="mt-10 w-full max-w-sm text-sm font-black uppercase tracking-[0.2em] transition active:scale-95"
-                style={{ background: "var(--t-accent)", color: "#000", padding: "1.25rem 3rem" }}
-                onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.9"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
-              >
-                {showTicketingMode ? ticketCTA.button : (config.button_text || "Register Now")}
+                style={{ background: "var(--t-accent)", color: "#000", padding: "1.25rem 3rem" }}>
+                {config.button_text || "Register Now"}
               </button>
             )}
             {showDonation && (
@@ -2654,19 +2809,12 @@ export function CTASection({ section, event, isEditor = false, onEdit }) {
             <h2 className="text-5xl font-light sm:text-6xl text-white" style={{ fontFamily: "var(--t-font-heading)", letterSpacing: "0.01em" }}>
               {showTicketingMode ? ticketCTA.title : (section.title || "Join Us")}
             </h2>
-            {showTicketingMode && priceLabel && (
-              <p className="mt-4 text-sm font-medium tracking-widest uppercase" style={{ color: "var(--t-accent)" }}>{priceLabel}</p>
-            )}
-            {showTicketingMode && hasLimit && spotsLeft > 0 && spotsLeft < 50 && (
-              <p className="mt-2 text-xs uppercase tracking-widest text-red-400/80">Only {spotsLeft} spots remaining</p>
-            )}
-            {(showTicketingMode || isEditor || hasToken) && (
-              <button
-                onClick={!isEditor ? (showTicketingMode ? handleBuyTickets : handleRsvp) : undefined}
+            {TicketCardsBlock}
+            {!showTicketingMode && (isEditor || hasToken) && (
+              <button onClick={!isEditor ? handleRsvp : undefined}
                 className="mt-14 border bg-transparent text-xs font-light uppercase tracking-[0.5em] text-white/60 transition hover:text-white hover:border-white/50 px-12 py-5"
-                style={{ border: "1px solid rgba(255,255,255,0.2)" }}
-              >
-                {showTicketingMode ? ticketCTA.button : (config.button_text || "RSVP")}
+                style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
+                {config.button_text || "RSVP"}
               </button>
             )}
             {showDonation && (
@@ -2701,25 +2849,13 @@ export function CTASection({ section, event, isEditor = false, onEdit }) {
               <h2 className="text-5xl font-extrabold sm:text-6xl text-white" style={{ fontFamily: "var(--t-font-heading)" }}>
                 {showTicketingMode ? ticketCTA.title : (section.title || "Let's Party! 🎉")}
               </h2>
-              {showTicketingMode ? (
-                <div className="mt-4 space-y-2">
-                  <p className="text-lg text-white/80">{ticketCTA.body}</p>
-                  {priceLabel && <p className="text-2xl font-black text-white">{priceLabel}</p>}
-                  {hasLimit && spotsLeft > 0 && spotsLeft < 50 && (
-                    <p className="text-sm font-black uppercase tracking-widest text-white/70">⚡ Only {spotsLeft} spots left!</p>
-                  )}
-                </div>
-              ) : (
-                section.body && <p className="mt-4 text-lg text-white/80">{section.body}</p>
-              )}
-              {(showTicketingMode || isEditor || hasToken) && (
-                <button onClick={!isEditor ? (showTicketingMode ? handleBuyTickets : handleRsvp) : undefined}
+              {!(showTicketingMode) && section.body && <p className="mt-4 text-lg text-white/80">{section.body}</p>}
+              {TicketCardsBlock}
+              {!showTicketingMode && (isEditor || hasToken) && (
+                <button onClick={!isEditor ? handleRsvp : undefined}
                   className="mt-8 inline-block bg-white text-sm font-black uppercase tracking-[0.15em] transition active:scale-95 px-10 py-4"
-                  style={{ color: "var(--t-accent)", borderRadius: 999, border: "3px solid #1a1a1a", boxShadow: "4px 4px 0 #1a1a1a" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.transform = "translate(-2px,-2px)"; e.currentTarget.style.boxShadow = "6px 6px 0 #1a1a1a"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "4px 4px 0 #1a1a1a"; }}
-                >
-                  {showTicketingMode ? ticketCTA.button : (config.button_text || "Count Me In! →")}
+                  style={{ color: "var(--t-accent)", borderRadius: 999, border: "3px solid #1a1a1a", boxShadow: "4px 4px 0 #1a1a1a" }}>
+                  {config.button_text || "Count Me In! →"}
                 </button>
               )}
             </div>
@@ -2761,25 +2897,15 @@ export function CTASection({ section, event, isEditor = false, onEdit }) {
             <h2 className="text-6xl font-bold italic text-white sm:text-7xl" style={{ fontFamily: "var(--t-font-heading)", letterSpacing: "0.01em" }}>
               {showTicketingMode ? ticketCTA.title : (section.title || "Join Us")}
             </h2>
-            {showTicketingMode ? (
-              <div className="mt-6 space-y-3">
-                <p className="mx-auto max-w-md text-lg text-white/40 italic">{ticketCTA.body}</p>
-                {priceLabel && <p className="text-xl font-semibold tracking-widest uppercase" style={{ color: "var(--t-accent)" }}>{priceLabel}</p>}
-                {hasLimit && spotsLeft > 0 && spotsLeft < 50 && (
-                  <p className="text-xs uppercase tracking-[0.3em] text-white/30">— Only {spotsLeft} tickets remain —</p>
-                )}
-              </div>
-            ) : (
-              section.body && <p className="mx-auto mt-6 max-w-md text-lg text-white/40 italic">{section.body}</p>
-            )}
-            {(showTicketingMode || isEditor || hasToken) && (
-              <button onClick={!isEditor ? (showTicketingMode ? handleBuyTickets : handleRsvp) : undefined}
+            {!showTicketingMode && section.body && <p className="mx-auto mt-6 max-w-md text-lg text-white/40 italic">{section.body}</p>}
+            {TicketCardsBlock}
+            {!showTicketingMode && (isEditor || hasToken) && (
+              <button onClick={!isEditor ? handleRsvp : undefined}
                 className="mt-14 bg-transparent text-sm font-medium uppercase tracking-[0.4em] transition active:scale-95 px-12 py-5 text-white"
                 style={{ border: "1px solid var(--t-accent)" }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = "var(--t-accent)"; e.currentTarget.style.color = "#000"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#fff"; }}
-              >
-                {showTicketingMode ? ticketCTA.button : (config.button_text || "Confirm Attendance")}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#fff"; }}>
+                {config.button_text || "Confirm Attendance"}
               </button>
             )}
             {showDonation && (
@@ -2817,25 +2943,15 @@ export function CTASection({ section, event, isEditor = false, onEdit }) {
           <h2 className="text-5xl font-bold italic leading-tight text-white sm:text-6xl" style={{ fontFamily: "var(--t-font-heading)" }}>
             {showTicketingMode ? ticketCTA.title : (section.title || "Join Us")}
           </h2>
-          {showTicketingMode ? (
-            <div className="mt-5 space-y-3">
-              <p className="mx-auto max-w-md text-lg text-white/50">{ticketCTA.body}</p>
-              {priceLabel && <p className="text-lg font-semibold tracking-widest uppercase" style={{ color: "var(--t-accent)" }}>{priceLabel}</p>}
-              {hasLimit && spotsLeft > 0 && spotsLeft < 50 && (
-                <p className="text-xs uppercase tracking-[0.3em] text-white/40">· {spotsLeft} tickets remaining ·</p>
-              )}
-            </div>
-          ) : (
-            section.body && <p className="mx-auto mt-5 max-w-md text-lg text-white/50">{section.body}</p>
-          )}
-          {(showTicketingMode || isEditor || hasToken) && (
-            <button onClick={!isEditor ? (showTicketingMode ? handleBuyTickets : handleRsvp) : undefined}
+          {!showTicketingMode && section.body && <p className="mx-auto mt-5 max-w-md text-lg text-white/50">{section.body}</p>}
+          {TicketCardsBlock}
+          {!showTicketingMode && (isEditor || hasToken) && (
+            <button onClick={!isEditor ? handleRsvp : undefined}
               className="mt-12 bg-transparent px-12 py-4 text-sm font-medium uppercase tracking-[0.25em] transition active:scale-95"
               style={{ border: "1px solid var(--t-accent)", color: "var(--t-accent)" }}
               onMouseEnter={(e) => { e.currentTarget.style.background = "var(--t-accent)"; e.currentTarget.style.color = "var(--t-dark)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--t-accent)"; }}
-            >
-              {showTicketingMode ? ticketCTA.button : (config.button_text || "Confirm Attendance")}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--t-accent)"; }}>
+              {config.button_text || "Confirm Attendance"}
             </button>
           )}
           {showDonation && (

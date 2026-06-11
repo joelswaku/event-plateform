@@ -1,6 +1,6 @@
 import * as WebBrowser from 'expo-web-browser';
 
-export const APP_SCHEME = 'eventapp';
+export const APP_SCHEME = 'liteevent';
 
 // Deep link URLs Stripe will redirect back to after checkout
 export const STRIPE_SUCCESS_URL = `${APP_SCHEME}://payment/success?session_id={CHECKOUT_SESSION_ID}`;

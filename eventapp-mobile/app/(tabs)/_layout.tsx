@@ -18,14 +18,14 @@ function TabIcon({
   return (
     <View style={styles.tabItem}>
       <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-        <Feather name={name} size={19} color={color} />
+        <Feather name={name} size={17} color={color} />
         {!!badge && (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{badge > 99 ? '99+' : badge}</Text>
           </View>
         )}
       </View>
-      <Text style={[styles.tabLabel, { color }]}>{label}</Text>
+      <Text style={[styles.tabLabel, { color }]} numberOfLines={1}>{label}</Text>
     </View>
   );
 }
@@ -62,20 +62,23 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="builder"
+        name="scanner"
         options={{
           tabBarIcon: ({ focused }) => (
-            <View style={[styles.builderTab, focused && styles.builderTabActive]}>
-              <Feather name="layout" size={20} color={focused ? '#fff' : Colors.text.subtle} />
+            <View style={styles.tabItem}>
+              <View style={styles.scanTab}>
+                <Feather name="maximize" size={20} color="#fff" />
+              </View>
+              <Text style={[styles.tabLabel, { color: Colors.text.subtle }]}>Scan</Text>
             </View>
           ),
         }}
       />
       <Tabs.Screen
-        name="scanner"
+        name="planner"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="camera" focused={focused} label="Scan" badge={pendingCount || undefined} />
+            <TabIcon name="clipboard" focused={focused} label="Planner" />
           ),
         }}
       />
@@ -87,11 +90,9 @@ export default function TabsLayout() {
           ),
         }}
       />
-      {/* Hide tickets from tab bar — accessible via drawer */}
-      <Tabs.Screen
-        name="tickets"
-        options={{ href: null }}
-      />
+      {/* Hidden — accessible via event detail or drawer */}
+      <Tabs.Screen name="builder" options={{ href: null }} />
+      <Tabs.Screen name="tickets" options={{ href: null }} />
     </Tabs>
   );
 }
@@ -102,25 +103,25 @@ const styles = StyleSheet.create({
     bottom:            0,
     left:              0,
     right:             0,
-    height:            Platform.OS === 'ios' ? 88 : 68,
+    height:            Platform.OS === 'ios' ? 84 : 64,
     borderTopWidth:    1,
     borderTopColor:    Colors.border.DEFAULT,
     backgroundColor:   'transparent',
     elevation:         0,
-    paddingBottom:     Platform.OS === 'ios' ? 24 : 8,  // ← safe area padding
-    paddingHorizontal: 4,                                 // ← stop edge clipping
+    paddingBottom:     Platform.OS === 'ios' ? 22 : 6,
+    paddingHorizontal: 0,
   },
   tabItem: {
     alignItems:     'center',
     justifyContent: 'center',
-    gap:            2,
-    paddingTop:     4,
-    minWidth:       52,   // ← prevents label wrapping
+    gap:            1,
+    paddingTop:     2,
+    minWidth:       44,
   },
   iconWrap: {
-    width:           42,
-    height:          42,
-    borderRadius:    13,
+    width:           38,
+    height:          38,
+    borderRadius:    11,
     alignItems:      'center',
     justifyContent:  'center',
     position:        'relative',
@@ -150,26 +151,19 @@ const styles = StyleSheet.create({
     numberOfLines: 1,       // note: set this on the Text component below too
   },
 
-  // Builder center button — special styled
-  builderTab: {
-    width:           50,
-    height:          50,
+  // Scan center FAB — green, matches web mobile
+  scanTab: {
+    width:           54,
+    height:          54,
     borderRadius:    16,
-    backgroundColor: Colors.bg.elevated,
-    borderWidth:     1,
-    borderColor:     Colors.border.DEFAULT,
+    backgroundColor: '#059669',
     alignItems:      'center',
     justifyContent:  'center',
     marginTop:       -10,
-    shadowColor:     Colors.accent.indigo,
+    shadowColor:     '#10b981',
     shadowOffset:    { width: 0, height: 4 },
-    shadowOpacity:   0.2,
-    shadowRadius:    8,
-    elevation:       6,
-  },
-  builderTabActive: {
-    backgroundColor: Colors.accent.indigo,
-    borderColor:     Colors.accent.indigo,
-    shadowOpacity:   0.5,
+    shadowOpacity:   0.45,
+    shadowRadius:    12,
+    elevation:       8,
   },
 });

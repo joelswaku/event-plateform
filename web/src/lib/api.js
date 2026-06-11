@@ -40,7 +40,17 @@ api.interceptors.response.use(
 
     if (!response) return Promise.reject(error);
 
-    if (originalRequest?.url?.includes("/auth/refresh-token")) {
+    // Auth endpoints handle their own errors — never try to refresh on them.
+    // Without this, a wrong-password 401 triggers a refresh attempt that
+    // deadlocks the queue (logout call inside the catch re-queues itself).
+    const url = originalRequest?.url ?? "";
+    if (
+      url.includes("/auth/refresh-token") ||
+      url.includes("/auth/login") ||
+      url.includes("/auth/register") ||
+      url.includes("/auth/google") ||
+      url.includes("/auth/logout")
+    ) {
       return Promise.reject(error);
     }
 
@@ -73,13 +83,14 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
       } catch (refreshError) {
+        // Release the queue FIRST so any pending requests don't deadlock.
+        onRefreshed(null);
         try {
           const { useAuthStore } = await import("@/store/auth.store");
           await useAuthStore.getState().logout();
         } catch {
           // ignore
         }
-        onRefreshed(null);
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

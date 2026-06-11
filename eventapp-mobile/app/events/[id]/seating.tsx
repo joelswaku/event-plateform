@@ -10,17 +10,27 @@
  *   • Unassigned guests section (expandable below table list)
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
+import Svg, {
+  Circle  as SvgCircle,
+  Ellipse as SvgEllipse,
+  G       as SvgG,
+  Polygon as SvgPolygon,
+  Rect    as SvgRect,
+  Text    as SvgText,
+} from 'react-native-svg';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -30,6 +40,7 @@ import { useGuestStore }   from '@/store/guest.store';
 import { BottomSheet }     from '@/components/ui/BottomSheet';
 import { ConfirmModal }    from '@/components/ui/ConfirmModal';
 import { Colors }          from '@/constants/colors';
+import { notify, showSuccess, showError } from '@/lib/toast';
 import { Guest, SeatingLocation, SeatingAssignment } from '@/types';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────────
@@ -53,6 +64,328 @@ function fillAccent(pct: number) {
   if (pct >= 60) return '#f59e0b';
   return '#10b981';
 }
+
+// ── Seat-position math (mirrors web exactly) ─────────────────────────────────────
+
+function ellipseSeats(count: number, rx: number, ry: number, cx: number, cy: number) {
+  return Array.from({ length: count }, (_, i) => {
+    const a = (2 * Math.PI * i) / count - Math.PI / 2;
+    return { x: cx + (rx + 44) * Math.cos(a), y: cy + (ry + 44) * Math.sin(a) };
+  });
+}
+
+function rectSeats(count: number, w: number, h: number, cx: number, cy: number) {
+  const perimeter = 2 * (w + h);
+  const gap = perimeter / count;
+  return Array.from({ length: count }, (_, i) => {
+    const d = gap * i;
+    let x: number, y: number;
+    if      (d < w)              { x = cx - w / 2 + d;            y = cy - h / 2 - 44; }
+    else if (d < w + h)          { x = cx + w / 2 + 44;           y = cy - h / 2 + (d - w); }
+    else if (d < 2 * w + h)      { x = cx + w / 2 - (d - w - h);  y = cy + h / 2 + 44; }
+    else                         { x = cx - w / 2 - 44;           y = cy + h / 2 - (d - 2 * w - h); }
+    return { x, y };
+  });
+}
+
+// ── SVG table shape ───────────────────────────────────────────────────────────────
+
+function RNTableShape({ shape, w, h, cx, cy }: {
+  shape: string; w: number; h: number; cx: number; cy: number;
+}) {
+  const fill   = 'rgba(255,255,255,0.05)';
+  const stroke = 'rgba(255,255,255,0.14)';
+  if (shape === 'rectangle') {
+    return <SvgRect x={cx - w/2} y={cy - h/2} width={w} height={h} rx={20} fill={fill} stroke={stroke} strokeWidth={2} />;
+  }
+  if (shape === 'custom') {
+    const pts = Array.from({ length: 6 }, (_, i) => {
+      const a = (Math.PI / 3) * i - Math.PI / 6;
+      return `${cx + (w/2) * Math.cos(a)},${cy + (w/2) * Math.sin(a)}`;
+    }).join(' ');
+    return <SvgPolygon points={pts} fill={fill} stroke={stroke} strokeWidth={2} />;
+  }
+  return <SvgEllipse cx={cx} cy={cy} rx={w/2} ry={h/2} fill={fill} stroke={stroke} strokeWidth={2} />;
+}
+
+// ── SVG seat element ──────────────────────────────────────────────────────────────
+
+function RNSeatEl({ pos, idx, guest, onRemove }: {
+  pos: { x: number; y: number };
+  idx: number;
+  guest: { full_name: string; is_vip?: boolean } | null;
+  onRemove: () => void;
+}) {
+  const bg = guest ? avatarBg(guest.full_name) : undefined;
+  return (
+    <SvgG x={pos.x} y={pos.y} onPress={guest ? onRemove : undefined}>
+      <SvgCircle
+        r={24}
+        fill={guest ? bg : 'rgba(255,255,255,0.06)'}
+        stroke={guest ? bg : 'rgba(255,255,255,0.14)'}
+        strokeWidth={1.5}
+      />
+      {guest ? (
+        <>
+          <SvgText x={0} y={4} textAnchor="middle" fontSize={11} fontWeight="700" fill="white">
+            {getInitials(guest.full_name)}
+          </SvgText>
+          {guest.is_vip && (
+            <SvgText x={0} y={-29} textAnchor="middle" fontSize={10} fill="#fbbf24">👑</SvgText>
+          )}
+          <SvgText x={0} y={34} textAnchor="middle" fontSize={8} fill="rgba(255,255,255,0.35)">
+            #{idx + 1}
+          </SvgText>
+        </>
+      ) : (
+        <>
+          <SvgText x={0} y={6} textAnchor="middle" fontSize={16} fill="rgba(255,255,255,0.18)">+</SvgText>
+          <SvgText x={0} y={34} textAnchor="middle" fontSize={8} fill="rgba(255,255,255,0.18)">#{idx + 1}</SvgText>
+        </>
+      )}
+    </SvgG>
+  );
+}
+
+// ── TableDetailSheet ──────────────────────────────────────────────────────────────
+
+function TableDetailSheet({
+  open, onClose, loc, guests, eventId, onAssign,
+}: {
+  open: boolean;
+  onClose: () => void;
+  loc: SeatingLocation | null;
+  guests: Guest[];
+  eventId: string;
+  onAssign: () => void;
+}) {
+  // Selective selectors — subscribe only to what changes, not the whole store.
+  // Using useSeatingStore() without a selector re-renders on every state change
+  // (loading, saving, locations, assignments…), causing a flood of expensive
+  // SVG re-renders that freezes the screen.
+  const removeAssignment = useSeatingStore(s => s.removeAssignment);
+  const allAssignments   = useSeatingStore(s => s.assignments);
+
+  const { width: W } = useWindowDimensions();
+  const [removingId, setRemovingId] = useState<string | null>(null);
+
+  // Keep last valid loc alive so content persists through the slide-out animation.
+  const cachedLoc = useRef<SeatingLocation | null>(null);
+  if (loc) cachedLoc.current = loc;
+  const activeLoc = cachedLoc.current;
+
+  useEffect(() => { if (open) setRemovingId(null); }, [open]);
+
+  // Derive this table's assignments — recomputes only when assignments or table changes
+  const assigns = useMemo(
+    () => activeLoc ? allAssignments.filter(a => a.seating_table_id === activeLoc.id) : [],
+    [allAssignments, activeLoc?.id],
+  );
+
+  if (!activeLoc) return null;
+
+  const capacity = activeLoc.capacity || 8;
+  const shape    = activeLoc.shape || 'round';
+  const filled   = assigns.length;
+  const pct      = capacity > 0 ? Math.round((filled / capacity) * 100) : 0;
+  const accent   = fillAccent(pct);
+  const isFull   = filled >= capacity;
+
+  // SVG coordinate space (same as web)
+  const SW = 620, SH = 540, CX = SW / 2, CY = SH / 2;
+  const svgW = W - 24;
+  const svgH = svgW * (SH / SW);
+
+  const tableW = shape === 'rectangle' ? Math.min(240, 50 + capacity * 16) : 160;
+  const tableH = shape === 'rectangle' ? 120 : 160;
+
+  // Memoize trig-heavy seat positions — only recompute when shape/capacity changes
+  const seatPositions = useMemo(
+    () => shape === 'rectangle'
+      ? rectSeats(capacity, tableW, tableH, CX, CY)
+      : ellipseSeats(capacity, tableW / 2, tableH / 2, CX, CY),
+    [shape, capacity, tableW, tableH],
+  );
+
+  // Memoize seat→guest map — only recompute when assignments or guests change
+  const seatMap = useMemo(() => {
+    const map: Record<number, { assignment: SeatingAssignment; guest?: Guest }> = {};
+    assigns.forEach((a, idx) => {
+      const si = a.seat_number ? parseInt(a.seat_number, 10) - 1 : idx;
+      map[si] = { assignment: a, guest: guests.find(g => g.id === a.guest_id) };
+    });
+    return map;
+  }, [assigns, guests]);
+
+  const removeSeat = useCallback(async (seatIdx: number) => {
+    const entry = seatMap[seatIdx];
+    if (!entry) return;
+    setRemovingId(entry.assignment.id);
+    await removeAssignment(eventId, entry.assignment.id);
+    setRemovingId(null);
+  }, [seatMap, removeAssignment, eventId]);
+
+  return (
+    <Modal visible={open} animationType="slide" transparent statusBarTranslucent onRequestClose={onClose}>
+      <View style={dts.overlay}>
+        <View style={dts.sheet}>
+          {/* Handle */}
+          <View style={dts.handle} />
+
+          {/* Header */}
+          <View style={dts.header}>
+            <Pressable onPress={onClose} style={dts.backBtn} hitSlop={8}>
+              <Feather name="arrow-left" size={16} color="rgba(255,255,255,0.5)" />
+            </Pressable>
+            <View style={dts.headerMid}>
+              {/* Shape badge */}
+              <View style={[dts.shapeBadge, { backgroundColor: accent + '20' }]}>
+                <Feather
+                  name={shape === 'rectangle' ? 'square' : shape === 'custom' ? 'triangle' : 'circle'}
+                  size={13}
+                  color={accent}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={dts.tableName} numberOfLines={1}>{activeLoc.location_name}</Text>
+                <Text style={[dts.tableSub, { color: accent }]}>
+                  {filled}/{capacity} seats · {pct}% full
+                </Text>
+              </View>
+            </View>
+            <Pressable
+              onPress={isFull ? undefined : onAssign}
+              style={[dts.addBtn, isFull && { opacity: 0.4 }]}
+              disabled={isFull}
+            >
+              <Feather name="user-plus" size={12} color="#818cf8" />
+              <Text style={dts.addBtnTxt}>{isFull ? 'Full' : 'Add Guest'}</Text>
+            </Pressable>
+          </View>
+
+          {/* Fill bar */}
+          <View style={dts.fillWrap}>
+            <View style={dts.fillBg}>
+              <View style={[dts.fillBar, { width: `${pct}%` as any, backgroundColor: accent }]} />
+            </View>
+            <Text style={dts.fillLabel}>{capacity - filled} seat{capacity - filled !== 1 ? 's' : ''} available</Text>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+            {/* SVG diagram */}
+            <View style={[dts.svgWrap, { backgroundColor: accent + '06' }]}>
+              <Svg viewBox={`0 0 ${SW} ${SH}`} width={svgW} height={svgH}>
+                <RNTableShape shape={shape} w={tableW} h={tableH} cx={CX} cy={CY} />
+                <SvgText x={CX} y={CY - 8}  textAnchor="middle" fontSize={14} fontWeight="700" fill="rgba(255,255,255,0.55)">{activeLoc.location_name}</SvgText>
+                <SvgText x={CX} y={CY + 14} textAnchor="middle" fontSize={11} fill="rgba(255,255,255,0.28)">{filled}/{capacity}</SvgText>
+                {seatPositions.map((pos, idx) => (
+                  <RNSeatEl
+                    key={idx}
+                    pos={pos}
+                    idx={idx}
+                    guest={seatMap[idx]?.guest ?? null}
+                    onRemove={() => removeSeat(idx)}
+                  />
+                ))}
+              </Svg>
+
+              {/* Legend */}
+              <View style={dts.legend}>
+                {[
+                  { color: 'rgba(255,255,255,0.14)', label: 'Empty seat' },
+                  { color: '#10b981',                label: 'Occupied · tap to remove' },
+                ].map(({ color, label }) => (
+                  <View key={label} style={dts.legendItem}>
+                    <View style={[dts.legendDot, { backgroundColor: color }]} />
+                    <Text style={dts.legendTxt}>{label}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* Seated guests list */}
+            {assigns.length > 0 && (
+              <View style={dts.seatedSection}>
+                <View style={dts.sectionHeaderRow}>
+                  <Text style={dts.sectionHeaderTxt}>Seated Here</Text>
+                  <View style={dts.pill}><Text style={dts.pillTxt}>{assigns.length}</Text></View>
+                </View>
+                {assigns.map(a => {
+                  const g = guests.find(x => x.id === a.guest_id);
+                  return (
+                    <View key={a.id} style={dts.guestRow}>
+                      <GuestAvatar name={g?.full_name ?? '?'} vip={g?.is_vip} size={30} />
+                      <View style={dts.guestInfo}>
+                        <Text style={dts.guestName} numberOfLines={1}>{g?.full_name ?? 'Unknown'}{g?.is_vip ? ' 👑' : ''}</Text>
+                        {a.seat_number && <Text style={dts.guestSeat}>Seat #{a.seat_number}</Text>}
+                      </View>
+                      <Pressable
+                        onPress={() => { setRemovingId(a.id); removeAssignment(eventId, a.id).then(() => setRemovingId(null)); }}
+                        disabled={removingId === a.id}
+                        style={dts.removeBtn}
+                        hitSlop={6}
+                      >
+                        {removingId === a.id
+                          ? <ActivityIndicator size="small" color="#f87171" />
+                          : <Feather name="user-minus" size={12} color="rgba(239,68,68,0.6)" />
+                        }
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {assigns.length === 0 && (
+              <View style={dts.seatedSection}>
+                <View style={{ alignItems: 'center', paddingVertical: 24, gap: 6 }}>
+                  <Feather name="users" size={22} color="rgba(255,255,255,0.12)" />
+                  <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)' }}>No guests seated yet</Text>
+                  <Pressable onPress={onAssign} style={{ marginTop: 4 }}>
+                    <Text style={{ fontSize: 12, color: '#818cf8', fontWeight: '700' }}>+ Add First Guest</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const dts = StyleSheet.create({
+  overlay:      { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.65)' },
+  sheet:        { backgroundColor: '#09090f', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)', maxHeight: '93%' },
+  handle:       { width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.18)', alignSelf: 'center', marginTop: 12, marginBottom: 6 },
+  header:       { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  backBtn:      { padding: 7, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.06)' },
+  headerMid:    { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  shapeBadge:   { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  tableName:    { fontSize: 16, fontWeight: '800', color: '#fff', letterSpacing: -0.3 },
+  tableSub:     { fontSize: 11, fontWeight: '600', marginTop: 1 },
+  addBtn:       { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(99,102,241,0.14)', borderRadius: 10, paddingHorizontal: 11, paddingVertical: 7, borderWidth: 1, borderColor: 'rgba(99,102,241,0.25)' },
+  addBtnTxt:    { fontSize: 11, fontWeight: '700', color: '#818cf8' },
+  fillWrap:     { paddingHorizontal: 14, paddingVertical: 8 },
+  fillBg:       { height: 3, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden' },
+  fillBar:      { height: 3, borderRadius: 2 },
+  fillLabel:    { fontSize: 10, color: 'rgba(255,255,255,0.25)', marginTop: 5 },
+  svgWrap:      { alignItems: 'center', paddingVertical: 8, paddingHorizontal: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.04)' },
+  legend:       { flexDirection: 'row', gap: 18, marginTop: 6, paddingBottom: 4 },
+  legendItem:   { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  legendDot:    { width: 8, height: 8, borderRadius: 4 },
+  legendTxt:    { fontSize: 9, color: 'rgba(255,255,255,0.25)', fontWeight: '500' },
+  seatedSection:{ paddingHorizontal: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  sectionHeaderTxt: { fontSize: 10, fontWeight: '800', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 0.8 },
+  pill:         { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
+  pillTxt:      { fontSize: 10, fontWeight: '800', color: 'rgba(255,255,255,0.4)' },
+  guestRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' },
+  guestInfo:    { flex: 1 },
+  guestName:    { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.8)' },
+  guestSeat:    { fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 1 },
+  removeBtn:    { padding: 7, borderRadius: 8, backgroundColor: 'rgba(239,68,68,0.08)' },
+});
 
 // ── GuestAvatar ──────────────────────────────────────────────────────────────────
 
@@ -106,7 +439,7 @@ const sg = StyleSheet.create({
 
 function TableCard({
   loc, assigns, guests, saving,
-  onEdit, onDelete, onAssign, onRemove,
+  onEdit, onDelete, onAssign, onRemove, onPress,
 }: {
   loc: SeatingLocation;
   assigns: SeatingAssignment[];
@@ -116,6 +449,7 @@ function TableCard({
   onDelete: (id: string) => void;
   onAssign: (l: SeatingLocation) => void;
   onRemove: (id: string) => void;
+  onPress: (l: SeatingLocation) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -134,15 +468,18 @@ function TableCard({
       {/* Accent stripe */}
       <View style={[tc.stripe, { backgroundColor: accent }]} />
 
-      {/* Header row */}
+      {/* Header row — tap body to open detail */}
       <View style={tc.header}>
-        <View style={[tc.shapeIcon, { backgroundColor: `${accent}20` }]}>
-          <Feather name={ShapeIcon as any} size={14} color={accent} />
-        </View>
-        <View style={tc.titleWrap}>
-          <Text style={tc.tableName} numberOfLines={1}>{loc.location_name}</Text>
-          <Text style={tc.tableSub}>{filled}/{cap} seats · {pct}% full</Text>
-        </View>
+        <Pressable onPress={() => onPress(loc)} style={tc.headerClickable} android_ripple={{ color: 'rgba(255,255,255,0.05)' }}>
+          <View style={[tc.shapeIcon, { backgroundColor: `${accent}20` }]}>
+            <Feather name={ShapeIcon as any} size={14} color={accent} />
+          </View>
+          <View style={tc.titleWrap}>
+            <Text style={tc.tableName} numberOfLines={1}>{loc.location_name}</Text>
+            <Text style={tc.tableSub}>{filled}/{cap} seats · {pct}% full</Text>
+          </View>
+          <Feather name="arrow-up-right" size={12} color="rgba(255,255,255,0.18)" />
+        </Pressable>
         <View style={tc.actions}>
           <Pressable onPress={() => onEdit(loc)} style={tc.iconBtn} hitSlop={6}>
             <Feather name="edit-2" size={13} color="rgba(255,255,255,0.3)" />
@@ -219,7 +556,8 @@ function TableCard({
 const tc = StyleSheet.create({
   card:         { borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', backgroundColor: 'rgba(255,255,255,0.035)', overflow: 'hidden', marginBottom: 10 },
   stripe:       { height: 2 },
-  header:       { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 8 },
+  header:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 8 },
+  headerClickable: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   shapeIcon:    { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   titleWrap:    { flex: 1, minWidth: 0 },
   tableName:    { fontSize: 14, fontWeight: '700', color: 'rgba(255,255,255,0.9)' },
@@ -512,7 +850,7 @@ const as = StyleSheet.create({
   guestEmail:   { fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 1 },
   footer:       { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)', paddingTop: 12, gap: 10 },
   seatRow:      { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  seatLabel:    { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' } as any,
+  seatLabel:    { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.4)' },
   seatInput:    { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, color: '#fff', fontSize: 13 },
   btnRow:       { flexDirection: 'row', gap: 10 },
   cancelBtn:    { flex: 1, paddingVertical: 13, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', alignItems: 'center' },
@@ -531,12 +869,14 @@ const AUTO_OPTS = [
 ];
 
 function AutoSheet({
-  open, onClose, onRun, saving,
+  open, onClose, onRun, saving, locationCount, onAddTable,
 }: {
   open: boolean;
   onClose: () => void;
   onRun: (opts: Record<string, boolean>) => void;
   saving: boolean;
+  locationCount: number;
+  onAddTable: () => void;
 }) {
   const [vip,   setVip]   = useState(true);
   const [grp,   setGrp]   = useState(true);
@@ -555,6 +895,34 @@ function AutoSheet({
     assign_seat_numbers:  () => setSeats(v => !v),
     overwrite_existing:   () => setOver(v => !v),
   };
+
+  // ── No tables yet — show inline empty state ──────────────────────────────────
+  if (locationCount === 0) {
+    return (
+      <BottomSheet open={open} onClose={onClose} title="Auto-Assign Seats" maxHeight={360}>
+        <View style={au.emptyWrap}>
+          <View style={au.emptyIcon}>
+            <Feather name="grid" size={28} color="#6366f1" />
+          </View>
+          <Text style={au.emptyTitle}>No tables set up yet</Text>
+          <Text style={au.emptySub}>
+            Add at least one table or seating zone before running auto-assign.
+          </Text>
+          <Pressable
+            onPress={() => { onClose(); onAddTable(); }}
+            style={au.emptyBtn}
+            activeOpacity={0.85}
+          >
+            <Feather name="plus" size={14} color="#fff" />
+            <Text style={au.emptyBtnTxt}>Create Your First Table</Text>
+          </Pressable>
+          <Pressable onPress={onClose} style={au.emptyDismiss}>
+            <Text style={au.emptyDismissTxt}>Maybe later</Text>
+          </Pressable>
+        </View>
+      </BottomSheet>
+    );
+  }
 
   return (
     <BottomSheet open={open} onClose={onClose} title="Auto-Assign Seats" maxHeight={540}>
@@ -587,7 +955,7 @@ function AutoSheet({
               ? <ActivityIndicator size="small" color="#fff" />
               : <>
                   <Feather name="zap" size={13} color="#fff" />
-                  <Text style={au.runTxt}>Run</Text>
+                  <Text style={au.runTxt}>Run Auto-Assign</Text>
                 </>}
           </Pressable>
         </View>
@@ -611,6 +979,16 @@ const au = StyleSheet.create({
   cancelTxt: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.4)' },
   runBtn:    { flex: 1, flexDirection: 'row', gap: 6, paddingVertical: 13, borderRadius: 12, backgroundColor: Colors.accent.indigo, alignItems: 'center', justifyContent: 'center' },
   runTxt:    { fontSize: 14, fontWeight: '700', color: '#fff' },
+
+  // Empty state (no tables yet)
+  emptyWrap:       { alignItems: 'center', paddingVertical: 12, paddingHorizontal: 8, gap: 10 },
+  emptyIcon:       { width: 72, height: 72, borderRadius: 22, backgroundColor: 'rgba(99,102,241,0.12)', borderWidth: 1, borderColor: 'rgba(99,102,241,0.22)', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  emptyTitle:      { fontSize: 17, fontWeight: '800', color: '#fff', letterSpacing: -0.2 },
+  emptySub:        { fontSize: 13, color: 'rgba(255,255,255,0.4)', textAlign: 'center', lineHeight: 20, maxWidth: 260 },
+  emptyBtn:        { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.accent.indigo, borderRadius: 14, paddingHorizontal: 22, paddingVertical: 13, marginTop: 6, shadowColor: Colors.accent.indigo, shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  emptyBtnTxt:     { fontSize: 14, fontWeight: '800', color: '#fff' },
+  emptyDismiss:    { paddingVertical: 8, paddingHorizontal: 16 },
+  emptyDismissTxt: { fontSize: 13, color: 'rgba(255,255,255,0.3)', fontWeight: '600' },
 });
 
 // ── Unassigned section ────────────────────────────────────────────────────────────
@@ -718,24 +1096,31 @@ export default function SeatingScreen() {
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
 
-  const {
-    locations, assignments, saving,
-    fetchLocations, fetchAssignments,
-    createLocation, updateLocation, deleteLocation,
-    assignGuest, removeAssignment,
-    autoAssign, clearAllAssignments,
-    getAssignmentsForLocation,
-  } = useSeatingStore();
+  // Selective selectors keep SeatingScreen from re-rendering on every store update
+  const locations              = useSeatingStore(s => s.locations);
+  const assignments            = useSeatingStore(s => s.assignments);
+  const saving                 = useSeatingStore(s => s.saving);
+  const fetchLocations         = useSeatingStore(s => s.fetchLocations);
+  const fetchAssignments       = useSeatingStore(s => s.fetchAssignments);
+  const createLocation         = useSeatingStore(s => s.createLocation);
+  const updateLocation         = useSeatingStore(s => s.updateLocation);
+  const deleteLocation         = useSeatingStore(s => s.deleteLocation);
+  const assignGuest            = useSeatingStore(s => s.assignGuest);
+  const removeAssignment       = useSeatingStore(s => s.removeAssignment);
+  const autoAssign             = useSeatingStore(s => s.autoAssign);
+  const clearAllAssignments    = useSeatingStore(s => s.clearAllAssignments);
+  const getAssignmentsForLocation = useSeatingStore(s => s.getAssignmentsForLocation);
 
   const { guests, getGuests } = useGuestStore();
 
-  const [loading,   setLoading]   = useState(true);
-  const [tableSh,   setTableSh]   = useState(false);
-  const [editLoc,   setEditLoc]   = useState<SeatingLocation | null>(null);
-  const [assignSh,  setAssignSh]  = useState(false);
-  const [assignTgt, setAssignTgt] = useState<SeatingLocation | null>(null);
-  const [autoSh,    setAutoSh]    = useState(false);
-  const [clearConf, setClearConf] = useState(false);
+  const [loading,    setLoading]    = useState(true);
+  const [tableSh,    setTableSh]    = useState(false);
+  const [editLoc,    setEditLoc]    = useState<SeatingLocation | null>(null);
+  const [assignSh,   setAssignSh]   = useState(false);
+  const [assignTgt,  setAssignTgt]  = useState<SeatingLocation | null>(null);
+  const [autoSh,     setAutoSh]     = useState(false);
+  const [clearConf,  setClearConf]  = useState(false);
+  const [detailLoc,  setDetailLoc]  = useState<SeatingLocation | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -778,7 +1163,17 @@ export default function SeatingScreen() {
   async function handleAutoAssign(opts: Record<string, boolean>) {
     if (!id) return;
     const r = await autoAssign(id, opts);
-    if (r.success) { setAutoSh(false); await fetchAssignments(id); }
+    if (r.success) {
+      setAutoSh(false);
+      await fetchAssignments(id);
+      const count = (r.data as any)?.assigned_count ?? 0;
+      showSuccess(
+        count > 0 ? `${count} guest${count !== 1 ? 's' : ''} assigned` : 'Auto-assign complete',
+        count > 0 ? 'Seats have been assigned automatically.' : 'No unassigned guests to place.',
+      );
+    } else {
+      showError(r.message ?? 'Auto-assign failed', 'Check your tables and guests, then try again.');
+    }
   }
 
   async function handleClearAll() {
@@ -860,6 +1255,7 @@ export default function SeatingScreen() {
                   onDelete={handleDeleteTable}
                   onAssign={openAssignFor}
                   onRemove={aid => id && removeAssignment(id, aid)}
+                  onPress={l => setDetailLoc(l)}
                 />
               ))}
 
@@ -890,6 +1286,27 @@ export default function SeatingScreen() {
       )}
 
       {/* Bottom sheets */}
+      <TableDetailSheet
+        open={!!detailLoc}
+        onClose={() => setDetailLoc(null)}
+        loc={detailLoc}
+        guests={guests}
+        eventId={id ?? ''}
+        onAssign={() => {
+          // Capture target BEFORE clearing detailLoc, then close the detail Modal
+          // first so we don't have two Modals visible at the same time (Android
+          // blocks the second one from receiving any touches).
+          const target = detailLoc;
+          setDetailLoc(null);
+          if (target) {
+            // Wait for the slide-out animation (~300ms) before opening AssignSheet.
+            setTimeout(() => {
+              setAssignTgt(target);
+              setAssignSh(true);
+            }, 320);
+          }
+        }}
+      />
       <TableSheet
         open={tableSh}
         onClose={() => { setTableSh(false); setEditLoc(null); }}
@@ -911,6 +1328,8 @@ export default function SeatingScreen() {
         onClose={() => setAutoSh(false)}
         onRun={handleAutoAssign}
         saving={saving}
+        locationCount={locations.length}
+        onAddTable={() => { setEditLoc(null); setTableSh(true); }}
       />
       <ConfirmModal
         open={clearConf}

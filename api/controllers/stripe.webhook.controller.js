@@ -2,7 +2,11 @@
 import { stripe } from "../config/stripe.js";
 import { db } from "../config/db.js";
 import { issueTicketsForOrderService } from "../services/ticket-issuance.service.js";
-import { completeDonationFromWebhookService } from "../services/engagement.service.js";
+import {
+  completeDonationFromWebhookService,
+  completeDonationSubscriptionActivatedService,
+  recordDonationRenewalService,
+} from "../services/engagement.service.js";
 import {
   activateSubscriptionService,
   renewSubscriptionService,
@@ -42,21 +46,69 @@ export async function stripeWebhook(req, res) {
       return res.status(200).json({ received: true });
     }
   } catch (err) {
-    console.error("❌ Webhook idempotency check failed:", err.message);
+    // 23505 = unique_violation (expected on retries) — anything else is a real DB issue
+    if (err.code !== "23505") console.error("❌ Webhook idempotency check failed:", err.message);
+  }
+
+  /* ── Failed payment events — mark orders/donations as failed ── */
+  if (event.type === "checkout.session.expired") {
+    const session = event.data.object;
+    await db.query(
+      `UPDATE ticket_orders SET order_status='EXPIRED', updated_at=NOW()
+       WHERE provider_session_id=$1 AND order_status='PENDING'`,
+      [session.id]
+    ).catch(() => {});
+    return res.status(200).json({ received: true });
+  }
+
+  if (event.type === "payment_intent.payment_failed") {
+    const pi = event.data.object;
+    const orderId = pi?.metadata?.order_id;
+    if (orderId) {
+      await db.query(
+        `UPDATE ticket_orders SET order_status='PAYMENT_FAILED', updated_at=NOW() WHERE id=$1`,
+        [orderId]
+      ).catch(() => {});
+    }
+    return res.status(200).json({ received: true });
+  }
+
+  if (event.type === "invoice.payment_failed") {
+    const invoice = event.data.object;
+    console.warn("⚠️ Invoice payment failed for subscription:", invoice.subscription);
+    // Could notify the user here via notifications service
+    return res.status(200).json({ received: true });
   }
 
   /* ── Subscription lifecycle events ── */
   try {
     if (event.type === "checkout.session.completed" && event.data.object.mode === "subscription") {
-      await activateSubscriptionService(event.data.object);
+      const session = event.data.object;
+      if (session.metadata?.kind === "event_donation") {
+        // Donation subscription activated
+        await completeDonationSubscriptionActivatedService(session);
+      } else {
+        // Platform subscription activated
+        await activateSubscriptionService(session);
+      }
       await db.query(`UPDATE webhook_events SET processed=true, processed_at=now() WHERE external_event_id=$1`, [event.id]);
       return res.status(200).json({ received: true });
     }
+
     if (event.type === "invoice.paid") {
-      await renewSubscriptionService(event.data.object);
+      const invoice = event.data.object;
+      // Check if this is a donation subscription renewal
+      const isDonationSub = invoice.subscription_details?.metadata?.kind === "event_donation"
+        || invoice.lines?.data?.[0]?.metadata?.kind === "event_donation";
+      if (isDonationSub) {
+        await recordDonationRenewalService(invoice);
+      } else {
+        await renewSubscriptionService(invoice);
+      }
       await db.query(`UPDATE webhook_events SET processed=true, processed_at=now() WHERE external_event_id=$1`, [event.id]);
       return res.status(200).json({ received: true });
     }
+
     if (event.type === "customer.subscription.updated") {
       await updateSubscriptionStatusService(event.data.object);
       await db.query(`UPDATE webhook_events SET processed=true, processed_at=now() WHERE external_event_id=$1`, [event.id]);
@@ -85,19 +137,23 @@ export async function stripeWebhook(req, res) {
     try {
       console.log("💰 Donation detected");
       await completeDonationFromWebhookService(paymentIntent);
-      return res.status(200).json({ received: true });
     } catch (err) {
       console.error("❌ Donation webhook error:", err);
-      return res.status(500).json({ message: "Donation processing failed" });
+      await db.query(
+        `UPDATE webhook_events SET error_message=$1 WHERE external_event_id=$2`,
+        [err.message, event.id]
+      ).catch(() => {});
     }
+    // Always 200 — Stripe should not retry donation webhooks (they're idempotent)
+    return res.status(200).json({ received: true });
   }
 
   /* ── Ticket orders ── */
   const orderId = paymentIntent?.metadata?.order_id;
 
   if (!orderId) {
-    console.error("❌ Missing order_id in metadata");
-    return res.status(400).json({ message: "Missing order_id" });
+    console.warn("⚠️ payment_intent.succeeded has no order_id in metadata — ignoring");
+    return res.status(200).json({ received: true });
   }
 
   const client = await db.connect();

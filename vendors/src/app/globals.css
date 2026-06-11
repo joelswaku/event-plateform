@@ -1,0 +1,150 @@
+@import "tailwindcss";
+
+/* ── Reset ─────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Theme tokens — DARK (default) ─────────────────────────────────────── */
+:root,
+html[data-theme="dark"] {
+  --page-bg:        #0B0A0F;
+  --sidebar-bg:     #0a0a12;
+  --card-bg:        rgba(255,255,255,0.025);
+  --card-bg-solid:  #0e0e1a;
+  --glass-border:   rgba(255,255,255,0.07);
+  --border:         rgba(255,255,255,0.08);
+  --border-subtle:  rgba(255,255,255,0.05);
+  --input-bg:       rgba(255,255,255,0.04);
+  --input-border:   rgba(255,255,255,0.09);
+  --hover-bg:       rgba(255,255,255,0.05);
+
+  --text-primary:   #ffffff;
+  --text-secondary: rgba(255,255,255,0.55);
+  --text-muted:     rgba(255,255,255,0.28);
+  --text-faint:     rgba(255,255,255,0.16);
+
+  --nav-bg-scroll:  rgba(11,10,15,0.92);
+  --nav-bg:         rgba(11,10,15,0.6);
+
+  --scrollbar-thumb: rgba(255,255,255,0.12);
+  --selection-bg:    rgba(99,102,241,0.35);
+}
+
+/* ── Theme tokens — LIGHT ───────────────────────────────────────────────── */
+html[data-theme="light"] {
+  --page-bg:        #f4f3ff;
+  --sidebar-bg:     #ffffff;
+  --card-bg:        rgba(255,255,255,0.85);
+  --card-bg-solid:  #ffffff;
+  --glass-border:   rgba(0,0,0,0.07);
+  --border:         rgba(0,0,0,0.09);
+  --border-subtle:  rgba(0,0,0,0.05);
+  --input-bg:       rgba(0,0,0,0.04);
+  --input-border:   rgba(0,0,0,0.1);
+  --hover-bg:       rgba(0,0,0,0.04);
+
+  --text-primary:   #0d0c1d;
+  --text-secondary: rgba(13,12,29,0.6);
+  --text-muted:     rgba(13,12,29,0.38);
+  --text-faint:     rgba(13,12,29,0.2);
+
+  --nav-bg-scroll:  rgba(244,243,255,0.95);
+  --nav-bg:         rgba(244,243,255,0.8);
+
+  --scrollbar-thumb: rgba(0,0,0,0.14);
+  --selection-bg:    rgba(99,102,241,0.25);
+}
+
+/* ── Base ───────────────────────────────────────────────────────────────── */
+html {
+  background: var(--page-bg);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+body {
+  background: var(--page-bg);
+  color: var(--text-primary);
+  min-height: 100vh;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+/* ── Page-level theme overrides ─────────────────────────────────────────── */
+/* Apply to every page root div so inline background: #0B0A0F etc. is overridden */
+html[data-theme="light"] .page-root,
+html[data-theme="light"] [class*="page-root"] {
+  background: var(--page-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Cards in light mode */
+html[data-theme="light"] .theme-card {
+  background: var(--card-bg) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06) !important;
+}
+
+/* ── Global element overrides for light mode ────────────────────────────── */
+html[data-theme="light"] input,
+html[data-theme="light"] textarea,
+html[data-theme="light"] select {
+  background: var(--input-bg) !important;
+  border-color: var(--input-border) !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme="light"] input::placeholder,
+html[data-theme="light"] textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────────────────── */
+::selection { background: var(--selection-bg); }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+
+/* ── Base element resets ────────────────────────────────────────────────── */
+input, textarea, select { color: inherit; font-family: inherit; }
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; }
+
+/* ── Utility: smooth theme transitions on common elements ───────────────── */
+.theme-transition,
+.theme-transition * {
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease !important;
+}
+
+/* ── Light mode: custom scrollbar inside sidebars ───────────────────────── */
+html[data-theme="light"] .cat-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.1);
+}
+
+/* ── Prem-input focus (register page) ───────────────────────────────────── */
+.prem-input:focus {
+  border-color: rgba(99,102,241,0.38) !important;
+  background: rgba(99,102,241,0.04) !important;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.09) !important;
+}
+html[data-theme="light"] .prem-input:focus {
+  background: rgba(99,102,241,0.06) !important;
+}
+.prem-input::placeholder { color: var(--text-muted) !important; }
+select.prem-input option { background: var(--card-bg-solid); color: var(--text-primary); }
+
+/* ── Marketplace search capsule focus ───────────────────────────────────── */
+.search-cap:focus-within { border-color: rgba(99,102,241,0.25) !important; }
+
+/* ── Category scroll ────────────────────────────────────────────────────── */
+.cat-scroll::-webkit-scrollbar { width: 3px; }
+.cat-scroll::-webkit-scrollbar-track { background: transparent; }
+.cat-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 100px; }
+
+/* ── Keyframes ──────────────────────────────────────────────────────────── */
+@keyframes spin  { to { transform: rotate(360deg); } }
+@keyframes ping  { 75%,100% { transform: scale(2.4); opacity: 0; } }
+@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.45 } }
+@keyframes fade-in { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }

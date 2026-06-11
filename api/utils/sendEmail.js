@@ -23,7 +23,7 @@ export async function sendResetPasswordEmail({ to, name, resetUrl }) {
       <tr><td align="center">
         <table width="100%" style="max-width:520px;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb" cellpadding="0" cellspacing="0">
           <tr><td style="background:#1C1917;padding:12px 32px;text-align:center">
-            <p style="margin:0;font-size:11px;letter-spacing:0.3em;text-transform:uppercase;color:#C9A96E">Eventos Security</p>
+            <p style="margin:0;font-size:11px;letter-spacing:0.3em;text-transform:uppercase;color:#C9A96E">LiteEvent Security</p>
           </td></tr>
           <tr><td style="padding:40px 36px">
             <h2 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#1C1917">Reset your password</h2>
@@ -32,14 +32,188 @@ export async function sendResetPasswordEmail({ to, name, resetUrl }) {
             <p style="margin:24px 0 0;font-size:12px;color:#a8a29e;line-height:1.6">If you did not request this, you can safely ignore this email. This link expires in 1 hour.</p>
           </td></tr>
           <tr><td style="background:#faf9f6;padding:16px 36px;border-top:1px solid #f0ede8;text-align:center">
-            <p style="margin:0;font-size:10px;color:#d6d3d1;letter-spacing:0.15em;text-transform:uppercase">Powered by Eventos</p>
+            <p style="margin:0;font-size:10px;color:#d6d3d1;letter-spacing:0.15em;text-transform:uppercase">Powered by LiteEvent</p>
           </td></tr>
         </table>
       </td></tr>
     </table>
   </body></html>
   `;
-  return sendMail({ to, name, subject: "Reset your Eventos password", html });
+  return sendMail({ to, name, subject: "Reset your LiteEvent password", html });
+}
+
+/* ── Vendor Welcome Email ─────────────────────────────────────────── */
+export async function sendVendorWelcomeEmail({ to, name }) {
+  const dashboardUrl = process.env.VENDOR_APP_URL || "http://localhost:3001/dashboard";
+  const html = `
+  <!DOCTYPE html><html lang="en">
+  <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+  <body style="margin:0;padding:0;background:#0B0A0F;font-family:Arial,sans-serif">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#0B0A0F;padding:40px 16px">
+      <tr><td align="center">
+        <table width="100%" style="max-width:540px" cellpadding="0" cellspacing="0">
+
+          <!-- Brand -->
+          <tr><td style="text-align:center;padding-bottom:28px">
+            <div style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:10px 24px;border-radius:99px">
+              <span style="color:#fff;font-size:13px;font-weight:900;letter-spacing:0.15em;text-transform:uppercase">⚡ LiteEvent Vendors</span>
+            </div>
+          </td></tr>
+
+          <!-- Hero card -->
+          <tr><td style="background:linear-gradient(135deg,#13122a,#1e1b4b);border-radius:20px;padding:44px 36px 36px;border:1px solid rgba(99,102,241,0.25)">
+
+            <div style="text-align:center;margin-bottom:28px">
+              <div style="font-size:44px;margin-bottom:14px">🎉</div>
+              <h1 style="margin:0;font-size:26px;font-weight:800;color:#fff;letter-spacing:-0.03em;line-height:1.2">
+                Welcome aboard,<br/>
+                <span style="background:linear-gradient(135deg,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${name}!</span>
+              </h1>
+              <p style="margin:12px 0 0;font-size:14px;color:rgba(255,255,255,0.5);line-height:1.7">
+                Your vendor profile is live on LiteEvent. Organizers worldwide can now discover and book you.
+              </p>
+            </div>
+
+            <!-- Steps -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px">
+              ${[
+                ["1", "#4f46e5", "Complete your profile", "Add a bio, portfolio photos, and set your pricing to attract more bookings."],
+                ["2", "#7c3aed", "Get verified", "Apply for a Verified badge to receive 3× more inquiries from organizers."],
+                ["3", "#4ade80", "Respond fast", "Vendors who respond within 1 hour win 60% more bookings."],
+              ].map(([num, color, title, desc]) => `
+              <tr>
+                <td style="padding:10px 0;vertical-align:top;width:40px">
+                  <div style="width:28px;height:28px;background:${color}22;border:1px solid ${color}44;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:${color};text-align:center;line-height:28px">${num}</div>
+                </td>
+                <td style="padding:10px 0 10px 12px;vertical-align:top">
+                  <p style="margin:0;font-size:14px;font-weight:700;color:#fff">${title}</p>
+                  <p style="margin:3px 0 0;font-size:12px;color:rgba(255,255,255,0.4);line-height:1.6">${desc}</p>
+                </td>
+              </tr>`).join("")}
+            </table>
+
+            <!-- CTA -->
+            <div style="text-align:center">
+              <a href="${dashboardUrl}" style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;text-decoration:none;font-size:14px;font-weight:800;padding:14px 36px;border-radius:12px;letter-spacing:0.02em">
+                Go to My Dashboard →
+              </a>
+              <p style="margin:14px 0 0;font-size:11px;color:rgba(255,255,255,0.25)">
+                Free plan · No credit card required
+              </p>
+            </div>
+          </td></tr>
+
+          <!-- Stats bar -->
+          <tr><td style="padding:24px 0">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#111127;border-radius:14px;border:1px solid rgba(255,255,255,0.07)">
+              <tr>
+                ${[["527+","Active Vendors","#818cf8"],["18,400+","Bookings Done","#4ade80"],["98%","Satisfaction","#f59e0b"]].map(([val,label,color],i,arr) => `
+                <td style="padding:18px 16px;text-align:center;${i < arr.length-1 ? 'border-right:1px solid rgba(255,255,255,0.06)' : ''}">
+                  <div style="font-size:20px;font-weight:800;color:${color};letter-spacing:-0.02em">${val}</div>
+                  <div style="font-size:10px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:0.08em;margin-top:3px">${label}</div>
+                </td>`).join("")}
+              </tr>
+            </table>
+          </td></tr>
+
+          <!-- Footer -->
+          <tr><td style="text-align:center;padding:8px 0 32px">
+            <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.18);line-height:1.7">
+              You're receiving this because you signed up at LiteEvent Vendors.<br/>
+              Questions? Reply to this email — we read every message.
+            </p>
+          </td></tr>
+
+        </table>
+      </td></tr>
+    </table>
+  </body></html>`;
+  return sendMail({ to, subject: `Welcome to LiteEvent Vendors, ${name}! 🎉`, html });
+}
+
+/* ── Organizer Welcome Email ──────────────────────────────────────── */
+export async function sendOrganizerWelcomeEmail({ to, name }) {
+  const browseUrl = process.env.VENDOR_APP_URL || "http://localhost:3001";
+  const dashboardUrl = `${browseUrl}/organizer/dashboard`;
+  const html = `
+  <!DOCTYPE html><html lang="en">
+  <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+  <body style="margin:0;padding:0;background:#0B0A0F;font-family:Arial,sans-serif">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#0B0A0F;padding:40px 16px">
+      <tr><td align="center">
+        <table width="100%" style="max-width:540px" cellpadding="0" cellspacing="0">
+
+          <!-- Brand -->
+          <tr><td style="text-align:center;padding-bottom:28px">
+            <div style="display:inline-block;background:linear-gradient(135deg,#059669,#10b981);padding:10px 24px;border-radius:99px">
+              <span style="color:#fff;font-size:13px;font-weight:900;letter-spacing:0.15em;text-transform:uppercase">✦ LiteEvent</span>
+            </div>
+          </td></tr>
+
+          <!-- Hero card -->
+          <tr><td style="background:linear-gradient(135deg,#021a14,#052e1c);border-radius:20px;padding:44px 36px 36px;border:1px solid rgba(16,185,129,0.25)">
+
+            <div style="text-align:center;margin-bottom:28px">
+              <div style="font-size:44px;margin-bottom:14px">🎊</div>
+              <h1 style="margin:0;font-size:26px;font-weight:800;color:#fff;letter-spacing:-0.03em;line-height:1.2">
+                You're in, ${name}!<br/>
+                <span style="background:linear-gradient(135deg,#4ade80,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Start discovering vendors.</span>
+              </h1>
+              <p style="margin:12px 0 0;font-size:14px;color:rgba(255,255,255,0.5);line-height:1.7">
+                Your LiteEvent account is ready. Browse and contact 527+ verified event professionals instantly.
+              </p>
+            </div>
+
+            <!-- What you can do -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px">
+              ${[
+                ["🔍", "Browse verified vendors", "Filter by category, location, price, and rating to find your perfect match."],
+                ["💬", "Contact directly", "Send inquiries straight to vendors and get responses within hours."],
+                ["❤️", "Save favourites", "Build a shortlist of vendors you love for your next event."],
+              ].map(([icon, title, desc]) => `
+              <tr>
+                <td style="padding:10px 0;vertical-align:top;width:36px;font-size:22px">${icon}</td>
+                <td style="padding:10px 0 10px 12px;vertical-align:top">
+                  <p style="margin:0;font-size:14px;font-weight:700;color:#fff">${title}</p>
+                  <p style="margin:3px 0 0;font-size:12px;color:rgba(255,255,255,0.4);line-height:1.6">${desc}</p>
+                </td>
+              </tr>`).join("")}
+            </table>
+
+            <!-- CTA -->
+            <div style="text-align:center">
+              <a href="${dashboardUrl}" style="display:inline-block;background:linear-gradient(135deg,#059669,#10b981);color:#fff;text-decoration:none;font-size:14px;font-weight:800;padding:14px 36px;border-radius:12px;letter-spacing:0.02em">
+                Find My Vendors →
+              </a>
+              <p style="margin:14px 0 0;font-size:11px;color:rgba(255,255,255,0.25)">
+                Free to use · No booking fees
+              </p>
+            </div>
+          </td></tr>
+
+          <!-- Category pills -->
+          <tr><td style="padding:24px 0 0;text-align:center">
+            <p style="margin:0 0 12px;font-size:11px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:0.08em">Browse categories</p>
+            <div>
+              ${["Photography","Music & DJ","Catering","Venues","Flowers & Décor","Lighting"].map(c =>
+                `<span style="display:inline-block;margin:4px;padding:5px 12px;border-radius:100px;border:1px solid rgba(255,255,255,0.1);font-size:11px;color:rgba(255,255,255,0.5)">${c}</span>`
+              ).join("")}
+            </div>
+          </td></tr>
+
+          <!-- Footer -->
+          <tr><td style="text-align:center;padding:28px 0 32px">
+            <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.18);line-height:1.7">
+              You're receiving this because you created an LiteEvent account.<br/>
+              Questions? Reply to this email — we read every message.
+            </p>
+          </td></tr>
+
+        </table>
+      </td></tr>
+    </table>
+  </body></html>`;
+  return sendMail({ to, subject: `Welcome to LiteEvent, ${name}! Find your perfect vendors ✦`, html });
 }
 
 export async function sendWelcomeEmail({ to, name }) {
@@ -50,23 +224,23 @@ export async function sendWelcomeEmail({ to, name }) {
       <tr><td align="center">
         <table width="100%" style="max-width:520px;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb" cellpadding="0" cellspacing="0">
           <tr><td style="background:#1C1917;padding:12px 32px;text-align:center">
-            <p style="margin:0;font-size:11px;letter-spacing:0.3em;text-transform:uppercase;color:#C9A96E">🎉 Welcome to Eventos</p>
+            <p style="margin:0;font-size:11px;letter-spacing:0.3em;text-transform:uppercase;color:#C9A96E">🎉 Welcome to LiteEvent</p>
           </td></tr>
           <tr><td style="padding:40px 36px">
             <h2 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#1C1917">Hello ${name}!</h2>
             <p style="margin:0 0 16px;font-size:15px;color:#57534e;line-height:1.7">Your account was successfully created. You can now create events, invite guests, and manage everything from one beautiful dashboard.</p>
             <p style="margin:0 0 24px;font-size:15px;color:#57534e;line-height:1.7">Get started by creating your first event.</p>
-            <p style="margin:0;font-size:14px;color:#78716c"><b>The Eventos Team</b></p>
+            <p style="margin:0;font-size:14px;color:#78716c"><b>The LiteEvent Team</b></p>
           </td></tr>
           <tr><td style="background:#faf9f6;padding:16px 36px;border-top:1px solid #f0ede8;text-align:center">
-            <p style="margin:0;font-size:10px;color:#d6d3d1;letter-spacing:0.15em;text-transform:uppercase">Powered by Eventos</p>
+            <p style="margin:0;font-size:10px;color:#d6d3d1;letter-spacing:0.15em;text-transform:uppercase">Powered by LiteEvent</p>
           </td></tr>
         </table>
       </td></tr>
     </table>
   </body></html>
   `;
-  return sendMail({ to, name, subject: "Welcome to Eventos 🎉", html });
+  return sendMail({ to, name, subject: "Welcome to LiteEvent 🎉", html });
 }
 
 
@@ -91,7 +265,7 @@ export async function sendPasswordChangedEmail({ to, name }) {
 
     <br/>
 
-    <p>The Eventos Security Team</p>
+    <p>The LiteEvent Security Team</p>
 
   </div>
   `;
@@ -114,7 +288,7 @@ export async function sendMail({ to, subject, html, name }) {
     try {
       const { Resend } = await import("resend");
       const resend = new Resend(env.resendApiKey);
-      const from = `"${env.mailFromName || "Eventos"}" <${env.mailFromEmail}>`;
+      const from = `"${env.mailFromName || "LiteEvent"}" <${env.mailFromEmail}>`;
       const { data, error } = await resend.emails.send({ from, to, subject, html });
       if (error) {
         console.error(`[Resend] ❌ Failed sending to ${to}:`, error.message);
@@ -528,7 +702,7 @@ export async function sendEventInvitationEmail({
                 <a href="${ctaUrl}" style="color:#C9A96E;word-break:break-all;text-decoration:none">${ctaUrl}</a>
               </p>
               <p style="margin:12px 0 0;font-size:10px;color:#d6d3d1;letter-spacing:0.15em;text-transform:uppercase">
-                Powered by Eventos
+                Powered by LiteEvent
               </p>
             </td>
           </tr>
@@ -549,7 +723,7 @@ export async function sendEventInvitationEmail({
 }
 
 /* ── Team invite: new user (no account) ─────────────────────────── */
-export async function sendTeamInviteNewEmail({ to, inviteeName, inviterName, eventTitle, code, portalUrl }) {
+export async function sendTeamInviteNewEmail({ to, inviteeName, inviterName, eventTitle, setupUrl }) {
   const html = `
   <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head>
   <body style="margin:0;padding:0;background:#0a0a12;font-family:Arial,sans-serif">
@@ -566,41 +740,31 @@ export async function sendTeamInviteNewEmail({ to, inviteeName, inviterName, eve
             </p>
             <p style="margin:0 0 12px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7">
               <strong style="color:#fff">${inviterName}</strong> has invited you to help manage
-              <strong style="color:#a78bfa">${eventTitle}</strong> as an admin.
+              <strong style="color:#a78bfa">${eventTitle}</strong>.
             </p>
-            <p style="margin:0 0 20px;font-size:14px;color:rgba(255,255,255,0.5);line-height:1.7">
-              Use the code below to access the team portal. You'll create your password there.
+            <p style="margin:0 0 24px;font-size:14px;color:rgba(255,255,255,0.5);line-height:1.7">
+              Click the button below to create your account and start managing this event. The link is valid for 7 days.
             </p>
-
-            <!-- Code block -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px">
-              <tr><td style="background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:24px;text-align:center">
-                <p style="margin:0 0 6px;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.4)">Your invite code</p>
-                <p style="margin:0;font-size:36px;font-weight:900;letter-spacing:0.15em;color:#a78bfa;font-family:'Courier New',monospace">${code}</p>
-                <p style="margin:8px 0 0;font-size:11px;color:rgba(255,255,255,0.3)">Expires in 24 hours</p>
-              </td></tr>
-            </table>
-
-            <a href="${portalUrl}" style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#6366f1);color:#fff;text-decoration:none;font-size:14px;font-weight:800;padding:14px 32px;border-radius:12px;letter-spacing:0.02em">
-              Go to Team Portal →
+            <a href="${setupUrl}" style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#6366f1);color:#fff;text-decoration:none;font-size:14px;font-weight:800;padding:14px 32px;border-radius:12px;letter-spacing:0.02em">
+              Create account &amp; join event →
             </a>
             <p style="margin:20px 0 0;font-size:12px;color:rgba(255,255,255,0.25);line-height:1.6">
-              Portal: ${portalUrl}<br/>
-              Enter your email and the code above. If you didn't expect this, ignore it.
+              Or copy this link: ${setupUrl}<br/>
+              If you didn't expect this, you can safely ignore it.
             </p>
           </td></tr>
           <tr><td style="background:rgba(255,255,255,0.03);padding:16px 36px;border-top:1px solid rgba(255,255,255,0.06);text-align:center">
-            <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.2);letter-spacing:0.1em;text-transform:uppercase">Powered by Eventos</p>
+            <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.2);letter-spacing:0.1em;text-transform:uppercase">Powered by LiteEvent</p>
           </td></tr>
         </table>
       </td></tr>
     </table>
   </body></html>`;
-  return sendMail({ to, subject: `Your invite code to manage "${eventTitle}"`, html });
+  return sendMail({ to, subject: `You've been invited to manage "${eventTitle}"`, html });
 }
 
 /* ── Team invite: existing user (has account) ───────────────────── */
-export async function sendTeamInviteExistingEmail({ to, inviteeName, inviterName, eventTitle, code, portalUrl }) {
+export async function sendTeamInviteExistingEmail({ to, inviteeName, inviterName, eventTitle, loginUrl }) {
   const html = `
   <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head>
   <body style="margin:0;padding:0;background:#0a0a12;font-family:Arial,sans-serif">
@@ -609,50 +773,39 @@ export async function sendTeamInviteExistingEmail({ to, inviteeName, inviterName
         <table width="100%" style="max-width:520px;background:#111127;border-radius:16px;overflow:hidden;border:1px solid rgba(16,185,129,0.2)" cellpadding="0" cellspacing="0">
           <tr><td style="background:linear-gradient(135deg,#059669,#10b981);padding:32px;text-align:center">
             <p style="margin:0;font-size:32px">🎉</p>
-            <h1 style="margin:12px 0 0;font-size:22px;font-weight:900;color:#fff;letter-spacing:-0.5px">You're invited to the team!</h1>
+            <h1 style="margin:12px 0 0;font-size:22px;font-weight:900;color:#fff;letter-spacing:-0.5px">You're on the team!</h1>
           </td></tr>
           <tr><td style="padding:32px 36px">
             <p style="margin:0 0 8px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7">
               Hi <strong style="color:#fff">${inviteeName}</strong>,
             </p>
-            <p style="margin:0 0 12px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7">
-              <strong style="color:#fff">${inviterName}</strong> has invited you to manage
-              <strong style="color:#6ee7b7">${eventTitle}</strong> as an admin.
+            <p style="margin:0 0 24px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7">
+              <strong style="color:#fff">${inviterName}</strong> has added you to manage
+              <strong style="color:#6ee7b7">${eventTitle}</strong>.
             </p>
 
-            <!-- Account notice -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px">
-              <tr><td style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:14px 18px">
-                <p style="margin:0;font-size:13px;color:#6ee7b7;font-weight:700">You already have an Eventos account</p>
-                <p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.45)">Use the portal below — no new account needed. Just enter your email + the code.</p>
-              </td></tr>
-            </table>
-
-            <!-- Code block -->
             <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px">
-              <tr><td style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:12px;padding:24px;text-align:center">
-                <p style="margin:0 0 6px;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.4)">Your invite code</p>
-                <p style="margin:0;font-size:36px;font-weight:900;letter-spacing:0.15em;color:#6ee7b7;font-family:'Courier New',monospace">${code}</p>
-                <p style="margin:8px 0 0;font-size:11px;color:rgba(255,255,255,0.3)">Expires in 24 hours</p>
+              <tr><td style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:14px 18px">
+                <p style="margin:0;font-size:13px;color:#6ee7b7;font-weight:700">You already have an LiteEvent account</p>
+                <p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.45)">Sign in and the event will appear in your dashboard automatically.</p>
               </td></tr>
             </table>
 
-            <a href="${portalUrl}" style="display:inline-block;background:linear-gradient(135deg,#059669,#10b981);color:#fff;text-decoration:none;font-size:14px;font-weight:800;padding:14px 32px;border-radius:12px;letter-spacing:0.02em">
-              Open Team Portal →
+            <a href="${loginUrl}" style="display:inline-block;background:linear-gradient(135deg,#059669,#10b981);color:#fff;text-decoration:none;font-size:14px;font-weight:800;padding:14px 32px;border-radius:12px;letter-spacing:0.02em">
+              Sign in to dashboard →
             </a>
             <p style="margin:20px 0 0;font-size:12px;color:rgba(255,255,255,0.25);line-height:1.6">
-              Portal: ${portalUrl}<br/>
-              Enter your email and the code above.
+              Or go to: ${loginUrl}
             </p>
           </td></tr>
           <tr><td style="background:rgba(255,255,255,0.03);padding:16px 36px;border-top:1px solid rgba(255,255,255,0.06);text-align:center">
-            <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.2);letter-spacing:0.1em;text-transform:uppercase">Powered by Eventos</p>
+            <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.2);letter-spacing:0.1em;text-transform:uppercase">Powered by LiteEvent</p>
           </td></tr>
         </table>
       </td></tr>
     </table>
   </body></html>`;
-  return sendMail({ to, subject: `Your invite code to manage "${eventTitle}"`, html });
+  return sendMail({ to, subject: `You've been added to manage "${eventTitle}"`, html });
 }
 
 export async function sendRsvpConfirmationEmail({
@@ -762,7 +915,7 @@ export async function sendRsvpConfirmationEmail({
               Please keep this email as your entry pass. Do not share it with others.
             </p>
             <p style="margin:12px 0 0;font-size:10px;color:#d6d3d1;letter-spacing:0.15em;text-transform:uppercase">
-              Powered by Eventos
+              Powered by LiteEvent
             </p>
           </td>
         </tr>

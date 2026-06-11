@@ -1,8 +1,10 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { useAuthStore } from "@/store/auth.store";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -23,6 +25,11 @@ const scaleIn = {
 };
 
 export default function HeroSection({ showcase, testimonials }) {
+  const [mounted, setMounted] = useState(false);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  useEffect(() => { setMounted(true); }, []);
+  const loggedIn = mounted && isAuthenticated;
+
   return (
     <section className="relative min-h-screen flex items-center pt-16 overflow-hidden bg-white">
       {/* Ambient blobs */}
@@ -78,18 +85,29 @@ export default function HeroSection({ showcase, testimonials }) {
             animate="visible"
             className="mt-8 flex flex-col sm:flex-row gap-3"
           >
-            <Link
-              href="/register"
-              className="flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white font-bold px-7 py-3.5 rounded-2xl transition-all shadow-lg shadow-gray-900/10 text-sm"
-            >
-              Create Your Wedding Site →
-            </Link>
-            <a
-              href="#templates"
-              className="flex items-center justify-center gap-2 bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold px-7 py-3.5 rounded-2xl transition-colors text-sm border border-amber-100"
-            >
-              Browse Templates
-            </a>
+            {loggedIn ? (
+              <Link
+                href="/dashboard"
+                className="flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white font-bold px-7 py-3.5 rounded-2xl transition-all shadow-lg shadow-gray-900/10 text-sm"
+              >
+                Go to Dashboard →
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/register"
+                  className="flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white font-bold px-7 py-3.5 rounded-2xl transition-all shadow-lg shadow-gray-900/10 text-sm"
+                >
+                  Create Your Wedding Site →
+                </Link>
+                <a
+                  href="#templates"
+                  className="flex items-center justify-center gap-2 bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold px-7 py-3.5 rounded-2xl transition-colors text-sm border border-amber-100"
+                >
+                  Browse Templates
+                </a>
+              </>
+            )}
           </motion.div>
 
           {/* Social proof */}

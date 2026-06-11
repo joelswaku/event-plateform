@@ -3,6 +3,7 @@ import { publicApi } from "@/lib/public-api";
 import EventPreviewClient from "./EventPreviewClient";
 import EventPageClient from "./EventPageClient";
 import EventNotAvailable from "./EventNotAvailable";
+import EventChatbotLoader from "./EventChatbotLoader";
 
 // ── Data fetching ─────────────────────────────────────────────────────────────
 
@@ -85,11 +86,17 @@ export default async function PublicEventPage({ params, searchParams }) {
     return <EventNotAvailable reason={status.reason} />;
   }
 
+  const ev = data.event;
+  const showChatbot = ev?.allow_rsvp || ev?.allow_ticketing;
+
   return (
-    <EventPageClient
-      event={{ ...data.event, speakers: data.speakers || [], schedule_items: data.schedule_items || [] }}
-      sections={data.sections || []}
-      token={token || null}
-    />
+    <>
+      <EventPageClient
+        event={{ ...ev, speakers: data.speakers || [], schedule_items: data.schedule_items || [] }}
+        sections={data.sections || []}
+        token={token || null}
+      />
+      {showChatbot && <EventChatbotLoader eventId={ev.id} />}
+    </>
   );
 }

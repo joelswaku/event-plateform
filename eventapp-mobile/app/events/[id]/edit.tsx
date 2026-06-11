@@ -410,9 +410,9 @@ const s = StyleSheet.create({
   section:      { paddingHorizontal: 16, gap: 8 },
   sectionLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1.5, color: Colors.text.subtle },
   card: {
-    backgroundColor: Colors.bg.card,
+    backgroundColor: '#2a1d00',
     borderRadius: 16, borderWidth: 1,
-    borderColor: Colors.border.subtle,
+    borderColor: 'rgba(251,191,36,0.20)',
     padding: 16, gap: 14,
   },
 

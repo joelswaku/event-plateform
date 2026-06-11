@@ -16,6 +16,9 @@ import {
   Heart, Settings2, Info, Zap, EyeOff, LayoutDashboard,
   Rocket, Globe, Lock, ShieldAlert, ChevronLeft, Home, User, Plus,
 } from "lucide-react";
+import PostEventSummaryModal from "@/components/ai/PostEventSummaryModal";
+import { useAIStore } from "@/store/ai.store";
+import { CountrySelector } from "@/components/ui/CountrySelector";
 
 function MobileBottomNav() {
   const pathname = usePathname();
@@ -74,15 +77,16 @@ const easeOut = { duration: 0.4, ease: [0.22, 1, 0.36, 1] };
    REUSABLE UI COMPONENTS
 ───────────────────────────────────────────── */
 
-function GlassCard({ children, className = "", delay = 0 }) {
+function GlassCard({ children, className = "", delay = 0, onClick }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ ...easeOut, delay }}
+      onClick={onClick}
       className={`
-        relative overflow-hidden rounded-3xl 
-        bg-white/70 dark:bg-slate-900/40 
+        relative overflow-hidden rounded-3xl
+        bg-white/70 dark:bg-slate-900/40
         backdrop-blur-2xl border border-slate-200/50 dark:border-white/5
         shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)]
         ${className}
@@ -438,6 +442,7 @@ function MVisibilityCard({ isPublic, onRequestToggle }) {
 
 export default function EventSettingsPage() {
   const { eventId } = useParams();
+  const router = useRouter();
   const { fetchEventDashboard, updateEvent, dashboard, loading } = useEventStore();
   
   const [form, setForm] = useState(null);
@@ -447,10 +452,22 @@ export default function EventSettingsPage() {
   const [errors, setErrors] = useState({});
   const [modal, setModal] = useState(null);
   const [mobilePending, setMobilePending] = useState(null); // { key, nextValue, info }
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [summaryData, setSummaryData] = useState(null);
+  const { generatePostEventSummary, loading: aiLoading } = useAIStore();
   
   const initialRef = useRef(null);
 
   useEffect(() => { if (eventId) fetchEventDashboard(eventId); }, [eventId, fetchEventDashboard]);
+
+  // Redirect team members away — settings is owner-only
+  useEffect(() => {
+    if (!dashboard) return;
+    const role = dashboard.userRole;
+    if (role && role !== 'OWNER') {
+      router.replace(`/events/${eventId}`);
+    }
+  }, [dashboard, eventId, router]);
 
   useEffect(() => {
     const e = dashboard?.event;
@@ -635,7 +652,11 @@ export default function EventSettingsPage() {
                 </MField>
               </div>
               <MField label="Country">
-                <MInput value={form.country} onChange={v => set("country", v)} placeholder="Country" />
+                <CountrySelector
+                  value={form.country}
+                  onChange={(country) => set("country", country.code)}
+                  placeholder="Select country"
+                />
               </MField>
             </MSection>
 
@@ -766,27 +787,39 @@ export default function EventSettingsPage() {
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
                     <Field label="City"><Input value={form.city} onChange={e => set("city", e.target.value)} /></Field>
                     <Field label="State"><Input value={form.state} onChange={e => set("state", e.target.value)} /></Field>
-                    <Field label="Country Code"><Input value={form.country} onChange={e => set("country", e.target.value)} /></Field>
+                    <Field label="Country">
+                      <CountrySelector
+                        value={form.country}
+                        onChange={(country) => set("country", country.code)}
+                        placeholder="Select country"
+                      />
+                    </Field>
                   </div>
                 </div>
               </GlassCard>
 
               <GlassCard delay={0.2} className="p-10">
                 <SectionHeader icon={Zap} label="Modules & Features" colorClass="text-emerald-500" description="Extend your event functionality with pre-built modules." />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Toggle icon={Users} label="RSVP Flow" description="Collect guest names and emails" checked={form.allow_rsvp} onChange={v => applyModuleToggle("allow_rsvp", v)} />
-                  <Toggle icon={Ticket} label="Stripe Ticketing" colorClass="text-amber-500" description="Secure payment processing" checked={form.allow_ticketing} onChange={v => applyModuleToggle("allow_ticketing", v)} />
-                  <Toggle icon={Heart} label="Donation Portal" colorClass="text-pink-500" description="Accept tips and contributions" checked={form.allow_donations} onChange={v => applyModuleToggle("allow_donations", v)} />
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Toggle icon={Users} label="RSVP Flow" description="Collect guest names and emails" checked={form.allow_rsvp} onChange={v => applyModuleToggle("allow_rsvp", v)} />
+                    <Toggle icon={Ticket} label="Stripe Ticketing" colorClass="text-amber-500" description="Secure payment processing" checked={form.allow_ticketing} onChange={v => applyModuleToggle("allow_ticketing", v)} />
+                  </div>
+
+                  <AnimatePresence>
+                    {form.allow_rsvp && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                        <div className="pl-6 border-l-4 border-indigo-500/30 py-2">
+                          <Toggle icon={Globe} label="Open RSVP" colorClass="text-emerald-500" description="Allow anyone to RSVP without an invitation link" checked={form.open_rsvp} onChange={v => saveToggle("open_rsvp", v)} />
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Toggle icon={Heart} label="Donation Portal" colorClass="text-pink-500" description="Accept tips and contributions" checked={form.allow_donations} onChange={v => applyModuleToggle("allow_donations", v)} />
+                  </div>
                 </div>
-                <AnimatePresence>
-                  {form.allow_rsvp && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mt-4">
-                      <div className="pl-4 border-l-2 border-indigo-500/20">
-                        <Toggle icon={Globe} label="Open RSVP" colorClass="text-emerald-500" description="Allow anyone to RSVP without an invitation link" checked={form.open_rsvp} onChange={v => saveToggle("open_rsvp", v)} />
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </GlassCard>
 
               <GlassCard delay={0.25} className="border-red-500/30 dark:border-red-500/20 overflow-visible">
@@ -795,6 +828,19 @@ export default function EventSettingsPage() {
                   <div className="space-y-4 divide-y divide-red-500/10 dark:divide-red-500/10">
                     {status === "DRAFT" && <DangerRow icon={Rocket} label="Release Event" variant="success" buttonLabel="Go Live" onClick={() => {}} description="Push your event to the public discovery feed." />}
                     {status === "PUBLISHED" && <DangerRow icon={EyeOff} label="Retract Event" variant="warning" buttonLabel="Draft Mode" onClick={() => {}} description="Hide the event from new guests temporarily." />}
+                    {(status === "ARCHIVED" || status === "CANCELLED" || (form?.ends_at && new Date(form.ends_at) < new Date())) && (
+                      <DangerRow
+                        icon={Zap}
+                        label="AI Post-Event Summary"
+                        variant="ghost"
+                        buttonLabel={aiLoading ? "Generating…" : "Generate Summary"}
+                        description="Get AI analysis: attendance, highlights, improvements, social caption, and performance grade."
+                        onClick={async () => {
+                          const res = await generatePostEventSummary(eventId);
+                          if (res.success) { setSummaryData(res.data); setSummaryOpen(true); }
+                        }}
+                      />
+                    )}
                     <DangerRow icon={Trash2} label="Destroy Database Entry" variant="danger" buttonLabel="Delete Event" onClick={() => {}} description="Irreversible removal of all guest and event data." />
                   </div>
                 </div>
@@ -828,13 +874,30 @@ export default function EventSettingsPage() {
                 </div>
               </GlassCard>
 
-              <GlassCard className="p-8 bg-indigo-600 dark:bg-indigo-700 border-none shadow-2xl shadow-indigo-600/20 group cursor-pointer overflow-hidden">
+              <GlassCard
+                className="p-8 bg-indigo-600 dark:bg-indigo-700 border-none shadow-2xl shadow-indigo-600/20 group cursor-pointer overflow-hidden"
+                onClick={() => {
+                  if (!event?.slug) return;
+                  const isPublic = form?.visibility === "PUBLIC";
+                  window.open(
+                    isPublic ? `/e/${event.slug}` : `/e/${event.slug}?preview=1`,
+                    "_blank",
+                    "noopener,noreferrer",
+                  );
+                }}
+              >
                 <div className="relative z-10 flex gap-5 items-start text-white">
                   <div className="p-3 rounded-2xl bg-white/20 shadow-inner group-hover:scale-110 transition-transform duration-500"><LayoutDashboard size={24} /></div>
                   <div className="space-y-2">
                     <h4 className="font-black text-base tracking-tight">Live Preview</h4>
-                    <p className="text-xs text-indigo-100/80 leading-relaxed font-medium">Verify how your settings render on the production storefront.</p>
-                    <button className="pt-2 text-[11px] font-black uppercase tracking-widest flex items-center gap-2 group-hover:gap-4 transition-all">Open Event Page <span className="text-lg">→</span></button>
+                    <p className="text-xs text-indigo-100/80 leading-relaxed font-medium">
+                      {event?.slug
+                        ? `Opens /e/${event.slug}${form?.visibility !== "PUBLIC" ? " (preview mode)" : ""}`
+                        : "Verify how your settings render on the production storefront."}
+                    </p>
+                    <span className="pt-2 text-[11px] font-black uppercase tracking-widest flex items-center gap-2 group-hover:gap-4 transition-all">
+                      Open Event Page <span className="text-lg">→</span>
+                    </span>
                   </div>
                 </div>
                 <div className="absolute -right-10 -bottom-10 h-40 w-40 bg-white/10 rounded-full blur-3xl" />
@@ -844,6 +907,7 @@ export default function EventSettingsPage() {
         </div>
         <ConfirmModal isOpen={!!modal} onClose={() => setModal(null)} {...modal} />
       </div>
+      <PostEventSummaryModal open={summaryOpen} onClose={() => setSummaryOpen(false)} data={summaryData} />
     </>
   );
 }

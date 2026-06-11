@@ -9,11 +9,12 @@ import {
   CheckSquare, Square, LogIn, X, ScanLine, Send,
   ChevronDown, ChevronUp, Search, Home, User,
   CalendarDays, Ticket, ChevronLeft, ChevronRight,
-  CheckCheck, Lock, Zap,
+  CheckCheck, Lock, Zap, Copy, Check,
 } from "lucide-react";
 import { useGuestStore }         from "@/store/guest.store";
 import { useSeatingStore }       from "@/store/seating.store";
 import { useSubscriptionStore }  from "@/store/subscription.store";
+import ConfirmModal, { useConfirm } from "@/components/ui/confirm-modal";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 
@@ -260,6 +261,7 @@ function MobileGuestsPage({
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [rsvpMenuOpen, setRsvpMenuOpen] = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const { openConfirm, confirmProps } = useConfirm();
 
   const toggleSelect = (id) => setSelectedIds(prev => {
     const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
@@ -270,12 +272,20 @@ function MobileGuestsPage({
     else setSelectedIds(new Set(list.map(g => g.id)));
   };
 
-  const doBulkDelete = async () => {
-    if (!window.confirm(`Delete ${selectedIds.size} guest${selectedIds.size !== 1 ? "s" : ""}? This cannot be undone.`)) return;
-    setBulkLoading(true);
-    await onBulkDelete(Array.from(selectedIds));
-    setBulkLoading(false);
-    exitSelectMode();
+  const doBulkDelete = () => {
+    const count = selectedIds.size;
+    openConfirm({
+      title: "Delete guests?",
+      description: `${count} guest${count !== 1 ? "s" : ""} will be permanently removed.`,
+      confirmText: "Delete",
+      variant: "danger",
+      onConfirm: async () => {
+        setBulkLoading(true);
+        await onBulkDelete(Array.from(selectedIds));
+        setBulkLoading(false);
+        exitSelectMode();
+      },
+    });
   };
   const doBulkInvite = async () => {
     setBulkLoading(true);
@@ -556,6 +566,7 @@ function MobileGuestsPage({
       )}
 
       <MobileBottomNav />
+      <ConfirmModal {...confirmProps} />
     </>
   );
 }

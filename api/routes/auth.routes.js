@@ -17,6 +17,7 @@ import { uploadAvatar }   from "../controllers/auth/uploadAvatar.controller.js";
 import { updateProfile }  from "../controllers/auth/updateProfile.controller.js";
 import { changePassword } from "../controllers/auth/changePassword.controller.js";
 import { upload }         from "../middleware/upload.middleware.js";
+import { acceptTerms }    from "../controllers/auth/accept-terms.controller.js";
 
 const router = Router();
 
@@ -61,6 +62,8 @@ router.patch("/avatar",    authenticate, upload.single("file"), uploadAvatar);
 router.patch("/profile",   authenticate, updateProfile);
 // Change password
 router.patch("/password",  authenticate, changePassword);
+// Accept legal terms
+router.post("/accept-terms", authenticate, acceptTerms);
 
 export default router;
 

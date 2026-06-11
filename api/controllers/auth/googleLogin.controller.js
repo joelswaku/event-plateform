@@ -14,7 +14,7 @@ export async function googleLogin(req, res) {
 
   try {
     const result = await authService.googleLogin({
-      idToken: parsed.data.id_token,
+      accessToken: parsed.data.access_token,
       ip: req.ip,
       userAgent: req.headers["user-agent"],
       deviceName: req.headers["x-device-name"] || null,

@@ -77,9 +77,11 @@ export async function createEvent(req, res) {
 export async function listEvents(req, res) {
   try {
     const organizationId = req.organizationId;
+    const userId = req.user?.id;
 
     const result = await eventsService.listEventsService({
       organizationId,
+      userId,
       query: req.query,
     });
 
@@ -101,10 +103,12 @@ export async function getEventById(req, res) {
   try {
     const organizationId = req.organizationId;
     const eventId = req.params.id;
+    const userId = req.user?.id;
 
     const event = await eventsService.getEventByIdService({
       eventId,
       organizationId,
+      userId,
     });
 
     return res.status(200).json({
@@ -325,10 +329,12 @@ export async function getEventDashboard(req, res) {
   try {
     const organizationId = req.organizationId;
     const eventId = req.params.id;
+    const userId = req.user?.id;
 
     const dashboard = await eventsService.getEventDashboardService({
       eventId,
       organizationId,
+      userId,
     });
 
     return res.status(200).json({

@@ -647,7 +647,7 @@ export default function RsvpPanel({ token }) {
             fontSize: 10, color: "#c5b9aa",
             letterSpacing: "0.1em", textTransform: "uppercase", margin: 0,
           }}>
-            Powered by Eventos
+            Powered by LiteEvent
           </p>
         </div>
       </div>

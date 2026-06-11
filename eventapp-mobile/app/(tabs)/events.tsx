@@ -24,6 +24,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter }      from 'expo-router';
 import { Feather }        from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image }          from 'expo-image';
 import { useEventStore }  from '@/store/event.store';
 import { useAuthStore }   from '@/store/auth.store';
 import { useDrawerStore } from '@/store/drawer.store';
@@ -32,6 +33,24 @@ import { EventStatus }    from '@/types';
 import { ProEventCard }   from '@/components/events/EventCard';
 
 const SW = Dimensions.get('window').width;
+
+const EVENT_IMGS: Record<string, string> = {
+  wedding:         'https://images.unsplash.com/photo-1519741497674-611481863552?w=400&q=70',
+  conference:      'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&q=70',
+  birthday:        'https://images.unsplash.com/photo-1527529482837-4698179dc6ce?w=400&q=70',
+  concert:         'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=400&q=70',
+  festival:        'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=400&q=70',
+  corporate_event: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&q=70',
+  networking:      'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=400&q=70',
+  charity:         'https://images.unsplash.com/photo-1617196034183-421b4040ed20?w=400&q=70',
+};
+const DEFAULT_IMG = 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&q=70';
+function heroImg(ev: any): string {
+  if (!ev) return DEFAULT_IMG;
+  if (ev.cover_image_url) return ev.cover_image_url;
+  const key = ev.event_type?.toLowerCase();
+  return key && EVENT_IMGS[key] ? EVENT_IMGS[key] : DEFAULT_IMG;
+}
 
 type Filter = 'ALL' | EventStatus;
 
@@ -77,8 +96,8 @@ export default function EventsTab() {
   const router     = useRouter();
   const insets     = useSafeAreaInsets();
   const openDrawer = useDrawerStore(s => s.open);
-  const { events, fetchEvents, loading } = useEventStore();
-  const { isHydrated, isAuthenticated }  = useAuthStore(s => ({ isHydrated: s.isHydrated, isAuthenticated: s.isAuthenticated }));
+  const { events, fetchEvents, loading }     = useEventStore();
+  const { isHydrated, isAuthenticated }      = useAuthStore(s => ({ isHydrated: s.isHydrated, isAuthenticated: s.isAuthenticated }));
 
   const [query,  setQuery]  = useState('');
   const [filter, setFilter] = useState<Filter>('ALL');
@@ -88,21 +107,32 @@ export default function EventsTab() {
     if (isHydrated && isAuthenticated) fetchEvents();
   }, [isHydrated, isAuthenticated]);
 
+  // Owned events = events where user is OWNER or has no explicit role
+  const ownedEvents = useMemo(
+    () => events.filter(e => !e.user_role || e.user_role === 'OWNER'),
+    [events],
+  );
+  // Team events = events user is a member of (not owner)
+  const teamEvents = useMemo(
+    () => events.filter(e => e.user_role && e.user_role !== 'OWNER'),
+    [events],
+  );
+
   const filtered = useMemo(() => {
-    let result = events;
+    let result = ownedEvents;
     if (filter !== 'ALL') result = result.filter(e => e.status === filter);
     if (query.trim())     result = result.filter(e => e.title.toLowerCase().includes(query.toLowerCase()));
     return result;
-  }, [events, filter, query]);
+  }, [ownedEvents, filter, query]);
 
-  // Count per filter
+  // Count per filter — based on owned events only
   const counts = useMemo(() => {
-    const c: Record<string, number> = { ALL: events.length };
-    for (const e of events) {
+    const c: Record<string, number> = { ALL: ownedEvents.length };
+    for (const e of ownedEvents) {
       c[e.status] = (c[e.status] ?? 0) + 1;
     }
     return c;
-  }, [events]);
+  }, [ownedEvents]);
 
   const refresh = useCallback(() => fetchEvents(), []);
 
@@ -200,15 +230,73 @@ export default function EventsTab() {
           />
         }
       >
-        {filtered.length === 0 ? (
+        {filtered.length === 0 && teamEvents.length === 0 && ownedEvents.length === 0 ? (
           <EmptyState filter={filter} query={query} onCreate={() => router.push('/events/create' as never)} />
-        ) : (
+        ) : filtered.length === 0 && teamEvents.length === 0 && query ? (
+          <EmptyState filter={filter} query={query} onCreate={() => router.push('/events/create' as never)} />
+        ) : filtered.length === 0 ? null : (
           filtered.map((event, idx) => (
             <FadeSlideIn key={event.id} index={idx}>
               <ProEventCard event={event} onRefresh={refresh} />
             </FadeSlideIn>
           ))
         )}
+
+        {/* ── Events where user is a team member ── */}
+        {teamEvents.length > 0 && (
+          <>
+            <View style={s.sectionHeader}>
+              <Feather name="users" size={13} color="#a78bfa" />
+              <Text style={s.sectionHeaderText}>Events you're managing</Text>
+              <View style={s.sectionBadge}>
+                <Text style={s.sectionBadgeText}>{teamEvents.length}</Text>
+              </View>
+            </View>
+            {teamEvents.map((event, idx) => (
+              <FadeSlideIn key={event.id} index={idx}>
+                <Pressable
+                  style={s.teamCard}
+                  onPress={() => router.push(`/events/${event.id}` as never)}
+                >
+                  {/* Thumbnail */}
+                  <View style={s.teamThumb}>
+                    <Image
+                      source={{ uri: heroImg(event) }}
+                      style={StyleSheet.absoluteFill}
+                      contentFit="cover"
+                      transition={200}
+                    />
+                    <LinearGradient
+                      colors={['transparent', 'rgba(0,0,0,0.55)']}
+                      style={StyleSheet.absoluteFill}
+                    />
+                    <View style={s.teamThumbBadge}>
+                      <Feather name="users" size={8} color="#fbbf24" />
+                    </View>
+                  </View>
+                  {/* Info */}
+                  <View style={s.teamCardLeft}>
+                    <Text style={s.teamCardTitle} numberOfLines={1}>{event.title}</Text>
+                    <Text style={s.teamCardSub} numberOfLines={1}>
+                      {event.owner_name ? `by ${event.owner_name}` : event.event_type ?? 'Event'}
+                      {event.starts_at_local
+                        ? ` · ${new Date(event.starts_at_local).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                        : ''}
+                    </Text>
+                  </View>
+                  {/* Role badge + chevron pinned to right */}
+                  <View style={s.teamCardRight}>
+                    <View style={s.teamRoleBadge}>
+                      <Text style={s.teamRoleText}>{(event.user_role || 'ADMIN').replace('_', ' ')}</Text>
+                    </View>
+                    <Feather name="chevron-right" size={15} color="rgba(251,191,36,0.40)" />
+                  </View>
+                </Pressable>
+              </FadeSlideIn>
+            ))}
+          </>
+        )}
+
         <View style={{ height: 110 }} />
       </ScrollView>
     </View>
@@ -320,6 +408,40 @@ const s = StyleSheet.create({
 
   /* List */
   list: { paddingHorizontal: 16, gap: 14 },
+
+  /* Team events section */
+  sectionHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    marginTop: 8, marginBottom: -2,
+  },
+  sectionHeaderText: {
+    fontSize: 12, fontWeight: '800', color: 'rgba(255,255,255,0.4)',
+    textTransform: 'uppercase', letterSpacing: 0.8, flex: 1,
+  },
+  sectionBadge: {
+    backgroundColor: 'rgba(167,139,250,0.15)', borderRadius: 99,
+    paddingHorizontal: 7, paddingVertical: 2,
+  },
+  sectionBadgeText: { fontSize: 10, fontWeight: '800', color: '#a78bfa' },
+
+  teamCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#2a1d00',
+    borderRadius: 16, borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.25)',
+    paddingRight: 12, paddingVertical: 0, overflow: 'hidden',
+  },
+  teamThumb:      { width: 52, height: 52, flexShrink: 0, backgroundColor: '#14141f' },
+  teamThumbBadge: { position: 'absolute', bottom: 4, right: 4, width: 14, height: 14, borderRadius: 4, backgroundColor: 'rgba(42,29,0,0.85)', alignItems: 'center', justifyContent: 'center' },
+  teamCardLeft:  { flex: 1, minWidth: 0, gap: 2 },
+  teamCardRight: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 },
+  teamCardTitle: { fontSize: 13, fontWeight: '800', color: '#fef3c7' },
+  teamCardSub:   { fontSize: 11, color: 'rgba(251,191,36,0.55)' },
+  teamRoleBadge: {
+    backgroundColor: 'rgba(251,191,36,0.18)', borderRadius: 99,
+    paddingHorizontal: 7, paddingVertical: 2,
+  },
+  teamRoleText: { fontSize: 9, fontWeight: '800', color: '#fbbf24', textTransform: 'capitalize' },
 });
 
 const es = StyleSheet.create({

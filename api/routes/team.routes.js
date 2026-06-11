@@ -10,6 +10,7 @@ import {
   portalLogin,
   setupPassword,
   getMyTeamEvents,
+  getMyRoleForEvent,
 } from "../controllers/team.controller.js";
 
 const router = express.Router({ mergeParams: true });
@@ -20,7 +21,8 @@ router.post("/portal-login",       portalLogin);
 router.post("/setup-password",     setupPassword);
 
 // Authenticated — not scoped to an event
-router.get("/my-events", authenticate, getMyTeamEvents);
+router.get("/my-events",        authenticate, getMyTeamEvents);
+router.get("/my-role/:eventId", authenticate, getMyRoleForEvent);
 
 // Authenticated — scoped to an event (mergeParams provides eventId)
 router.get(   "/",              authenticate, resolveOrganization, listMembers);

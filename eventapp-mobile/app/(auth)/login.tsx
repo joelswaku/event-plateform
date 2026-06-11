@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Pressable, KeyboardAvoidingView, Platform,
-  ActivityIndicator,
+  View, Text, ScrollView, StyleSheet, Pressable,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,16 +9,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import Toast from 'react-native-toast-message';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
+import { notify } from '@/lib/toast';
+import { Feather } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/auth.store';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/colors';
-import { ENV } from '@/config/env';
-
-WebBrowser.maybeCompleteAuthSession();
 
 const schema = z.object({
   email:    z.string().email('Enter a valid email'),
@@ -27,53 +23,9 @@ const schema = z.object({
 type Form = z.infer<typeof schema>;
 
 export default function LoginScreen() {
-  const router      = useRouter();
-  const login       = useAuthStore(s => s.login);
-  const googleLogin = useAuthStore(s => s.googleLogin);
-  const [showPw, setShowPw]           = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-
-  // expoClientId removed in Expo SDK 54 — use native client IDs only
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    webClientId:     ENV.GOOGLE_WEB,
-    iosClientId:     ENV.GOOGLE_IOS,
-    androidClientId: ENV.GOOGLE_ANDROID || undefined,
-  });
-
-  useEffect(() => {
-    if (response?.type === 'success') {
-      // Native flows put the token in params.id_token (implicit);
-      // PKCE/code flows put it in authentication.idToken
-      const idToken =
-        (response.params as Record<string, string>)?.id_token ??
-        response.authentication?.idToken;
-
-      if (idToken) {
-        handleGoogleToken(idToken);
-      } else {
-        setGoogleLoading(false);
-        Toast.show({ type: 'error', text1: 'Google Sign-In failed', text2: 'No id_token in response' });
-      }
-    } else if (response?.type === 'error') {
-      setGoogleLoading(false);
-      Toast.show({ type: 'error', text1: 'Google Sign-In failed', text2: response.error?.message ?? 'Unknown error' });
-    } else if (response?.type === 'dismiss') {
-      setGoogleLoading(false);
-    }
-  }, [response]);
-
-  const handleGoogleToken = async (idToken: string) => {
-    const result = await googleLogin(idToken);
-    setGoogleLoading(false);
-    if (!result.success) {
-      Toast.show({ type: 'error', text1: 'Google Sign-In failed', text2: result.message });
-    }
-  };
-
-  const onGooglePress = async () => {
-    setGoogleLoading(true);
-    await promptAsync();
-  };
+  const router = useRouter();
+  const login  = useAuthStore(s => s.login);
+  const [showPw, setShowPw] = useState(false);
 
   const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm<Form>({
     resolver: zodResolver(schema),
@@ -83,31 +35,56 @@ export default function LoginScreen() {
   const onSubmit = async (data: Form) => {
     const result = await login(data.email, data.password);
     if (!result.success) {
-      Toast.show({ type: 'error', text1: 'Login failed', text2: result.message });
+      notify.loginFailed(result.message);
     }
   };
 
   return (
     <SafeAreaView style={styles.safe}>
+      {/* ── Background ── */}
       <LinearGradient
-        colors={[Colors.bg.primary, '#0d0d1a', Colors.bg.primary]}
+        colors={['#0f0c29', '#1a1040', '#24243e']}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Logo / Brand */}
+
+      {/* Glow orbs */}
+      <View style={[styles.glow, { top: -80, left: -60, width: 280, height: 280, backgroundColor: '#4f46e5' }]} />
+      <View style={[styles.glow, { top: '38%', right: -90, width: 220, height: 220, backgroundColor: '#7c3aed' }]} />
+      <View style={[styles.glow, { bottom: -60, left: '15%', width: 180, height: 180, backgroundColor: '#db2777' }]} />
+
+      {/* Grid overlay */}
+      <View style={styles.gridOverlay} pointerEvents="none" />
+
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+
+          {/* Brand */}
           <View style={styles.brand}>
             <View style={styles.logoWrap}>
-              <Text style={styles.logoEmoji}>🎟️</Text>
+              <Feather name="zap" size={28} color="#fff" />
             </View>
-            <Text style={styles.appName}>EventApp</Text>
+            <Text style={styles.appName}>LiteEvent</Text>
             <Text style={styles.tagline}>Manage events. Scan tickets. Go live.</Text>
+          </View>
+
+          {/* Floating stat card */}
+          <View style={styles.statCard}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>12K+</Text>
+              <Text style={styles.statLabel}>Events</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>890K</Text>
+              <Text style={styles.statLabel}>Tickets sold</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>2.4K</Text>
+              <Text style={styles.statLabel}>Organizers</Text>
+            </View>
           </View>
 
           {/* Card */}
@@ -162,40 +139,16 @@ export default function LoginScreen() {
               accent={Colors.accent.indigo}
               size="lg"
             />
-
-            {/* Divider */}
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            {/* Google Sign-In */}
-            <Pressable
-              style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.85 }]}
-              onPress={onGooglePress}
-              disabled={!request || googleLoading}
-            >
-              {googleLoading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <View style={styles.googleIconWrap}>
-                    <Text style={styles.googleG}>G</Text>
-                  </View>
-                  <Text style={styles.googleLabel}>Continue with Google</Text>
-                </>
-              )}
-            </Pressable>
           </View>
 
-          {/* Register link */}
+          {/* Footer */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>Don't have an account? </Text>
             <Pressable onPress={() => router.push('/(auth)/register')}>
               <Text style={[styles.footerLink, { color: Colors.accent.indigo }]}>Sign up</Text>
             </Pressable>
           </View>
+
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -203,83 +156,62 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:      { flex: 1, backgroundColor: Colors.bg.primary },
-  scroll:    { flexGrow: 1, padding: 24, justifyContent: 'center', gap: 24 },
-  brand:     { alignItems: 'center', gap: 8, paddingVertical: 24 },
-  logoWrap:  {
-    width: 72, height: 72, borderRadius: 22,
-    backgroundColor: `${Colors.accent.indigo}20`,
-    borderWidth: 1, borderColor: `${Colors.accent.indigo}40`,
-    alignItems: 'center', justifyContent: 'center',
+  safe:        { flex: 1, backgroundColor: '#0f0c29' },
+  scroll:      { flexGrow: 1, padding: 24, justifyContent: 'center', gap: 20 },
+
+  glow: {
+    position:     'absolute',
+    borderRadius: 999,
+    opacity:      0.18,
   },
-  logoEmoji: { fontSize: 32 },
-  appName:   { fontSize: 28, fontWeight: '900', color: '#fff', letterSpacing: -0.5 },
-  tagline:   { fontSize: 13, color: Colors.text.muted },
+
+  gridOverlay: {
+    position:        'absolute',
+    inset:           0,
+    backgroundColor: 'transparent',
+  },
+
+  brand:     { alignItems: 'center', gap: 8, paddingVertical: 16 },
+  logoWrap:  {
+    width: 64, height: 64, borderRadius: 20,
+    backgroundColor: '#4f46e5',
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#6366f1', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5, shadowRadius: 16, elevation: 12,
+  },
+  appName:  { fontSize: 26, fontWeight: '900', color: '#fff', letterSpacing: -0.5 },
+  tagline:  { fontSize: 13, color: 'rgba(255,255,255,0.45)', textAlign: 'center' },
+
+  statCard: {
+    flexDirection:    'row',
+    backgroundColor:  'rgba(255,255,255,0.05)',
+    borderWidth:      1,
+    borderColor:      'rgba(255,255,255,0.08)',
+    borderRadius:     20,
+    padding:          16,
+    justifyContent:   'space-around',
+    alignItems:       'center',
+  },
+  statItem:    { alignItems: 'center', flex: 1 },
+  statValue:   { fontSize: 18, fontWeight: '800', color: '#fff' },
+  statLabel:   { fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 2, fontWeight: '600' },
+  statDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.08)' },
+
   card: {
-    backgroundColor: Colors.bg.card,
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius:    24,
     borderWidth:     1,
-    borderColor:     Colors.border.DEFAULT,
+    borderColor:     'rgba(255,255,255,0.08)',
     padding:         24,
     gap:             16,
   },
   cardTitle:  { fontSize: 22, fontWeight: '800', color: '#fff' },
-  cardSub:    { fontSize: 13, color: Colors.text.muted, marginTop: -8 },
+  cardSub:    { fontSize: 13, color: 'rgba(255,255,255,0.45)', marginTop: -8 },
   fields:     { gap: 14 },
   forgotWrap: { alignSelf: 'flex-end' },
   forgot:     { fontSize: 12, color: Colors.accent.indigo, fontWeight: '600' },
 
-  divider: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    gap:            10,
-    marginVertical: 4,
-  },
-  dividerLine: {
-    flex:            1,
-    height:          1,
-    backgroundColor: Colors.border.DEFAULT,
-  },
-  dividerText: {
-    fontSize:      12,
-    color:         Colors.text.muted,
-    fontWeight:    '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-
-  googleBtn: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    justifyContent: 'center',
-    gap:            12,
-    height:         52,
-    borderRadius:   14,
-    backgroundColor: '#ffffff0f',
-    borderWidth:    1,
-    borderColor:    '#ffffff20',
-  },
-  googleIconWrap: {
-    width:          28,
-    height:         28,
-    borderRadius:   14,
-    backgroundColor: '#fff',
-    alignItems:     'center',
-    justifyContent: 'center',
-  },
-  googleG: {
-    fontSize:   16,
-    fontWeight: '800',
-    color:      '#4285F4',
-    lineHeight: 20,
-  },
-  googleLabel: {
-    fontSize:   15,
-    fontWeight: '700',
-    color:      '#fff',
-  },
-
   footer:     { flexDirection: 'row', justifyContent: 'center', paddingVertical: 8 },
-  footerText: { color: Colors.text.muted, fontSize: 13 },
+  footerText: { color: 'rgba(255,255,255,0.4)', fontSize: 13 },
   footerLink: { fontSize: 13, fontWeight: '700' },
 });

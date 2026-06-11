@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import Toast from 'react-native-toast-message';
+import { notify } from '@/lib/toast';
 import { Feather } from '@expo/vector-icons';
 import api from '@/lib/api';
 import { Input }  from '@/components/ui/Input';
@@ -24,10 +24,10 @@ export default function ForgotPasswordScreen() {
   const onSubmit = async (data: Form) => {
     try {
       await api.post('/auth/request-password-reset', { email: data.email });
-      Toast.show({ type: 'success', text1: 'Check your inbox', text2: 'Password reset instructions sent.' });
+      notify.resetEmailSent();
       router.back();
     } catch {
-      Toast.show({ type: 'error', text1: 'Failed to send reset email' });
+      notify.resetFailed();
     }
   };
 

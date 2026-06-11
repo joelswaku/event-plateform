@@ -22,10 +22,10 @@ export const env = {
 
   /* Brevo — SMS + WhatsApp via REST API */
   brevoApiKey:    process.env.BREVO_API_KEY    || "",  // xkeysib-... key
-  brevoSmsSender: process.env.BREVO_SMS_SENDER || "Eventos",
+  brevoSmsSender: process.env.BREVO_SMS_SENDER || "LiteEvent",
 
-  mailFromEmail: process.env.MAIL_FROM_EMAIL || "noreply@eventos.app",
-  mailFromName:  process.env.MAIL_FROM_NAME  || "Eventos",
+  mailFromEmail: process.env.MAIL_FROM_EMAIL || "noreply@liteevent.app",
+  mailFromName:  process.env.MAIL_FROM_NAME  || "LiteEvent",
 
   /* Legacy SMTP fallback (used when BREVO_SMTP_KEY is not set) */
   smtpHost: process.env.SMTP_HOST,
@@ -38,4 +38,6 @@ export const env = {
   googleRedirectUri:   process.env.GOOGLE_REDIRECT_URI,
   stripeSecretKey:     process.env.STRIPE_SECRET_KEY,
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
 };

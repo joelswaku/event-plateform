@@ -15,6 +15,10 @@ import webhookRoutes from "./routes/webhooks.routes.js";
 
 import { requestLogger } from "./middleware/logger.middleware.js";
 import publicPagesRoutes from "./routes/public-pages.routes.js";
+import { startBroadcastScheduler } from "./services/broadcast.service.js";
+
+// Start the broadcast scheduler (fires due scheduled notifications every 60 s)
+startBroadcastScheduler();
 
 
 
@@ -182,11 +186,18 @@ app.get("/", (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-app.use((req, res) => {
+// Unknown API routes → JSON 404
+app.use("/api", (req, res) => {
   res.status(404).json({
     success: false,
     message: `Route not found: ${req.method} ${req.originalUrl}`,
   });
+});
+
+// Anything else (e.g. /dashboard, /login hit on wrong port) → redirect to frontend
+app.use((req, res) => {
+  const frontendUrl = env.frontendUrl || "http://localhost:3000";
+  res.redirect(302, frontendUrl + req.originalUrl);
 });
 
 /*

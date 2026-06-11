@@ -12,8 +12,8 @@
 //  *   BREVO_SMTP_KEY    – your Brevo SMTP key  (xsmtpsib-...)
 //  *   BREVO_API_KEY     – your Brevo REST API key (xkeysib-...) for SMS/WhatsApp
 //  *   MAIL_FROM_EMAIL   – verified sender email address
-//  *   MAIL_FROM_NAME    – display name (default: "Eventos")
-//  *   BREVO_SMS_SENDER  – SMS sender name, max 11 chars (default: "Eventos")
+//  *   MAIL_FROM_NAME    – display name (default: "LiteEvent")
+//  *   BREVO_SMS_SENDER  – SMS sender name, max 11 chars (default: "LiteEvent")
 //  */
 
 // import nodemailer                from "nodemailer";
@@ -54,7 +54,7 @@
 //   }
 
 //   const info = await transporter.sendMail({
-//     from:    `"${env.mailFromName || "Eventos"}" <${env.mailFromEmail}>`,
+//     from:    `"${env.mailFromName || "LiteEvent"}" <${env.mailFromEmail}>`,
 //     to:      name ? `"${name}" <${to}>` : to,
 //     subject,
 //     html,
@@ -93,7 +93,7 @@
 
 //   try {
 //     const result = await client.transactionalSms.sendTransacSms({
-//       sender:    (env.brevoSmsSender || "Eventos").slice(0, 11),
+//       sender:    (env.brevoSmsSender || "LiteEvent").slice(0, 11),
 //       recipient: to.replace(/\s+/g, ""),
 //       content:   message,
 //       type:      "transactional",
@@ -163,10 +163,10 @@
  *
  * # Sender configuration
  * MAIL_FROM_EMAIL=no-reply@yourdomain.com
- * MAIL_FROM_NAME=Eventos
+ * MAIL_FROM_NAME=LiteEvent
  *
  * # SMS sender (max 11 characters)
- * BREVO_SMS_SENDER=Eventos
+ * BREVO_SMS_SENDER=LiteEvent
  *
  * # WhatsApp approved sender number (no + sign required, but allowed)
  * BREVO_WHATSAPP_SENDER=14155552671
@@ -266,7 +266,7 @@ export async function sendBrevoEmail({
     return { messageId: null };
   }
 
-  const fromName = env.mailFromName || "Eventos";
+  const fromName = env.mailFromName || "LiteEvent";
   const fromEmail = env.mailFromEmail;
 
   if (!fromEmail) {
@@ -348,7 +348,7 @@ export async function sendBrevoSms({ to, message }) {
   }
 
   const recipient = normalizePhone(to);
-  const sender = (env.brevoSmsSender || "Eventos").slice(0, 11);
+  const sender = (env.brevoSmsSender || "LiteEvent").slice(0, 11);
 
   try {
     const result =

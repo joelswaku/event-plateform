@@ -5,6 +5,7 @@ import debounce from "lodash.debounce";
 import { XMarkIcon, PlusIcon, ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/outline";
 import { useBuilderStore } from "@/store/builder.store";
 import ImageUploader from "./ImageUploader";
+import ConfirmModal, { useConfirm } from "@/components/ui/confirm-modal";
 
 const AUTOSAVE_DELAY = 800;
 
@@ -506,6 +507,7 @@ function SpeakersPanel({ eventId, speakers, onCreate, onUpdate, onDelete }) {
   const [expandedId, setExpandedId] = useState(null);
   const [drafts,     setDrafts]     = useState({});   // id → partial edits
   const [newForm,    setNewForm]    = useState(null);  // null = hidden
+  const { openConfirm, confirmProps } = useConfirm();
 
   const getDraft = (s) => ({ ...s, ...(drafts[s.id] ?? {}) });
 
@@ -541,10 +543,17 @@ function SpeakersPanel({ eventId, speakers, onCreate, onUpdate, onDelete }) {
     setSaving(false);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Remove this speaker?")) return;
-    await onDelete(eventId, id);
-    setExpandedId((p) => p === id ? null : p);
+  const handleDelete = (id) => {
+    openConfirm({
+      title: "Remove speaker?",
+      description: "This speaker will be removed from the event page.",
+      confirmText: "Remove",
+      variant: "danger",
+      onConfirm: async () => {
+        await onDelete(eventId, id);
+        setExpandedId((p) => p === id ? null : p);
+      },
+    });
   };
 
   return (
@@ -690,6 +699,7 @@ function SpeakersPanel({ eventId, speakers, onCreate, onUpdate, onDelete }) {
           Add Speaker
         </button>
       )}
+      <ConfirmModal {...confirmProps} />
     </div>
   );
 }
@@ -703,6 +713,7 @@ function SchedulePanel({ eventId, items, onCreate, onUpdate, onDelete }) {
   const [expandedId, setExpandedId] = useState(null);
   const [drafts,     setDrafts]     = useState({});
   const [newForm,    setNewForm]    = useState(null);
+  const { openConfirm, confirmProps } = useConfirm();
 
   const getDraft = (item) => ({ ...item, ...(drafts[item.id] ?? {}) });
 
@@ -740,10 +751,17 @@ function SchedulePanel({ eventId, items, onCreate, onUpdate, onDelete }) {
     setSaving(false);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Remove this schedule item?")) return;
-    await onDelete(eventId, id);
-    setExpandedId((p) => p === id ? null : p);
+  const handleDelete = (id) => {
+    openConfirm({
+      title: "Remove schedule item?",
+      description: "This item will be deleted from the schedule.",
+      confirmText: "Remove",
+      variant: "danger",
+      onConfirm: async () => {
+        await onDelete(eventId, id);
+        setExpandedId((p) => p === id ? null : p);
+      },
+    });
   };
 
   const fmtTime = (iso) => {
@@ -914,6 +932,7 @@ function SchedulePanel({ eventId, items, onCreate, onUpdate, onDelete }) {
           Add Item
         </button>
       )}
+      <ConfirmModal {...confirmProps} />
     </div>
   );
 }

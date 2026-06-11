@@ -205,7 +205,7 @@ export default function InvitationPage() {
             </button>
           </div>
 
-          <div className="px-8 pb-6 text-center text-xs text-gray-400">Powered by Eventos</div>
+          <div className="px-8 pb-6 text-center text-xs text-gray-400">Powered by LiteEvent</div>
         </div>
       </div>
     );
@@ -347,7 +347,7 @@ export default function InvitationPage() {
 
         </div>
 
-        <div className="px-8 pb-6 text-center text-xs text-gray-400">Powered by Eventos</div>
+        <div className="px-8 pb-6 text-center text-xs text-gray-400">Powered by LiteEvent</div>
       </div>
     </div>
   );

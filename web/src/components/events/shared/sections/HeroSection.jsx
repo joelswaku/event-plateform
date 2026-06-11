@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Zap, QrCode, Ticket, CheckCircle, CreditCard, Shield, Timer, Heart, ArrowRight, Loader2 } from "lucide-react";
 
 const EASE = [0.22, 1, 0.36, 1];
 const API  = process.env.NEXT_PUBLIC_API_URL;
 
-const DONATION_PRESETS = [10, 25, 50, 100];
+const DONATION_PRESETS_DEFAULT = [5, 10, 25];
 
 const DEFAULT_BG = {
   CLASSIC: "linear-gradient(160deg, #1a1611 0%, #2d2416 50%, #1a1611 100%)",
@@ -154,48 +154,255 @@ function TicketBlock({
     );
   }
 
+  // ── Rotating marketing phrases ─────────────────────────────────────────────
+  const phrases = [
+    "Your next great experience.",
+    "Limited seats — don't miss out.",
+    "Secure. Fast. Instant e-ticket.",
+    "Join the crowd. Grab your spot.",
+    "Tonight starts with your ticket.",
+  ];
+  const [phraseIdx, setPhraseIdx] = useState(0);
+  const [phraseVisible, setPhraseVisible] = useState(true);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setPhraseVisible(false);
+      setTimeout(() => {
+        setPhraseIdx(i => (i + 1) % phrases.length);
+        setPhraseVisible(true);
+      }, 400);
+    }, 3200);
+    return () => clearInterval(id);
+  }, []);
+
+  const features = [
+    { emoji: "✉️", text: "Instant e-ticket by email" },
+    { emoji: "📲", text: "QR code check-in at door" },
+    { emoji: "🔒", text: "Encrypted Stripe checkout" },
+    { emoji: "↩️", text: "Refund policy by organizer" },
+  ];
+
   // ── Public ticket card ──────────────────────────────────────────────────────
   return (
     <>
       <style>{`
-        @keyframes _tb_pulse  { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.45;transform:scale(1.55)} }
-        @keyframes _tb_scan   { 0%{top:-2px} 100%{top:102%} }
-        @keyframes _tb_glow   { 0%,100%{opacity:.55} 50%{opacity:.95} }
-        @keyframes _tb_flip   { 0%{transform:rotateY(0deg)} 50%{transform:rotateY(-8deg)} 100%{transform:rotateY(0deg)} }
-        @keyframes _tb_cd_pop { 0%{transform:scaleY(1)} 50%{transform:scaleY(.88)} 100%{transform:scaleY(1)} }
+        @keyframes _tb_pulse   { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.45;transform:scale(1.55)} }
+        @keyframes _tb_scan    { 0%{top:-2px} 100%{top:102%} }
+        @keyframes _tb_glow    { 0%,100%{opacity:.55} 50%{opacity:.95} }
+        @keyframes _tb_flip    { 0%{transform:rotateY(0deg)} 50%{transform:rotateY(-8deg)} 100%{transform:rotateY(0deg)} }
+        @keyframes _tb_cd_pop  { 0%{transform:scaleY(1)} 50%{transform:scaleY(.88)} 100%{transform:scaleY(1)} }
+        @keyframes _tb_float   { 0%,100%{transform:translateY(0) rotate(0deg)} 33%{transform:translateY(-10px) rotate(1deg)} 66%{transform:translateY(-4px) rotate(-1deg)} }
+        @keyframes _tb_float2  { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-14px) scale(1.06)} }
+        @keyframes _tb_shimmer { 0%{background-position:200% center} 100%{background-position:-200% center} }
+        @keyframes _tb_dot     { 0%,100%{opacity:.18} 50%{opacity:.55} }
+        @keyframes _tb_gold_pulse { 0%,100%{opacity:.55;transform:scale(1)} 50%{opacity:.85;transform:scale(1.05)} }
+        @keyframes _tb_in_up   { from{opacity:0;transform:translateY(20px) scale(0.96)} to{opacity:1;transform:translateY(0) scale(1)} }
+        @keyframes _tb_starfield { 0%,100%{opacity:.04} 50%{opacity:.18} }
+        @media (max-width:768px){
+          ._tb_mktcol { display:none !important; animation:none !important; }
+          ._tb_mktcol * { animation:none !important; transition:none !important; }
+          ._tb_donwrap { border-radius:16px !important; }
+          ._tb_donform { padding:18px 16px 20px !important; gap:12px !important; }
+          ._tb_donpresets button { padding:12px 4px !important; font-size:1.1rem !important; }
+          ._tb_donfreq button { padding:9px 0 !important; font-size:10px !important; }
+        }
       `}</style>
 
+      {/* ── OUTER MARKETING SHELL ─────────────────────────────────────────── */}
       <motion.div
-        initial={{ opacity: 0, y: 28, scale: 0.96 }}
+        initial={{ opacity: 0, y: 32, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.85, ease: EASE, delay }}
+        transition={{ duration: 0.9, ease: EASE, delay }}
         className={centered ? "mx-auto" : ""}
-        style={{ width: "100%", maxWidth: 500 }}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
+        style={{
+          width: "100%", maxWidth: 860,
+          borderRadius: 26,
+          border: "1px solid rgba(201,169,110,0.18)",
+          background: "rgba(8,6,4,0.88)",
+          backdropFilter: "blur(40px) saturate(160%)",
+          boxShadow: "0 40px 100px rgba(0,0,0,0.75), 0 0 0 1px rgba(201,169,110,0.06) inset, 0 0 80px -20px rgba(201,169,110,0.18)",
+          display: "flex",
+          flexDirection: "row",
+          overflow: "hidden",
+          position: "relative",
+        }}
       >
-        {/* â•â•â•â•â•â•â•â•â•â•â• OUTER CARD â•â•â•â•â•â•â•â•â•â•â• */}
+        {/* Subtle ambient glow */}
         <div style={{
-          position:       "relative",
-          borderRadius:   22,
-          overflow:       "hidden",
-          background:     isSoldOut
-            ? "rgba(18,18,26,0.82)"
-            : "rgba(12,12,20,0.86)",
-          border:         `1px solid ${isSoldOut
-            ? "rgba(255,255,255,0.07)"
-            : hovered
-              ? "rgba(255,255,255,0.2)"
-              : "rgba(255,255,255,0.12)"}`,
-          backdropFilter: "blur(28px) saturate(160%)",
-          boxShadow:      isSoldOut
-            ? "none"
-            : hovered
-              ? "0 40px 80px rgba(0,0,0,0.75), 0 0 0 1px rgba(255,255,255,0.12) inset, 0 0 70px -20px var(--t-accent,#6366f1)"
-              : "0 20px 52px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05) inset",
-          transition:     "all 0.35s ease",
-          transform:      hovered && !isSoldOut ? "translateY(-5px)" : "none",
+          position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
+          background: "radial-gradient(ellipse 60% 55% at 25% 50%, color-mix(in srgb, var(--t-accent,#6366f1) 12%, transparent), transparent)",
+        }} />
+
+        {/* ── LEFT: marketing panel (hidden on mobile via CSS) ── */}
+        <div className="_tb_mktcol" style={{
+          position:      "relative",
+          zIndex:        1,
+          flex:          "0 0 290px",
+          display:       "flex",
+          flexDirection: "column",
+          justifyContent:"center",
+          padding:       "36px 28px",
+          borderRight:   "1px solid rgba(201,169,110,0.12)",
+          gap:           22,
+          overflow:      "hidden",
+          background:    "linear-gradient(155deg, #080502 0%, #120c04 25%, #0e0904 50%, #150f06 75%, #090601 100%)",
         }}>
+          {/* Gold radial glow — top left */}
+          <div style={{
+            position: "absolute", inset: 0, pointerEvents: "none",
+            background: "radial-gradient(ellipse 75% 55% at 18% 28%, rgba(201,169,110,0.20), transparent)",
+          }} />
+          {/* Amber glow — bottom right */}
+          <div style={{
+            position: "absolute", inset: 0, pointerEvents: "none",
+            background: "radial-gradient(ellipse 50% 40% at 88% 82%, rgba(180,100,20,0.14), transparent)",
+          }} />
+          {/* Cool highlight — mid */}
+          <div style={{
+            position: "absolute", inset: 0, pointerEvents: "none",
+            background: "radial-gradient(ellipse 40% 30% at 60% 10%, rgba(255,220,120,0.06), transparent)",
+          }} />
+
+          {/* Floating orbs — gold / amber / warm */}
+          {[
+            { x: 12, y: 12,  size: 100, color: "#c9a96e", dur: 8.5,  delay2: 0,   anim: "_tb_float2" },
+            { x: 78, y: 55,  size: 65,  color: "#b45309", dur: 11,   delay2: 1.8, anim: "_tb_float"  },
+            { x: 45, y: 82,  size: 45,  color: "#d97706", dur: 7.2,  delay2: 0.9, anim: "_tb_float2" },
+            { x: 88, y: 8,   size: 35,  color: "#fbbf24", dur: 9.4,  delay2: 2.2, anim: "_tb_float"  },
+          ].map(({ x, y, size, color, dur, delay2, anim }, i) => (
+            <div key={i} style={{
+              position: "absolute", left: `${x}%`, top: `${y}%`,
+              width: size, height: size, borderRadius: "50%",
+              background: color, filter: "blur(34px)", opacity: 0.16,
+              animation: `${anim} ${dur}s ease-in-out infinite`,
+              animationDelay: `${delay2}s`,
+              pointerEvents: "none",
+            }} />
+          ))}
+
+          {/* Star / dot grid — animated twinkle */}
+          <div style={{
+            position: "absolute", inset: 0, pointerEvents: "none",
+            backgroundImage: "radial-gradient(circle, rgba(201,169,110,0.18) 1px, transparent 1px)",
+            backgroundSize: "20px 20px",
+            animation: "_tb_starfield 4s ease-in-out infinite",
+          }} />
+
+          {/* Live badge */}
+          <motion.div
+            initial={{ opacity: 0, y: -12, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0,   scale: 1   }}
+            transition={{ delay: delay + 0.08, duration: 0.7, ease: EASE }}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 7,
+              padding: "5px 13px", borderRadius: 99, width: "fit-content",
+              background: "rgba(201,169,110,0.10)",
+              border: "1px solid rgba(201,169,110,0.30)",
+              backdropFilter: "blur(10px)",
+              fontSize: 9, fontWeight: 800, textTransform: "uppercase",
+              letterSpacing: "0.22em", color: "rgba(201,169,110,0.90)",
+              position: "relative", zIndex: 1,
+              boxShadow: "0 2px 12px rgba(201,169,110,0.15)",
+            }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
+              background: isSoldOut ? "#ef4444" : "#c9a96e",
+              boxShadow: `0 0 8px ${isSoldOut ? "#ef4444" : "rgba(201,169,110,0.8)"}`,
+              animation: "_tb_pulse 1.8s ease-in-out infinite",
+              display: "inline-block",
+            }} />
+            {isSoldOut ? "Event Full" : "Live · Tickets Open"}
+          </motion.div>
+
+          {/* Rotating headline — Playfair Display with gold gradient */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0  }}
+            transition={{ delay: delay + 0.22, duration: 0.8, ease: EASE }}
+            style={{ minHeight: 88, position: "relative", zIndex: 1 }}
+          >
+            <p style={{
+              fontFamily:    "'Playfair Display', 'IM Fell English', Georgia, serif",
+              fontSize:      "clamp(21px, 3vw, 28px)",
+              fontWeight:    700,
+              fontStyle:     "italic",
+              lineHeight:    1.22,
+              letterSpacing: "-0.01em",
+              background:    "linear-gradient(135deg, #fff 20%, #e8d5a3 50%, #c9a96e 80%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor:  "transparent",
+              backgroundClip: "text",
+              transition:    "opacity 0.55s cubic-bezier(0.4,0,0.2,1), transform 0.55s cubic-bezier(0.4,0,0.2,1)",
+              opacity:       phraseVisible ? 1 : 0,
+              transform:     phraseVisible ? "translateY(0) scale(1)" : "translateY(12px) scale(0.96)",
+              textShadow:    "none",
+            }}>
+              {phrases[phraseIdx]}
+            </p>
+            {/* Gold underline accent */}
+            <div style={{
+              marginTop: 10, width: phraseVisible ? 48 : 0, height: 1.5,
+              background: "linear-gradient(90deg, #c9a96e, transparent)",
+              transition: "width 0.6s cubic-bezier(0.4,0,0.2,1) 0.1s",
+              borderRadius: 2,
+            }} />
+          </motion.div>
+
+          {/* Feature list */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 9, position: "relative", zIndex: 1 }}>
+            {features.map(({ emoji, text }, i) => (
+              <motion.div
+                key={text}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0  }}
+                transition={{ delay: delay + 0.38 + i * 0.09, duration: 0.6, ease: EASE }}
+                style={{ display: "flex", alignItems: "center", gap: 10 }}
+              >
+                <span style={{
+                  width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "rgba(201,169,110,0.10)",
+                  border: "1px solid rgba(201,169,110,0.22)",
+                  backdropFilter: "blur(6px)",
+                  fontSize: 13,
+                  boxShadow: "0 2px 10px rgba(201,169,110,0.12), inset 0 1px 0 rgba(255,255,255,0.05)",
+                }}>
+                  {emoji}
+                </span>
+                <span style={{
+                  fontSize: 11.5, fontWeight: 500,
+                  color: "rgba(255,255,255,0.55)",
+                  lineHeight: 1.4, letterSpacing: "0.01em",
+                }}>
+                  {text}
+                </span>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Animated gold shimmer border at bottom */}
+          <div style={{
+            position: "absolute", bottom: 0, left: 0, right: 0, height: 2,
+            background: "linear-gradient(90deg, transparent 0%, #c9a96e 40%, #fbbf24 60%, transparent 100%)",
+            backgroundSize: "200% 100%",
+            animation: "_tb_shimmer 3.2s linear infinite",
+          }} />
+
+          {/* Vertical edge fade */}
+          <div style={{
+            position: "absolute", top: 0, right: 0, bottom: 0, width: 1,
+            background: "linear-gradient(to bottom, transparent 0%, rgba(201,169,110,0.12) 50%, transparent 100%)",
+          }} />
+        </div>
+
+        {/* ── RIGHT: ticket card (existing) ── */}
+        <div
+          style={{ flex: 1, position: "relative", zIndex: 1 }}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+        >
+        {/* ── TICKET CARD (inner) ── */}
+        <div style={{ position: "relative", overflow: "hidden" }}>
 
           {/* Scan line */}
           {!isSoldOut && (
@@ -285,23 +492,26 @@ function TicketBlock({
             padding:    "20px 22px 16px",
           }}>
             {/* Price */}
-            <div>
-              {!isSoldOut && (
+            <div style={{ minWidth: 0 }}>
+              {!isSoldOut && priceLabel && priceLabel !== "Free entry" && (
                 <p style={{
                   fontSize: 10, fontWeight: 700,
                   textTransform: "uppercase", letterSpacing: "0.22em",
                   color: "rgba(255,255,255,0.35)",
-                  marginBottom: 5,
+                  marginBottom: 4,
                 }}>
-                  Starting from
+                  Tickets
                 </p>
               )}
               <p style={{
-                fontSize:      "clamp(34px, 9vw, 54px)",
+                fontSize:      "clamp(26px, 6vw, 42px)",
                 fontWeight:    900,
-                letterSpacing: "-0.04em",
+                letterSpacing: "-0.03em",
                 lineHeight:    1,
                 color:         isSoldOut ? "rgba(255,255,255,0.18)" : "#fff",
+                whiteSpace:    "nowrap",
+                overflow:      "hidden",
+                textOverflow:  "ellipsis",
               }}>
                 {isSoldOut ? "Sold Out" : (priceLabel || "Free")}
               </p>
@@ -547,7 +757,9 @@ function TicketBlock({
           </div>
 
         </div>
-      </motion.div>
+
+        </div>{/* end right panel */}
+      </motion.div>{/* end outer shell */}
     </>
   );
 }
@@ -557,163 +769,636 @@ function TicketBlock({
 // ─── RSVP CTA ─────────────────────────────────────────────────────────────────
 
 function RsvpBlock({ ctaText, isEditor, delay, centered, onRsvp }) {
+  const [isMobile,    setIsMobile]    = useState(false);
+  const [phraseIdx,   setPhraseIdx]   = useState(0);
+  const [phraseVisible, setPhraseVisible] = useState(true);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  const phrases = [
+    "Your seat is waiting.",
+    "Be there — reserve your spot.",
+    "Events are better together.",
+    "Don't miss a moment.",
+    "Save your place today.",
+  ];
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setPhraseVisible(false);
+      setTimeout(() => { setPhraseIdx(i => (i + 1) % phrases.length); setPhraseVisible(true); }, 400);
+    }, 3200);
+    return () => clearInterval(id);
+  }, []);
+
+  const features = [
+    { emoji: "✅", text: "Instant confirmation by email" },
+    { emoji: "📅", text: "Add to your calendar" },
+    { emoji: "🔔", text: "Reminders before the event" },
+    { emoji: "💌", text: "Updates from the organizer" },
+  ];
+
+  const G1 = "#c9a96e";
+  const G3 = "#e8d5a3";
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, ease: EASE, delay }}
-      className={`flex flex-col gap-3 ${centered ? "items-center" : "items-start"}`}
+      initial={{ opacity: 0, y: 20, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0,  scale: 1    }}
+      transition={{ duration: 0.85, ease: EASE, delay }}
+      className={centered ? "mx-auto" : ""}
+      style={{ width: "100%", maxWidth: 680 }}
     >
-      <button
-        onClick={onRsvp}
-        className="text-sm font-medium uppercase tracking-[0.25em] transition active:scale-95 px-10 py-3.5"
-        style={ctaBtnStyle()}
-        onMouseEnter={onCtaEnter}
-        onMouseLeave={onCtaLeave}
-      >
-        {ctaText || "RSVP Now"}
-      </button>
+      <div className="_tb_donwrap" style={{
+        display: "flex", flexDirection: "row",
+        borderRadius: 20, overflow: "hidden",
+        border: "1px solid rgba(201,169,110,0.18)",
+        boxShadow: "0 28px 70px rgba(0,0,0,0.70), 0 0 60px -20px rgba(201,169,110,0.20)",
+        background: "rgba(8,6,4,0.90)",
+        backdropFilter: "blur(40px) saturate(180%)",
+        position: "relative",
+      }}>
+
+        {/* ── LEFT: marketing panel — desktop only ─────────────── */}
+        {!isMobile && (
+          <div className="_tb_mktcol" style={{
+            flex: "0 0 220px",
+            display: "flex", flexDirection: "column", justifyContent: "center",
+            padding: "28px 22px", gap: 18, overflow: "hidden", position: "relative",
+            borderRight: "1px solid rgba(201,169,110,0.12)",
+            background: "linear-gradient(155deg,#080502 0%,#120c04 30%,#0e0904 60%,#090601 100%)",
+          }}>
+            {/* Gold glow layers */}
+            <div style={{ position:"absolute", inset:0, pointerEvents:"none",
+              background:"radial-gradient(ellipse 80% 55% at 22% 28%,rgba(201,169,110,0.18),transparent)" }} />
+            <div style={{ position:"absolute", inset:0, pointerEvents:"none",
+              background:"radial-gradient(ellipse 50% 40% at 85% 82%,rgba(180,83,9,0.14),transparent)" }} />
+
+            {/* Floating orbs */}
+            {[
+              { x:12, y:10, size:55, c:"rgba(201,169,110,0.22)", dur:7.5, anim:"_tb_float2" },
+              { x:74, y:52, size:38, c:"rgba(180,83,9,0.18)",    dur:9.4, anim:"_tb_float"  },
+              { x:42, y:84, size:28, c:"rgba(251,191,36,0.16)",  dur:6.2, anim:"_tb_float2" },
+            ].map(({ x, y, size, c, dur, anim }, i) => (
+              <div key={i} style={{
+                position:"absolute", left:`${x}%`, top:`${y}%`,
+                width:size, height:size, borderRadius:"50%",
+                background:c, filter:"blur(22px)",
+                animation:`${anim} ${dur}s ease-in-out infinite`,
+                animationDelay:`${i*0.9}s`, pointerEvents:"none",
+              }} />
+            ))}
+
+            {/* Dot grid */}
+            <div style={{
+              position:"absolute", inset:0, pointerEvents:"none",
+              backgroundImage:"radial-gradient(circle,rgba(201,169,110,0.16) 1px,transparent 1px)",
+              backgroundSize:"18px 18px",
+              animation:"_tb_starfield 4s ease-in-out infinite",
+            }} />
+
+            {/* Badge */}
+            <motion.div
+              initial={{ opacity:0, y:-10, scale:0.9 }} animate={{ opacity:1, y:0, scale:1 }}
+              transition={{ delay:delay+0.08, duration:0.7, ease:EASE }}
+              style={{
+                display:"inline-flex", alignItems:"center", gap:6, position:"relative", zIndex:1,
+                padding:"4px 12px", borderRadius:99, width:"fit-content",
+                background:"rgba(201,169,110,0.10)", border:"1px solid rgba(201,169,110,0.30)",
+                backdropFilter:"blur(8px)", boxShadow:"0 2px 10px rgba(201,169,110,0.12)",
+              }}>
+              <span style={{
+                width:5, height:5, borderRadius:"50%", background:G1, flexShrink:0,
+                boxShadow:"0 0 6px rgba(201,169,110,0.8)", animation:"_tb_pulse 1.8s ease-in-out infinite",
+              }} />
+              <span style={{ fontSize:8, fontWeight:800, textTransform:"uppercase", letterSpacing:"0.2em", color:"rgba(201,169,110,0.85)" }}>
+                Free to attend
+              </span>
+            </motion.div>
+
+            {/* Rotating phrase */}
+            <motion.div
+              initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }}
+              transition={{ delay:delay+0.25, duration:0.7, ease:EASE }}
+              style={{ minHeight:80, position:"relative", zIndex:1 }}
+            >
+              <p style={{
+                fontFamily:"'Playfair Display','IM Fell English',Georgia,serif",
+                fontSize:"clamp(14px,1.9vw,16px)", fontWeight:700, fontStyle:"italic",
+                lineHeight:1.4, letterSpacing:"-0.01em",
+                background:"linear-gradient(135deg,#fff 25%,#e8d5a3 55%,#c9a96e 85%)",
+                WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
+                backgroundClip:"text",
+                transition:"opacity 0.55s cubic-bezier(0.4,0,0.2,1), transform 0.55s cubic-bezier(0.4,0,0.2,1)",
+                opacity:phraseVisible ? 1 : 0,
+                transform:phraseVisible ? "translateY(0) scale(1)" : "translateY(10px) scale(0.96)",
+              }}>
+                {phrases[phraseIdx]}
+              </p>
+              <div style={{
+                marginTop:8, width: phraseVisible ? 44 : 0, height:1.5,
+                background:"linear-gradient(90deg,#c9a96e,transparent)",
+                transition:"width 0.6s cubic-bezier(0.4,0,0.2,1) 0.1s", borderRadius:2,
+              }} />
+            </motion.div>
+
+            {/* Feature list */}
+            <div style={{ display:"flex", flexDirection:"column", gap:8, position:"relative", zIndex:1 }}>
+              {features.map(({ emoji, text }, i) => (
+                <motion.div
+                  key={text}
+                  initial={{ opacity:0, x:-16 }} animate={{ opacity:1, x:0 }}
+                  transition={{ delay:delay+0.38+i*0.09, duration:0.6, ease:EASE }}
+                  style={{ display:"flex", alignItems:"center", gap:10 }}
+                >
+                  <span style={{
+                    width:28, height:28, borderRadius:8, flexShrink:0,
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    background:"rgba(201,169,110,0.10)",
+                    border:"1px solid rgba(201,169,110,0.22)",
+                    backdropFilter:"blur(6px)", fontSize:12,
+                    boxShadow:"0 2px 10px rgba(201,169,110,0.12)",
+                  }}>{emoji}</span>
+                  <span style={{ fontSize:11, fontWeight:500, color:"rgba(255,255,255,0.52)", lineHeight:1.4 }}>
+                    {text}
+                  </span>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Shimmer bottom */}
+            <div style={{
+              position:"absolute", bottom:0, left:0, right:0, height:2,
+              background:`linear-gradient(90deg,transparent,${G1},${G3},transparent)`,
+              backgroundSize:"200% 100%", animation:"_tb_shimmer 2.8s linear infinite",
+            }} />
+          </div>
+        )}
+
+        {/* ── RIGHT: RSVP action (logic unchanged) ─────────────── */}
+        <div style={{ flex:1, overflow:"hidden" }}>
+          {/* Gold accent bar */}
+          <div style={{
+            height:4,
+            background:"linear-gradient(90deg,#c9a96e,#d4a853,#fbbf24,#c9a96e)",
+            backgroundSize:"200% 100%",
+            animation:"_tb_shimmer 3.2s linear infinite",
+          }} />
+
+          <div className="_tb_donform" style={{
+            display:"flex", flexDirection:"column", alignItems:"stretch",
+            gap:16, padding:"24px 24px 26px",
+          }}>
+            {/* Header */}
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <div style={{
+                width:38, height:38, borderRadius:10, flexShrink:0,
+                display:"flex", alignItems:"center", justifyContent:"center",
+                background:"rgba(201,169,110,0.12)", border:"1px solid rgba(201,169,110,0.28)",
+              }}>
+                <CheckCircle size={17} style={{ color:G1 }} />
+              </div>
+              <div>
+                <p style={{ fontSize:9, fontWeight:800, textTransform:"uppercase", letterSpacing:"0.2em", color:"rgba(201,169,110,0.75)" }}>
+                  Reserve your spot
+                </p>
+                <p style={{ fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.85)", lineHeight:1.3 }}>
+                  RSVP is free — confirm your attendance
+                </p>
+              </div>
+            </div>
+
+            {/* ── Original RSVP button — logic untouched ── */}
+            <button
+              onClick={onRsvp}
+              disabled={isEditor}
+              className="text-sm font-medium uppercase tracking-[0.25em] transition active:scale-95"
+              style={{
+                ...ctaBtnStyle(),
+                width:"100%", padding:"14px 0", borderRadius:12,
+                fontSize:12, fontWeight:900, letterSpacing:"0.08em",
+              }}
+              onMouseEnter={onCtaEnter}
+              onMouseLeave={onCtaLeave}
+            >
+              {ctaText || "RSVP Now"}
+            </button>
+
+            <p style={{
+              textAlign:"center", fontSize:9, fontWeight:600,
+              color:"rgba(255,255,255,0.20)", textTransform:"uppercase", letterSpacing:"0.12em",
+              display:"flex", alignItems:"center", justifyContent:"center", gap:5,
+            }}>
+              <Lock size={8} strokeWidth={2.5} /> Free · No payment required
+            </p>
+          </div>
+        </div>
+      </div>
     </motion.div>
   );
 }
 
 // ─── Donation Card ────────────────────────────────────────────────────────────
 
-function HeroDonationCard({ event, isEditor, delay, centered }) {
-  const [preset,     setPreset]     = useState(25);
+function HeroDonationCard({ event, isEditor, delay, centered, fullWidth }) {
+  const [freq,       setFreq]       = useState("once");
+  const [preset,     setPreset]     = useState(null);
   const [custom,     setCustom]     = useState("");
-  const [email,      setEmail]      = useState("");
   const [name,       setName]       = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [done,       setDone]       = useState(false);
   const [error,      setError]      = useState("");
+  const [donConfig,  setDonConfig]  = useState({ amounts: [], message: "" });
+  const [quoteIdx,   setQuoteIdx]   = useState(0);
+  const [quoteVis,   setQuoteVis]   = useState(true);
+  const [isMobile,   setIsMobile]   = useState(false);
 
-  const amount = preset === "custom" ? Number(custom) : preset;
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  const ROSE   = "#c9a96e";
+  const A1     = "#c9a96e";
+  const A2     = "#b45309";
+  const A3     = "#e8d5a3";
+
+  useEffect(() => {
+    if (!event?.id) return;
+    fetch(`${API}/engagement/events/${event.id}/donation-config`)
+      .then(r => r.json())
+      .then(d => { if (d?.data) setDonConfig(d.data); })
+      .catch(() => {});
+  }, [event?.id]);
+
+  const QUOTES = [
+    { text: "Giving is not just about making a donation. It is about making a difference.", author: "Kathy Calvin" },
+    { text: "No one has ever become poor by giving.", author: "Anne Frank" },
+    { text: "We make a living by what we get, but we make a life by what we give.", author: "Winston Churchill" },
+    { text: "The meaning of life is to find your gift. The purpose is to give it away.", author: "Pablo Picasso" },
+  ];
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setQuoteVis(false);
+      setTimeout(() => { setQuoteIdx(i => (i + 1) % QUOTES.length); setQuoteVis(true); }, 500);
+    }, 4500);
+    return () => clearInterval(id);
+  }, []);
+
+  const presets = donConfig.amounts?.length === 3 ? donConfig.amounts : DONATION_PRESETS_DEFAULT;
+  const amount  = preset === "custom" ? Number(custom) : (preset ?? 0);
 
   async function handleDonate(e) {
     e.preventDefault();
-    if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) return setError("Valid email required");
-    if (!amount || amount <= 0) return setError("Select or enter an amount");
-    setError("");
-    setSubmitting(true);
+    if (!amount || amount <= 0) return setError("Please select or enter an amount");
+    setError(""); setSubmitting(true);
     try {
       const res = await fetch(`${API}/engagement/events/${event?.id}/donations`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ donor_name: name.trim() || null, donor_email: email.trim().toLowerCase(), amount, currency: "USD" }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ donor_name: name.trim() || null, amount, currency: "USD", frequency: freq }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Donation failed");
       if (data.data?.checkout_url) window.location.href = data.data.checkout_url;
-    } catch (err) {
-      setError(err.message);
-      setSubmitting(false);
-    }
+      else setDone(true);
+    } catch (err) { setError(err.message); setSubmitting(false); }
+  }
+
+  /* ── Thank-you state ── */
+  if (done) {
+    return (
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.6, ease: EASE }}
+        className={fullWidth ? "w-full" : centered ? "mx-auto" : ""}
+        style={{ maxWidth: 680 }}
+      >
+        <div style={{
+          borderRadius: 24, overflow: "hidden",
+          boxShadow: "0 32px 80px rgba(201,169,110,0.20)",
+          border: "1px solid rgba(201,169,110,0.25)",
+        }}>
+          <div style={{ height: 4, background: "linear-gradient(90deg,#c9a96e,#d4a853,#fbbf24,#c9a96e)", backgroundSize:"200% 100%", animation:"_tb_shimmer 3.2s linear infinite" }} />
+          <div style={{
+            padding: "52px 40px", textAlign: "center",
+            background: "linear-gradient(160deg,#0c0904,#0f0d0a)",
+          }}>
+            <motion.div
+              initial={{ scale: 0 }} animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
+              style={{
+                width: 64, height: 64, borderRadius: 20, margin: "0 auto 20px",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: "rgba(201,169,110,0.12)", border: "1px solid rgba(201,169,110,0.30)",
+                boxShadow: "0 0 40px rgba(201,169,110,0.20)",
+              }}>
+              <Heart size={28} fill={ROSE} stroke={ROSE} />
+            </motion.div>
+            <p style={{
+              fontFamily: "'Playfair Display',Georgia,serif",
+              fontSize: "clamp(1.8rem,4vw,2.4rem)", fontWeight: 900, fontStyle: "italic",
+              background: `linear-gradient(135deg,#fff,${ROSE})`,
+              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+              marginBottom: 10,
+            }}>
+              Thank you!
+            </p>
+            <p style={{ fontSize: 14, fontWeight: 500, color: "rgba(255,255,255,0.55)", lineHeight: 1.6 }}>
+              Your {freq === "monthly" ? "monthly " : ""}gift of{" "}
+              <strong style={{ color: ROSE }}>${amount}</strong> makes a real difference.
+            </p>
+          </div>
+        </div>
+      </motion.div>
+    );
   }
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, ease: EASE, delay }}
-      className={centered ? "flex justify-center" : ""}
+      initial={{ opacity: 0, y: 20, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.85, ease: EASE, delay }}
+      className={fullWidth ? "w-full" : centered ? "mx-auto" : ""}
+      style={{ width: "100%", maxWidth: 680 }}
     >
-      <div
-        className="w-full max-w-xs overflow-hidden rounded-2xl"
-        style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", backdropFilter: "blur(14px)" }}
-      >
-        {/* Header */}
-        <div className="flex items-center gap-2.5 border-b px-4 py-3" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-          <Heart size={14} fill="#f472b6" stroke="#f472b6" strokeWidth="2" />
-          <p className="text-xs font-semibold uppercase tracking-widest text-white/50">Support this event</p>
-        </div>
+      <div className="_tb_donwrap" style={{
+        display: "flex", flexDirection: "row",
+        borderRadius: 20, overflow: "hidden",
+        border: "1px solid rgba(201,169,110,0.18)",
+        boxShadow: "0 28px 70px rgba(0,0,0,0.70), 0 0 60px -20px rgba(201,169,110,0.20)",
+        background: "rgba(8,6,4,0.90)",
+        backdropFilter: "blur(40px) saturate(180%)",
+        position: "relative",
+      }}>
 
-        {/* Body */}
-        <form
-          onSubmit={isEditor ? (e) => e.preventDefault() : handleDonate}
-          className="space-y-2.5 px-4 py-4"
-        >
-          {/* Amount presets */}
-          <div className="grid grid-cols-4 gap-1.5">
-            {DONATION_PRESETS.map((a) => (
-              <button
-                key={a}
-                type="button"
-                onClick={isEditor ? undefined : () => { setPreset(a); setCustom(""); }}
-                className="py-1.5 text-xs font-bold transition active:scale-95"
-                style={{
-                  borderRadius: 8,
-                  border: preset === a ? "1.5px solid var(--t-accent)" : "1px solid rgba(255,255,255,0.12)",
-                  background: preset === a ? "var(--t-accent)" : "rgba(255,255,255,0.04)",
-                  color: preset === a ? "#000" : "rgba(255,255,255,0.65)",
-                }}
-              >
-                ${a}
-              </button>
+        {/* ── LEFT: script / inspiration card — desktop only ─── */}
+        {!isMobile && <div className="_tb_mktcol" style={{
+          flex: "0 0 220px",
+          display: "flex", flexDirection: "column", justifyContent: "center",
+          padding: "28px 22px", gap: 18, overflow: "hidden", position: "relative",
+          borderRight: `1px solid ${A1}22`,
+          background: `linear-gradient(155deg,#080502 0%,#120c04 30%,#0e0904 60%,#090601 100%)`,
+        }}>
+          {/* Gold glow layers */}
+          <div style={{ position:"absolute", inset:0, pointerEvents:"none",
+            background:`radial-gradient(ellipse 80% 55% at 22% 28%,rgba(201,169,110,0.18),transparent)` }} />
+          <div style={{ position:"absolute", inset:0, pointerEvents:"none",
+            background:`radial-gradient(ellipse 50% 40% at 85% 82%,rgba(180,83,9,0.14),transparent)` }} />
+
+          {/* Floating orbs — gold/amber */}
+          {[
+            { x:12, y:10, size:55, c:"rgba(201,169,110,0.22)", dur:7.5,  anim:"_tb_float2" },
+            { x:74, y:52, size:38, c:"rgba(180,83,9,0.18)",    dur:9.4,  anim:"_tb_float"  },
+            { x:42, y:84, size:28, c:"rgba(251,191,36,0.16)",  dur:6.2,  anim:"_tb_float2" },
+          ].map(({ x, y, size, c, dur, anim }, i) => (
+            <div key={i} style={{
+              position:"absolute", left:`${x}%`, top:`${y}%`,
+              width:size, height:size, borderRadius:"50%",
+              background:c, filter:"blur(22px)",
+              animation:`${anim} ${dur}s ease-in-out infinite`,
+              animationDelay:`${i*0.9}s`, pointerEvents:"none",
+            }} />
+          ))}
+
+          {/* Dot grid — gold tinted */}
+          <div style={{
+            position:"absolute", inset:0, pointerEvents:"none",
+            backgroundImage:"radial-gradient(circle,rgba(201,169,110,0.16) 1px,transparent 1px)",
+            backgroundSize:"18px 18px",
+            animation:"_tb_starfield 4s ease-in-out infinite",
+          }} />
+
+          {/* Badge */}
+          <motion.div
+            initial={{ opacity:0, y:-10, scale:0.9 }} animate={{ opacity:1, y:0, scale:1 }}
+            transition={{ delay:delay+0.08, duration:0.7, ease:EASE }}
+            style={{
+              display:"inline-flex", alignItems:"center", gap:6, position:"relative", zIndex:1,
+              padding:"4px 12px", borderRadius:99, width:"fit-content",
+              background:"rgba(201,169,110,0.10)", border:"1px solid rgba(201,169,110,0.30)",
+              backdropFilter:"blur(8px)", boxShadow:"0 2px 10px rgba(201,169,110,0.12)",
+            }}>
+            <span style={{
+              width:5, height:5, borderRadius:"50%", background:"#c9a96e", flexShrink:0,
+              boxShadow:"0 0 6px rgba(201,169,110,0.8)", animation:"_tb_pulse 1.8s ease-in-out infinite",
+            }} />
+            <span style={{ fontSize:8, fontWeight:800, textTransform:"uppercase", letterSpacing:"0.2em", color:"rgba(201,169,110,0.85)" }}>
+              Support Now
+            </span>
+          </motion.div>
+
+          {/* Rotating quote */}
+          <motion.div
+            initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }}
+            transition={{ delay:delay+0.25, duration:0.7, ease:EASE }}
+            style={{ minHeight:90, position:"relative", zIndex:1 }}
+          >
+            <p style={{
+              fontFamily:"'Playfair Display','IM Fell English',Georgia,serif",
+              fontSize:"clamp(13px,1.8vw,15.5px)", fontWeight:700, fontStyle:"italic",
+              lineHeight:1.5, letterSpacing:"-0.01em",
+              background:"linear-gradient(135deg,#fff 25%,#e8d5a3 55%,#c9a96e 85%)",
+              WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
+              backgroundClip:"text",
+              transition:"opacity 0.55s cubic-bezier(0.4,0,0.2,1), transform 0.55s cubic-bezier(0.4,0,0.2,1)",
+              opacity:quoteVis ? 1 : 0,
+              transform:quoteVis ? "translateY(0) scale(1)" : "translateY(10px) scale(0.96)",
+            }}>
+              &ldquo;{QUOTES[quoteIdx].text}&rdquo;
+            </p>
+            <p style={{
+              marginTop:8, fontSize:9, fontWeight:700, textTransform:"uppercase",
+              letterSpacing:"0.15em", color:"rgba(201,169,110,0.45)",
+              transition:"opacity 0.5s ease", opacity:quoteVis ? 1 : 0,
+            }}>
+              — {QUOTES[quoteIdx].author}
+            </p>
+          </motion.div>
+
+          {/* Trust row */}
+          <motion.div
+            initial={{ opacity:0, x:-10 }} animate={{ opacity:1, x:0 }}
+            transition={{ delay:delay+0.5, duration:0.55, ease:EASE }}
+            style={{
+              display:"flex", flexDirection:"column", gap:6,
+              position:"relative", zIndex:1,
+              padding:"10px 12px", borderRadius:10,
+              background:"rgba(201,169,110,0.05)",
+              border:"1px solid rgba(201,169,110,0.16)",
+            }}
+          >
+            {[["💝","To organizer"],["🔒","Stripe secure"],["↩️","Cancel anytime"]].map(([e,l]) => (
+              <div key={l} style={{ display:"flex", alignItems:"center", gap:7 }}>
+                <span style={{ fontSize:11 }}>{e}</span>
+                <span style={{ fontSize:10, fontWeight:500, color:"rgba(255,255,255,0.42)" }}>{l}</span>
+              </div>
             ))}
-          </div>
+          </motion.div>
 
-          {/* Custom amount */}
-          <div
-            className="flex items-center gap-2 rounded-xl px-3 py-2"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)" }}
+          {/* Shimmer bottom */}
+          <div style={{
+            position:"absolute", bottom:0, left:0, right:0, height:2,
+            background:`linear-gradient(90deg,transparent,${A1},${A3},transparent)`,
+            backgroundSize:"200% 100%", animation:"_tb_shimmer 2.8s linear infinite",
+          }} />
+        </div>}
+
+        {/* ── RIGHT: donation form ─────────────────────────────── */}
+        <div style={{ flex:1, overflow:"hidden" }}>
+          {/* Accent top bar */}
+          <div style={{
+            height:4,
+            background:"linear-gradient(90deg,#c9a96e,#d4a853,#fbbf24,#c9a96e)",
+            backgroundSize:"200% 100%",
+            animation:"_tb_shimmer 3.2s linear infinite",
+          }} />
+
+          <form
+            onSubmit={isEditor ? (e) => e.preventDefault() : handleDonate}
+            className="_tb_donform"
+            style={{ display:"flex", flexDirection:"column", gap:14, padding:"20px 22px 22px" }}
           >
-            <span className="text-xs text-white/30">$</span>
+            {/* Header */}
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <div style={{
+                width:36, height:36, borderRadius:10, flexShrink:0,
+                display:"flex", alignItems:"center", justifyContent:"center",
+                background:"rgba(201,169,110,0.14)", border:"1px solid rgba(201,169,110,0.30)",
+              }}>
+                <Heart size={16} fill={ROSE} stroke={ROSE} />
+              </div>
+              <div>
+                <p style={{ fontSize:9, fontWeight:800, textTransform:"uppercase", letterSpacing:"0.2em", color:"rgba(201,169,110,0.75)" }}>
+                  Support this event
+                </p>
+                <p style={{ fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.85)", lineHeight:1.3 }}>
+                  {donConfig.message || "Every contribution makes a difference."}
+                </p>
+              </div>
+            </div>
+
+            {/* Frequency toggle */}
+            <div className="_tb_donfreq" style={{
+              display:"flex", borderRadius:10, padding:3, gap:3,
+              background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.10)",
+            }}>
+              {[["once","One Time"],["monthly","Monthly"]].map(([val,label]) => (
+                <button key={val} type="button"
+                  onClick={isEditor ? undefined : () => setFreq(val)}
+                  style={{
+                    flex:1, borderRadius:7, padding:"7px 0",
+                    fontSize:11, fontWeight:800, letterSpacing:"0.05em", textTransform:"uppercase",
+                    cursor:"pointer", transition:"all 0.22s ease", border:"none",
+                    background: freq===val ? `linear-gradient(135deg,${ROSE},#d4a853)` : "transparent",
+                    color: freq===val ? "#fff" : "rgba(255,255,255,0.38)",
+                    boxShadow: freq===val ? `0 4px 12px rgba(201,169,110,0.28)` : "none",
+                  }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Preset amounts */}
+            <div className="_tb_donpresets" style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
+              {presets.map((a) => (
+                <button key={a} type="button"
+                  onClick={isEditor ? undefined : () => { setPreset(a); setCustom(""); setError(""); }}
+                  style={{
+                    padding:"14px 4px", borderRadius:12, cursor:"pointer",
+                    fontFamily:"'Playfair Display',Georgia,serif",
+                    fontSize:"clamp(1.1rem,2vw,1.4rem)", fontWeight:700,
+                    transition:"all 0.22s ease", border:"none",
+                    background: preset===a
+                      ? `linear-gradient(135deg,${ROSE},#d4a853)`
+                      : "rgba(255,255,255,0.06)",
+                    color: preset===a ? "#fff" : "rgba(255,255,255,0.60)",
+                    boxShadow: preset===a ? `0 6px 20px rgba(201,169,110,0.25)` : "none",
+                    transform: preset===a ? "scale(1.04)" : "scale(1)",
+                    border: preset===a ? "none" : "1px solid rgba(255,255,255,0.10)",
+                  }}>
+                  ${a}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom amount */}
+            <div style={{
+              display:"flex", alignItems:"center", gap:8, borderRadius:10, padding:"10px 14px",
+              background:"rgba(255,255,255,0.05)",
+              border: preset==="custom" ? `1.5px solid ${ROSE}` : "1px solid rgba(255,255,255,0.10)",
+              transition:"border-color 0.2s",
+            }}>
+              <span style={{ fontSize:14, fontWeight:700, color:"rgba(255,255,255,0.35)" }}>$</span>
+              <input type="number" min="1"
+                value={preset==="custom" ? custom : ""}
+                placeholder="Other amount"
+                onFocus={isEditor ? undefined : () => setPreset("custom")}
+                onChange={(e) => { setPreset("custom"); setCustom(e.target.value); setError(""); }}
+                style={{
+                  flex:1, background:"transparent", border:"none", outline:"none",
+                  fontSize:13, fontWeight:600,
+                  color:"rgba(255,255,255,0.80)",
+                }}
+              />
+            </div>
+
+            {/* Name (optional) */}
             <input
-              type="number"
-              min="1"
-              value={preset === "custom" ? custom : ""}
-              placeholder={preset !== "custom" ? String(preset) : "Custom amount"}
-              onFocus={isEditor ? undefined : () => setPreset("custom")}
-              onChange={(e) => { setPreset("custom"); setCustom(e.target.value); }}
-              className="flex-1 bg-transparent text-sm text-white placeholder-white/20 outline-none"
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="Your name (optional)"
+              style={{
+                background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.09)",
+                borderRadius:10, padding:"9px 14px", fontSize:12, fontWeight:500,
+                color:"rgba(255,255,255,0.70)", outline:"none",
+              }}
             />
-          </div>
 
-          {/* Name */}
-          <input
-            type="text"
-            value={name}
-            placeholder="Your name (optional)"
-            onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-xl px-3 py-2 text-sm text-white placeholder-white/25 outline-none"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)" }}
-          />
-
-          {/* Email */}
-          <input
-            type="email"
-            required
-            value={email}
-            placeholder="your@email.com"
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-xl px-3 py-2 text-sm text-white placeholder-white/25 outline-none"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)" }}
-          />
-
-          {error && <p className="text-xs text-rose-400">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={submitting || isEditor}
-            className="w-full rounded-xl py-2.5 text-xs font-black uppercase tracking-[0.12em] transition active:scale-[0.98] disabled:opacity-60"
-            style={{ background: "var(--t-accent)", color: "var(--t-accent-fg, #000)" }}
-          >
-            {submitting ? (
-              <span className="flex items-center justify-center gap-1.5">
-                <Loader2 size={12} className="animate-spin" /> Redirecting…
-              </span>
-            ) : (
-              <span className="flex items-center justify-center gap-1.5">
-                Give {preset === "custom" ? (custom ? `$${custom}` : "…") : `$${preset}`}
-                <ArrowRight size={13} strokeWidth={2.5} />
-              </span>
+            {error && (
+              <p style={{ fontSize:11, fontWeight:600, color:ROSE }}>{error}</p>
             )}
-          </button>
 
-          <p className="flex items-center justify-center gap-1 text-center text-[10px] text-white/20">
-            <Lock size={9} strokeWidth={2.5} /> Secure checkout via Stripe
-          </p>
-        </form>
+            {/* CTA */}
+            <button type="submit" disabled={submitting || isEditor}
+              style={{
+                width:"100%", padding:"14px 0", borderRadius:12,
+                border:"none", cursor: submitting || isEditor ? "not-allowed" : "pointer",
+                fontSize:12, fontWeight:900, letterSpacing:"0.08em", textTransform:"uppercase",
+                background: `linear-gradient(135deg,${ROSE},#d4a853)`,
+                color:"#fff",
+                boxShadow:`0 8px 24px rgba(201,169,110,0.30)`,
+                display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                opacity: submitting ? 0.65 : 1,
+                transition:"all 0.22s ease",
+              }}
+              onMouseEnter={e => { if (!submitting && !isEditor) e.currentTarget.style.transform="scale(1.02)"; }}
+              onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; }}
+            >
+              {submitting
+                ? <><Loader2 size={14} className="animate-spin" /> Processing…</>
+                : <><Heart size={13} fill="#fff" stroke="#fff" />
+                    {freq==="monthly" ? "Give Monthly" : "Donate Now"}
+                    {amount>0 ? ` — $${amount}` : ""}</>
+              }
+            </button>
+
+            <p style={{
+              textAlign:"center", fontSize:9, fontWeight:600,
+              color:"rgba(255,255,255,0.20)", textTransform:"uppercase", letterSpacing:"0.12em",
+              display:"flex", alignItems:"center", justifyContent:"center", gap:5,
+            }}>
+              <Lock size={8} strokeWidth={2.5} /> Secured by Stripe
+            </p>
+          </form>
+        </div>
       </div>
     </motion.div>
   );
@@ -724,12 +1409,14 @@ function HeroDonationCard({ event, isEditor, delay, centered }) {
 function CtaArea({ showTicketBlock, showRsvpBlock, showDonationBlock, centered, delay, event, isEditor, ctaText, priceLabel, spotsLeft, hasLimit, ticketCount, isSoldOut, isUrgent, onRsvp, onBuyTickets }) {
   if (!showTicketBlock && !showRsvpBlock && !showDonationBlock) return null;
 
+  const donationOnly = showDonationBlock && !showTicketBlock && !showRsvpBlock;
+
   return (
-    <div className={`flex flex-col gap-4 ${centered ? "items-center" : "items-start"}`}>
+    <div className={`flex flex-col gap-4 ${donationOnly ? "w-full" : centered ? "items-center" : "items-start"}`}>
       {showTicketBlock && (
         <TicketBlock
           ctaText={ctaText}
-          event={event}  
+          event={event}
           isEditor={isEditor}
           priceLabel={priceLabel}
           spotsLeft={spotsLeft}
@@ -757,6 +1444,7 @@ function CtaArea({ showTicketBlock, showRsvpBlock, showDonationBlock, centered, 
           isEditor={isEditor}
           delay={delay + 0.1}
           centered={centered}
+          fullWidth={donationOnly}
         />
       )}
     </div>
@@ -777,8 +1465,8 @@ function formatPrice(n, currency) {
 function getPriceLabel(paidTickets, freeTickets, currency) {
   if (paidTickets.length === 0) return freeTickets.length ? "Free entry" : "";
   const min = Math.min(...paidTickets.map((t) => Number(t.price)));
-  const max = Math.max(...paidTickets.map((t) => Number(t.price)));
-  return min === max ? `From ${formatPrice(min, currency)}` : `${formatPrice(min, currency)} â€" ${formatPrice(max, currency)}`;
+  // Always show "From $X" — cleaner in the hero card regardless of how many tiers exist
+  return `From ${formatPrice(min, currency)}`;
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────────
@@ -871,7 +1559,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
   if (theme === "LUXURY") {
     return (
       <section aria-label="Event hero"
-        className={`relative flex min-h-screen flex-col justify-center overflow-hidden ${textAlignClass} ${isEditor ? "cursor-pointer" : ""}`}
+        className={`relative flex min-h-screen flex-col justify-start overflow-visible ${textAlignClass} ${isEditor ? "cursor-pointer" : ""}`}
         style={{ background: bg }}
         onClick={isEditor ? onEdit : undefined}
       >
@@ -894,7 +1582,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
         <div className="absolute inset-x-0 top-0 h-px" style={{ background: "var(--t-accent)", opacity: 0.35 }} aria-hidden="true" />
         <div className="absolute inset-x-0 bottom-0 h-px" style={{ background: "var(--t-accent)", opacity: 0.25 }} aria-hidden="true" />
 
-        <div className={`relative z-10 mx-auto w-full max-w-5xl px-6 py-40 flex flex-col gap-8 sm:py-52 ${textAlignClass}`}>
+        <div className={`relative z-10 mx-auto w-full max-w-5xl px-6 pt-20 pb-16 flex flex-col gap-8 sm:pt-28 sm:pb-24 ${textAlignClass}`}>
           {config.eyebrow && (
             <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, ease: EASE, delay: 0.2 }}
               style={{ color: "var(--t-accent)", fontSize: "0.65rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.55em" }}>
@@ -924,7 +1612,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
   if (theme === "MODERN") {
     return (
       <section aria-label="Event hero"
-        className={`relative flex min-h-screen flex-col justify-center overflow-hidden ${isEditor ? "cursor-pointer" : ""}`}
+        className={`relative flex min-h-screen flex-col justify-start overflow-visible ${isEditor ? "cursor-pointer" : ""}`}
         style={{ background: bg }}
         onClick={isEditor ? onEdit : undefined}
       >
@@ -973,7 +1661,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
   if (theme === "MINIMAL") {
     return (
       <section aria-label="Event hero"
-        className={`relative flex min-h-screen flex-col justify-center overflow-hidden ${textAlignClass} ${isEditor ? "cursor-pointer" : ""}`}
+        className={`relative flex min-h-screen flex-col justify-start overflow-visible ${textAlignClass} ${isEditor ? "cursor-pointer" : ""}`}
         style={{ background: bg }}
         onClick={isEditor ? onEdit : undefined}
       >
@@ -987,7 +1675,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
         )}
         <div className="absolute inset-0" style={{ background: overlayGrad }} aria-hidden="true" />
 
-        <div className={`relative z-10 mx-auto w-full max-w-4xl px-8 py-32 flex flex-col gap-8 sm:py-44 ${textAlignClass}`}>
+        <div className={`relative z-10 mx-auto w-full max-w-4xl px-8 pt-20 pb-16 flex flex-col gap-8 sm:pt-28 sm:pb-24 ${textAlignClass}`}>
           {config.eyebrow && (
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.2, delay: 0.1 }}
               style={{ color: "var(--t-accent)", fontSize: "0.6rem", fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.6em" }}>
@@ -1015,7 +1703,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
   if (theme === "FUN") {
     return (
       <section aria-label="Event hero"
-        className={`relative flex min-h-screen flex-col justify-center overflow-hidden ${textAlignClass} ${isEditor ? "cursor-pointer" : ""}`}
+        className={`relative flex min-h-screen flex-col justify-start overflow-visible ${textAlignClass} ${isEditor ? "cursor-pointer" : ""}`}
         style={{ background: bg }}
         onClick={isEditor ? onEdit : undefined}
       >
@@ -1029,7 +1717,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
         )}
         <div className="absolute inset-0" style={{ background: overlayGrad }} aria-hidden="true" />
 
-        <div className={`relative z-10 mx-auto w-full max-w-5xl px-6 py-32 flex flex-col gap-6 sm:py-44 ${textAlignClass}`}>
+        <div className={`relative z-10 mx-auto w-full max-w-5xl px-6 pt-20 pb-16 flex flex-col gap-6 sm:pt-28 sm:pb-24 ${textAlignClass}`}>
           {config.eyebrow && (
             <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: EASE, delay: 0.1 }}
               style={{ color: "var(--t-accent)", fontSize: "0.7rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.4em" }}>
@@ -1056,7 +1744,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
   // ── CLASSIC / ELEGANT (default) ───────────────────────────────────────────────
   return (
     <section aria-label="Event hero"
-      className={`relative flex min-h-screen flex-col justify-center overflow-hidden ${textAlignClass} ${isEditor ? "cursor-pointer" : ""}`}
+      className={`relative flex min-h-screen flex-col justify-start overflow-visible ${textAlignClass} ${isEditor ? "cursor-pointer" : ""}`}
       style={{ background: bg }}
       onClick={isEditor ? onEdit : undefined}
     >
@@ -1073,7 +1761,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
         <div className="absolute inset-x-0 top-0 h-px" style={{ background: "var(--t-accent)", opacity: 0.3 }} aria-hidden="true" />
       )}
 
-      <div className={`relative z-10 mx-auto w-full max-w-5xl px-6 py-32 flex flex-col gap-6 sm:py-44 ${textAlignClass}`}>
+      <div className={`relative z-10 mx-auto w-full max-w-5xl px-6 pt-20 pb-16 flex flex-col gap-6 sm:pt-28 sm:pb-24 ${textAlignClass}`}>
         {config.eyebrow && (
           <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: EASE, delay: 0.1 }}
             style={{ color: "var(--t-accent)", fontSize: "0.7rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.4em" }}>

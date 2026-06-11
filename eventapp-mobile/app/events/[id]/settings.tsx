@@ -6,7 +6,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import Toast from 'react-native-toast-message';
+import { notify } from '@/lib/toast';
 import { useEventStore } from '@/store/event.store';
 import { Colors } from '@/constants/colors';
 
@@ -243,13 +243,9 @@ export default function EventSettingsScreen() {
     setSaving(null);
 
     if (!result?.success) {
-      Toast.show({ type: 'error', text1: result?.message ?? 'Failed to update' });
+      notify.settingsFailed(result?.message);
     } else {
-      Toast.show({
-        type: 'success',
-        text1: 'Setting updated',
-        text2: pending ? undefined : undefined,
-      });
+      notify.settingsSaved();
     }
     fetchEventById(id);
   };
@@ -532,9 +528,9 @@ const s = StyleSheet.create({
   toggleList: { gap: 8 },
   toggleRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: Colors.bg.card,
+    backgroundColor: '#2a1d00',
     borderRadius: 14, borderWidth: 1,
-    borderColor: Colors.border.DEFAULT,
+    borderColor: 'rgba(251,191,36,0.20)',
     padding: 14,
   },
   toggleIcon:  { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },

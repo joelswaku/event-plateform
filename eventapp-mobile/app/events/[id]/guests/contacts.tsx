@@ -1,14 +1,15 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   View, Text, TextInput, FlatList, StyleSheet,
-  Pressable, ActivityIndicator, Alert,
+  Pressable, ActivityIndicator,
 } from 'react-native';
+import { ConfirmModal, useConfirm } from '@/components/ui/ConfirmModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Contacts from 'expo-contacts';
-import Toast from 'react-native-toast-message';
+import { notify } from '@/lib/toast';
 
 import { useGuestStore } from '@/store/guest.store';
 import { Colors } from '@/constants/colors';
@@ -93,17 +94,20 @@ export default function ContactsPickerScreen() {
   const [query, setQuery]         = useState('');
   const [selected, setSelected]   = useState<Set<string>>(new Set());
   const [saving, setSaving]       = useState(false);
+  const { confirm, confirmProps } = useConfirm();
 
   /* Load contacts */
   useEffect(() => {
     (async () => {
       const { status } = await Contacts.requestPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(
-          'Contacts Permission',
-          'Please allow access to contacts in your device settings.',
-          [{ text: 'OK', onPress: () => router.back() }],
-        );
+        confirm({
+          title: 'Contacts Permission',
+          message: 'Please allow access to contacts in your device settings.',
+          confirmLabel: 'OK',
+          variant: 'warning',
+          onConfirm: () => router.back(),
+        });
         return;
       }
       const { data } = await Contacts.getContactsAsync({
@@ -162,21 +166,22 @@ export default function ContactsPickerScreen() {
     }
     setSaving(false);
     if (hitLimit) {
-      Alert.alert(
-        'Guest Limit Reached',
-        `Added ${added} guest${added !== 1 ? 's' : ''} before hitting your plan limit. Upgrade to add more.`,
-        [
-          { text: 'Not now', style: 'cancel', onPress: () => router.back() },
-          { text: 'Upgrade', style: 'default', onPress: () => router.replace('/profile/billing' as never) },
-        ]
-      );
+      confirm({
+        title: 'Guest Limit Reached',
+        message: `Added ${added} guest${added !== 1 ? 's' : ''} before hitting your plan limit. Upgrade to add more.`,
+        confirmLabel: 'Upgrade',
+        cancelLabel: 'Not now',
+        variant: 'warning',
+        onConfirm: () => router.replace('/profile/billing' as never),
+        onCancel: () => router.back(),
+      });
       return;
     }
-    Toast.show({
-      type: 'success',
-      text1: `${added} guest${added !== 1 ? 's' : ''} added`,
-      text2: added < toAdd.length ? `${toAdd.length - added} already existed or failed` : undefined,
-    });
+    notify.guestAdded(
+      added < toAdd.length
+        ? `${added} added · ${toAdd.length - added} already existed`
+        : undefined
+    );
     router.back();
   };
 
@@ -288,6 +293,7 @@ export default function ContactsPickerScreen() {
           </Pressable>
         </View>
       )}
+      <ConfirmModal {...confirmProps} />
     </SafeAreaView>
   );
 }

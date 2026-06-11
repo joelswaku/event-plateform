@@ -23,22 +23,21 @@ function ensurePositiveNumber(value, fieldName) {
   return Number(n.toFixed(2));
 }
 
-async function assertOrganizationEventPermission(client, organizationId, userId) {
+async function assertOrganizationEventPermission(client, organizationId, userId, eventId = null) {
   const result = await client.query(
-    `
-    SELECT role
-    FROM organization_members
-    WHERE organization_id = $1
-      AND user_id = $2
-      AND deleted_at IS NULL
-    LIMIT 1
-    `,
+    `SELECT role FROM organization_members WHERE organization_id=$1 AND user_id=$2 AND deleted_at IS NULL LIMIT 1`,
     [organizationId, userId]
   );
+  if (result.rows[0]) return result.rows[0];
 
-  if (!result.rows[0]) {
-    throw new AppError("Forbidden", 403);
+  if (eventId) {
+    const { rows } = await client.query(
+      `SELECT role FROM event_members WHERE event_id=$1 AND user_id=$2 AND deleted_at IS NULL LIMIT 1`,
+      [eventId, userId]
+    );
+    if (rows[0]) return rows[0];
   }
+  throw new AppError("Forbidden", 403);
 }
 
 /* =========================
@@ -82,7 +81,7 @@ export async function createDiscountCodeService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
 
     const result = await client.query(
       `
@@ -132,7 +131,7 @@ export async function listDiscountCodesService({
   const client = await db.connect();
 
   try {
-    await assertOrganizationEventPermission(client, organizationId, userId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
 
     const result = await client.query(
       `

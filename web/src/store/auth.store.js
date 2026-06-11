@@ -15,7 +15,8 @@ export const useAuthStore = create(
       isHydrated: false,
 
       setHydrated: () => set({ isHydrated: true }),
-      clearError: () => set({ error: null }),
+      clearError:  () => set({ error: null }),
+      setUser:     (user) => set({ user }),
 
       login: async ({ email, password }) => {
         try {
@@ -72,12 +73,10 @@ export const useAuthStore = create(
           set({ accessToken, isAuthenticated: true });
 
           return accessToken;
-        } catch (err) {
-          // Only logout when the refresh token itself is rejected (401).
-          // A 429 rate-limit or network error should not clear the session.
-          if (err.response?.status === 401) {
-            await get().logout();
-          }
+        } catch {
+          // Return null — the interceptor already handles cleanup.
+          // Do NOT call logout() here: it makes an API request that
+          // re-enters the 401 interceptor queue and causes a deadlock.
           return null;
         }
       },
@@ -154,11 +153,11 @@ export const useAuthStore = create(
         }
       },
 
-      googleLogin: async ({ id_token }) => {
+      googleLogin: async ({ access_token }) => {
         try {
           set({ isLoading: true, error: null });
 
-          const res = await api.post("/auth/google", { id_token });
+          const res = await api.post("/auth/google", { access_token });
 
           const accessToken =
             res.data?.data?.accessToken || res.data?.accessToken;

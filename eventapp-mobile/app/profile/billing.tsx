@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable,
-  ActivityIndicator, Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { toast } from '@/lib/toast';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSubscriptionStore } from '@/store/subscription.store';
@@ -54,6 +55,7 @@ function fmtDate(iso: string | null) {
 
 export default function BillingScreen() {
   const router = useRouter();
+  const { plan: urlPlan } = useLocalSearchParams<{ plan?: string }>();
   const {
     plan, isSubscribed, subscriptionStatus, currentPeriodEnd,
     usage, limits, isPremium,
@@ -63,8 +65,27 @@ export default function BillingScreen() {
   const [checkoutLoading, setCheckoutLoading] = useState<'starter' | 'pro' | null>(null);
   const [portalLoading,   setPortalLoading]   = useState(false);
   const [selectedPlan,    setSelectedPlan]    = useState<'starter' | 'pro' | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const proCardRef = useRef<View>(null);
 
   useEffect(() => { fetchSubscription(); }, [fetchSubscription]);
+
+  // Auto-select Pro plan when coming from planner modal
+  useEffect(() => {
+    if (urlPlan === 'pro') {
+      setSelectedPlan('pro');
+      // Scroll to Pro card after a short delay
+      setTimeout(() => {
+        proCardRef.current?.measureLayout(
+          scrollViewRef.current as any,
+          (_x, y) => {
+            scrollViewRef.current?.scrollTo({ y: y - 100, animated: true });
+          },
+          () => {}
+        );
+      }, 300);
+    }
+  }, [urlPlan]);
 
   const premium    = isPremium();
   // "premium" and "enterprise" from the API map to the Pro tier
@@ -81,13 +102,10 @@ export default function BillingScreen() {
     const result = await createCheckoutSession(priceId, tier);
     setCheckoutLoading(null);
     if (result.success) {
-      Alert.alert(
-        `Welcome to ${tier === 'starter' ? 'Starter' : 'Pro'}!`,
-        'All features are now unlocked.',
-        [{ text: 'Awesome!', onPress: () => router.back() }],
-      );
+      toast.success(`Welcome to ${tier === 'starter' ? 'Starter' : 'Pro'}!`, 'All features are now unlocked.');
+      router.back();
     } else if (!result.canceled) {
-      Alert.alert('Payment failed', result.message ?? 'Something went wrong. Please try again.');
+      toast.error('Payment failed', result.message ?? 'Something went wrong. Please try again.');
     }
   };
 
@@ -109,7 +127,7 @@ export default function BillingScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollViewRef} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
         {/* ── Current plan banner ─────────────────────────────────────── */}
         <LinearGradient
@@ -206,21 +224,23 @@ export default function BillingScreen() {
         />
 
         {/* PRO card */}
-        <PlanCard
-          name="Pro"
-          price="$49"
-          period="/ month"
-          features={PRO_FEATURES}
-          isCurrent={isPro}
-          isPassed={false}
-          isPopular={false}
-          isSelected={selectedPlan === 'pro'}
-          onSelect={() => setSelectedPlan('pro')}
-          accent={Colors.accent.gold}
-          onUpgrade={() => handleUpgrade('pro')}
-          upgradeLoading={checkoutLoading === 'pro'}
-          upgradeDisabled={isPro || checkoutLoading !== null || isLoading}
-        />
+        <View ref={proCardRef} collapsable={false}>
+          <PlanCard
+            name="Pro"
+            price="$49"
+            period="/ month"
+            features={PRO_FEATURES}
+            isCurrent={isPro}
+            isPassed={false}
+            isPopular={false}
+            isSelected={selectedPlan === 'pro'}
+            onSelect={() => setSelectedPlan('pro')}
+            accent={Colors.accent.gold}
+            onUpgrade={() => handleUpgrade('pro')}
+            upgradeLoading={checkoutLoading === 'pro'}
+            upgradeDisabled={isPro || checkoutLoading !== null || isLoading}
+          />
+        </View>
 
         {/* ── Manage subscription ─────────────────────────────────────── */}
         {isSubscribed && (

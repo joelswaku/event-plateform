@@ -33,14 +33,21 @@ import {
   Hash,
   Infinity,
   ArrowUpRight,
+  Loader2,
   Package,
   CircleDot,
   Home,
   User,
+  Heart,
+  ArrowRight,
+  Settings2,
 } from "lucide-react";
 import { useTicketStore } from "@/store/ticket.store";
 import { useEventStore } from "@/store/event.store";
+import { useAIStore } from "@/store/ai.store";
+import { api } from "@/lib/api";
 import { EVENT_CATEGORIES } from "@/config/event-categories";
+import ConfirmModal, { useConfirm } from "@/components/ui/confirm-modal";
 
 function MobileBottomNav() {
   const pathname = usePathname();
@@ -136,15 +143,23 @@ function KpiCard({ icon: Icon, label, value, sub, colorClass, bgClass, borderCla
 function TicketTypeCard({ ticket, onEdit, onDelete, onToggle }) {
   const [deleting, setDeleting] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const { openConfirm, confirmProps } = useConfirm();
   const soldPct =
     ticket.quantity_total > 0
       ? Math.min((ticket.quantity_sold / ticket.quantity_total) * 100, 100)
       : null;
 
-  const handleDelete = async () => {
-    if (!confirm(`Delete "${ticket.name}"? This cannot be undone.`)) return;
-    setDeleting(true);
-    try { await onDelete(ticket.id); } finally { setDeleting(false); }
+  const handleDelete = () => {
+    openConfirm({
+      title: "Delete ticket type?",
+      description: `"${ticket.name}" will be permanently removed.`,
+      confirmText: "Delete",
+      variant: "danger",
+      onConfirm: async () => {
+        setDeleting(true);
+        try { await onDelete(ticket.id); } finally { setDeleting(false); }
+      },
+    });
   };
 
   const handleToggle = async () => {
@@ -156,7 +171,7 @@ function TicketTypeCard({ ticket, onEdit, onDelete, onToggle }) {
   const almostFull = soldPct !== null && soldPct >= 80;
   const isFull = soldPct !== null && soldPct >= 100;
 
-  return (
+  return (<>
     <motion.div
       layout
       initial={{ opacity: 0, scale: 0.97 }}
@@ -318,6 +333,8 @@ function TicketTypeCard({ ticket, onEdit, onDelete, onToggle }) {
         </div>
       </div>
     </motion.div>
+    <ConfirmModal {...confirmProps} />
+    </>
   );
 }
 
@@ -464,7 +481,7 @@ function OrderRow({ order }) {
 
 // ─── Ticket Form Modal ────────────────────────────────────────────────────────
 
-function TicketFormModal({ initial, onSave, onClose }) {
+function TicketFormModal({ initial, onSave, onClose, eventId }) {
   const [form, setForm] = useState({
     name: initial?.name ?? "",
     kind: initial?.kind ?? "PAID",
@@ -477,6 +494,8 @@ function TicketFormModal({ initial, onSave, onClose }) {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [priceTips, setPriceTips] = useState(null);
+  const { generateTicketPricing, loading: aiLoading } = useAIStore();
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -508,7 +527,6 @@ function TicketFormModal({ initial, onSave, onClose }) {
   const kindOptions = [
     { value: "PAID", label: "Paid", icon: "💳", desc: "Guests pay to attend" },
     { value: "FREE", label: "Free", icon: "🎁", desc: "No charge required" },
-    { value: "DONATION", label: "Donation", icon: "💝", desc: "Pay what you want" },
   ];
 
   return (
@@ -550,7 +568,7 @@ function TicketFormModal({ initial, onSave, onClose }) {
             <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">
               Type
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {kindOptions.map((opt) => (
                 <button
                   key={opt.value}
@@ -593,9 +611,28 @@ function TicketFormModal({ initial, onSave, onClose }) {
           {/* Price */}
           {form.kind !== "FREE" && (
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1.5">
-                Price (USD)
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                  Price (USD)
+                </label>
+                {eventId && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const res = await generateTicketPricing(eventId, {
+                        ticketName: form.name || "General Admission",
+                        kind: form.kind,
+                      });
+                      if (res.success && res.data) setPriceTips(res.data);
+                    }}
+                    disabled={aiLoading}
+                    className="flex items-center gap-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 px-2 py-1 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 disabled:opacity-50 transition-colors border border-indigo-100 dark:border-indigo-800/40"
+                  >
+                    <Sparkles size={10} />
+                    {aiLoading ? "Thinking…" : "AI Pricing"}
+                  </button>
+                )}
+              </div>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
                 <input
@@ -608,6 +645,27 @@ function TicketFormModal({ initial, onSave, onClose }) {
                   className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 pl-8 pr-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition"
                 />
               </div>
+              {priceTips && (
+                <div className="mt-2 rounded-xl border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/60 dark:bg-indigo-950/20 px-3 py-2.5 space-y-1.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 dark:text-indigo-400 flex items-center gap-1">
+                    <Sparkles size={9} /> AI Pricing Suggestions
+                  </p>
+                  {priceTips.suggestions?.map((s, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => { set("price", String(s.price)); setPriceTips(null); }}
+                      className="flex w-full items-center justify-between rounded-lg bg-white dark:bg-gray-800 border border-indigo-100 dark:border-indigo-800/30 px-3 py-1.5 text-left hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors"
+                    >
+                      <span className="text-xs font-semibold text-gray-800 dark:text-gray-100">{s.label}</span>
+                      <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">${s.price}</span>
+                    </button>
+                  ))}
+                  {priceTips.rationale && (
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed">{priceTips.rationale}</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -711,6 +769,333 @@ function TicketFormModal({ initial, onSave, onClose }) {
   );
 }
 
+// ─── Terms Acceptance Modal ───────────────────────────────────────────────────
+function TermsAcceptanceModal({ onAccepted, onClose }) {
+  const [checked,  setChecked]  = useState(false);
+  const [saving,   setSaving]   = useState(false);
+  const [error,    setError]    = useState("");
+
+  const handleAccept = async () => {
+    if (!checked) { setError("Please read and check the box to continue."); return; }
+    setSaving(true);
+    try {
+      await api.post("/engagement/terms/accept");
+      onAccepted();
+    } catch {
+      setError("Failed to record acceptance. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)" }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 16 }}
+        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full max-w-lg overflow-hidden rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-gray-900 shadow-2xl"
+      >
+        {/* amber top bar */}
+        <div className="h-1 w-full" style={{ background: "linear-gradient(90deg,#f59e0b,#d97706)" }} />
+
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20">
+              <Ticket size={18} className="text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-500">One-time setup</p>
+              <h2 className="text-base font-black text-gray-900 dark:text-white">Ticketing Agreement</h2>
+            </div>
+          </div>
+
+          {/* Commission disclosure */}
+          <div className="rounded-xl border border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-white/4 p-4 mb-4 space-y-2">
+            <p className="text-xs font-black uppercase tracking-widest text-gray-400 dark:text-white/40">Platform fees (added to ticket price for buyers)</p>
+            <div className="space-y-1.5">
+              {[
+                ["Service fee", "3.5% of ticket subtotal"],
+                ["Per-ticket fee", "$0.49 per paid ticket"],
+                ["Stripe processing", "2.9% + $0.30 (deducted by Stripe)"],
+                ["Free tickets", "No platform fee"],
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between text-xs">
+                  <span className="text-gray-600 dark:text-white/60">{label}</span>
+                  <span className="font-bold text-gray-900 dark:text-white">{value}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-gray-400 dark:text-white/35 pt-1 border-t border-gray-100 dark:border-white/8">
+              Fees are added on top of your set ticket price. You receive your full ticket price.
+              Example: $50 ticket → buyer pays ~$54.24 total.
+            </p>
+          </div>
+
+          {/* Refund policy */}
+          <div className="rounded-xl border border-amber-100 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/8 px-4 py-3 mb-4">
+            <p className="text-xs text-amber-700 dark:text-amber-300/80 leading-relaxed">
+              <strong>As an organizer, you are responsible</strong> for your event&rsquo;s refund policy,
+              ensuring the event takes place, and complying with all applicable laws. LiteEvent LLC
+              (dba LiteEvent) is a platform provider, not a co-organizer.
+            </p>
+          </div>
+
+          {/* Checkbox */}
+          <label className="flex items-start gap-3 cursor-pointer mb-4">
+            <div
+              onClick={() => { setChecked(v => !v); setError(""); }}
+              className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-all"
+              style={{ borderColor: checked ? "#f59e0b" : "#d1d5db", background: checked ? "#f59e0b" : "white" }}
+            >
+              {checked && <CheckCircle2 size={12} className="text-white" />}
+            </div>
+            <p className="text-sm text-gray-700 dark:text-white/70 leading-relaxed">
+              I have read and agree to the{" "}
+              <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 underline font-semibold">Terms of Service</a>
+              {" "}and{" "}
+              <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 underline font-semibold">Privacy Policy</a>
+              , including the platform fee schedule above.
+            </p>
+          </label>
+
+          {error && (
+            <div className="flex items-center gap-2 rounded-xl border border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/10 px-4 py-3 mb-4">
+              <AlertCircle size={14} className="shrink-0 text-red-500" />
+              <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <motion.button
+              whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
+              onClick={handleAccept}
+              disabled={saving || !checked}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-black text-white transition-all disabled:opacity-50"
+              style={{ background: "linear-gradient(135deg,#f59e0b,#d97706)", boxShadow: "0 4px 16px rgba(245,158,11,0.30)" }}
+            >
+              {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+              {saving ? "Saving…" : "Accept & Enable Ticketing"}
+            </motion.button>
+            <button onClick={onClose}
+              className="rounded-xl border border-gray-200 dark:border-white/10 px-4 py-3 text-sm font-semibold text-gray-500 dark:text-white/50 hover:bg-gray-50 dark:hover:bg-white/5 transition">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// ─── Ticketing Gate ───────────────────────────────────────────────────────────
+
+function TicketingGate({ event, eventId, onEnabled }) {
+  const { updateEvent } = useEventStore();
+  const router = useRouter();
+  const [saving,        setSaving]        = useState(false);
+  const [termsChecked,  setTermsChecked]  = useState(false);
+  const [showTerms,     setShowTerms]     = useState(false);
+
+  // Check if user has already accepted terms
+  useEffect(() => {
+    api.get("/engagement/terms/status")
+      .then(r => { if (r.data?.data?.upToDate) setTermsChecked(true); })
+      .catch(() => {});
+  }, []);
+
+  const isRsvp      = !!event?.allow_rsvp;
+  const isDonation  = !!event?.allow_donations;
+
+  const cfg = isRsvp
+    ? {
+        icon: Users,
+        iconColor: "#6366f1",
+        iconBg:    "rgba(99,102,241,0.10)",
+        iconBorder:"rgba(99,102,241,0.20)",
+        badge:     "RSVP Mode",
+        badgeColor:"#6366f1",
+        badgeBg:   "rgba(99,102,241,0.10)",
+        title:     "This event uses RSVP",
+        body:      "Guests currently RSVP to attend. Switching to Ticketing lets you sell paid tickets, manage capacity, and accept payments — RSVP will be turned off automatically.",
+        warning:   "Existing RSVPs are kept but no new ones will be accepted.",
+        ctaLabel:  "Switch to Ticketing",
+        ctaGrad:   "linear-gradient(135deg,#f59e0b,#d97706)",
+        ctaShadow: "0 6px 20px rgba(245,158,11,0.30)",
+        backLabel: "Keep RSVP",
+      }
+    : isDonation
+    ? {
+        icon: Heart,
+        iconColor: "#f43f5e",
+        iconBg:    "rgba(244,63,94,0.10)",
+        iconBorder:"rgba(244,63,94,0.20)",
+        badge:     "Donations Mode",
+        badgeColor:"#f43f5e",
+        badgeBg:   "rgba(244,63,94,0.10)",
+        title:     "This event accepts donations",
+        body:      "Donations are currently enabled for this event. Switching to Ticketing lets you sell tickets at fixed prices — the Donation module will be turned off automatically.",
+        warning:   "Past donations are not affected.",
+        ctaLabel:  "Switch to Ticketing",
+        ctaGrad:   "linear-gradient(135deg,#f59e0b,#d97706)",
+        ctaShadow: "0 6px 20px rgba(245,158,11,0.30)",
+        backLabel: "Keep Donations",
+      }
+    : {
+        icon: Ticket,
+        iconColor: "#f59e0b",
+        iconBg:    "rgba(245,158,11,0.10)",
+        iconBorder:"rgba(245,158,11,0.20)",
+        badge:     "Ticketing Off",
+        badgeColor:"#f59e0b",
+        badgeBg:   "rgba(245,158,11,0.10)",
+        title:     "Ticketing isn't enabled",
+        body:      "Enable the Ticketing module to create ticket tiers, set pricing, manage capacity, and accept payments for this event.",
+        warning:   null,
+        ctaLabel:  "Enable Ticketing",
+        ctaGrad:   "linear-gradient(135deg,#f59e0b,#d97706)",
+        ctaShadow: "0 6px 20px rgba(245,158,11,0.30)",
+        backLabel: "Back to Tickets",
+      };
+
+  const IconComp = cfg.icon;
+
+  const handleEnable = async () => {
+    // Require terms acceptance before enabling ticketing
+    if (!termsChecked) {
+      setShowTerms(true);
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateEvent(eventId, {
+        allow_ticketing: true,
+        allow_rsvp:      false,
+        allow_donations: false,
+        open_rsvp:       false,
+      });
+      onEnabled();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleBack = () => router.push("/tickets");
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+      className="flex flex-col items-center justify-center min-h-[60vh] px-4 py-16 text-center"
+    >
+      {/* mode badge */}
+      <div
+        className="mb-6 flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-bold"
+        style={{ background: cfg.badgeBg, color: cfg.badgeColor, border: `1px solid ${cfg.iconBorder}` }}
+      >
+        <IconComp size={12} />
+        {cfg.badge}
+      </div>
+
+      {/* icon */}
+      <div
+        className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl"
+        style={{ background: cfg.iconBg, border: `1px solid ${cfg.iconBorder}` }}
+      >
+        <IconComp size={28} style={{ color: cfg.iconColor }} />
+      </div>
+
+      {/* headline */}
+      <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-3">{cfg.title}</h2>
+      <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm leading-relaxed mb-4">
+        {cfg.body}
+      </p>
+
+      {/* warning note */}
+      {cfg.warning && (
+        <div
+          className="mb-6 flex items-start gap-2 rounded-xl px-4 py-3 text-left max-w-sm"
+          style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.18)" }}
+        >
+          <AlertCircle size={13} className="shrink-0 mt-0.5 text-amber-500" />
+          <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">{cfg.warning}</p>
+        </div>
+      )}
+
+      {/* what you get with ticketing */}
+      {!cfg.warning && (
+        <div className="mb-6 grid grid-cols-2 gap-2 max-w-xs w-full">
+          {[
+            "Paid ticket tiers",
+            "Capacity limits",
+            "Stripe payments",
+            "Order management",
+          ].map((f) => (
+            <div key={f} className="flex items-center gap-2 rounded-lg px-3 py-2 text-left" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)" }}>
+              <CheckCircle2 size={11} className="shrink-0 text-amber-500" />
+              <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">{f}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Terms not yet accepted — show info nudge */}
+      {!termsChecked && (
+        <div className="mb-4 flex items-start gap-2 rounded-xl px-4 py-3 text-left max-w-sm"
+          style={{ background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.18)" }}>
+          <AlertCircle size={13} className="shrink-0 mt-0.5 text-indigo-500" />
+          <p className="text-xs text-indigo-700 dark:text-indigo-400 leading-relaxed">
+            You&rsquo;ll need to accept the platform&rsquo;s <strong>Terms of Service</strong> and{" "}
+            <strong>fee schedule</strong> before enabling ticketing.
+          </p>
+        </div>
+      )}
+
+      {/* actions */}
+      <div className="flex flex-col items-center gap-3 w-full max-w-xs">
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={handleEnable}
+          disabled={saving}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-black text-white disabled:opacity-60 transition-all"
+          style={{ background: cfg.ctaGrad, boxShadow: cfg.ctaShadow }}
+        >
+          {saving ? (
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+          ) : termsChecked ? (
+            <><Ticket size={15} /> {cfg.ctaLabel} <ArrowRight size={14} /></>
+          ) : (
+            <><CheckCircle2 size={15} /> Accept Terms &amp; {cfg.ctaLabel} <ArrowRight size={14} /></>
+          )}
+        </motion.button>
+
+        <button
+          onClick={handleBack}
+          className="flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+        >
+          <ChevronLeft size={13} />
+          {cfg.backLabel}
+        </button>
+      </div>
+
+      {/* Terms acceptance modal */}
+      <AnimatePresence>
+        {showTerms && (
+          <TermsAcceptanceModal
+            onAccepted={() => { setTermsChecked(true); setShowTerms(false); handleEnable(); }}
+            onClose={() => setShowTerms(false)}
+          />
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
 // ─── Setup Screen ─────────────────────────────────────────────────────────────
 
 function SetupScreen({ event, onStartFresh }) {
@@ -752,6 +1137,58 @@ function SetupScreen({ event, onStartFresh }) {
   );
 }
 
+// ─── Shared donut (pure SVG) ──────────────────────────────────────────────────
+function DonutChart({ title, segments, centerLabel, centerSub }) {
+  const total = segments.reduce((s, g) => s + g.count, 0);
+  const R = 44, cx = 52, cy = 52, sw = 13;
+  const circ = 2 * Math.PI * R;
+  let offset = 0;
+  const arcs = segments.map(seg => {
+    const dash = total > 0 ? (seg.count / total) * circ : 0;
+    const arc  = { ...seg, dash, offset };
+    offset += dash;
+    return arc;
+  });
+  return (
+    <div className="rounded-2xl border border-gray-100 dark:border-white/8 bg-white dark:bg-(--bg-elevated) p-5">
+      <p className="mb-3 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-white/30">{title}</p>
+      <div className="flex items-center gap-4">
+        <div className="relative shrink-0" style={{ width: 104, height: 104 }}>
+          <svg width="104" height="104" viewBox="0 0 104 104">
+            <circle cx={cx} cy={cy} r={R} fill="none" stroke="currentColor" strokeWidth={sw}
+              className="text-gray-100 dark:text-white/6" />
+            {total > 0 && arcs.map((arc, i) => (
+              <circle key={i} cx={cx} cy={cy} r={R} fill="none"
+                stroke={arc.color} strokeWidth={sw}
+                strokeDasharray={`${arc.dash} ${circ - arc.dash}`}
+                strokeDashoffset={-arc.offset}
+                style={{ transform: "rotate(-90deg)", transformOrigin: `${cx}px ${cy}px`, transition: "stroke-dasharray .6s ease" }}
+              />
+            ))}
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <p className="text-xl font-black text-gray-900 dark:text-white leading-none">{centerLabel ?? total}</p>
+            <p className="text-[9px] font-bold text-gray-400 dark:text-white/30 uppercase tracking-wide mt-0.5">{centerSub ?? "total"}</p>
+          </div>
+        </div>
+        <div className="flex-1 space-y-2 min-w-0">
+          {segments.map(seg => (
+            <div key={seg.label} className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
+              <p className="flex-1 text-xs font-medium text-gray-600 dark:text-white/55 truncate">{seg.label}</p>
+              <p className="text-xs font-black text-gray-900 dark:text-white">{seg.count}</p>
+              <p className="text-[10px] text-gray-400 dark:text-white/25 w-8 text-right">
+                {total > 0 ? `${Math.round(seg.count / total * 100)}%` : "—"}
+              </p>
+            </div>
+          ))}
+          {total === 0 && <p className="text-xs text-gray-300 dark:text-white/20 italic">No data yet</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Stats Tab ────────────────────────────────────────────────────────────────
 
 function StatsTab({ stats }) {
@@ -764,97 +1201,117 @@ function StatsTab({ stats }) {
     );
   }
 
-  const totalCapacity = stats.ticket_types.reduce(
-    (s, t) => s + (t.quantity_total ?? 0),
-    0
-  );
+  const totalCapacity = stats.ticket_types.reduce((s, t) => s + (t.quantity_total ?? 0), 0);
   const fillRate = totalCapacity > 0
     ? ((stats.total_issued / totalCapacity) * 100).toFixed(1)
     : null;
 
+  // Donut segments
+  const qrSegments = [
+    { label: "Active",     count: stats.active_tickets, color: "#6366f1" },
+    { label: "Checked in", count: stats.checked_in,     color: "#10b981" },
+    { label: "Revoked",    count: stats.revoked,         color: "#f43f5e" },
+  ];
+  const orderSegments = [
+    { label: "Paid",    count: stats.paid_orders,                          color: "#10b981" },
+    { label: "Pending", count: stats.total_orders - stats.paid_orders,     color: "#f59e0b" },
+  ];
+  const kindSegments = stats.ticket_types.reduce((acc, t) => {
+    const existing = acc.find(s => s.label === t.kind);
+    if (existing) existing.count += (t.quantity_sold ?? 0);
+    else acc.push({ label: t.kind, count: t.quantity_sold ?? 0,
+      color: t.kind === "FREE" ? "#10b981" : t.kind === "PAID" ? "#6366f1" : "#f59e0b" });
+    return acc;
+  }, []);
+
   return (
     <div className="space-y-6">
-      {/* Summary cards */}
+      {/* Summary KPI cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Active passes", value: stats.active_tickets, icon: Ticket, color: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-50 dark:bg-indigo-950/40", border: "border-indigo-100 dark:border-indigo-900/30" },
-          { label: "Checked in", value: stats.checked_in, icon: CheckCircle2, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-950/40", border: "border-emerald-100 dark:border-emerald-900/30" },
-          { label: "Total issued", value: stats.total_issued, icon: Hash, color: "text-violet-600 dark:text-violet-400", bg: "bg-violet-50 dark:bg-violet-950/40", border: "border-violet-100 dark:border-violet-900/30" },
-          { label: "Revoked", value: stats.revoked, icon: XCircle, color: "text-rose-500", bg: "bg-rose-50 dark:bg-rose-950/40", border: "border-rose-100 dark:border-rose-900/30" },
+          { label: "Active passes", value: stats.active_tickets, icon: Ticket,      color: "text-indigo-600 dark:text-indigo-400",  bg: "bg-indigo-50 dark:bg-indigo-950/40",  border: "border-indigo-100 dark:border-indigo-900/30" },
+          { label: "Checked in",    value: stats.checked_in,     icon: CheckCircle2, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-950/40", border: "border-emerald-100 dark:border-emerald-900/30" },
+          { label: "Total issued",  value: stats.total_issued,   icon: Hash,         color: "text-violet-600 dark:text-violet-400",  bg: "bg-violet-50 dark:bg-violet-950/40",  border: "border-violet-100 dark:border-violet-900/30" },
+          { label: "Revoked",       value: stats.revoked,        icon: XCircle,      color: "text-rose-500",                         bg: "bg-rose-50 dark:bg-rose-950/40",      border: "border-rose-100 dark:border-rose-900/30" },
         ].map((item, i) => (
           <KpiCard key={i} {...item} delay={i * 0.05} />
         ))}
       </div>
 
-      {/* By ticket type */}
+      {/* Donut charts row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <DonutChart title="Ticket Status"  segments={qrSegments}    centerLabel={stats.total_issued} centerSub="issued" />
+        <DonutChart title="Order Status"   segments={orderSegments} centerLabel={stats.total_orders} centerSub="orders" />
+        <DonutChart title="By Ticket Kind" segments={kindSegments}  centerLabel={stats.ticket_types.reduce((s,t)=>s+(t.quantity_sold??0),0)} centerSub="sold" />
+      </div>
+
+      {/* Capacity bar chart per type */}
       <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800">
-          <p className="text-sm font-semibold text-gray-900 dark:text-white">By ticket type</p>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Sales and fill rate per tier</p>
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">Capacity fill by ticket type</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Sold vs total seats per tier</p>
+          </div>
+          {fillRate !== null && (
+            <span className="rounded-full bg-indigo-50 dark:bg-indigo-500/10 px-3 py-1 text-xs font-black text-indigo-600 dark:text-indigo-400">
+              {fillRate}% overall
+            </span>
+          )}
         </div>
         <div className="divide-y divide-gray-50 dark:divide-gray-800">
           {stats.ticket_types.map((t) => {
             const pct = t.quantity_total
               ? Math.min(((t.quantity_sold ?? 0) / t.quantity_total) * 100, 100)
               : null;
+            const barColor = pct == null ? "#6366f1" : pct >= 100 ? "#f43f5e" : pct >= 80 ? "#f59e0b" : "#6366f1";
             return (
-              <div key={t.id} className="flex items-center gap-4 px-5 py-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{t.name}</p>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                          t.is_active
-                            ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
-                            : "bg-gray-100 text-gray-400 dark:bg-gray-800"
-                        }`}
-                      >
-                        {t.is_active ? "Active" : "Off"}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 shrink-0 ml-2">
-                      {t.quantity_sold ?? 0}
-                      {t.quantity_total ? ` / ${t.quantity_total}` : " sold"}
+              <div key={t.id} className="px-5 py-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{t.name}</p>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                      t.is_active ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
+                                  : "bg-gray-100 text-gray-400 dark:bg-gray-800"
+                    }`}>{t.is_active ? "Active" : "Off"}</span>
+                    <span className="rounded-full bg-gray-100 dark:bg-white/8 px-2 py-0.5 text-[10px] font-bold text-gray-500 dark:text-white/40">
+                      {t.kind}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <p className="text-xs text-gray-400 dark:text-white/40 shrink-0">
+                      {t.quantity_sold ?? 0}{t.quantity_total ? ` / ${t.quantity_total}` : " sold"}
+                    </p>
+                    <p className="shrink-0 text-sm font-bold text-gray-900 dark:text-white">
+                      {t.kind === "FREE" ? <span className="text-emerald-500">Free</span> : fmt(t.price, t.currency)}
                     </p>
                   </div>
-                  {pct !== null ? (
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${pct}%` }}
-                        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-                        className={`h-full rounded-full ${
-                          pct >= 100 ? "bg-rose-400" : pct >= 80 ? "bg-amber-400" : "bg-indigo-500"
-                        }`}
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1 text-[11px] text-gray-300 dark:text-gray-600">
-                      <Infinity size={11} /> Unlimited capacity
-                    </div>
-                  )}
                 </div>
-                <p className="shrink-0 text-sm font-bold text-gray-900 dark:text-white">
-                  {t.kind === "FREE" ? (
-                    <span className="text-emerald-500">Free</span>
-                  ) : (
-                    fmt(t.price, t.currency)
-                  )}
-                </p>
+                {pct !== null ? (
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-white/6">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${pct}%` }}
+                      transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+                      className="h-full rounded-full"
+                      style={{ backgroundColor: barColor }}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 text-[11px] text-gray-300 dark:text-gray-600">
+                    <Infinity size={11} /> Unlimited capacity
+                  </div>
+                )}
+                {pct !== null && (
+                  <p className="mt-1 text-[10px] text-gray-400 dark:text-white/25">
+                    {pct.toFixed(1)}% filled
+                    {pct >= 100 && <span className="ml-1 font-bold text-rose-500">· SOLD OUT</span>}
+                    {pct >= 80 && pct < 100 && <span className="ml-1 font-bold text-amber-500">· Almost full</span>}
+                  </p>
+                )}
               </div>
             );
           })}
         </div>
-        {fillRate !== null && (
-          <div className="px-5 py-3 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-            <p className="text-xs text-gray-400 dark:text-gray-500">
-              Overall fill rate:{" "}
-              <span className="font-semibold text-gray-700 dark:text-gray-300">{fillRate}%</span>
-              <span className="ml-1">({stats.total_issued} of {totalCapacity} seats)</span>
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -864,6 +1321,7 @@ function StatsTab({ stats }) {
 
 export default function TicketsPage() {
   const { eventId } = useParams();
+  const router = useRouter();
   const {
     tickets, orders, stats, loading,
     fetchTickets, createTicket, updateTicket, deleteTicket, fetchStats, fetchOrders,
@@ -871,9 +1329,10 @@ export default function TicketsPage() {
   const { events, fetchEvents } = useEventStore();
   const event = events.find((e) => e.id === eventId);
 
-  const [tab, setTab]           = useState("types");
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing]   = useState(null);
+  const [tab, setTab]             = useState("types");
+  const [formOpen, setFormOpen]   = useState(false);
+  const [editing, setEditing]     = useState(null);
+  const [gateBypass, setGateBypass] = useState(false);
 
   useEffect(() => {
     fetchTickets(eventId);
@@ -881,6 +1340,8 @@ export default function TicketsPage() {
     fetchOrders(eventId);
     if (!event) fetchEvents();
   }, [eventId]); // eslint-disable-line
+
+  const showGate = !gateBypass && event && !event.allow_ticketing;
 
   const handleSave   = useCallback(async (payload) => {
     if (editing) await updateTicket(editing.id, payload);
@@ -915,7 +1376,7 @@ export default function TicketsPage() {
             <h1 className="text-[20px] font-black text-white leading-tight">Tickets</h1>
             <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>Manage ticket types & orders</p>
           </div>
-          {!showSetup && tab === "types" && (
+          {!showGate && !showSetup && tab === "types" && (
             <button onClick={openCreate}
               className="flex h-9 w-9 items-center justify-center rounded-[12px]"
               style={{ background: "linear-gradient(135deg,#4f46e5,#6366f1)", boxShadow: "0 4px 16px rgba(99,102,241,0.4)" }}>
@@ -924,6 +1385,16 @@ export default function TicketsPage() {
           )}
         </div>
         <div className="flex-1 overflow-y-auto">
+          {/* ── Gate: ticketing not enabled ── */}
+          {showGate ? (
+            <div className="dark" style={{ background: "#07070f" }}>
+              <TicketingGate
+                event={event}
+                eventId={eventId}
+                onEnabled={() => setGateBypass(true)}
+              />
+            </div>
+          ) : (
           <div className="p-4 space-y-4">
             <div className="space-y-4">
 
@@ -1168,6 +1639,7 @@ export default function TicketsPage() {
 
             </div>
           </div>
+          )}
         </div>
         <MobileBottomNav />
       </div>
@@ -1175,6 +1647,16 @@ export default function TicketsPage() {
       {/* ── DESKTOP UI ── */}
       <div className="hidden sm:block space-y-6">
 
+      {/* ── Gate: ticketing not enabled ── */}
+      {showGate && (
+        <TicketingGate
+          event={event}
+          eventId={eventId}
+          onEnabled={() => setGateBypass(true)}
+        />
+      )}
+
+      {!showGate && (<>
       {/* ── Page Header ──────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-4">
@@ -1301,6 +1783,7 @@ export default function TicketsPage() {
           {tab === "stats" && <StatsTab stats={stats} />}
         </motion.div>
       </AnimatePresence>
+      </>)} {/* end !showGate desktop */}
       </div>
 
       {/* ── Modal (above mobile overlay) ── */}
@@ -1310,6 +1793,7 @@ export default function TicketsPage() {
             initial={editing}
             onSave={handleSave}
             onClose={() => { setFormOpen(false); setEditing(null); }}
+            eventId={eventId}
           />
         )}
       </AnimatePresence>

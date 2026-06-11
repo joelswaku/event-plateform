@@ -108,7 +108,15 @@ export const useTicketStore = create<TicketState>((set, get) => ({
   fetchEventsWithTickets: async () => {
     try {
       const res = await api.get<{ data: Event[] }>('/ticket-types/events-with-tickets');
-      set({ eventsWithTickets: res.data?.data ?? [] });
+      const all = res.data?.data ?? [];
+      // Only show events the user OWNS (not events they're just an admin of)
+      // and exclude archived/deleted events
+      const filtered = all.filter(e =>
+        (!e.user_role || e.user_role === 'OWNER') &&
+        e.status !== 'ARCHIVED' &&
+        e.status !== 'DELETED'
+      );
+      set({ eventsWithTickets: filtered });
     } catch { /* non-critical */ }
   },
 

@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, ScrollView, Pressable,
-  StyleSheet, Image, Alert,
+  StyleSheet, Image,
 } from 'react-native';
+import { ConfirmModal, useConfirm } from '@/components/ui/ConfirmModal';
 import { Feather } from '@expo/vector-icons';
 import { useBuilderStore } from '@/store/builder.store';
 import { pickAndUploadImage } from '@/lib/imageUpload';
@@ -45,6 +46,7 @@ export default function SpeakersConfigFields({ section, eventId, iosKeyboardInse
   const [drafts,     setDrafts]     = useState<Record<string, Partial<typeof EMPTY>>>({});
   const [newForm,    setNewForm]    = useState<typeof EMPTY | null>(null);
   const [saving,     setSaving]     = useState(false);
+  const { confirm, confirmProps } = useConfirm();
 
   const getDraft = (sp: typeof speakers[0]) => ({ ...sp, ...(drafts[sp.id] ?? {}) });
 
@@ -89,10 +91,13 @@ export default function SpeakersConfigFields({ section, eventId, iosKeyboardInse
   };
 
   const handleDelete = (id: string) => {
-    Alert.alert('Remove Speaker', 'Remove this speaker from the event?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => deleteSpeaker(eventId, id) },
-    ]);
+    confirm({
+      title: 'Remove Speaker',
+      message: 'Remove this speaker from the event?',
+      confirmLabel: 'Remove',
+      variant: 'danger',
+      onConfirm: () => deleteSpeaker(eventId, id),
+    });
   };
 
   const handlePickImage = async (onUrl: (url: string) => void) => {
@@ -101,6 +106,7 @@ export default function SpeakersConfigFields({ section, eventId, iosKeyboardInse
   };
 
   return (
+    <>
     <ScrollView
       style={{ flex: 1, backgroundColor: BG }}
       contentContainerStyle={s.scroll}
@@ -252,6 +258,8 @@ export default function SpeakersConfigFields({ section, eventId, iosKeyboardInse
         </Pressable>
       )}
     </ScrollView>
+    <ConfirmModal {...confirmProps} />
+    </>
   );
 }
 

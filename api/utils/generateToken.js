@@ -1,152 +1,60 @@
-// import jwt from "jsonwebtoken";
-
-// const ACCESS_EXPIRES = "15m";
-// const REFRESH_EXPIRES = "7d";
-
-// /* ACCESS TOKEN */
-// export function signAccessToken({ userId, organizationId, role }) {
-//   return jwt.sign(
-//     {
-//       sub: userId,
-//       org: organizationId,
-//       role,
-//       typ: "access",
-//     },
-//     process.env.JWT_SECRET,
-//     { expiresIn: ACCESS_EXPIRES },
-//   );
-// }
-
-// /* REFRESH TOKEN */
-// export function signRefreshToken({ userId, organizationId, role }) {
-//   return jwt.sign(
-//     {
-//       sub: userId,
-//       org: organizationId,
-//       role,
-//       typ: "refresh",
-//     },
-//     process.env.JWT_REFRESH_SECRET,
-//     { expiresIn: REFRESH_EXPIRES },
-//   );
-// }
-
-// /* GENERATE BOTH */
-// export function generateTokens({ userId, organizationId, role }) {
-//   return {
-//     accessToken: signAccessToken({ userId, organizationId, role }),
-//     refreshToken: signRefreshToken({ userId, organizationId, role }),
-//   };
-// }
-///////////////////////////
 import jwt from "jsonwebtoken";
 
-const ACCESS_EXPIRES = "7d";
-const REFRESH_EXPIRES = "7d";
+const ACCESS_EXPIRES_JWT    = "15m";
+const REFRESH_EXPIRES_JWT   = "7d";
+const ACCESS_EXPIRES_MS     = 15 * 60 * 1000;          // 15 minutes
+const REFRESH_EXPIRES_MS    = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-/*
-Generate access token
-*/
-export function signAccessToken({ userId, organizationId, role }) {
+export function signAccessToken({ userId, organizationId, role, isSuperAdmin = false }) {
   return jwt.sign(
-    {
-      sub: userId,
-      org: organizationId,
-      role,
-    },
+    { sub: userId, org: organizationId, role, sadm: isSuperAdmin || undefined },
     process.env.JWT_SECRET,
-    { expiresIn: ACCESS_EXPIRES },
+    { expiresIn: ACCESS_EXPIRES_JWT },
   );
 }
 
-/*
-Generate refresh token
-*/
-export function signRefreshToken({ userId, organizationId, role }) {
+export function signRefreshToken({ userId, organizationId, role, isSuperAdmin = false }) {
   return jwt.sign(
-    {
-      sub:  userId,
-      org:  organizationId,
-      role,
-    },
+    { sub: userId, org: organizationId, role, sadm: isSuperAdmin || undefined },
     process.env.JWT_REFRESH_SECRET,
-    { expiresIn: REFRESH_EXPIRES },
+    { expiresIn: REFRESH_EXPIRES_JWT },
   );
 }
 
-/*
-Generate both tokens
-*/
-export function generateTokens({ userId, organizationId, role }) {
-  const accessToken = signAccessToken({
-    userId,
-    organizationId,
-    role,
-  });
-
-  const refreshToken = signRefreshToken({
-    userId,
-    organizationId,
-    role,
-  });
-
+export function generateTokens({ userId, organizationId, role, isSuperAdmin = false }) {
+  const accessToken  = signAccessToken({ userId, organizationId, role, isSuperAdmin });
+  const refreshToken = signRefreshToken({ userId, organizationId, role, isSuperAdmin });
   return { accessToken, refreshToken };
 }
 
-/*
-Set authentication cookies
-*/
 export function setAuthCookies(res, { accessToken, refreshToken }) {
   const isProd = process.env.NODE_ENV === "production";
+  const base   = { httpOnly: true, secure: isProd, sameSite: isProd ? "none" : "lax", path: "/" };
 
-  res.cookie("accessToken", accessToken, {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? "none" : "lax",
-    maxAge: 15 * 600 * 10000,
-    path: "/",
-  });
-
-  res.cookie("refreshToken", refreshToken, {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? "none" : "lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    path: "/",
-  });
+  res.cookie("accessToken",  accessToken,  { ...base, maxAge: ACCESS_EXPIRES_MS  });
+  res.cookie("refreshToken", refreshToken, { ...base, maxAge: REFRESH_EXPIRES_MS });
 }
 
-/*
-Clear cookies on logout
-*/
 export function clearAuthCookies(res) {
   const isProd = process.env.NODE_ENV === "production";
+  const base   = { httpOnly: true, secure: isProd, sameSite: isProd ? "none" : "lax", path: "/" };
 
-  res.clearCookie("accessToken", {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? "none" : "lax",
-    path: "/",
-  });
-
-  res.clearCookie("refreshToken", {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? "none" : "lax",
-    path: "/",
-  });
+  res.clearCookie("accessToken",  base);
+  res.clearCookie("refreshToken", base);
 }
 
-/*
-Verify access token
-*/
 export function verifyAccessToken(token) {
-  return jwt.verify(token, process.env.JWT_SECRET);
+  try {
+    return jwt.verify(token, process.env.JWT_SECRET);
+  } catch {
+    return null;
+  }
 }
 
-/*
-Verify refresh token
-*/
 export function verifyRefreshToken(token) {
-  return jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+  try {
+    return jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+  } catch {
+    return null;
+  }
 }

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useTeamStore } from "@/store/team.store";
 import { useEventStore } from "@/store/event.store";
+import ConfirmModal, { useConfirm } from "@/components/ui/confirm-modal";
 
 /* ── helpers ─────────────────────────────────────────────────────────────────── */
 function initials(name = "") {
@@ -134,7 +135,6 @@ const ACCESS_ROWS = [
 function InviteForm({ eventId, canInvite, meta, onSuccess, dark = false }) {
   const { inviteMember, isSubmitting } = useTeamStore();
   const [email,  setEmail]  = useState("");
-  const [name,   setName]   = useState("");
   const [err,    setErr]    = useState("");
   const [notice, setNotice] = useState(""); // "added" | "invited"
 
@@ -142,9 +142,9 @@ function InviteForm({ eventId, canInvite, meta, onSuccess, dark = false }) {
     setErr(""); setNotice("");
     if (!email.trim()) { setErr("Enter an email address"); return; }
 
-    const res = await inviteMember(eventId, email.trim(), name.trim());
+    const res = await inviteMember(eventId, email.trim(), "");
     if (res.success) {
-      setEmail(""); setName("");
+      setEmail("");
       setNotice(res.type === "invited" ? "invited" : "added");
       setTimeout(() => setNotice(""), 4000);
       onSuccess?.();
@@ -187,12 +187,12 @@ function InviteForm({ eventId, canInvite, meta, onSuccess, dark = false }) {
   return (
     <div className="flex flex-col gap-2">
       <div
-        className="flex flex-col gap-1.5 rounded-xl border p-1"
+        className="flex gap-2 rounded-xl border p-1"
         style={dark
           ? { background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.1)" }
           : { borderColor: "" }}
       >
-        <div className="relative">
+        <div className="relative flex-1">
           <Mail size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="email"
@@ -205,27 +205,15 @@ function InviteForm({ eventId, canInvite, meta, onSuccess, dark = false }) {
             autoComplete="off"
           />
         </div>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && submit()}
-            placeholder="Their name (optional)"
-            className="flex-1 rounded-lg px-3 py-2.5 text-sm outline-none"
-            style={dark ? { background: "transparent", color: "#fff" } : { background: "transparent" }}
-            autoComplete="off"
-          />
-          <button
-            onClick={submit}
-            disabled={isSubmitting}
-            className="flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold text-white transition disabled:opacity-60"
-            style={{ background: "#6366f1" }}
-          >
-            {isSubmitting ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <Send size={14} />}
-            {isSubmitting ? "…" : "Invite"}
-          </button>
-        </div>
+        <button
+          onClick={submit}
+          disabled={isSubmitting}
+          className="flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold text-white transition disabled:opacity-60"
+          style={{ background: "#6366f1" }}
+        >
+          {isSubmitting ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <Send size={14} />}
+          {isSubmitting ? "…" : "Invite"}
+        </button>
       </div>
 
       {/* Feedback */}
@@ -261,10 +249,19 @@ export default function TeamPage() {
     ? (meta.maxAdmins === null || adminCount < meta.maxAdmins)
     : false;
 
-  const handleRemove = useCallback(async (memberId) => {
-    if (!confirm("Remove this admin from the event?")) return;
-    await removeMember(eventId, memberId);
-  }, [eventId, removeMember]);
+  const { openConfirm, confirmProps } = useConfirm();
+
+  const handleRemove = useCallback((memberId) => {
+    openConfirm({
+      title: "Remove from team?",
+      description: "This person will lose access to manage this event.",
+      confirmText: "Remove",
+      variant: "danger",
+      onConfirm: async () => {
+        await removeMember(eventId, memberId);
+      },
+    });
+  }, [eventId, removeMember, openConfirm]);
 
   /* ── MOBILE VIEWPORT ─────────────────────────────────────────────── */
   const MobileView = (
@@ -303,7 +300,7 @@ export default function TeamPage() {
               <p className="text-[13px] font-bold text-white">Add Admin by Email</p>
             </div>
             <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>
-              Enter your teammate's email. They'll get a link to join — no password sharing needed.
+              Enter your teammate's email. If they have an account, they're added instantly. If not, they'll receive a signup link.
             </p>
             <InviteForm eventId={eventId} canInvite={canInvite} meta={meta} dark />
           </div>
@@ -434,5 +431,5 @@ export default function TeamPage() {
     </div>
   );
 
-  return <>{MobileView}{DesktopView}</>;
+  return <>{MobileView}{DesktopView}<ConfirmModal {...confirmProps} /></>;
 }

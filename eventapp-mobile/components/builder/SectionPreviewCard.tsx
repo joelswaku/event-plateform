@@ -1179,7 +1179,7 @@ function GalleryLightbox({images,start,accent,onClose}:{images:string[];start:nu
   const ref=useRef<ScrollView>(null);
   useEffect(()=>{setTimeout(()=>ref.current?.scrollTo({x:start*SW,animated:false}),80);},[]);
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
       <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.96)',justifyContent:'center'}}>
         <Pressable style={{position:'absolute',top:56,right:20,zIndex:10,width:40,height:40,borderRadius:20,backgroundColor:'rgba(255,255,255,0.12)',alignItems:'center',justifyContent:'center'}} onPress={onClose}>
           <Feather name="x" size={20} color="#fff" />
@@ -1307,7 +1307,7 @@ function StoryBlock({ cfg, title, body, t }: any) {
       <Text style={{ fontSize: 20, fontWeight: '900', color: t.text, letterSpacing: -0.5, marginBottom: 2 }}>{lbl}</Text>
       <View style={{ flexDirection: 'row', gap: 10 }}>
         {img && (
-          <View style={{ width: 90, borderRadius: 12, overflow: 'hidden', borderWidth: 2, borderColor: '#1a1a1a', shadowColor: '#1a1a1a', shadowOffset: { width: 4, height: 4 }, shadowOpacity: 1, shadowRadius: 0 }}>
+          <View style={{ width: 90, borderRadius: 12, overflow: 'hidden', borderWidth: 2, borderColor: '#1a1a1a', shadowColor: '#1a1a1a', shadowOffset: { width: 4, height: 4 }, shadowOpacity: 1, shadowRadius: 0, elevation: 4 }}>
             <Image source={{ uri: img }} style={{ width: '100%', height: '100%', minHeight: 110 }} resizeMode="cover" />
           </View>
         )}

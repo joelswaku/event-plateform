@@ -28,7 +28,9 @@ import { useSubscriptionStore } from '@/store/subscription.store';
 import { useNotificationStore } from '@/store/notification.store';
 import { Colors }               from '@/constants/colors';
 import { Event }                from '@/types';
-import Toast                    from 'react-native-toast-message';
+import { notify, toast } from '@/lib/toast';
+
+
 
 const { width: SW } = Dimensions.get('window');
 const CARD_W        = SW - 40; // carousel card width
@@ -627,9 +629,11 @@ function StatTile({ value, label, icon, accent }: {
 
 /* ─── Featured carousel card ───────────────────────────────────────── */
 function FeaturedCard({ event, onPress }: { event: Event; onPress: () => void }) {
-  const cfg = Colors.status[event.status as keyof typeof Colors.status] ?? Colors.status.DRAFT;
+  const cfg    = Colors.status[event.status as keyof typeof Colors.status] ?? Colors.status.DRAFT;
+  const isTeam = event.user_role && event.user_role !== 'OWNER';
+  const role   = event.user_role ?? 'ADMIN';
   return (
-    <Pressable onPress={onPress} style={s.featuredCard}>
+    <Pressable onPress={onPress} style={[s.featuredCard, isTeam && { borderWidth: 2, borderColor: 'rgba(251,191,36,0.50)' }]}>
       <Image
         source={heroImg(event)}
         style={StyleSheet.absoluteFill}
@@ -641,27 +645,36 @@ function FeaturedCard({ event, onPress }: { event: Event; onPress: () => void })
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0.2 }} end={{ x: 0, y: 1 }}
       />
-      {/* Status pill */}
+      {/* Status / role pill */}
       <View style={s.featuredTop}>
-        <View style={[s.livePill, { backgroundColor: cfg.bg }]}>
-          <View style={[s.liveDot, { backgroundColor: cfg.dot }]} />
-          <Text style={[s.liveTxt, { color: cfg.text }]}>
-            {event.status.charAt(0) + event.status.slice(1).toLowerCase()}
-          </Text>
-        </View>
+        {isTeam ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(251,191,36,0.90)', borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4 }}>
+            <Feather name="users" size={9} color="#000" />
+            <Text style={{ fontSize: 10, fontWeight: '800', color: '#000' }}>{role.replace('_', ' ')}</Text>
+          </View>
+        ) : (
+          <View style={[s.livePill, { backgroundColor: cfg.bg }]}>
+            <View style={[s.liveDot, { backgroundColor: cfg.dot }]} />
+            <Text style={[s.liveTxt, { color: cfg.text }]}>
+              {event.status.charAt(0) + event.status.slice(1).toLowerCase()}
+            </Text>
+          </View>
+        )}
         <View style={s.arrowBtn}>
           <Feather name="arrow-right" size={13} color="rgba(255,255,255,0.7)" />
         </View>
       </View>
       {/* Title + date */}
-      <View style={s.featuredBottom}>
+      <View style={[s.featuredBottom, isTeam && { backgroundColor: 'rgba(42,29,0,0.85)' }]}>
         <Text style={s.featuredTitle} numberOfLines={2}>{event.title}</Text>
         <View style={s.featuredMeta}>
-          <Feather name="calendar" size={11} color="rgba(255,255,255,0.5)" />
-          <Text style={s.featuredMetaTxt}>
+          <Feather name="calendar" size={11} color={isTeam ? 'rgba(251,191,36,0.6)' : 'rgba(255,255,255,0.5)'} />
+          <Text style={[s.featuredMetaTxt, isTeam && { color: 'rgba(251,191,36,0.6)' }]}>
             {fmtDate(event.starts_at_utc ?? event.starts_at)}
           </Text>
-          {event.location ? (
+          {isTeam && event.owner_name ? (
+            <><Text style={{ color: 'rgba(251,191,36,0.4)', fontSize: 11 }}>· by {event.owner_name}</Text></>
+          ) : event.location ? (
             <>
               <Text style={s.metaDot}>·</Text>
               <Feather name="map-pin" size={11} color="rgba(255,255,255,0.5)" />
@@ -696,9 +709,14 @@ function Dots({ count, active }: { count: number; active: number }) {
 
 /* ─── Recent event row ─────────────────────────────────────────────── */
 function RecentRow({ event, onPress }: { event: Event; onPress: () => void }) {
-  const cfg = Colors.status[event.status as keyof typeof Colors.status] ?? Colors.status.DRAFT;
+  const cfg    = Colors.status[event.status as keyof typeof Colors.status] ?? Colors.status.DRAFT;
+  const isTeam = event.user_role && event.user_role !== 'OWNER';
+  const role   = event.user_role ?? 'ADMIN';
   return (
-    <Pressable onPress={onPress} style={s.recentCard}>
+    <Pressable
+      onPress={onPress}
+      style={[s.recentCard, isTeam && { backgroundColor: '#2a1d00', borderColor: 'rgba(251,191,36,0.35)', borderWidth: 1 }]}
+    >
       {/* Thumb */}
       <View style={s.recentThumb}>
         <Image
@@ -714,19 +732,28 @@ function RecentRow({ event, onPress }: { event: Event; onPress: () => void }) {
       </View>
       {/* Info */}
       <View style={s.recentInfo}>
-        <Text style={s.recentTitle} numberOfLines={1}>{event.title}</Text>
+        <Text style={[s.recentTitle, isTeam && { color: '#fef3c7' }]} numberOfLines={1}>{event.title}</Text>
         <View style={s.recentDateRow}>
-          <Feather name="calendar" size={10} color={Colors.text.subtle} />
-          <Text style={s.recentDate}>{fmtDate(event.starts_at_utc ?? event.starts_at)}</Text>
-        </View>
-        <View style={[s.statusPill, { backgroundColor: cfg.bg }]}>
-          <View style={[s.statusDot, { backgroundColor: cfg.dot }]} />
-          <Text style={[s.statusTxt, { color: cfg.text }]}>
-            {event.status.toUpperCase()}
+          <Feather name="calendar" size={10} color={isTeam ? 'rgba(251,191,36,0.6)' : Colors.text.subtle} />
+          <Text style={[s.recentDate, isTeam && { color: 'rgba(251,191,36,0.6)' }]}>
+            {fmtDate(event.starts_at_utc ?? event.starts_at)}
           </Text>
         </View>
+        {isTeam ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(251,191,36,0.18)', borderRadius: 99, paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start' }}>
+            <Feather name="users" size={9} color="#fbbf24" />
+            <Text style={{ fontSize: 9, fontWeight: '700', color: '#fbbf24' }}>{role.replace('_', ' ')}</Text>
+          </View>
+        ) : (
+          <View style={[s.statusPill, { backgroundColor: cfg.bg }]}>
+            <View style={[s.statusDot, { backgroundColor: cfg.dot }]} />
+            <Text style={[s.statusTxt, { color: cfg.text }]}>
+              {event.status.toUpperCase()}
+            </Text>
+          </View>
+        )}
       </View>
-      <Feather name="chevron-right" size={16} color={Colors.text.subtle} />
+      <Feather name="chevron-right" size={16} color={isTeam ? 'rgba(251,191,36,0.5)' : Colors.text.subtle} />
     </Pressable>
   );
 }
@@ -766,6 +793,14 @@ export default function HomeScreen() {
   const { events, fetchEvents, loading, activeEventId, setActiveEvent, dashboard, fetchEventDashboard } = useEventStore();
   const { isPremium, fetchSubscription, plan, usage, limits } = useSubscriptionStore();
   const { unreadCount, fetch: fetchNotifs } = useNotificationStore();
+  const teamEvents  = events.filter(e => e.user_role && e.user_role !== 'OWNER');
+
+  // My events only — exclude admin/team events, archived events, and expired events
+  const myEvents = events.filter(e =>
+    (!e.user_role || e.user_role === 'OWNER') &&
+    e.status !== 'ARCHIVED' &&
+    e.status !== 'DELETED'
+  );
 
   const headerAnim = useRef(new Animated.Value(0)).current;
   const statsAnim  = useRef(new Animated.Value(0)).current;
@@ -789,13 +824,7 @@ export default function HomeScreen() {
       prevActiveRef.current = activeEventId;
       const ev = events.find(e => e.id === activeEventId);
       if (ev) {
-        Toast.show({
-          type: 'success',
-          text1: 'Active event switched',
-          text2: ev.title,
-          visibilityTime: 2500,
-          position: 'bottom',
-        });
+        notify.eventSelected(ev.title);
       }
     }
   }, [activeEventId, events]);
@@ -866,7 +895,7 @@ export default function HomeScreen() {
 
   const firstName   = user?.full_name?.split(' ')[0] ?? 'there';
   const premiumStatus = isPremium();
-  const recent      = events.slice(0, 6);
+  const recent      = myEvents.slice(0, 6);
 
   // Active event + its dashboard stats
   const activeEvent = events.find(e => e.id === activeEventId) ?? events[0] ?? null;
@@ -932,11 +961,11 @@ export default function HomeScreen() {
         <Animated.View style={[s.header, animStyle(headerAnim)]}>
           <View style={s.headerLeft}>
             <LinearGradient
-              colors={[Colors.accent.indigo, Colors.accent.violet]}
+              colors={user?.is_super_admin ? ['#c9a96e', '#f59e0b'] : [Colors.accent.indigo, Colors.accent.violet]}
               style={s.logoMark}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             >
-              <Feather name="zap" size={14} color="#fff" />
+              <Feather name={user?.is_super_admin ? 'shield' : 'zap'} size={14} color={user?.is_super_admin ? '#000' : '#fff'} />
             </LinearGradient>
             <View>
               <Text style={s.greetingLine}>{greeting()}</Text>
@@ -968,6 +997,29 @@ export default function HomeScreen() {
             </Pressable>
           </View>
         </Animated.View>
+
+        {/* ── Super Admin Banner ───────────────────────────────── */}
+        {user?.is_super_admin && (
+          <Animated.View style={[s.sadmBanner, animStyle(headerAnim)]}>
+            <LinearGradient
+              colors={['rgba(201,169,110,0.14)', 'rgba(245,158,11,0.05)']}
+              style={StyleSheet.absoluteFill}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            />
+            <View style={s.sadmLeft}>
+              <View style={s.sadmIcon}>
+                <Feather name="shield" size={14} color="#c9a96e" />
+              </View>
+              <View>
+                <Text style={s.sadmTitle}>Super Admin Mode</Text>
+                <Text style={s.sadmSub}>Full platform access</Text>
+              </View>
+            </View>
+            <View style={s.sadmBadge}>
+              <Text style={s.sadmBadgeTxt}>ADMIN</Text>
+            </View>
+          </Animated.View>
+        )}
 
         {/* ── Stats row (active event) ──────────────────────────── */}
         <Animated.View style={animStyle(statsAnim)}>
@@ -1028,20 +1080,80 @@ export default function HomeScreen() {
           </View>
         </Animated.View>
 
+        {/* ── Events you're managing ────────────────────────────── */}
+        {teamEvents.length > 0 && (
+          <Animated.View style={[s.section, animStyle(quickAnim)]}>
+            <View style={s.sectionHeader}>
+              <View style={s.teamSectionLabel}>
+                <Feather name="users" size={13} color="#fbbf24" />
+                <Text style={s.teamSectionTitle}>Events you&apos;re managing</Text>
+              </View>
+              <View style={s.teamCountBadge}>
+                <Text style={s.teamCountTxt}>{teamEvents.length}</Text>
+              </View>
+            </View>
+            <View style={s.teamList}>
+              {teamEvents.map(ev => {
+                const date = ev.starts_at_local ?? ev.starts_at_utc;
+                const dateStr = date
+                  ? new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                  : null;
+                const roleLabel = (ev.user_role ?? 'ADMIN').replace('_', ' ');
+                return (
+                  <Pressable
+                    key={ev.id}
+                    style={s.teamCard}
+                    onPress={() => router.push(`/events/${ev.id}` as never)}
+                  >
+                    {/* Thumbnail */}
+                    <View style={s.teamCardThumb}>
+                      <Image
+                        source={{ uri: heroImg(ev) }}
+                        style={StyleSheet.absoluteFill}
+                        contentFit="cover"
+                        transition={200}
+                      />
+                      <LinearGradient
+                        colors={['transparent', 'rgba(0,0,0,0.55)']}
+                        style={StyleSheet.absoluteFill}
+                      />
+                      <View style={s.teamCardThumbBadge}>
+                        <Feather name="users" size={8} color="#fbbf24" />
+                      </View>
+                    </View>
+                    <View style={s.teamCardInfo}>
+                      <Text style={s.teamCardTitle} numberOfLines={1}>{ev.title}</Text>
+                      <Text style={s.teamCardSub} numberOfLines={1}>
+                        {dateStr ? `${dateStr} · ` : ''}By {ev.owner_name}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      <View style={{ backgroundColor: 'rgba(251,191,36,0.20)', borderRadius: 99, paddingHorizontal: 7, paddingVertical: 2 }}>
+                        <Text style={{ fontSize: 9, fontWeight: '800', color: '#fbbf24' }}>{roleLabel}</Text>
+                      </View>
+                      <Feather name="chevron-right" size={14} color="rgba(251,191,36,0.35)" />
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Animated.View>
+        )}
+
         {/* ── Featured Events (carousel) ─────────────────────────── */}
         <Animated.View style={[s.section, animStyle(listAnim)]}>
           <View style={s.sectionHeader}>
             <Text style={s.sectionTitle}>
-              {events.length > 1 ? 'Your Events' : 'Featured Event'}
+              {myEvents.length > 1 ? 'Your Events' : 'Featured Event'}
             </Text>
             <Pressable onPress={() => router.push('/(tabs)/events' as never)}>
               <Text style={s.seeAll}>See all →</Text>
             </Pressable>
           </View>
 
-          {loading && events.length === 0 ? (
+          {loading && myEvents.length === 0 ? (
             <ActivityIndicator color={Colors.accent.indigo} style={{ marginTop: 40 }} />
-          ) : events.length === 0 ? (
+          ) : myEvents.length === 0 ? (
             <EmptyEvents onPress={() => router.push('/events/create' as never)} />
           ) : (
             <>
@@ -1056,7 +1168,7 @@ export default function HomeScreen() {
                 contentContainerStyle={s.carouselContent}
                 onMomentumScrollEnd={onCarouselScroll}
               >
-                {events.map(ev => (
+                {myEvents.map(ev => (
                   <FeaturedCard
                     key={ev.id}
                     event={ev}
@@ -1066,7 +1178,7 @@ export default function HomeScreen() {
               </ScrollView>
 
               {/* Pagination dots */}
-              <Dots count={events.length} active={activeIdx} />
+              <Dots count={myEvents.length} active={activeIdx} />
             </>
           )}
         </Animated.View>
@@ -1076,7 +1188,7 @@ export default function HomeScreen() {
           <Animated.View style={[s.section, { paddingBottom: 130 }, animStyle(listAnim)]}>
             <View style={s.sectionHeader}>
               <Text style={s.sectionTitle}>Recent Events</Text>
-              {events.length > 5 && (
+              {myEvents.length > 5 && (
                 <Pressable onPress={() => router.push('/(tabs)/events' as never)}>
                   <Text style={s.seeAll}>See all →</Text>
                 </Pressable>
@@ -1212,6 +1324,28 @@ const s = StyleSheet.create({
   statusPill: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 99, marginTop: 2 },
   statusDot:  { width: 5, height: 5, borderRadius: 3 },
   statusTxt:  { fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
+
+  /* Managing section */
+  teamSectionLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  teamSectionTitle: { fontSize: 12, fontWeight: '800', color: 'rgba(255,255,255,0.40)', textTransform: 'uppercase', letterSpacing: 0.6 },
+  teamCountBadge:   { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 99, backgroundColor: 'rgba(251,191,36,0.15)' },
+  teamCountTxt:     { fontSize: 11, fontWeight: '800', color: '#fbbf24' },
+  teamList:         { gap: 8 },
+  teamCard:           { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(251,191,36,0.25)', backgroundColor: '#2a1d00' },
+  teamCardThumb:      { width: 46, height: 46, borderRadius: 10, overflow: 'hidden', flexShrink: 0, backgroundColor: '#14141f' },
+  teamCardThumbBadge: { position: 'absolute', bottom: 3, right: 3, width: 14, height: 14, borderRadius: 4, backgroundColor: 'rgba(42,29,0,0.85)', alignItems: 'center', justifyContent: 'center' },
+  teamCardInfo:       { flex: 1, minWidth: 0, gap: 2 },
+  teamCardTitle:    { fontSize: 13, fontWeight: '800', color: '#fef3c7' },
+  teamCardSub:      { fontSize: 11, color: 'rgba(251,191,36,0.55)' },
+
+  /* Super admin banner */
+  sadmBanner:   { marginHorizontal: 20, marginTop: 6, marginBottom: 2, borderRadius: 14, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: 'rgba(201,169,110,0.30)', overflow: 'hidden' },
+  sadmLeft:     { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  sadmIcon:     { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(201,169,110,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(201,169,110,0.25)' },
+  sadmTitle:    { fontSize: 13, fontWeight: '800', color: '#c9a96e' },
+  sadmSub:      { fontSize: 10, color: 'rgba(201,169,110,0.60)', marginTop: 1 },
+  sadmBadge:    { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99, backgroundColor: 'rgba(201,169,110,0.15)', borderWidth: 1, borderColor: 'rgba(201,169,110,0.30)' },
+  sadmBadgeTxt: { fontSize: 9, fontWeight: '900', color: '#c9a96e', letterSpacing: 1.2 },
 
   /* Empty */
   empty:       { alignItems: 'center', paddingVertical: 40, gap: 12 },

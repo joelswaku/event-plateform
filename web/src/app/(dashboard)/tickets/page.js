@@ -136,6 +136,214 @@ function TicketStatCard({ icon: Icon, label, value, accent, delay, loading }) {
   );
 }
 
+/* ── Donut chart (pure SVG) ──────────────────────────────── */
+function DonutChart({ title, segments, centerLabel, centerSub }) {
+  const total = segments.reduce((s, g) => s + g.count, 0);
+  const R = 40, cx = 48, cy = 48, sw = 11;
+  const circ = 2 * Math.PI * R;
+  let off = 0;
+  const arcs = segments.map(seg => {
+    const dash = total > 0 ? (seg.count / total) * circ : 0;
+    const arc  = { ...seg, dash, off };
+    off += dash;
+    return arc;
+  });
+  return (
+    <div className="rounded-2xl border border-gray-100 dark:border-white/8 bg-white dark:bg-(--bg-elevated) p-5 h-full">
+      <p className="mb-3 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-white/30">{title}</p>
+      <div className="flex items-center gap-4">
+        <div className="relative shrink-0" style={{ width: 96, height: 96 }}>
+          <svg width="96" height="96" viewBox="0 0 96 96">
+            <circle cx={cx} cy={cy} r={R} fill="none" stroke="currentColor" strokeWidth={sw}
+              className="text-gray-100 dark:text-white/6" />
+            {total > 0 && arcs.map((arc, i) => (
+              <circle key={i} cx={cx} cy={cy} r={R} fill="none"
+                stroke={arc.color} strokeWidth={sw}
+                strokeDasharray={`${arc.dash} ${circ - arc.dash}`}
+                strokeDashoffset={-arc.off}
+                style={{ transform: "rotate(-90deg)", transformOrigin: `${cx}px ${cy}px` }}
+              />
+            ))}
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <p className="text-lg font-black text-gray-900 dark:text-white leading-none">{centerLabel ?? total}</p>
+            <p className="text-[8px] font-bold text-gray-400 dark:text-white/25 uppercase tracking-wide mt-0.5">{centerSub ?? "total"}</p>
+          </div>
+        </div>
+        <div className="flex-1 space-y-1.5 min-w-0">
+          {segments.map(seg => (
+            <div key={seg.label} className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
+              <p className="flex-1 text-xs font-medium text-gray-600 dark:text-white/55 truncate">{seg.label}</p>
+              <p className="text-xs font-black text-gray-900 dark:text-white">{seg.count}</p>
+              <p className="text-[10px] text-gray-400 dark:text-white/25 w-8 text-right">
+                {total > 0 ? `${Math.round(seg.count / total * 100)}%` : "—"}
+              </p>
+            </div>
+          ))}
+          {total === 0 && <p className="text-xs text-gray-300 dark:text-white/20 italic">No data yet</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Top events bar chart ────────────────────────────────── */
+function TopEventsBar({ events: evts }) {
+  const max = Math.max(...evts.map(e => e.total_sold ?? 0), 1);
+  return (
+    <div className="rounded-2xl border border-gray-100 dark:border-white/8 bg-white dark:bg-(--bg-elevated) p-5 h-full">
+      <p className="mb-4 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-white/30">Top events by sales</p>
+      <div className="space-y-3">
+        {evts.map((e, i) => {
+          const pct = ((e.total_sold ?? 0) / max) * 100;
+          return (
+            <div key={e.id}>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs font-semibold text-gray-700 dark:text-white/70 truncate max-w-[60%]">{e.title}</p>
+                <p className="text-xs font-black text-gray-900 dark:text-white">{e.total_sold ?? 0} sold</p>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-white/6">
+                <motion.div
+                  initial={{ width: 0 }} animate={{ width: `${pct}%` }}
+                  transition={{ duration: 0.7, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] }}
+                  className="h-full rounded-full"
+                  style={{ background: `linear-gradient(90deg, #6366f1, #a78bfa)` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+        {evts.length === 0 && <p className="text-xs text-gray-300 dark:text-white/20 italic">No events yet</p>}
+      </div>
+    </div>
+  );
+}
+
+/* ── Select Event for Ticket Modal ──────────────────────── */
+function SelectEventModal({ events, onClose, onSelect, onCreateNew }) {
+  const [q, setQ] = useState("");
+  const filtered = useMemo(() => {
+    if (!q.trim()) return events;
+    const lq = q.trim().toLowerCase();
+    return events.filter((e) => e.title?.toLowerCase().includes(lq));
+  }, [events, q]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+      style={{ background: "rgba(0,0,0,0.88)", backdropFilter: "blur(18px)" }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.94, y: 28 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.94, y: 28 }}
+        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg overflow-hidden rounded-3xl shadow-2xl flex flex-col"
+        style={{
+          background: "linear-gradient(160deg,#0d0d1a 0%,#090910 100%)",
+          border: "1px solid rgba(255,255,255,0.07)",
+          boxShadow: "0 48px 96px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.05)",
+          maxHeight: "80vh",
+        }}
+      >
+        <div className="h-px w-full shrink-0" style={{ background: "linear-gradient(90deg,transparent 5%,#f59e0b 40%,#ef4444 60%,transparent 95%)" }} />
+
+        {/* header */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.28)" }}>
+              <Ticket size={16} style={{ color: "#f59e0b" }} />
+            </div>
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.22em] text-amber-400">Add Tickets</p>
+              <h2 className="text-base font-black text-white leading-snug">Select an event</h2>
+            </div>
+          </div>
+          <button onClick={onClose} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition" style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.35)" }}>
+            <X size={15} />
+          </button>
+        </div>
+
+        {/* search */}
+        <div className="px-6 pb-3 shrink-0">
+          <div className="flex items-center gap-2.5 rounded-xl px-3.5" style={{ height: 40, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)" }}>
+            <Search size={13} style={{ color: "rgba(255,255,255,0.30)" }} />
+            <input
+              type="text"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search your events…"
+              className="flex-1 bg-transparent text-[13px] font-medium text-white outline-none placeholder:text-[rgba(255,255,255,0.22)]"
+              autoFocus
+            />
+            {q && <button onClick={() => setQ("")}><X size={11} style={{ color: "rgba(255,255,255,0.4)" }} /></button>}
+          </div>
+        </div>
+
+        <div className="h-px mx-6 shrink-0" style={{ background: "rgba(255,255,255,0.06)" }} />
+
+        {/* event list */}
+        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
+          {filtered.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-10 text-center">
+              <p className="text-sm font-semibold text-white/40">No events found</p>
+            </div>
+          ) : (
+            filtered.map((event, i) => {
+              const accent = getAccentForEvent(event);
+              const sub = getSubForEvent(event);
+              const dateStr = fmtDate(event.starts_at_local);
+              return (
+                <motion.button
+                  key={event.id}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.03 }}
+                  onClick={() => onSelect(event.id)}
+                  className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all"
+                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.07)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.03)")}
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-lg" style={{ background: `linear-gradient(135deg,${accent.from}20,${accent.to}10)`, border: `1px solid ${accent.from}30` }}>
+                    {sub?.icon ?? "🎫"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-sm font-bold text-white/90">{event.title}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      {dateStr && <span className="flex items-center gap-1 text-[10px] text-white/35"><Calendar size={8} />{dateStr}</span>}
+                      {(event.ticket_count ?? 0) > 0 && (
+                        <span className="rounded-full px-1.5 py-0.5 text-[9px] font-black" style={{ background: `${accent.from}20`, color: accent.from }}>
+                          {event.ticket_count} ticket type{event.ticket_count !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <ChevronRight size={13} style={{ color: "rgba(255,255,255,0.20)" }} className="shrink-0 group-hover:text-amber-400 transition-colors" />
+                </motion.button>
+              );
+            })
+          )}
+        </div>
+
+        {/* footer — create new event option */}
+        <div className="shrink-0 px-6 py-4 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+          <button
+            onClick={onCreateNew}
+            className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold text-black transition-all hover:opacity-90"
+            style={{ background: "linear-gradient(135deg,#f59e0b,#ef4444)", boxShadow: "0 4px 16px #f59e0b30" }}
+          >
+            <Plus size={14} /> Create a new event
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 /* ── Create Ticket Overlay ───────────────────────────────── */
 /* Beautiful full-screen category picker. Navigates to the  */
 /* create event page with the subcategory pre-selected.      */
@@ -454,8 +662,8 @@ function EditTicketModal({ ticket, onClose, onSaved }) {
           {/* kind */}
           <div>
             <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-white/40">Ticket kind</label>
-            <div className="grid grid-cols-3 gap-2">
-              {["PAID", "FREE", "DONATION"].map((k) => (
+            <div className="grid grid-cols-2 gap-2">
+              {["PAID", "FREE"].map((k) => (
                 <button
                   key={k}
                   onClick={() => set("kind", k)}
@@ -1350,8 +1558,25 @@ export default function TicketsPage() {
   const [loadingTickets, setLoadingTickets] = useState(true);
   const [fetchError, setFetchError]         = useState(null);
   const [showOverlay, setShowOverlay]       = useState(false);
+  const [showEventPicker, setShowEventPicker] = useState(false);
   const [search, setSearch]                 = useState("");
   const [sort, setSort]                     = useState("date_asc");
+
+  // Must be declared before handleNewTicketClick which depends on it
+  const ownedActiveEvents = useMemo(() =>
+    allEvents.filter((e) =>
+      (e.user_role === "OWNER" || e.user_role === "owner" || !e.user_role) &&
+      e.status !== "ARCHIVED" && e.status !== "DELETED"
+    ),
+  [allEvents]);
+
+  const handleNewTicketClick = useCallback(() => {
+    if (ownedActiveEvents.length > 0) {
+      setShowEventPicker(true);
+    } else {
+      setShowOverlay(true);
+    }
+  }, [ownedActiveEvents.length]);
 
   const loadTicketedEvents = useCallback(() => {
     setLoadingTickets(true);
@@ -1380,11 +1605,37 @@ export default function TicketsPage() {
   );
 
   /* aggregate stats */
-  const stats = useMemo(() => ({
-    totalEvents: ticketedEvents.length,
-    totalTypes:  ticketedEvents.reduce((s, e) => s + (e.ticket_count ?? 0), 0),
-    totalSold:   ticketedEvents.reduce((s, e) => s + (e.total_sold   ?? 0), 0),
-  }), [ticketedEvents]);
+  const stats = useMemo(() => {
+    const totalSold   = ticketedEvents.reduce((s, e) => s + (e.total_sold   ?? 0), 0);
+    const totalActive = ticketedEvents.reduce((s, e) => s + (e.active_count ?? 0), 0);
+    const totalTypes  = ticketedEvents.reduce((s, e) => s + (e.ticket_count ?? 0), 0);
+    // event-type distribution
+    const byType = ticketedEvents.reduce((acc, e) => {
+      const k = e.event_type ?? "OTHER";
+      acc[k] = (acc[k] ?? 0) + (e.total_sold ?? 0);
+      return acc;
+    }, {});
+    const TYPE_COLORS = ["#6366f1","#10b981","#f59e0b","#f43f5e","#a78bfa","#0ea5e9","#fb923c"];
+    const typeSegments = Object.entries(byType)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([label, count], i) => ({ label, count, color: TYPE_COLORS[i] ?? "#9ca3af" }));
+    return {
+      totalEvents: ticketedEvents.length,
+      totalTypes,
+      totalSold,
+      charts: {
+        activity: [
+          { label: "Active types", count: totalActive,             color: "#6366f1" },
+          { label: "Inactive",     count: totalTypes - totalActive, color: "#e5e7eb" },
+        ],
+        topEvents: ticketedEvents
+          .sort((a, b) => (b.total_sold ?? 0) - (a.total_sold ?? 0))
+          .slice(0, 5),
+        byType: typeSegments,
+      },
+    };
+  }, [ticketedEvents]);
 
   /* filter + sort */
   const filtered = useMemo(() => {
@@ -1408,15 +1659,15 @@ export default function TicketsPage() {
   const hasFilter = Boolean(search.trim());
 
   const filteredAllEvents = useMemo(() => {
-    let list = [...allEvents];
+    let list = [...ownedActiveEvents];
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter((e) => e.title?.toLowerCase().includes(q));
     }
     return list;
-  }, [allEvents, search]);
+  }, [ownedActiveEvents, search]);
 
-  const showSetupMode = !loadingTickets && ticketedEvents.length === 0 && allEvents.length > 0;
+  const showSetupMode = !loadingTickets && ticketedEvents.length === 0 && ownedActiveEvents.length > 0;
 
   return (
     <>
@@ -1465,7 +1716,7 @@ export default function TicketsPage() {
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.97 }}
-          onClick={() => setShowOverlay(true)}
+          onClick={handleNewTicketClick}
           className="flex shrink-0 items-center gap-2 self-start rounded-xl px-5 py-2.5 text-sm font-bold text-black shadow-lg transition-all"
           style={{
             background: "linear-gradient(135deg,#f59e0b,#ef4444)",
@@ -1483,6 +1734,25 @@ export default function TicketsPage() {
         <TicketStatCard icon={Tag}    label="Total ticket types" value={stats.totalTypes}                   accent="#6366f1" delay={0.1}  loading={loadingTickets} />
         <TicketStatCard icon={Users}  label="Total tickets sold" value={stats.totalSold.toLocaleString()}   accent="#0ea5e9" delay={0.15} loading={loadingTickets} />
       </div>
+
+      {/* ── charts ── */}
+      {!loadingTickets && ticketedEvents.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <DonutChart
+            title="Ticket type activity"
+            segments={stats.charts.activity}
+            centerLabel={stats.totalTypes}
+            centerSub="types"
+          />
+          <DonutChart
+            title="Sales by event type"
+            segments={stats.charts.byType}
+            centerLabel={stats.totalSold}
+            centerSub="sold"
+          />
+          <TopEventsBar events={stats.charts.topEvents} />
+        </div>
+      )}
 
       {/* ── error banner ── */}
       {fetchError && (
@@ -1504,7 +1774,7 @@ export default function TicketsPage() {
       )}
 
       {/* ── filter bar ── */}
-      {!loadingTickets && (ticketedEvents.length > 0 || allEvents.length > 0) && (
+      {!loadingTickets && (ticketedEvents.length > 0 || ownedActiveEvents.length > 0) && (
         <FilterBar
           search={search}
           onSearch={setSearch}
@@ -1592,6 +1862,24 @@ export default function TicketsPage() {
           </p>
         </motion.div>
       )}
+
+      {/* ── event picker modal ── */}
+      <AnimatePresence>
+        {showEventPicker && (
+          <SelectEventModal
+            events={ownedActiveEvents}
+            onClose={() => setShowEventPicker(false)}
+            onSelect={(eventId) => {
+              setShowEventPicker(false);
+              router.push(`/events/${eventId}/tickets`);
+            }}
+            onCreateNew={() => {
+              setShowEventPicker(false);
+              setShowOverlay(true);
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* ── create overlay ── */}
       <AnimatePresence>

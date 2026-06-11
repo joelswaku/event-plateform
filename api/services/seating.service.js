@@ -1,4 +1,4 @@
-import { db } from "../config/db.js";
+﻿import { db } from "../config/db.js";
 import { sendSeatAssignmentEmail } from "../utils/sendEmail.js";
 
 class AppError extends Error {
@@ -58,42 +58,39 @@ function validateAssignmentPayload(payload = {}) {
 |--------------------------------------------------------------------------
 */
 
-async function assertOrganizationEventPermission(client, organizationId, userId) {
+async function assertOrganizationEventPermission(client, organizationId, userId, eventId = null) {
   const result = await client.query(
-    `
-    SELECT role
-    FROM organization_members
-    WHERE organization_id=$1
-      AND user_id=$2
-    LIMIT 1
-    `,
+    `SELECT role FROM organization_members WHERE organization_id=$1 AND user_id=$2 LIMIT 1`,
     [organizationId, userId]
   );
+  if (result.rows[0]) return result.rows[0];
 
-  if (!result.rows[0]) {
-    throw new AppError("You do not belong to this organization", 403);
+  if (eventId) {
+    const { rows } = await client.query(
+      `SELECT role FROM event_members WHERE event_id=$1 AND user_id=$2 AND deleted_at IS NULL LIMIT 1`,
+      [eventId, userId]
+    );
+    if (rows[0]) return rows[0];
   }
-
-  return result.rows[0];
+  throw new AppError("You do not belong to this organization", 403);
 }
 
-async function assertEventExists(client, eventId, organizationId) {
-  const result = await client.query(
-    `
-    SELECT *
-    FROM events
-    WHERE id=$1
-      AND organization_id=$2
-      AND deleted_at IS NULL
-    LIMIT 1
-    `,
+async function assertEventExists(client, eventId, organizationId, userId = null) {
+  let result = await client.query(
+    `SELECT * FROM events WHERE id=$1 AND organization_id=$2 AND deleted_at IS NULL LIMIT 1`,
     [eventId, organizationId]
   );
 
-  if (!result.rows[0]) {
-    throw new AppError("Event not found", 404);
+  if (!result.rows[0] && userId) {
+    result = await client.query(
+      `SELECT * FROM events WHERE id=$1 AND deleted_at IS NULL
+       AND EXISTS (SELECT 1 FROM event_members em WHERE em.event_id=$1 AND em.user_id=$2 AND em.deleted_at IS NULL)
+       LIMIT 1`,
+      [eventId, userId]
+    );
   }
 
+  if (!result.rows[0]) throw new AppError("Event not found", 404);
   return result.rows[0];
 }
 
@@ -189,8 +186,8 @@ export async function createSeatingLocationService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const result = await client.query(
       `
@@ -234,8 +231,8 @@ export async function listSeatingLocationsService({
   const client = await db.connect();
 
   try {
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const result = await client.query(
       `
@@ -266,8 +263,8 @@ export async function updateSeatingLocationService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const location = await assertLocationExists(client, locationId, eventId);
 
@@ -333,8 +330,8 @@ export async function deleteSeatingLocationService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
     await assertLocationExists(client, locationId, eventId);
 
     await client.query(
@@ -375,8 +372,8 @@ export async function deleteSeatingLocationService({
 //   try {
 //     await client.query("BEGIN");
 
-//     await assertOrganizationEventPermission(client, organizationId, userId);
-//     await assertEventExists(client, eventId, organizationId);
+//     await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+//     await assertEventExists(client, eventId, organizationId, userId);
 //     await assertGuestBelongsToEvent(client, payload.guest_id, eventId);
 
 //     const location = await assertLocationExists(
@@ -481,8 +478,8 @@ export async function assignGuestSeatService({
     try {
       await client.query("BEGIN");
   
-      await assertOrganizationEventPermission(client, organizationId, userId);
-      const event = await assertEventExists(client, eventId, organizationId);
+      await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+      const event = await assertEventExists(client, eventId, organizationId, userId);
       const guest = await assertGuestBelongsToEvent(client, payload.guest_id, eventId);
   
       const location = await assertLocationExists(
@@ -610,8 +607,8 @@ export async function removeGuestSeatService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const result = await client.query(
       `
@@ -644,8 +641,8 @@ export async function listSeatingAssignmentsService({
   const client = await db.connect();
 
   try {
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const result = await client.query(
       `
@@ -684,8 +681,8 @@ export async function getSeatingChartService({
   const client = await db.connect();
 
   try {
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const locationsRes = await client.query(
       `
@@ -821,8 +818,8 @@ export async function getSeatingChartService({
 //   try {
 //     await client.query("BEGIN");
 
-//     await assertOrganizationEventPermission(client, organizationId, userId);
-//     await assertEventExists(client, eventId, organizationId);
+//     await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+//     await assertEventExists(client, eventId, organizationId, userId);
 
 //     const prioritizeVip      = Boolean(payload.prioritize_vip      ?? true);
 //     const keepGroupsTogether = Boolean(payload.keep_groups_together ?? true);
@@ -1014,8 +1011,8 @@ export async function clearSeatingAssignmentsService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const result = await client.query(
       `
@@ -1113,8 +1110,8 @@ export async function autoAssignSeatingService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const prioritizeVip      = Boolean(payload.prioritize_vip      ?? true);
     const keepGroupsTogether = Boolean(payload.keep_groups_together ?? true);

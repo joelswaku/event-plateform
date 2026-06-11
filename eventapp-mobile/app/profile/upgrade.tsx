@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator, Alert,
+  View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator,
 } from 'react-native';
+import { toast } from '@/lib/toast';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -44,11 +45,10 @@ export default function UpgradeScreen() {
     setLoading(false);
 
     if (result.success) {
-      Alert.alert('Welcome to Premium!', "You're now on the Premium plan.", [
-        { text: 'Great!', onPress: () => router.back() },
-      ]);
+      toast.success('Welcome to Premium!', "You're now on the Premium plan.");
+      router.back();
     } else if (!result.canceled) {
-      Alert.alert('Payment failed', result.message ?? 'Something went wrong. Please try again.');
+      toast.error('Payment failed', result.message ?? 'Something went wrong. Please try again.');
     }
     // canceled: do nothing — user dismissed the sheet
   };
@@ -79,7 +79,7 @@ export default function UpgradeScreen() {
             </View>
             <Text style={styles.heroTitle}>You're on {planLabel}</Text>
             <Text style={styles.heroSub}>
-              All {planLabel} features are active. Thank you for supporting EventApp!
+              All {planLabel} features are active. Thank you for supporting LiteEvent!
             </Text>
           </LinearGradient>
 

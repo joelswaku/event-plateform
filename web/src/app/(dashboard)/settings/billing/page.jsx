@@ -11,13 +11,12 @@ import { useSubscriptionStore } from "@/store/subscription.store";
 import PageHeader from "@/components/ui/page-header";
 import { api } from "@/lib/api";
 
-const STARTER_PRICE_ID =
-  process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID ||
-  process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID;
-
-const PRO_PRICE_ID =
-  process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID ||
-  process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID;
+// Price IDs and amounts come entirely from the API (Stripe) — no client-side env vars needed.
+// Set STRIPE_STARTER_PRICE_ID and STRIPE_PRO_PRICE_ID in api/.env and everything updates automatically.
+function formatAmount(amount) {
+  if (amount == null) return null;
+  return Number.isInteger(amount) ? `$${amount}` : `$${Number(amount).toFixed(2)}`;
+}
 
 // Tier rank — higher = better plan. Used to decide if a card is "passed" or upgradeable.
 const TIER_ORDER = { free: 0, starter: 1, pro: 2, premium: 2, enterprise: 3 };
@@ -51,6 +50,7 @@ function MobileBillingPage({
   usage, limits, checkoutLoading, portalLoading, error,
   handleCheckout, handlePortal,
   selectedPlan, setSelectedPlan, currentTier,
+  starterPrice, proPrice,
 }) {
   const router     = useRouter();
   const statusCfg  = STATUS_LABELS[subscriptionStatus] ?? null;
@@ -181,8 +181,8 @@ function MobileBillingPage({
           />
           <MobilePlanCard
             name="Starter"
-            price="$19"
-            period="/ month"
+            price={starterPrice}
+            period="/mo"
             badge="MOST POPULAR"
             features={STARTER_FEATURES}
             isCurrent={isSubscribed && plan === "starter"}
@@ -191,21 +191,22 @@ function MobileBillingPage({
             isSelected={selectedPlan === "starter"}
             onSelect={() => setSelectedPlan("starter")}
             accent="#6366f1"
-            onUpgrade={() => handleCheckout(STARTER_PRICE_ID, "starter")}
+            onUpgrade={() => handleCheckout(starterPriceId, "starter")}
             upgradeLoading={checkoutLoading === "starter"}
             upgradeDisabled={isPro || (isSubscribed && plan === "starter") || checkoutLoading !== null}
           />
           <MobilePlanCard
             name="Pro"
-            price="$49"
-            period="/ month"
+            price={proPrice}
+            period="/mo"
+            badge="BEST VALUE"
             features={PRO_FEATURES}
             isCurrent={isPro}
             isPassed={false}
             isSelected={selectedPlan === "pro"}
             onSelect={() => setSelectedPlan("pro")}
             accent="#C9A96E"
-            onUpgrade={() => handleCheckout(PRO_PRICE_ID, "pro")}
+            onUpgrade={() => handleCheckout(proPriceId, "pro")}
             upgradeLoading={checkoutLoading === "pro"}
             upgradeDisabled={isPro || checkoutLoading !== null}
           />
@@ -392,7 +393,8 @@ function MobilePlanCard({ name, price, period, badge, features, isCurrent, isPas
 export default function BillingPage() {
   const {
     plan, isSubscribed, subscriptionStatus, currentPeriodEnd,
-    usage, limits, fetchSubscription, openCustomerPortal, isLoading,
+    usage, limits, fetchSubscription, fetchPrices, openCustomerPortal, isLoading,
+    prices,
   } = useSubscriptionStore();
 
   const [checkoutLoading, setCheckoutLoading] = useState(null);
@@ -405,7 +407,30 @@ export default function BillingPage() {
   const isPro = isSubscribed && (plan === "pro" || plan === "premium" || plan === "enterprise");
   const currentTier = tierOf(isPro ? "pro" : plan);
 
-  useEffect(() => { fetchSubscription(); }, [fetchSubscription]);
+  useEffect(() => {
+    fetchSubscription();
+    fetchPrices(); // also load prices independently so display updates even before subscription loads
+  }, [fetchSubscription, fetchPrices]);
+
+  // Auto-select Pro plan if coming from planner
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const planParam = params.get("plan");
+      if (planParam === "pro") {
+        setSelectedPlan("pro");
+        // Scroll to Pro plan card and add highlight animation
+        setTimeout(() => {
+          const proCard = document.querySelector('[data-plan="pro"]');
+          if (proCard) {
+            proCard.scrollIntoView({ behavior: "smooth", block: "center" });
+            // Add pulse animation
+            proCard.style.animation = "pulse 2s ease-in-out 3";
+          }
+        }, 300);
+      }
+    }
+  }, []);
 
   const handleCheckout = async (priceId, tier) => {
     if (!priceId) { setError("Price not configured. Contact support."); return; }
@@ -435,11 +460,22 @@ export default function BillingPage() {
     setPortalLoading(false);
   };
 
+  // Price IDs from Stripe (via API) — no client-side env vars needed
+  const starterPriceId = prices?.starter?.id   ?? null;
+  const proPriceId     = prices?.pro?.id        ?? null;
+
+  // Display prices — live from Stripe with fallback while loading
+  const starterPrice = formatAmount(prices?.starter?.amount) ?? (prices ? "—" : "…");
+  const proPrice     = formatAmount(prices?.pro?.amount)     ?? (prices ? "—" : "…");
+
   const sharedProps = {
     plan, isSubscribed, subscriptionStatus, currentPeriodEnd,
     usage, limits, checkoutLoading, portalLoading, error,
     handleCheckout, handlePortal,
+    starterPrice, proPrice,
+    starterPriceId, proPriceId,
     selectedPlan, setSelectedPlan, currentTier,
+    pricesLoaded: !!(prices?.starter || prices?.pro),
   };
 
   const statusCfg       = STATUS_LABELS[subscriptionStatus] ?? null;
@@ -472,37 +508,34 @@ export default function BillingPage() {
         )}
 
         <div
-          className="relative overflow-hidden rounded-2xl border p-6"
-          style={
+          className={`relative overflow-hidden rounded-2xl border p-6 ${
             isSubscribed
-              ? { background: "linear-gradient(135deg, rgba(201,169,110,0.12) 0%, rgba(245,158,11,0.06) 100%)", borderColor: "rgba(201,169,110,0.35)" }
-              : { background: "var(--bg-surface)", borderColor: "var(--border)" }
-          }
+              ? 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-300 dark:from-amber-950/20 dark:to-orange-950/10 dark:border-amber-700/40'
+              : 'bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-700'
+          }`}
         >
           {isSubscribed && (
             <div
-              className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full blur-3xl"
-              style={{ background: "rgba(201,169,110,0.18)" }}
+              className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full blur-3xl bg-amber-200/30 dark:bg-amber-600/20"
               aria-hidden
             />
           )}
           <div className="relative flex flex-wrap items-center gap-4">
             <div
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl"
-              style={
+              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${
                 isSubscribed
-                  ? { background: "linear-gradient(135deg,#c9a96e,#f59e0b)", boxShadow: "0 4px 16px rgba(201,169,110,0.35)" }
-                  : { background: "var(--bg-elevated)", border: "1px solid var(--border)" }
-              }
+                  ? 'bg-linear-to-br from-amber-400 to-orange-500 shadow-lg shadow-amber-500/30'
+                  : 'bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700'
+              }`}
             >
               {isSubscribed
                 ? <Star className="h-5 w-5 fill-white text-white" />
-                : <Zap className="h-5 w-5 text-(--text-muted)" />
+                : <Zap className="h-5 w-5 text-gray-400 dark:text-slate-500" />
               }
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2.5">
-                <p className="text-lg font-bold capitalize text-(--text-primary)">
+                <p className="text-lg font-bold capitalize text-gray-900 dark:text-white">
                   {isSubscribed ? plan : "Free"} Plan
                 </p>
                 {statusCfg && (
@@ -514,12 +547,12 @@ export default function BillingPage() {
                   </span>
                 )}
                 {!isSubscribed && (
-                  <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-bold text-(--text-muted) dark:bg-white/8">
+                  <span className="rounded-full bg-gray-100 dark:bg-slate-800 px-2.5 py-0.5 text-[11px] font-bold text-gray-600 dark:text-slate-400">
                     Free forever
                   </span>
                 )}
               </div>
-              <p className="mt-0.5 text-sm text-(--text-muted)">
+              <p className="mt-0.5 text-sm text-gray-600 dark:text-slate-400">
                 {isSubscribed && renewDate
                   ? `Renews on ${renewDate}`
                   : isSubscribed
@@ -550,7 +583,7 @@ export default function BillingPage() {
         </div>
 
         <div>
-          <h2 className="mb-4 text-base font-bold text-(--text-primary)">Choose a plan</h2>
+          <h2 className="mb-4 text-base font-bold text-gray-900 dark:text-white">Choose a plan</h2>
           <div className="grid gap-4 md:grid-cols-3">
             <PlanCard
               name="Free"
@@ -559,13 +592,13 @@ export default function BillingPage() {
               features={FREE_FEATURES}
               isCurrent={!isSubscribed}
               isPassed={currentTier > tierOf("free")}
-              buttonLabel="Current plan"
-              buttonDisabled
+              buttonLabel={!isSubscribed ? "Current plan" : "Free plan"}
+              buttonDisabled={true}
             />
             <PlanCard
               name="Starter"
-              price="$19"
-              period="/ month"
+              price={starterPrice}
+              period="/mo"
               badge="MOST POPULAR"
               features={STARTER_FEATURES}
               isCurrent={isSubscribed && plan === "starter"}
@@ -581,46 +614,50 @@ export default function BillingPage() {
               }
               buttonDisabled={isPro || (isSubscribed && plan === "starter") || checkoutLoading !== null}
               buttonLoading={checkoutLoading === "starter"}
-              onUpgrade={() => handleCheckout(STARTER_PRICE_ID, "starter")}
+              onUpgrade={() => handleCheckout(starterPriceId, "starter")}
             />
-            <PlanCard
-              name="Pro"
-              price="$49"
-              period="/ month"
-              features={PRO_FEATURES}
-              isCurrent={isPro}
-              isPassed={false}
-              isSelected={selectedPlan === "pro"}
-              onSelect={() => setSelectedPlan("pro")}
-              buttonLabel={
-                isPro ? "Current plan"
-                : checkoutLoading === "pro" ? "Redirecting…"
-                : "Upgrade to Pro"
-              }
-              buttonDisabled={isPro || checkoutLoading !== null}
-              buttonLoading={checkoutLoading === "pro"}
-              onUpgrade={() => handleCheckout(PRO_PRICE_ID, "pro")}
-            />
+            <div data-plan="pro">
+              <PlanCard
+                name="Pro"
+                price={proPrice}
+                period="/mo"
+                badge="BEST VALUE"
+                features={PRO_FEATURES}
+                isCurrent={isPro}
+                isPassed={false}
+                isSelected={selectedPlan === "pro"}
+                onSelect={() => setSelectedPlan("pro")}
+                buttonLabel={
+                  isPro ? "Current plan"
+                  : checkoutLoading === "pro" ? "Redirecting…"
+                  : "Upgrade to Pro"
+                }
+                buttonDisabled={isPro || checkoutLoading !== null}
+                buttonLoading={checkoutLoading === "pro"}
+                onUpgrade={() => handleCheckout(proPriceId, "pro")}
+                isGold
+              />
+            </div>
           </div>
         </div>
 
         {isSubscribed && (
-          <div className="rounded-2xl border border-border bg-(--bg-surface) p-6">
-            <h2 className="mb-1 text-base font-bold text-(--text-primary)">Manage Subscription</h2>
-            <p className="mb-4 text-sm text-(--text-muted)">
+          <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-6">
+            <h2 className="mb-1 text-base font-bold text-gray-900 dark:text-white">Manage Subscription</h2>
+            <p className="mb-4 text-sm text-gray-600 dark:text-slate-400">
               Update payment method, download invoices, or cancel your plan.
             </p>
             <button
               onClick={handlePortal}
               disabled={portalLoading || isLoading}
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-(--bg-elevated) px-4 py-2.5 text-sm font-semibold text-(--text-primary) transition hover:bg-(--bg-base) disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-4 py-2.5 text-sm font-semibold text-gray-900 dark:text-white transition hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-60"
             >
               {portalLoading
                 ? <Loader2 className="h-4 w-4 animate-spin" />
                 : <ExternalLink className="h-4 w-4" />}
               {portalLoading ? "Opening…" : "Manage Subscription / Cancel"}
             </button>
-            <p className="mt-2.5 text-xs text-(--text-muted)">
+            <p className="mt-2.5 text-xs text-gray-600 dark:text-slate-400">
               You'll be redirected to Stripe to manage payment or cancel.
             </p>
           </div>
@@ -635,64 +672,66 @@ export default function BillingPage() {
 function UsageCard({ Icon, label, used, limit, unlimited, warningText, emptyText }) {
   const pct = unlimited ? 15 : Math.min(100, (used / Math.max(limit, 1)) * 100);
   return (
-    <div className="rounded-2xl border border-border bg-(--bg-surface) p-5">
+    <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Icon className="h-4 w-4" style={{ color: "var(--accent)" }} />
-          <span className="text-sm font-semibold text-(--text-primary)">{label}</span>
+          <Icon className="h-4 w-4 text-indigo-500" />
+          <span className="text-sm font-semibold text-gray-900 dark:text-white">{label}</span>
         </div>
-        <span className="text-sm font-bold text-(--text-primary)">
+        <span className="text-sm font-bold text-gray-900 dark:text-white">
           {used} / {unlimited ? "∞" : limit}
         </span>
       </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-(--bg-elevated)">
+      <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-slate-800">
         <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${pct}%`, background: "var(--accent)" }}
+          className="h-full rounded-full transition-all duration-500 bg-indigo-500"
+          style={{ width: `${pct}%` }}
         />
       </div>
       {warningText && (
         <p className="mt-2 text-xs font-medium text-amber-600 dark:text-amber-400">{warningText}</p>
       )}
       {emptyText && !warningText && (
-        <p className="mt-2 text-xs text-(--text-muted)">{emptyText}</p>
+        <p className="mt-2 text-xs text-gray-600 dark:text-slate-400">{emptyText}</p>
       )}
     </div>
   );
 }
 
-function PlanCard({ name, price, period, badge, features, isCurrent, isPassed, isPopular, isSelected, onSelect, buttonLabel, buttonDisabled, buttonLoading, onUpgrade }) {
+function PlanCard({ name, price, period, badge, features, isCurrent, isPassed, isPopular, isSelected, onSelect, buttonLabel, buttonDisabled, buttonLoading, onUpgrade, isGold }) {
   const isSelectable = !isCurrent && !isPassed && !!onSelect;
 
-  let borderColor, boxShadow, background;
-  if (isSelected) {
-    borderColor = "var(--accent)";
-    boxShadow   = "0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent), 0 0 32px color-mix(in srgb, var(--accent) 20%, transparent)";
-    background  = "color-mix(in srgb, var(--accent) 5%, var(--bg-surface))";
-  } else if (isPopular) {
-    borderColor = "var(--accent)";
-    boxShadow   = "0 0 24px color-mix(in srgb, var(--accent) 18%, transparent)";
-    background  = "var(--bg-surface)";
+  // Dynamic Tailwind classes for light/dark mode support
+  let containerClasses = "relative flex flex-col rounded-2xl border p-6 transition-all duration-200";
+
+  if (isSelected && isGold) {
+    containerClasses += " border-amber-400 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/20 shadow-xl shadow-amber-500/20";
+  } else if (isSelected) {
+    containerClasses += " border-indigo-400 dark:border-indigo-600 bg-indigo-50 dark:bg-indigo-950/20 shadow-xl shadow-indigo-500/20";
+  } else if (isPopular || isGold) {
+    containerClasses += isGold
+      ? " border-amber-300 dark:border-amber-700/60 bg-white dark:bg-slate-900 shadow-lg shadow-amber-500/10"
+      : " border-indigo-300 dark:border-indigo-700/60 bg-white dark:bg-slate-900 shadow-lg shadow-indigo-500/10";
   } else {
-    borderColor = "var(--border)";
-    background  = "var(--bg-surface)";
+    containerClasses += " border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900";
   }
 
   return (
     <div
       onClick={isSelectable ? onSelect : undefined}
-      className="relative flex flex-col rounded-2xl border p-6 transition-all duration-200"
+      className={containerClasses}
       style={{
-        borderColor, boxShadow, background,
-        cursor: isSelectable ? "pointer" : "default",
+        cursor:  isSelectable ? "pointer" : "default",
         opacity: isPassed ? 0.45 : 1,
+        marginTop: badge ? "14px" : undefined,
       }}
     >
-      {/* Selected check badge */}
+      {/* Selected check */}
       {isSelected && !isCurrent && (
         <div
-          className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full"
-          style={{ background: "var(--accent)" }}
+          className={`absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full ${
+            isGold ? 'bg-amber-500' : 'bg-indigo-500'
+          }`}
         >
           <Check className="h-3.5 w-3.5 text-white" />
         </div>
@@ -700,36 +739,46 @@ function PlanCard({ name, price, period, badge, features, isCurrent, isPassed, i
 
       {badge && (
         <div
-          className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full px-3.5 py-1 text-[10px] font-black uppercase tracking-widest text-white"
-          style={{ background: "var(--accent)" }}
+          className={`absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full px-3.5 py-1 text-[10px] font-black uppercase tracking-widest text-white whitespace-nowrap ${
+            isGold ? 'bg-linear-to-r from-amber-400 to-orange-500' : 'bg-indigo-500'
+          }`}
         >
           {badge}
         </div>
       )}
+
+      {/* Name + price */}
       <div className="mb-5">
-        <p className="text-xs font-bold uppercase tracking-widest text-(--text-muted)">{name}</p>
+        <p className={`text-xs font-bold uppercase tracking-widest ${isGold ? 'text-amber-600 dark:text-amber-500' : 'text-indigo-600 dark:text-indigo-400'}`}>
+          {name}
+        </p>
         <div className="mt-2 flex items-end gap-1">
-          <span className="text-4xl font-black text-(--text-primary)">{price}</span>
-          <span className="mb-1.5 text-sm text-(--text-muted)">{period}</span>
+          <span className="text-4xl font-black text-gray-900 dark:text-white">{price}</span>
+          <span className="mb-1.5 text-sm text-gray-600 dark:text-slate-400">{period}</span>
         </div>
       </div>
+
+      {/* Features */}
       <ul className="mb-6 flex flex-col gap-2.5">
         {features.map(f => (
-          <li key={f} className="flex items-start gap-2 text-sm text-(--text-secondary)">
-            <Check className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "var(--accent)" }} />
+          <li key={f} className="flex items-start gap-2 text-sm text-gray-700 dark:text-slate-300">
+            <Check className={`mt-0.5 h-4 w-4 shrink-0 ${isGold ? 'text-amber-600 dark:text-amber-500' : 'text-indigo-600 dark:text-indigo-400'}`} />
             {f}
           </li>
         ))}
       </ul>
+
+      {/* CTA button */}
       <button
         onClick={(e) => { e.stopPropagation(); onUpgrade?.(); }}
         disabled={buttonDisabled || isCurrent}
-        className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition disabled:cursor-default"
-        style={
+        className={`mt-auto flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all active:scale-[0.97] disabled:cursor-default disabled:opacity-60 ${
           isCurrent
-            ? { background: "var(--bg-elevated)", color: "var(--text-muted)" }
-            : { background: "var(--accent)", color: "#fff" }
-        }
+            ? 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-500'
+            : isGold
+            ? 'bg-linear-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40'
+            : 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40'
+        }`}
       >
         {buttonLoading && <Loader2 className="h-4 w-4 animate-spin" />}
         {buttonLabel}

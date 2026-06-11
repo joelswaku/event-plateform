@@ -32,9 +32,10 @@ export function authenticate(req, res, next) {
     )
 
     req.user = {
-      id: payload.sub,
+      id:           payload.sub,
       organizationId: payload.org,
-      role: payload.role
+      role:         payload.role,
+      isSuperAdmin: payload.sadm === true,
     }
 
     return next()

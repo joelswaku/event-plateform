@@ -1,8 +1,9 @@
 import React, { useState, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, ScrollView, Pressable,
-  StyleSheet, Alert, Modal, Platform, TouchableOpacity,
+  StyleSheet, Modal, Platform, TouchableOpacity,
 } from 'react-native';
+import { ConfirmModal, useConfirm } from '@/components/ui/ConfirmModal';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Feather } from '@expo/vector-icons';
 import { useBuilderStore } from '@/store/builder.store';
@@ -118,6 +119,7 @@ function DateTimePickerField({ label, value, onChange, optional }: DTPFieldProps
         <Modal
           transparent
           animationType="slide"
+          statusBarTranslucent
           visible={iosVisible}
           onRequestClose={() => setIosVisible(false)}
         >
@@ -217,6 +219,7 @@ export default function ScheduleConfigFields({ section, eventId, iosKeyboardInse
   const [drafts,     setDrafts]     = useState<Record<string, Partial<typeof EMPTY>>>({});
   const [newForm,    setNewForm]    = useState<typeof EMPTY | null>(null);
   const [saving,     setSaving]     = useState(false);
+  const { confirm, confirmProps } = useConfirm();
 
   const getDraft = (item: any) => ({ ...item, ...(drafts[item.id] ?? {}) });
 
@@ -260,13 +263,17 @@ export default function ScheduleConfigFields({ section, eventId, iosKeyboardInse
   };
 
   const handleDelete = (id: string) => {
-    Alert.alert('Remove Item', 'Remove this schedule item?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => deleteScheduleItem(eventId, id) },
-    ]);
+    confirm({
+      title: 'Remove Item',
+      message: 'Remove this schedule item?',
+      confirmLabel: 'Remove',
+      variant: 'danger',
+      onConfirm: () => deleteScheduleItem(eventId, id),
+    });
   };
 
   return (
+    <>
     <ScrollView
       style={{ flex: 1, backgroundColor: BG }}
       contentContainerStyle={s.scroll}
@@ -402,6 +409,8 @@ export default function ScheduleConfigFields({ section, eventId, iosKeyboardInse
         </Pressable>
       )}
     </ScrollView>
+    <ConfirmModal {...confirmProps} />
+    </>
   );
 }
 

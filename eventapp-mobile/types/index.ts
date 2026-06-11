@@ -7,6 +7,9 @@ export interface User {
   default_organization_id: string;
   subscription_plan: 'free' | 'premium';
   is_subscribed: boolean;
+  is_super_admin?: boolean;
+  terms_accepted_at?:      string | null;
+  terms_version_accepted?: string | null;
 }
 
 // ─── Event ────────────────────────────────────────────────────────────────────
@@ -52,6 +55,19 @@ export interface Event {
   attending_count?: number;
   ticket_count?: number;
   checkin_count?: number;
+  // Role of the authenticated user for this event (from listEventsService)
+  user_role?: string;
+  owner_name?: string;
+}
+
+export interface DashboardPermissions {
+  canEdit: boolean;
+  canDelete: boolean;
+  canManageTeam: boolean;
+  canManageGuests: boolean;
+  canCheckin: boolean;
+  canViewAnalytics: boolean;
+  canPublish: boolean;
 }
 
 export interface EventDashboard {
@@ -62,6 +78,8 @@ export interface EventDashboard {
     ticket_count: number;
     checkin_count: number;
   };
+  userRole?: string;
+  permissions?: DashboardPermissions;
 }
 
 export interface EventCreatePayload {
@@ -190,16 +208,19 @@ export interface TicketOrder {
 }
 
 export interface TicketStats {
-  gross_revenue: number;
-  paid_orders: number;
-  total_orders: number;
-  total_issued: number;
-  checked_in: number;
+  gross_revenue:   number;
+  paid_orders:     number;
+  total_orders:    number;
+  total_issued:    number;
+  checked_in:      number;
+  active_tickets?: number;
+  revoked?:        number;
+  pending_revenue?: number;
   by_ticket_type: Array<{
     ticket_type_id: string;
-    name: string;
-    quantity_sold: number;
-    revenue: number;
+    name:           string;
+    quantity_sold:  number;
+    revenue:        number;
     quantity_total: number | null;
   }>;
 }

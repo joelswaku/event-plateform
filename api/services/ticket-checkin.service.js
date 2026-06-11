@@ -1,4 +1,4 @@
-//ticket-checkin.service.js
+﻿//ticket-checkin.service.js
 import { db } from "../config/db.js";
 import { broadcastToEvent } from "../config/websocket.js";
 
@@ -10,40 +10,39 @@ class AppError extends Error {
   }
 }
 
-async function assertOrganizationEventPermission(client, organizationId, userId) {
+async function assertOrganizationEventPermission(client, organizationId, userId, eventId = null) {
   const result = await client.query(
-    `
-    SELECT role
-    FROM organization_members
-    WHERE organization_id=$1
-      AND user_id=$2
-    LIMIT 1
-    `,
+    `SELECT role FROM organization_members WHERE organization_id=$1 AND user_id=$2 LIMIT 1`,
     [organizationId, userId]
   );
+  if (result.rows[0]) return result.rows[0];
 
-  if (!result.rows[0]) {
-    throw new AppError("You do not belong to this organization", 403);
+  if (eventId) {
+    const { rows } = await client.query(
+      `SELECT role FROM event_members WHERE event_id=$1 AND user_id=$2 AND deleted_at IS NULL LIMIT 1`,
+      [eventId, userId]
+    );
+    if (rows[0]) return rows[0];
   }
+  throw new AppError("You do not belong to this organization", 403);
 }
 
-async function assertEventExists(client, eventId, organizationId) {
-  const result = await client.query(
-    `
-    SELECT *
-    FROM events
-    WHERE id=$1
-      AND organization_id=$2
-      AND deleted_at IS NULL
-    LIMIT 1
-    `,
+async function assertEventExists(client, eventId, organizationId, userId = null) {
+  let result = await client.query(
+    `SELECT * FROM events WHERE id=$1 AND organization_id=$2 AND deleted_at IS NULL LIMIT 1`,
     [eventId, organizationId]
   );
 
-  if (!result.rows[0]) {
-    throw new AppError("Event not found", 404);
+  if (!result.rows[0] && userId) {
+    result = await client.query(
+      `SELECT * FROM events WHERE id=$1 AND deleted_at IS NULL
+       AND EXISTS (SELECT 1 FROM event_members em WHERE em.event_id=$1 AND em.user_id=$2 AND em.deleted_at IS NULL)
+       LIMIT 1`,
+      [eventId, userId]
+    );
   }
 
+  if (!result.rows[0]) throw new AppError("Event not found", 404);
   return result.rows[0];
 }
 
@@ -66,8 +65,8 @@ export async function checkInIssuedTicketService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const ticketRes = await client.query(
       `

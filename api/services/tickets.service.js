@@ -4,6 +4,7 @@ import { db } from "../config/db.js";
 import { stripe } from "../config/stripe.js";
 import { issueTicketsForOrderService } from "./ticket-issuance.service.js";
 import { createNotificationService, getEventOwnerIdService } from "./notifications.service.js";
+import { audit } from "./audit.service.js";
 
 class AppError extends Error {
   constructor(message, statusCode = 400, details = null) {
@@ -86,12 +87,7 @@ export async function createTicketOrderService({
     }
 
     const eventRes = await client.query(
-      `
-      SELECT id, title, slug, deleted_at
-      FROM events
-      WHERE id=$1
-      LIMIT 1
-      `,
+      `SELECT id, title, slug, organization_id, deleted_at FROM events WHERE id=$1 LIMIT 1`,
       [eventId]
     );
 
@@ -180,7 +176,21 @@ export async function createTicketOrderService({
     }
 
     const discountAmount = 0;
-    const fees = 0;
+
+    // ── Platform commission ────────────────────────────────────────────────────
+    // Fee is added ON TOP of the ticket price so organizers receive their full amount.
+    // Rate: 3.5% of subtotal + $0.49 per ticket (paid tickets only).
+    // Free tickets carry no platform fee.
+    const PLATFORM_RATE        = 0.035; // 3.5%
+    const PLATFORM_PER_TICKET  = 0.49;  // $0.49 per paid ticket
+    const paidTicketCount = preparedItems
+      .filter(i => i.kind !== "FREE" && i.unit_price > 0)
+      .reduce((s, i) => s + i.quantity, 0);
+    const platformFee = subtotal > 0
+      ? Math.round((subtotal * PLATFORM_RATE + paidTicketCount * PLATFORM_PER_TICKET) * 100) / 100
+      : 0;
+
+    const fees  = platformFee;
     const total = subtotal - discountAmount + fees;
 
     const orderStatus = total === 0 ? "COMPLETED" : "PENDING";
@@ -227,6 +237,40 @@ export async function createTicketOrderService({
     );
 
     const order = orderRes.rows[0];
+
+    // ── Audit: log every transaction immediately after order creation ──────────
+    audit({
+      adminId:      buyerUserId,
+      adminEmail:   payload.buyer_email,
+      action:       total === 0 ? "TICKET_FREE_ORDER" : "TICKET_PURCHASE",
+      resourceType: "ticket_order",
+      resourceId:   order.id,
+      details: {
+        order_id:        order.id,
+        event_id:        eventId,
+        event_title:     event.title,
+        organization_id: event.organization_id,
+        buyer_name:      payload.buyer_name   ?? null,
+        buyer_email:     payload.buyer_email,
+        buyer_phone:     payload.buyer_phone  ?? null,
+        subtotal,
+        platform_fee:    fees,
+        total,
+        currency:        "USD",
+        payment_status:  order.payment_status,
+        order_status:    order.order_status,
+        items: preparedItems.map(i => ({
+          ticket_type_id:   i.ticket_type_id,
+          ticket_type_name: i.ticket_type_name,
+          quantity:         i.quantity,
+          unit_price:       i.unit_price,
+          line_total:       i.line_total,
+        })),
+      },
+      ip:        payload.ip_address ?? null,
+      userAgent: payload.user_agent ?? null,
+    }).catch(() => {});
+
     const createdItems = [];
 
     for (const item of preparedItems) {
@@ -260,6 +304,8 @@ export async function createTicketOrderService({
     const paymentRequired = total > 0;
 
     if (paymentRequired) {
+      if (!stripe) throw Object.assign(new Error("Payment processing is not configured. Please contact the event organizer."), { statusCode: 503 });
+
       const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
       const eventSlug = event.slug;
 
@@ -267,14 +313,25 @@ export async function createTicketOrderService({
         mode: "payment",
         payment_method_types: ["card"],
         customer_email: order.buyer_email || undefined,
-        line_items: preparedItems.map((item) => ({
-          price_data: {
-            currency: (item.currency || "USD").toLowerCase(),
-            product_data: { name: item.ticket_type_name },
-            unit_amount: Math.round(item.unit_price * 100),
-          },
-          quantity: item.quantity,
-        })),
+        line_items: [
+          ...preparedItems.map((item) => ({
+            price_data: {
+              currency: (item.currency || "USD").toLowerCase(),
+              product_data: { name: item.ticket_type_name },
+              unit_amount: Math.round(item.unit_price * 100),
+            },
+            quantity: item.quantity,
+          })),
+          // Platform service fee shown as a separate line at checkout
+          ...(platformFee > 0 ? [{
+            price_data: {
+              currency: (preparedItems[0]?.currency || "USD").toLowerCase(),
+              product_data: { name: "Service Fee", description: "LiteEvent platform fee" },
+              unit_amount: Math.round(platformFee * 100),
+            },
+            quantity: 1,
+          }] : []),
+        ],
         metadata: { order_id: order.id, event_id: eventId },
         payment_intent_data: {
           metadata: { order_id: order.id, event_id: eventId },

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Shield, Eye, EyeOff, AlertCircle, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Shield, Eye, EyeOff, AlertCircle, Loader2, CheckCircle2, XCircle, LogIn } from "lucide-react";
 import { useTeamStore } from "@/store/team.store";
 import { useAuthStore } from "@/store/auth.store";
 import { setInMemoryToken } from "@/lib/api";
@@ -46,11 +46,13 @@ function SetupForm() {
   const token        = searchParams.get("token");
 
   const { getInviteInfo, setupTeamPassword } = useTeamStore();
+  const loginFn = useAuthStore(s => s.login);
 
-  const [phase,     setPhase]     = useState("loading"); // loading | ready | submitting | error | expired
+  const [phase,     setPhase]     = useState("loading"); // loading | signup | login_required | submitting | error | expired
   const [invite,    setInvite]    = useState(null);
   const [errorMsg,  setErrorMsg]  = useState("");
 
+  // signup fields
   const [fullName,   setFullName]   = useState("");
   const [password,   setPassword]   = useState("");
   const [confirm,    setConfirm]    = useState("");
@@ -58,6 +60,11 @@ function SetupForm() {
   const [formErr,    setFormErr]    = useState({});
   const [touched,    setTouched]    = useState({});
   const [submitErr,  setSubmitErr]  = useState("");
+
+  // login fields (for existing account path)
+  const [loginPass,     setLoginPass]     = useState("");
+  const [showLoginPass, setShowLoginPass] = useState(false);
+  const [loginErr,      setLoginErr]      = useState("");
 
   /* ── Load invite info ── */
   useEffect(() => {
@@ -70,11 +77,12 @@ function SetupForm() {
       if (d?.status && d.status !== "pending") { setPhase("expired"); return; }
       setInvite(d);
       if (d?.inviteeName) setFullName(d.inviteeName);
-      setPhase("ready");
+      // If user already has an account, show the login form
+      setPhase(d?.userExists ? "login_required" : "signup");
     })();
-  }, [token]);
+  }, [token, getInviteInfo]);
 
-  /* ── Validation ── */
+  /* ── Signup validation ── */
   function validate() {
     const e = {};
     if (!fullName.trim() || fullName.trim().length < 2) e.fullName = "Full name required";
@@ -93,8 +101,8 @@ function SetupForm() {
       : `${base} border-white/8 focus:border-indigo-500/50 focus:bg-white/6`;
   };
 
-  /* ── Submit ── */
-  async function handleSubmit(e) {
+  /* ── Signup submit ── */
+  async function handleSignupSubmit(e) {
     e.preventDefault();
     setTouched({ fullName: true, password: true, confirm: true });
     setSubmitErr("");
@@ -103,24 +111,65 @@ function SetupForm() {
     setPhase("submitting");
     const res = await setupTeamPassword(token, fullName.trim(), password);
     if (!res.success) {
-      setPhase("ready");
-      // If account already exists, surface a clear sign-in link
+      // If account already exists, switch to login form
       if (res.error?.toLowerCase().includes("already exists")) {
-        setSubmitErr("__account_exists__");
+        setInvite(prev => ({ ...prev, userExists: true }));
+        setPhase("login_required");
+        setLoginErr("An account already exists for this email. Please sign in.");
       } else {
+        setPhase("signup");
         setSubmitErr(res.error || "Something went wrong.");
       }
       return;
     }
 
-    // Log the user in and go to dashboard (managed event will be visible there)
     const { accessToken, user } = res.data;
     setInMemoryToken(accessToken);
     useAuthStore.setState({ user, accessToken, isAuthenticated: true });
-    router.replace("/dashboard");
+    router.replace(invite?.eventId ? `/events/${invite.eventId}` : "/events");
   }
 
-  /* ── States ── */
+  /* ── Login submit (existing account path) ── */
+  async function handleLoginSubmit(e) {
+    e.preventDefault();
+    setLoginErr("");
+    if (!loginPass) { setLoginErr("Password is required."); return; }
+
+    setPhase("submitting");
+    try {
+      // Log in using the invited email + entered password
+      const res = await loginFn({ email: invite.email, password: loginPass });
+      if (!res || res.error) {
+        setPhase("login_required");
+        setLoginErr(res?.error || "Invalid password. Please try again.");
+        return;
+      }
+      // After login the auto-link runs on the backend, linking the event_members record.
+      router.replace(invite?.eventId ? `/events/${invite.eventId}` : "/events");
+    } catch (err) {
+      setPhase("login_required");
+      setLoginErr(err?.response?.data?.message || "Login failed. Please try again.");
+    }
+  }
+
+  /* ── Shared header ── */
+  const eventTitle  = invite?.eventTitle  ?? invite?.event_title  ?? "an event";
+  const inviterName = invite?.inviterName ?? invite?.inviter_name ?? "Someone";
+
+  function InviteHeader({ accent = "from-indigo-600 to-purple-600" }) {
+    return (
+      <div className={`bg-linear-to-br ${accent} px-8 py-8 text-center`}>
+        <div className="mx-auto mb-3 w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
+          <Shield className="w-6 h-6 text-white" />
+        </div>
+        <p className="text-white/60 text-xs font-semibold uppercase tracking-widest mb-1">Team Invitation</p>
+        <h1 className="text-xl font-black text-white tracking-tight">{eventTitle}</h1>
+        <p className="text-white/60 text-sm mt-1">Invited by {inviterName}</p>
+      </div>
+    );
+  }
+
+  /* ── Loading ── */
   if (phase === "loading") {
     return (
       <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center">
@@ -129,6 +178,7 @@ function SetupForm() {
     );
   }
 
+  /* ── Expired / cancelled ── */
   if (phase === "expired") {
     return (
       <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center px-4">
@@ -144,7 +194,7 @@ function SetupForm() {
               ? "This invitation was already accepted. Sign in to access the event."
               : "This setup link has expired or been cancelled. Ask the event owner to send a new invite."}
           </p>
-          <a href="/login" className="mt-6 inline-flex items-center justify-center px-6 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-500 transition-colors">
+          <a href="/login?redirect=/dashboard" className="mt-6 inline-flex items-center justify-center px-6 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-500 transition-colors">
             Sign in
           </a>
         </div>
@@ -152,6 +202,7 @@ function SetupForm() {
     );
   }
 
+  /* ── Error ── */
   if (phase === "error") {
     return (
       <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center px-4">
@@ -166,29 +217,116 @@ function SetupForm() {
     );
   }
 
-  const eventTitle  = invite?.eventTitle  ?? invite?.event_title  ?? "an event";
-  const inviterName = invite?.inviterName ?? invite?.inviter_name ?? "Someone";
+  /* ── Existing account — show login form ── */
+  if (phase === "login_required" || (phase === "submitting" && invite?.userExists)) {
+    return (
+      <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center px-4 py-10">
+        <div className="bg-[#111127] rounded-3xl border border-white/8 max-w-md w-full overflow-hidden">
+          <InviteHeader accent="from-emerald-600 to-teal-600" />
 
+          <div className="px-8 py-8 space-y-5">
+            <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 flex items-start gap-2.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-emerald-300 text-sm font-semibold">You already have an account</p>
+                <p className="text-emerald-200/60 text-xs mt-0.5">
+                  Sign in with your password for <span className="font-medium text-emerald-200">{invite?.email}</span> to join this event.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleLoginSubmit} className="space-y-4" noValidate>
+              {/* Email (read-only) */}
+              <div>
+                <label className="block text-[13px] font-medium text-gray-400 mb-1.5">Email</label>
+                <input
+                  type="email"
+                  value={invite?.email ?? ""}
+                  readOnly
+                  className="w-full px-4 py-3 rounded-xl text-gray-400 text-sm bg-white/4 border border-white/8 cursor-not-allowed"
+                />
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="block text-[13px] font-medium text-gray-400 mb-1.5">Your password</label>
+                <div className="relative">
+                  <input
+                    type={showLoginPass ? "text" : "password"}
+                    autoComplete="current-password"
+                    placeholder="Enter your password"
+                    value={loginPass}
+                    onChange={(e) => setLoginPass(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl text-white text-sm placeholder:text-gray-600 outline-none transition-all bg-white/4 border border-white/8 focus:border-indigo-500/50 focus:bg-white/6 pr-11"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPass(v => !v)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                    tabIndex={-1}
+                  >
+                    {showLoginPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {loginErr && (
+                <div className="flex items-start gap-2.5 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3">
+                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                  <p className="text-red-400 text-sm">{loginErr}</p>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={phase === "submitting"}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
+              >
+                {phase === "submitting"
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in…</>
+                  : <><LogIn className="w-4 h-4" /> Sign in &amp; join event</>
+                }
+              </button>
+            </form>
+
+            <div className="text-center text-xs text-gray-600">
+              <a
+                href={invite?.eventId ? `/login?redirect=/events/${invite.eventId}` : "/login?redirect=/events"}
+                className="text-indigo-400 hover:text-indigo-300 font-medium"
+              >
+                Sign in on a different device →
+              </a>
+            </div>
+          </div>
+          <div className="px-8 pb-6 text-center text-xs text-gray-700">Powered by LiteEvent</div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── New account — signup form ── */
   return (
     <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center px-4 py-10">
       <div className="bg-[#111127] rounded-3xl border border-white/8 max-w-md w-full overflow-hidden">
-
-        {/* Header */}
-        <div className="bg-gradient-to-br from-indigo-600 to-purple-600 px-8 py-8 text-center">
-          <div className="mx-auto mb-3 w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
-            <Shield className="w-6 h-6 text-white" />
-          </div>
-          <p className="text-indigo-200 text-xs font-semibold uppercase tracking-widest mb-1">Team Invitation</p>
-          <h1 className="text-xl font-black text-white tracking-tight">{eventTitle}</h1>
-          <p className="text-indigo-200 text-sm mt-1">Invited by {inviterName}</p>
-        </div>
+        <InviteHeader />
 
         <div className="px-8 py-8 space-y-5">
           <p className="text-gray-400 text-sm text-center">
-            Set up your account to start managing this event as an <span className="text-indigo-400 font-semibold">Admin</span>.
+            Create your account to start managing <span className="text-indigo-400 font-semibold">{eventTitle}</span>.
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <form onSubmit={handleSignupSubmit} className="space-y-4" noValidate>
+
+            {/* Email (read-only from invite) */}
+            <div>
+              <label className="block text-[13px] font-medium text-gray-400 mb-1.5">Email</label>
+              <input
+                type="email"
+                value={invite?.email ?? ""}
+                readOnly
+                className="w-full px-4 py-3 rounded-xl text-gray-400 text-sm bg-white/4 border border-white/8 cursor-not-allowed"
+              />
+            </div>
 
             {/* Full name */}
             <div>
@@ -258,52 +396,40 @@ function SetupForm() {
               )}
             </div>
 
-            {submitErr && submitErr === "__account_exists__" ? (
-              <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-3 text-center">
-                <p className="text-amber-300 text-sm font-semibold mb-1">Account already exists</p>
-                <p className="text-amber-200/70 text-xs mb-3">
-                  This email is already registered. Sign in to accept the invitation.
-                </p>
-                <a
-                  href={`/login?redirect=${encodeURIComponent(`/invite/${token}`)}`}
-                  className="inline-flex items-center justify-center px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-colors"
-                >
-                  Sign in to accept
-                </a>
-              </div>
-            ) : submitErr ? (
+            {submitErr && (
               <div className="flex items-start gap-2.5 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3">
                 <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
                 <p className="text-red-400 text-sm">{submitErr}</p>
               </div>
-            ) : null}
+            )}
 
             <button
               type="submit"
               disabled={phase === "submitting"}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
             >
-              {phase === "submitting" ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Setting up account…</>
-              ) : (
-                "Create account & join event"
-              )}
+              {phase === "submitting"
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating account…</>
+                : "Create account & join event"
+              }
             </button>
           </form>
 
           <div className="flex flex-col gap-2 text-center text-xs text-gray-600">
             <p>
               Already have an account?{" "}
-              <a href="/login" className="text-indigo-400 hover:text-indigo-300 font-medium">Sign in</a>
-            </p>
-            <p>
-              Want your own Eventos account?{" "}
-              <a href="/register" className="text-indigo-400 hover:text-indigo-300 font-medium">Sign up for free</a>
+              <button
+                type="button"
+                onClick={() => setPhase("login_required")}
+                className="text-indigo-400 hover:text-indigo-300 font-medium"
+              >
+                Sign in instead
+              </button>
             </p>
           </div>
         </div>
 
-        <div className="px-8 pb-6 text-center text-xs text-gray-700">Powered by Eventos</div>
+        <div className="px-8 pb-6 text-center text-xs text-gray-700">Powered by LiteEvent</div>
       </div>
     </div>
   );

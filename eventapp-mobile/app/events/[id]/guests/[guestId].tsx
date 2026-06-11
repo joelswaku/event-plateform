@@ -8,7 +8,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import Toast from 'react-native-toast-message';
+import { notify, showSuccess, showError } from '@/lib/toast';
 
 import { useGuestStore }  from '@/store/guest.store';
 import { BottomSheet }    from '@/components/ui/BottomSheet';
@@ -132,15 +132,15 @@ export default function GuestDetailScreen() {
     setBusy(null);
     if (res.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Toast.show({ type: 'success', text1: msg });
+      showSuccess(msg);
     } else {
-      Toast.show({ type: 'error', text1: res.error ?? 'Action failed' });
+      showError(res.error ?? 'Action failed');
     }
   };
 
   const handleSaveEdit = async () => {
     if (!form.full_name.trim()) {
-      Toast.show({ type: 'error', text1: 'Name is required' });
+      notify.nameRequired();
       return;
     }
     setBusy('save');
@@ -154,10 +154,10 @@ export default function GuestDetailScreen() {
     } as any);
     setBusy(null);
     if (res.success) {
-      Toast.show({ type: 'success', text1: 'Guest updated' });
+      notify.guestUpdated();
       setEditOpen(false);
     } else {
-      Toast.show({ type: 'error', text1: 'Failed to update guest' });
+      showError('Could not update guest');
     }
   };
 
@@ -168,9 +168,9 @@ export default function GuestDetailScreen() {
     setBusy(null);
     if (res.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Toast.show({ type: 'success', text1: `Marked as ${status.toLowerCase()}` });
+      notify.rsvpUpdated(status);
     } else {
-      Toast.show({ type: 'error', text1: 'RSVP update failed' });
+      notify.rsvpFailed();
     }
   };
 

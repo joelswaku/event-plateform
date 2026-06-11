@@ -3,7 +3,7 @@ import api from '@/lib/api';
 
 export interface TeamMember {
   user_id:    string;
-  role:       'OWNER' | 'ADMIN';
+  role:       'OWNER' | 'ADMIN' | 'MANAGER' | 'STAFF' | 'CHECKIN_AGENT' | 'VIEWER';
   joined_at:  string;
   full_name:  string;
   email:      string;
@@ -15,27 +15,59 @@ export interface TeamMeta {
   maxTotal:        number | null;
   maxAdmins:       number | null;
   current:         number;
-  currentUserRole: 'OWNER' | 'ADMIN' | string;
+  currentUserRole: string;
+}
+
+export interface RolePermissions {
+  canEdit:          boolean;
+  canDelete:        boolean;
+  canManageTeam:    boolean;
+  canManageGuests:  boolean;
+  canCheckin:       boolean;
+  canViewAnalytics: boolean;
+  canPublish:       boolean;
+}
+
+export interface TeamEvent {
+  id:               string;
+  title:            string;
+  status:           string;
+  starts_at_local:  string | null;
+  starts_at_utc:    string | null;
+  cover_image_url:  string | null;
+  event_type:       string;
+  allow_rsvp:       boolean;
+  allow_ticketing:  boolean;
+  allow_donations:  boolean;
+  role:             string;
+  joined_at:        string;
+  owner_name:       string;
+  owner_avatar:     string | null;
+  permissions?:     RolePermissions;
 }
 
 interface TeamState {
   members:      TeamMember[];
   meta:         TeamMeta | null;
+  teamEvents:   TeamEvent[];
   isLoading:    boolean;
   isSubmitting: boolean;
   error:        string | null;
 
-  fetchMembers:  (eventId: string) => Promise<{ success: boolean }>;
-  inviteMember:  (eventId: string, email: string, name?: string) => Promise<{ success: boolean; type?: string; error?: string; code?: string }>;
-  removeMember:  (eventId: string, memberId: string) => Promise<{ success: boolean; error?: string }>;
-  acceptInvite:  (token: string) => Promise<{ success: boolean; eventId?: string; error?: string }>;
-  getInviteInfo: (token: string) => Promise<{ success: boolean; data?: Record<string, unknown>; error?: string }>;
-  reset:         () => void;
+  fetchMembers:     (eventId: string) => Promise<{ success: boolean }>;
+  inviteMember:     (eventId: string, email: string, name?: string) => Promise<{ success: boolean; type?: string; error?: string; code?: string }>;
+  removeMember:     (eventId: string, memberId: string) => Promise<{ success: boolean; error?: string }>;
+  acceptInvite:     (token: string) => Promise<{ success: boolean; eventId?: string; error?: string }>;
+  getInviteInfo:    (token: string) => Promise<{ success: boolean; data?: Record<string, unknown>; error?: string }>;
+  fetchMyTeamEvents:() => Promise<void>;
+  getMyRole:        (eventId: string) => Promise<{ success: boolean; data?: TeamEvent & { permissions: RolePermissions }; error?: string }>;
+  reset:            () => void;
 }
 
 export const useTeamStore = create<TeamState>((set, get) => ({
   members:      [],
   meta:         null,
+  teamEvents:   [],
   isLoading:    false,
   isSubmitting: false,
   error:        null,
@@ -44,50 +76,61 @@ export const useTeamStore = create<TeamState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const res = await api.get(`/events/${eventId}/team`);
-      set({
-        members:   res.data?.data    ?? [],
-        meta:      res.data?.meta    ?? null,
-        isLoading: false,
-      });
+      set({ members: res.data?.data ?? [], meta: res.data?.meta ?? null, isLoading: false });
       return { success: true };
-    } catch (err: any) {
-      set({ isLoading: false, error: err?.response?.data?.message || err.message });
+    } catch (e: any) {
+      set({ error: e.message, isLoading: false });
       return { success: false };
+    }
+  },
+
+  fetchMyTeamEvents: async () => {
+    try {
+      set({ isLoading: true, error: null });
+      const res = await api.get('/team/my-events');
+      set({ teamEvents: res.data?.data ?? [], isLoading: false });
+    } catch (e: any) {
+      set({ error: e.message, isLoading: false });
+    }
+  },
+
+  getMyRole: async (eventId) => {
+    try {
+      const res = await api.get(`/team/my-role/${eventId}`);
+      return { success: true, data: res.data?.data };
+    } catch (e: any) {
+      return { success: false, error: e.message };
     }
   },
 
   inviteMember: async (eventId, email, name) => {
     try {
-      set({ isSubmitting: true, error: null });
-      const res    = await api.post(`/events/${eventId}/team/invite`, { email, name });
-      const member = res.data?.data as TeamMember | undefined;
-      const type   = res.data?.type as string | undefined;
-      if (member && type === 'added') set((s) => ({ members: [...s.members, member], isSubmitting: false }));
-      else                            set({ isSubmitting: false });
-      return { success: true, type };
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || err.message;
-      set({ isSubmitting: false, error: msg });
-      return { success: false, error: msg, code: err?.response?.data?.code };
+      set({ isSubmitting: true });
+      const res = await api.post(`/events/${eventId}/team/invite`, { email, name });
+      set({ isSubmitting: false });
+      return { success: true, type: res.data?.type };
+    } catch (e: any) {
+      set({ isSubmitting: false });
+      return { success: false, error: e.response?.data?.message ?? e.message, code: e.response?.data?.code };
     }
   },
 
   removeMember: async (eventId, memberId) => {
     try {
       await api.delete(`/events/${eventId}/team/${memberId}`);
-      set((s) => ({ members: s.members.filter((m) => m.user_id !== memberId) }));
+      set(s => ({ members: s.members.filter(m => m.user_id !== memberId) }));
       return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err?.response?.data?.message || err.message };
+    } catch (e: any) {
+      return { success: false, error: e.response?.data?.message ?? e.message };
     }
   },
 
   acceptInvite: async (token) => {
     try {
-      const res = await api.post(`/team/accept/${token}`);
+      const res = await api.post(`/team/accept/${token}`, {});
       return { success: true, eventId: res.data?.eventId };
-    } catch (err: any) {
-      return { success: false, error: err?.response?.data?.message || err.message };
+    } catch (e: any) {
+      return { success: false, error: e.response?.data?.message ?? e.message };
     }
   },
 
@@ -95,10 +138,10 @@ export const useTeamStore = create<TeamState>((set, get) => ({
     try {
       const res = await api.get(`/team/invite-info/${token}`);
       return { success: true, data: res.data };
-    } catch (err: any) {
-      return { success: false, error: err?.response?.data?.message || err.message };
+    } catch (e: any) {
+      return { success: false, error: e.message };
     }
   },
 
-  reset: () => set({ members: [], meta: null, isLoading: false, isSubmitting: false, error: null }),
+  reset: () => set({ members: [], meta: null, teamEvents: [], isLoading: false, isSubmitting: false, error: null }),
 }));

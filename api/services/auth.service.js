@@ -21,7 +21,7 @@ import {
   sendPasswordChangedEmail,
 } from "../utils/sendEmail.js";
 
-import { verifyGoogleToken } from "./google.service.js";
+import { verifyGoogleAccessToken } from "./google.service.js";
 
 /* ------------------------------------------------ */
 /* REGISTER USER */
@@ -66,11 +66,12 @@ export async function registerUser({
     const userResult = await client.query(
       `
       INSERT INTO users
-      (email,password_hash,full_name,status,email_verified)
-      VALUES ($1,$2,$3,'ACTIVE',false)
+      (email,password_hash,full_name,status,email_verified,terms_accepted_at,terms_version_accepted)
+      VALUES ($1,$2,$3,'ACTIVE',false,$4,$5)
       RETURNING *
       `,
-      [normalizedEmail, passwordHash, full_name]
+      [normalizedEmail, passwordHash, full_name,
+       new Date(), "2025.1"]
     );
    
     
@@ -150,15 +151,81 @@ export async function registerUser({
     /* audit log */
 
     await client.query(
-      `
-      INSERT INTO audit_logs
-      (organization_id,actor_user_id,entity_type,entity_id,action,ip_address,user_agent)
-      VALUES ($1,$2,'user',$2,'user_created',$3,$4)
-      `,
+      `INSERT INTO audit_logs
+       (organization_id,actor_user_id,entity_type,entity_id,action,ip_address,user_agent)
+       VALUES ($1,$2,'user',$2,'user_created',$3,$4)`,
       [organization.id, user.id, ip, userAgent]
     );
 
+    await client.query(
+      `INSERT INTO audit_logs
+       (organization_id,actor_user_id,entity_type,entity_id,action,ip_address,user_agent,changes)
+       VALUES ($1,$2,'user',$2,'terms_accepted',$3,$4,$5)`,
+      [organization.id, user.id, ip, userAgent,
+       JSON.stringify({ terms_version: "2025.1", accepted_at: new Date(), context: "registration" })]
+    );
+
     await client.query("COMMIT");
+
+    /* auto membership sync — runs on registration; each step is independent */
+    // 1. Link email-based event_members records (email-only invite flow)
+    try {
+      await client.query(
+        `UPDATE event_members SET user_id = $1
+         WHERE LOWER(email) = $2 AND user_id IS NULL AND deleted_at IS NULL`,
+        [user.id, normalizedEmail]
+      );
+    } catch { /* email column may not exist yet on fresh deploys */ }
+
+    // 2. Link email-based organization_members records
+    try {
+      await client.query(
+        `UPDATE organization_members SET user_id = $1
+         WHERE LOWER(email) = $2 AND user_id IS NULL`,
+        [user.id, normalizedEmail]
+      );
+    } catch { /* column may not exist yet */ }
+
+    // 3. Accept any pending event_invitations (backward compat)
+    try {
+      const { rows: pendingInvites } = await client.query(
+        `SELECT id, event_id, COALESCE(role, 'ADMIN') AS role FROM event_invitations
+         WHERE LOWER(email) = $1 AND status = 'pending'`,
+        [normalizedEmail]
+      );
+      for (const inv of pendingInvites) {
+        const exists = await client.query(
+          `SELECT id FROM event_members WHERE user_id = $1 AND event_id = $2 AND deleted_at IS NULL LIMIT 1`,
+          [user.id, inv.event_id]
+        );
+        if (!exists.rows.length) {
+          await client.query(
+            `INSERT INTO event_members (user_id, event_id, role, joined_at) VALUES ($1, $2, $3, NOW())`,
+            [user.id, inv.event_id, inv.role]
+          );
+        }
+        await client.query(
+          `UPDATE event_invitations SET status = 'accepted', accepted_at = NOW(), user_id = $1 WHERE id = $2`,
+          [user.id, inv.id]
+        );
+      }
+    } catch { /* non-critical */ }
+
+    // 4. Add to organization_members for every org where user has an event_members record
+    try {
+      await client.query(
+        `INSERT INTO organization_members (organization_id, user_id, role, joined_at)
+         SELECT DISTINCT e.organization_id, $1, 'event_manager', NOW()
+         FROM event_members em
+         JOIN events e ON e.id = em.event_id AND e.deleted_at IS NULL
+         WHERE em.user_id = $1 AND em.deleted_at IS NULL AND em.role != 'OWNER'
+           AND NOT EXISTS (
+             SELECT 1 FROM organization_members om2
+             WHERE om2.organization_id = e.organization_id AND om2.user_id = $1
+           )`,
+        [user.id]
+      );
+    } catch { /* non-critical */ }
 
     /* send welcome email */
 
@@ -374,9 +441,10 @@ export async function loginUser({
     if (!valid) throw new Error("Invalid credentials");
 
     const tokens = generateTokens({
-      userId: user.id,
+      userId:       user.id,
       organizationId: user.default_organization_id,
-      role: "OWNER",
+      role:         "OWNER",
+      isSuperAdmin: user.is_super_admin === true,
     });
 
     /* store session */
@@ -402,6 +470,68 @@ export async function loginUser({
       `,
       [user.id]
     );
+
+    /* auto membership sync — runs on every login; each step is independent */
+    // 1. Link email-based event_members records (email-only invite flow)
+    try {
+      await client.query(
+        `UPDATE event_members SET user_id = $1
+         WHERE LOWER(email) = $2 AND user_id IS NULL AND deleted_at IS NULL`,
+        [user.id, normalizedEmail]
+      );
+    } catch { /* email column may not exist yet on fresh deploys */ }
+
+    // 2. Link email-based organization_members records
+    try {
+      await client.query(
+        `UPDATE organization_members SET user_id = $1
+         WHERE LOWER(email) = $2 AND user_id IS NULL`,
+        [user.id, normalizedEmail]
+      );
+    } catch { /* column may not exist yet */ }
+
+    // 3. Accept any remaining pending event_invitations (backward compat)
+    try {
+      const { rows: pendingInvites } = await client.query(
+        `SELECT id, event_id, COALESCE(role, 'ADMIN') AS role FROM event_invitations
+         WHERE LOWER(email) = $1 AND status = 'pending'`,
+        [normalizedEmail]
+      );
+      for (const inv of pendingInvites) {
+        const exists = await client.query(
+          `SELECT id FROM event_members WHERE user_id = $1 AND event_id = $2 AND deleted_at IS NULL LIMIT 1`,
+          [user.id, inv.event_id]
+        );
+        if (!exists.rows.length) {
+          await client.query(
+            `INSERT INTO event_members (user_id, event_id, role, joined_at) VALUES ($1, $2, $3, NOW())`,
+            [user.id, inv.event_id, inv.role]
+          );
+        }
+        await client.query(
+          `UPDATE event_invitations SET status = 'accepted', accepted_at = NOW(), user_id = $1 WHERE id = $2`,
+          [user.id, inv.id]
+        );
+      }
+    } catch { /* non-critical */ }
+
+    // 4. Add to organization_members for every org where user has an event_members record
+    //    This ensures team members see ALL org events in their dashboard
+    try {
+      await client.query(
+        `INSERT INTO organization_members (organization_id, user_id, role, joined_at)
+         SELECT DISTINCT e.organization_id, $1, 'event_manager', NOW()
+         FROM event_members em
+         JOIN events e ON e.id = em.event_id AND e.deleted_at IS NULL
+         WHERE em.user_id = $1 AND em.deleted_at IS NULL AND em.role != 'OWNER'
+           AND NOT EXISTS (
+             SELECT 1 FROM organization_members om2
+             WHERE om2.organization_id = e.organization_id AND om2.user_id = $1
+           )`,
+        [user.id]
+      );
+    } catch { /* non-critical */ }
+
     setAuthCookies(res, tokens);
 
     return {
@@ -501,7 +631,7 @@ export async function loginUser({
 //   }
 // }
 export async function googleLogin({
-  idToken,
+  accessToken,
   ip,
   userAgent,
   deviceName,
@@ -512,7 +642,7 @@ export async function googleLogin({
   try {
     await client.query("BEGIN");
 
-    const googleUser = await verifyGoogleToken(idToken);
+    const googleUser = await verifyGoogleAccessToken(accessToken);
 
     if (!googleUser?.email || !googleUser?.googleId) {
       throw new Error("Invalid Google token");
@@ -642,7 +772,52 @@ export async function googleLogin({
     );
 
     /* =========================
-       6. COOKIES
+       6. MEMBERSHIP SYNC
+    ========================= */
+    const googleNormalizedEmail = googleUser.email.toLowerCase();
+    // 1. Link email-based event_members records
+    try {
+      await client.query(
+        `UPDATE event_members SET user_id = $1
+         WHERE LOWER(email) = $2 AND user_id IS NULL AND deleted_at IS NULL`,
+        [user.id, googleNormalizedEmail]
+      );
+    } catch { /* email column may not exist yet */ }
+    // 2. Link email-based organization_members records
+    try {
+      await client.query(
+        `UPDATE organization_members SET user_id = $1
+         WHERE LOWER(email) = $2 AND user_id IS NULL`,
+        [user.id, googleNormalizedEmail]
+      );
+    } catch { /* column may not exist yet */ }
+    // 3. Accept any pending event_invitations (backward compat)
+    try {
+      const { rows: gPending } = await client.query(
+        `SELECT id, event_id, COALESCE(role, 'ADMIN') AS role FROM event_invitations
+         WHERE LOWER(email) = $1 AND status = 'pending'`,
+        [googleNormalizedEmail]
+      );
+      for (const inv of gPending) {
+        const gExists = await client.query(
+          `SELECT id FROM event_members WHERE user_id = $1 AND event_id = $2 AND deleted_at IS NULL LIMIT 1`,
+          [user.id, inv.event_id]
+        );
+        if (!gExists.rows.length) {
+          await client.query(
+            `INSERT INTO event_members (user_id, event_id, role, joined_at) VALUES ($1, $2, $3, NOW())`,
+            [user.id, inv.event_id, inv.role]
+          );
+        }
+        await client.query(
+          `UPDATE event_invitations SET status = 'accepted', accepted_at = NOW(), user_id = $1 WHERE id = $2`,
+          [user.id, inv.id]
+        );
+      }
+    } catch { /* non-critical */ }
+
+    /* =========================
+       7. COOKIES
     ========================= */
     setAuthCookies(res, tokens);
 
@@ -703,10 +878,15 @@ export async function rotateRefreshToken({
     [session.rows[0].id]
   );
 
+  const { rows: uRows } = await db.query(
+    `SELECT is_super_admin FROM users WHERE id = $1 LIMIT 1`,
+    [payload.sub]
+  );
   const tokens = generateTokens({
-    userId: payload.sub,
+    userId:       payload.sub,
     organizationId: payload.org,
-    role: payload.role,
+    role:         payload.role,
+    isSuperAdmin: uRows[0]?.is_super_admin === true,
   });
 
   const newHash = hashToken(tokens.refreshToken);
@@ -1086,7 +1266,10 @@ export async function getCurrentUser(userId) {
     email,
     full_name,
     avatar_url,
-    default_organization_id
+    default_organization_id,
+    is_super_admin,
+    terms_accepted_at,
+    terms_version_accepted
     FROM users
     WHERE id=$1
     `,
@@ -1094,4 +1277,15 @@ export async function getCurrentUser(userId) {
   );
 
   return result.rows[0];
+}
+
+export async function acceptTermsService({ userId, version = "2025.1", ip, userAgent }) {
+  const { rows } = await db.query(
+    `UPDATE users
+     SET terms_accepted_at = NOW(), terms_version_accepted = $2
+     WHERE id = $1
+     RETURNING terms_accepted_at, terms_version_accepted`,
+    [userId, version]
+  );
+  return rows[0];
 }

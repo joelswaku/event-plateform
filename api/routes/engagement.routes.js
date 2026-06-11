@@ -37,6 +37,32 @@ router.post(
   engagementController.createDonationIntent
 );
 
+router.post(
+  "/events/:eventId/donations/manual",
+  authenticate,
+  resolveOrganization,
+  engagementController.createManualDonation
+);
+
+router.delete(
+  "/events/:eventId/donations/:donationId",
+  authenticate,
+  resolveOrganization,
+  engagementController.deleteDonation
+);
+
+router.get(
+  "/events/:eventId/donation-config",
+  engagementController.getDonationConfig
+);
+
+router.patch(
+  "/events/:eventId/donation-config",
+  authenticate,
+  resolveOrganization,
+  engagementController.saveDonationConfig
+);
+
 router.get(
   "/events/:eventId/donations",
   authenticate,
@@ -102,6 +128,23 @@ router.post(
 router.get(
   "/billing/plans",
   billingController.listPlans
+);
+
+/*
+|--------------------------------------------------------------------------
+| TERMS ACCEPTANCE
+|--------------------------------------------------------------------------
+*/
+router.get(
+  "/terms/status",
+  authenticate,
+  engagementController.getTermsStatus
+);
+
+router.post(
+  "/terms/accept",
+  authenticate,
+  engagementController.acceptTerms
 );
 
 export default router;

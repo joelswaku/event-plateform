@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Pressable, Linking, Alert,
+  View, Text, ScrollView, StyleSheet, Pressable, Linking, Alert, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
+import { useChatStore } from '@/store/chat.store';
+import { useAuthStore } from '@/store/auth.store';
+import { FloatingChatButton } from '@/components/FloatingChatButton';
 
 const FAQ_ITEMS = [
   {
@@ -22,7 +25,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How do I check in guests at the door?',
-    a: 'Use the Scanner tab to scan the QR code on each guest\'s ticket. You can also manually search and check in guests from the event\'s guest list.',
+    a: "Use the Scanner tab to scan the QR code on each guest's ticket. You can also manually search and check in guests from the event's guest list.",
   },
   {
     q: 'What payment methods are supported?',
@@ -32,20 +35,23 @@ const FAQ_ITEMS = [
     q: 'How do I upgrade or cancel my plan?',
     a: 'Go to Profile → Plans & Billing to view available plans, upgrade to Premium, or manage your subscription.',
   },
+  {
+    q: "Why aren't my guests receiving emails?",
+    a: "Check your event's email settings and ensure the guest has a valid email address. Emails can sometimes land in spam — ask guests to check there.",
+  },
+  {
+    q: 'How do I export my guest list?',
+    a: "On any event's Guests page, tap the Export button. You can export all guests or filter by status before exporting.",
+  },
 ];
 
 function FAQItem({ question, answer }: { question: string; answer: string }) {
   const [open, setOpen] = useState(false);
-
   return (
     <View style={faqStyles.item}>
       <Pressable style={faqStyles.question} onPress={() => setOpen(v => !v)}>
         <Text style={faqStyles.questionText}>{question}</Text>
-        <Feather
-          name={open ? 'chevron-up' : 'chevron-down'}
-          size={16}
-          color={Colors.text.muted}
-        />
+        <Feather name={open ? 'chevron-up' : 'chevron-down'} size={16} color={Colors.text.muted} />
       </Pressable>
       {open && (
         <View style={faqStyles.answerWrap}>
@@ -57,49 +63,52 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
 }
 
 const faqStyles = StyleSheet.create({
-  item: {
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border.subtle,
-  },
-  question: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    paddingVertical: 14,
-    gap:             10,
-  },
-  questionText: {
-    flex:       1,
-    fontSize:   14,
-    fontWeight: '600',
-    color:      '#fff',
-    lineHeight: 20,
-  },
-  answerWrap: {
-    paddingBottom: 14,
-    paddingRight:  26,
-  },
-  answerText: {
-    fontSize:   13,
-    color:      Colors.text.muted,
-    lineHeight: 20,
-  },
+  item:         { borderBottomWidth: 1, borderBottomColor: Colors.border.subtle },
+  question:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 10 },
+  questionText: { flex: 1, fontSize: 14, fontWeight: '600', color: '#fff', lineHeight: 20 },
+  answerWrap:   { paddingBottom: 14, paddingRight: 26 },
+  answerText:   { fontSize: 13, color: Colors.text.muted, lineHeight: 20 },
 });
 
 export default function SupportScreen() {
-  const router = useRouter();
+  const router      = useRouter();
+  const isSuperAdmin = useAuthStore(s => !!s.user?.is_super_admin);
+  const openSupport  = useChatStore(s => s.openSupport);
+  const unreadTotal  = useChatStore(s => s.unreadTotal);
+  const fetchUnreadCount = useChatStore(s => s.fetchUnreadCount);
+  const [opening, setOpening] = useState(false);
 
-  function handleContactSupport() {
-    Linking.openURL('mailto:support@meetcraft.app').catch(() => {
-      Alert.alert('Unable to open email', 'Please email us at support@meetcraft.app');
-    });
+  // Fetch unread count when screen is focused (only for regular users)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (isSuperAdmin) return; // Super admins don't need notifications here
+
+      fetchUnreadCount();
+
+      // Poll every 5 seconds while on this screen
+      const interval = setInterval(() => {
+        fetchUnreadCount();
+      }, 5000);
+
+      return () => clearInterval(interval);
+    }, [isSuperAdmin, fetchUnreadCount])
+  );
+
+  async function handleLiveChat() {
+    if (isSuperAdmin) { router.push('/chat' as never); return; }
+    if (opening) return;
+    setOpening(true);
+    try {
+      const conv = await openSupport();
+      if (conv) router.push(`/chat/${conv.id}` as never);
+      else Alert.alert('Unavailable', 'Could not open support chat. Try again later.');
+    } finally { setOpening(false); }
   }
 
-  function handlePrivacyPolicy() {
-    Alert.alert('Privacy Policy', 'Our privacy policy will be available at meetcraft.app/privacy.');
-  }
-
-  function handleTermsOfService() {
-    Alert.alert('Terms of Service', 'Our terms of service will be available at meetcraft.app/terms.');
+  function handleEmail() {
+    Linking.openURL('mailto:support@meetcraft.app').catch(() =>
+      Alert.alert('Cannot open email', 'Please email us at support@meetcraft.app')
+    );
   }
 
   return (
@@ -109,153 +118,169 @@ export default function SupportScreen() {
         <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={10}>
           <Feather name="chevron-left" size={22} color="#fff" />
         </Pressable>
-        <Text style={styles.headerTitle}>Help & Support</Text>
+        <Text style={styles.headerTitle}>Help &amp; Support</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
         {/* Hero */}
         <View style={styles.hero}>
           <View style={styles.heroIcon}>
             <Feather name="help-circle" size={30} color={Colors.accent.indigo} />
           </View>
           <Text style={styles.heroTitle}>How can we help?</Text>
-          <Text style={styles.heroSub}>
-            Browse the FAQ below or reach out directly.
-          </Text>
+          <Text style={styles.heroSub}>Browse the FAQ or reach out directly — we reply within a few hours.</Text>
         </View>
 
         {/* FAQ */}
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>Frequently Asked Questions</Text>
-          {FAQ_ITEMS.map((item, index) => (
-            <FAQItem key={index} question={item.q} answer={item.a} />
-          ))}
+          {FAQ_ITEMS.map((item, i) => <FAQItem key={i} question={item.q} answer={item.a} />)}
         </View>
 
-        {/* Contact support */}
-        <Pressable style={styles.contactBtn} onPress={handleContactSupport}>
-          <View style={styles.contactIconWrap}>
-            <Feather name="mail" size={18} color={Colors.accent.indigo} />
-          </View>
-          <View style={styles.contactText}>
-            <Text style={styles.contactTitle}>Contact Support</Text>
-            <Text style={styles.contactSub}>support@meetcraft.app</Text>
-          </View>
-          <Feather name="chevron-right" size={16} color={Colors.text.subtle} />
-        </Pressable>
+        {/* Still need help? */}
+        <View style={styles.contactCard}>
+          <Text style={styles.sectionLabel}>Still need help?</Text>
 
-        {/* Legal links */}
+          {/* Email */}
+          <Pressable style={styles.contactRow} onPress={handleEmail}>
+            <View style={[styles.contactIcon, { backgroundColor: `${Colors.accent.indigo}15` }]}>
+              <Feather name="mail" size={18} color={Colors.accent.indigo} />
+            </View>
+            <View style={styles.contactText}>
+              <Text style={styles.contactTitle}>Email support</Text>
+              <Text style={styles.contactSub}>support@meetcraft.app</Text>
+            </View>
+            <Feather name="external-link" size={14} color={Colors.text.subtle} />
+          </Pressable>
+
+          <View style={styles.divider} />
+
+          {/* Live chat */}
+          <Pressable style={styles.contactRow} onPress={handleLiveChat} disabled={opening}>
+            <View style={[styles.contactIcon, { backgroundColor: 'rgba(16,185,129,0.12)', position: 'relative' }]}>
+              {opening
+                ? <ActivityIndicator size="small" color="#10b981" />
+                : <Feather name="message-square" size={18} color="#10b981" />}
+              {!isSuperAdmin && !opening && unreadTotal > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationText}>
+                    {unreadTotal > 9 ? '9+' : unreadTotal}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.contactText}>
+              <Text style={styles.contactTitle}>Live chat</Text>
+              <Text style={styles.contactSub}>
+                {!isSuperAdmin && unreadTotal > 0
+                  ? `${unreadTotal} new message${unreadTotal > 1 ? 's' : ''}`
+                  : 'Available Mon–Fri, 9am–6pm UTC'}
+              </Text>
+            </View>
+            <View style={styles.onlineDot} />
+          </Pressable>
+        </View>
+
+        {/* Legal */}
         <View style={styles.legalRow}>
-          <Pressable style={styles.legalLink} onPress={handlePrivacyPolicy}>
+          <Pressable onPress={() => Linking.openURL('https://meetcraft.app/privacy-policy')} style={styles.legalLink}>
             <Text style={styles.legalText}>Privacy Policy</Text>
           </Pressable>
           <View style={styles.legalDot} />
-          <Pressable style={styles.legalLink} onPress={handleTermsOfService}>
+          <Pressable onPress={() => Linking.openURL('https://meetcraft.app/terms')} style={styles.legalLink}>
             <Text style={styles.legalText}>Terms of Service</Text>
           </Pressable>
         </View>
 
-        {/* Version */}
-        <Text style={styles.version}>Version 1.0.0</Text>
+        <Text style={styles.version}>Version 1.0.0 · LiteEvent</Text>
       </ScrollView>
+
+      {/* Floating Chat Button */}
+      <FloatingChatButton onPress={handleLiveChat} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bg.primary },
+  safe:    { flex: 1, backgroundColor: Colors.bg.primary },
 
   header: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    justifyContent:    'space-between',
-    paddingHorizontal: 16,
-    paddingVertical:   12,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 12,
   },
   backBtn: {
-    width:           40,
-    height:          40,
-    borderRadius:    12,
-    backgroundColor: Colors.bg.elevated,
-    borderWidth:     1,
-    borderColor:     Colors.border.DEFAULT,
-    alignItems:      'center',
-    justifyContent:  'center',
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: Colors.bg.elevated, borderWidth: 1, borderColor: Colors.border.DEFAULT,
+    alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: { fontSize: 17, fontWeight: '900', color: '#fff' },
 
-  content: { padding: 24, gap: 16, paddingBottom: 60 },
+  content: { padding: 20, gap: 16, paddingBottom: 60 },
 
-  hero: { alignItems: 'center', gap: 10, paddingVertical: 8 },
+  hero:     { alignItems: 'center', gap: 10, paddingVertical: 8 },
   heroIcon: {
-    width:           68,
-    height:          68,
-    borderRadius:    22,
-    backgroundColor: `${Colors.accent.indigo}18`,
-    alignItems:      'center',
-    justifyContent:  'center',
+    width: 68, height: 68, borderRadius: 22,
+    backgroundColor: `rgba(99,102,241,0.12)`,
+    borderWidth: 1, borderColor: 'rgba(99,102,241,0.25)',
+    alignItems: 'center', justifyContent: 'center',
   },
   heroTitle: { fontSize: 20, fontWeight: '900', color: '#fff' },
-  heroSub:   { fontSize: 13, color: Colors.text.muted, textAlign: 'center' },
+  heroSub:   { fontSize: 13, color: Colors.text.muted, textAlign: 'center', lineHeight: 20 },
 
   sectionLabel: {
-    fontSize:      10,
-    fontWeight:    '700',
-    color:         Colors.text.subtle,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    marginBottom:  4,
+    fontSize: 10, fontWeight: '700', color: Colors.text.subtle,
+    letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8,
   },
   card: {
-    backgroundColor:   Colors.bg.elevated,
-    borderRadius:      16,
-    borderWidth:       1,
-    borderColor:       Colors.border.DEFAULT,
-    paddingHorizontal: 16,
-    paddingTop:        14,
-    paddingBottom:     4,
+    backgroundColor: Colors.bg.elevated, borderRadius: 16,
+    borderWidth: 1, borderColor: Colors.border.DEFAULT,
+    paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4,
   },
 
-  contactBtn: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    gap:             14,
-    backgroundColor: Colors.bg.elevated,
-    borderRadius:    16,
-    borderWidth:     1,
-    borderColor:     Colors.border.DEFAULT,
-    padding:         16,
+  contactCard: {
+    backgroundColor: Colors.bg.elevated, borderRadius: 16,
+    borderWidth: 1, borderColor: Colors.border.DEFAULT,
+    padding: 16, gap: 0,
   },
-  contactIconWrap: {
-    width:           44,
-    height:          44,
-    borderRadius:    13,
-    backgroundColor: `${Colors.accent.indigo}15`,
-    alignItems:      'center',
-    justifyContent:  'center',
+  contactRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10 },
+  contactIcon: {
+    width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center',
   },
   contactText:  { flex: 1, gap: 2 },
-  contactTitle: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  contactTitle: { fontSize: 14, fontWeight: '700', color: '#fff' },
   contactSub:   { fontSize: 12, color: Colors.text.muted },
-
-  legalRow: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    justifyContent: 'center',
-    gap:            10,
+  divider:      { height: 1, backgroundColor: Colors.border.subtle, marginVertical: 2 },
+  onlineDot:    {
+    width: 9, height: 9, borderRadius: 5, backgroundColor: '#10b981',
+    shadowColor: '#10b981', shadowOpacity: 0.8, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
   },
+
+  notificationBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#ef4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: Colors.bg.elevated,
+  },
+  notificationText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#fff',
+  },
+
+  legalRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   legalLink: { paddingVertical: 4, paddingHorizontal: 4 },
   legalText: { fontSize: 12, color: Colors.text.muted, textDecorationLine: 'underline' },
   legalDot:  { width: 3, height: 3, borderRadius: 2, backgroundColor: Colors.text.subtle },
 
-  version: {
-    fontSize:   11,
-    color:      Colors.text.subtle,
-    textAlign:  'center',
-    marginTop:  4,
-  },
+  version: { fontSize: 11, color: Colors.text.subtle, textAlign: 'center', marginTop: 4 },
 });

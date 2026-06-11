@@ -6,13 +6,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import Toast from 'react-native-toast-message';
+import { notify, showWarning } from '@/lib/toast';
 import { useEventStore }        from '@/store/event.store';
 import { useTicketStore }       from '@/store/ticket.store';
 import { useSubscriptionStore } from '@/store/subscription.store';
 import { Input }             from '@/components/ui/Input';
 import { Button }           from '@/components/ui/Button';
 import { DateTimePicker }   from '@/components/ui/DateTimePicker';
+import { CountrySelector }   from '@/components/ui/CountrySelector';
 import { Colors }           from '@/constants/colors';
 
 const { width: SW } = Dimensions.get('window');
@@ -300,13 +301,32 @@ export default function CreateEventScreen() {
 
   const canAdvance = () => {
     if (step === 0) return !!form.subcategory;
-    if (step === 1) return !!form.title.trim();
+    if (step === 1) return !!form.title.trim() && !!form.starts_at;
+    if (step === 2) return !!form.venue_name.trim() && !!form.city.trim();
     return true;
   };
 
+  const handleContinue = () => {
+    if (step === 0 && !form.subcategory) {
+      return showWarning('Category required', 'Please select an event type to continue.');
+    }
+    if (step === 1) {
+      if (!form.title.trim()) return showWarning('Title required', 'Enter a title for your event.');
+      if (!form.starts_at) return showWarning('Start date required', 'Select when your event starts.');
+    }
+    if (step === 2) {
+      if (!form.venue_name.trim()) return showWarning('Venue required', 'Enter a venue name or location.');
+      if (!form.city.trim()) return showWarning('City required', 'Enter the city for your event.');
+    }
+    setStep(s => s + 1);
+  };
+
   const submit = async () => {
-    if (!form.title.trim()) return Toast.show({ type: 'error', text1: 'Title is required' });
-    if (!form.event_type)   return Toast.show({ type: 'error', text1: 'Select a category' });
+    if (!form.title.trim()) return notify.titleRequired();
+    if (!form.event_type)   return showWarning('Category required', 'Select an event category to continue.');
+    if (!form.starts_at) return showWarning('Start date required', 'Select a start date for your event.');
+    if (!form.venue_name.trim()) return showWarning('Venue required', 'Enter a venue name or location.');
+    if (!form.city.trim()) return showWarning('City required', 'Enter the city where your event takes place.');
     setSaving(true);
     const result = await createEvent({
       event_type:       form.event_type,
@@ -332,10 +352,10 @@ export default function CreateEventScreen() {
         router.replace('/profile/billing' as never);
         return;
       }
-      Toast.show({ type: 'error', text1: result.message ?? 'Failed to create event' });
+      notify.eventFailed(result.message);
       return;
     }
-    Toast.show({ type: 'success', text1: '🎉 Event created!' });
+    notify.eventCreated(form.title);
     const eventId = result.event!.id;
     if (form.allow_ticketing) {
       createTicketType(eventId, {
@@ -364,9 +384,9 @@ export default function CreateEventScreen() {
               {selectedSub ? ` · ${selectedSub.icon} ${selectedSub.label}` : ''}
             </Text>
           </View>
-          {step > 0 && (
-            <Pressable onPress={() => setStep(STEPS.length - 1)} hitSlop={8}>
-              <Text style={styles.skipText}>Skip →</Text>
+          {step === 3 && (
+            <Pressable onPress={submit} hitSlop={8} disabled={saving}>
+              <Text style={[styles.skipText, saving && { opacity: 0.5 }]}>Done</Text>
             </Pressable>
           )}
         </View>
@@ -497,7 +517,7 @@ export default function CreateEventScreen() {
                 icon="align-left"
               />
               <DateTimePicker
-                label="Start Date & Time"
+                label="Start Date & Time *"
                 value={form.starts_at}
                 onChange={d => update('starts_at', d)}
                 minDate={new Date()}
@@ -509,11 +529,12 @@ export default function CreateEventScreen() {
                 minDate={form.starts_at ?? new Date()}
               />
               <Input
-                label="Timezone"
-                placeholder="e.g. America/New_York"
+                label="Timezone (Auto-detected)"
+                placeholder="Timezone"
                 value={form.timezone}
-                onChangeText={t => update('timezone', t)}
+                editable={false}
                 icon="globe"
+                style={{ opacity: 0.7 }}
               />
             </View>
           )}
@@ -525,8 +546,22 @@ export default function CreateEventScreen() {
               <Input label="Venue Name"     placeholder="Madison Square Garden" value={form.venue_name}    onChangeText={t => update('venue_name', t)}    icon="map-pin"  />
               <Input label="Street Address" placeholder="4 Pennsylvania Plaza"  value={form.venue_address} onChangeText={t => update('venue_address', t)} icon="navigation"/>
               <Input label="City"           placeholder="New York"               value={form.city}          onChangeText={t => update('city', t)}          icon="map"      />
-              <Input label="Zip / Postal"   placeholder="10001"                  value={form.zip_code}      onChangeText={t => update('zip_code', t)}      icon="hash"     />
-              <Input label="Country"        placeholder="US"                    value={form.country}       onChangeText={t => update('country', t)}       icon="flag"     />
+              <Input
+                label="Zip / Postal"
+                placeholder="10001"
+                value={form.zip_code}
+                onChangeText={t => update('zip_code', t.replace(/[^0-9]/g, ''))}
+                icon="hash"
+                keyboardType="numeric"
+              />
+              <View>
+                <Text style={styles.label}>Country</Text>
+                <CountrySelector
+                  value={form.country}
+                  onChange={(country) => update('country', country.code)}
+                  placeholder="Select country"
+                />
+              </View>
             </View>
           )}
 
@@ -562,7 +597,7 @@ export default function CreateEventScreen() {
           {step < STEPS.length - 1 ? (
             <Button
               label={step === 0 ? (form.subcategory ? `Continue with ${selectedSub?.label}` : 'Select a category') : 'Continue'}
-              onPress={() => setStep(s => s + 1)}
+              onPress={handleContinue}
               disabled={!canAdvance()}
               accent={Colors.accent.indigo}
               size="lg"

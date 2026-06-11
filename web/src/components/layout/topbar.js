@@ -86,6 +86,7 @@ export default function Topbar() {
           <button
             onClick={() => setMobileOpen(!isMobileOpen)}
             className="rounded-xl p-2 text-(--text-muted) hover:bg-(--bg-elevated) md:hidden"
+            suppressHydrationWarning
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -100,6 +101,7 @@ export default function Topbar() {
             <button
               onClick={openBillingOrNavigate}
               className="hidden items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300 sm:flex"
+              suppressHydrationWarning
             >
               <CreditCard className="h-3.5 w-3.5" />
               {plan.charAt(0).toUpperCase() + plan.slice(1)}
@@ -109,6 +111,7 @@ export default function Topbar() {
             <button
               onClick={openBillingOrNavigate}
               className="hidden items-center gap-1.5 rounded-lg bg-linear-to-r from-indigo-500 to-purple-600 px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 sm:flex"
+              suppressHydrationWarning
             >
               <Sparkles className="h-3.5 w-3.5" />
               Upgrade
@@ -120,6 +123,7 @@ export default function Topbar() {
             onClick={toggle}
             title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             className="rounded-xl p-2 text-(--text-muted) hover:bg-(--bg-elevated) transition-colors"
+            suppressHydrationWarning
           >
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
@@ -130,6 +134,7 @@ export default function Topbar() {
               onClick={() => setBellOpen((o) => !o)}
               className="relative rounded-xl p-2 text-(--text-muted) hover:bg-(--bg-elevated) transition-colors"
               aria-label="Notifications"
+              suppressHydrationWarning
             >
               <Bell className="h-4 w-4" />
               {unreadCount > 0 && (
@@ -164,6 +169,7 @@ export default function Topbar() {
               onClick={() => setProfileOpen((o) => !o)}
               title="My profile"
               className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-linear-to-br from-indigo-500 to-purple-600 text-xs font-bold text-white select-none hover:opacity-80 transition-opacity"
+              suppressHydrationWarning
             >
               {user?.avatar_url
                 ? <img src={user.avatar_url} alt="avatar" className="h-full w-full object-cover" />

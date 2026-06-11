@@ -1,7 +1,7 @@
 export const Config = {
   API_URL:   process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000/api',
   WEB_URL:   process.env.EXPO_PUBLIC_WEB_URL ?? 'http://localhost:3000',
-  APP_NAME:  'EventApp',
+  APP_NAME:  'LiteEvent',
   VERSION:   '1.0.0',
 
   STRIPE: {
@@ -13,9 +13,9 @@ export const Config = {
   },
 
   SECURE_STORE_KEYS: {
-    USER:             'eventapp_user',
-    IS_AUTHENTICATED: 'eventapp_is_authenticated',
-    REFRESH_TOKEN:    'eventapp_refresh_token',
+    USER:             'liteevent_user',
+    IS_AUTHENTICATED: 'liteevent_is_authenticated',
+    REFRESH_TOKEN:    'liteevent_refresh_token',
   },
 
   ASYNC_STORAGE_KEYS: {

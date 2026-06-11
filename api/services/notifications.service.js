@@ -1,4 +1,5 @@
 import { db } from "../config/db.js";
+import { sendPushToUser } from "./push.service.js";
 
 /**
  * Internal helper — called by other services when notable things happen.
@@ -11,6 +12,7 @@ export async function createNotificationService({
   body = null,
   link = null,
   metadata = {},
+  push = true, // set false to suppress push (e.g. bulk/system ops)
 }) {
   if (!userId || !type || !title) return;
   try {
@@ -21,6 +23,15 @@ export async function createNotificationService({
     );
   } catch (err) {
     console.error("[notifications] createNotification failed (non-fatal):", err.message);
+  }
+
+  // Send push notification in the background — never block the main flow
+  if (push) {
+    sendPushToUser(userId, {
+      title,
+      body:  body ?? "",
+      data:  { type, link, ...metadata },
+    }).catch(() => {});
   }
 }
 

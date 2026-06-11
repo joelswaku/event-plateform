@@ -3,6 +3,7 @@ import {
   markNotificationReadService,
   markAllReadService,
 } from "../services/notifications.service.js";
+import { savePushToken } from "../services/push.service.js";
 
 function httpStatus(err) {
   return err.statusCode ?? err.status ?? 500;
@@ -36,5 +37,19 @@ export async function markAllRead(req, res) {
   } catch (err) {
     console.error("[notifications] markAllRead:", err.message);
     return res.status(httpStatus(err)).json({ success: false, message: err.message });
+  }
+}
+
+export async function savePushTokenController(req, res) {
+  try {
+    const { token, platform } = req.body;
+    if (!token?.trim()) {
+      return res.status(400).json({ success: false, message: "token is required" });
+    }
+    await savePushToken(req.user.id, token.trim(), platform ?? "unknown");
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    console.error("[notifications] savePushToken:", err.message);
+    return res.status(500).json({ success: false, message: err.message });
   }
 }

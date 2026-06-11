@@ -57,6 +57,7 @@ export async function getSubscriptionStatusService(userId) {
 }
 
 export async function createCheckoutSessionService(userId, priceId, successUrl, cancelUrl) {
+  if (!stripe) throw Object.assign(new Error("Payment processing is not configured."), { statusCode: 503 });
   if (!priceId) throw Object.assign(new Error("priceId is required"), { statusCode: 400 });
 
   const uRes = await db.query(`SELECT email, full_name, stripe_customer_id FROM users WHERE id = $1`, [userId]);
@@ -86,6 +87,7 @@ export async function createCheckoutSessionService(userId, priceId, successUrl, 
 }
 
 export async function createPortalSessionService(userId) {
+  if (!stripe) throw Object.assign(new Error("Payment processing is not configured."), { statusCode: 503 });
   const uRes = await db.query(`SELECT stripe_customer_id FROM users WHERE id = $1`, [userId]);
   const user = uRes.rows[0];
   if (!user?.stripe_customer_id) throw Object.assign(new Error("No billing account found"), { statusCode: 400 });

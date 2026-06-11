@@ -1,4 +1,4 @@
-import crypto from "crypto";
+﻿import crypto from "crypto";
 import { db } from "../config/db.js";
 
 export class AppError extends Error {
@@ -280,50 +280,44 @@ function buildDefaultPublicUrl(event) {
    ASSERTIONS
 ========================= */
 
-async function assertOrganizationEventPermission(client, organizationId, userId) {
+async function assertOrganizationEventPermission(client, organizationId, userId, eventId = null) {
   const result = await client.query(
-    `
-    SELECT role
-    FROM organization_members
-    WHERE organization_id = $1
-      AND user_id = $2
-      AND deleted_at IS NULL
-    LIMIT 1
-    `,
+    `SELECT role FROM organization_members WHERE organization_id=$1 AND user_id=$2 AND deleted_at IS NULL LIMIT 1`,
     [organizationId, userId]
   );
-
-  if (!result.rows[0]) {
-    throw new AppError("You do not belong to this organization", 403);
+  if (result.rows[0]) {
+    const role = String(result.rows[0].role).toUpperCase();
+    const allowedRoles = ["OWNER", "ADMIN", "MANAGER", "EVENT_MANAGER", "EDITOR"];
+    if (!allowedRoles.includes(role)) throw new AppError("You do not have permission to edit event content", 403);
+    return result.rows[0];
   }
 
-  const role = String(result.rows[0].role).toUpperCase();
-  const allowedRoles = ["OWNER", "ADMIN", "MANAGER", "EVENT_MANAGER", "EDITOR"];
-
-  if (!allowedRoles.includes(role)) {
-    throw new AppError("You do not have permission to edit event content", 403);
+  if (eventId) {
+    const { rows } = await client.query(
+      `SELECT role FROM event_members WHERE event_id=$1 AND user_id=$2 AND deleted_at IS NULL LIMIT 1`,
+      [eventId, userId]
+    );
+    if (rows[0]) return rows[0];
   }
-
-  return result.rows[0];
+  throw new AppError("You do not belong to this organization", 403);
 }
 
-async function assertEventExists(client, eventId, organizationId) {
-  const result = await client.query(
-    `
-    SELECT *
-    FROM events
-    WHERE id = $1
-      AND organization_id = $2
-      AND deleted_at IS NULL
-    LIMIT 1
-    `,
+async function assertEventExists(client, eventId, organizationId, userId = null) {
+  let result = await client.query(
+    `SELECT * FROM events WHERE id=$1 AND organization_id=$2 AND deleted_at IS NULL LIMIT 1`,
     [eventId, organizationId]
   );
 
-  if (!result.rows[0]) {
-    throw new AppError("Event not found", 404);
+  if (!result.rows[0] && userId) {
+    result = await client.query(
+      `SELECT * FROM events WHERE id=$1 AND deleted_at IS NULL
+       AND EXISTS (SELECT 1 FROM event_members em WHERE em.event_id=$1 AND em.user_id=$2 AND em.deleted_at IS NULL)
+       LIMIT 1`,
+      [eventId, userId]
+    );
   }
 
+  if (!result.rows[0]) throw new AppError("Event not found", 404);
   return result.rows[0];
 }
 
@@ -575,8 +569,8 @@ export async function getEventBuilderService({
   const client = await db.connect();
 
   try {
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    const event = await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    const event = await assertEventExists(client, eventId, organizationId, userId);
     const page = await getOrCreateEventPage(client, event);
 
     const [
@@ -669,8 +663,8 @@ export async function upsertEventPageService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    const event = await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    const event = await assertEventExists(client, eventId, organizationId, userId);
     const page = await getOrCreateEventPage(client, event);
 
     const result = await client.query(
@@ -720,8 +714,8 @@ export async function createSectionService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     let sectionData;
 
@@ -839,8 +833,8 @@ export async function replaceSectionsService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     // Soft-delete all existing sections in one shot
     await client.query(
@@ -931,8 +925,8 @@ export async function batchCreateSectionsService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const posResult = await client.query(
       `SELECT COALESCE(MAX(position_order), -1) + 1 AS next_pos
@@ -1020,8 +1014,8 @@ export async function updateSectionService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
     const existing = await assertSectionExists(client, sectionId, eventId);
 
     const merged = {
@@ -1105,8 +1099,8 @@ export async function deleteSectionService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const result = await client.query(
       `
@@ -1162,8 +1156,8 @@ export async function reorderSectionsService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     for (const item of payload.sections) {
       if (!item?.id) {
@@ -1237,8 +1231,8 @@ export async function publishEventPageService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    const event = await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    const event = await assertEventExists(client, eventId, organizationId, userId);
     const page = await getOrCreateEventPage(client, event);
 
     const visibleSectionsResult = await client.query(
@@ -1309,8 +1303,8 @@ export async function unpublishEventPageService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    const event = await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    const event = await assertEventExists(client, eventId, organizationId, userId);
     const page = await getOrCreateEventPage(client, event);
 
     const result = await client.query(
@@ -1369,8 +1363,8 @@ export async function createScheduleItemService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const result = await client.query(
       `
@@ -1438,8 +1432,8 @@ export async function createSpeakerService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const result = await client.query(
       `
@@ -1505,8 +1499,8 @@ export async function uploadEventMediaService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const result = await client.query(
       `
@@ -1580,8 +1574,8 @@ export async function selectEventThemeService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const result = await client.query(
       `
@@ -1644,8 +1638,8 @@ export async function selectEventThemeService({
 export async function listSpeakersService({ eventId, organizationId, userId }) {
   const client = await db.connect();
   try {
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
     const result = await client.query(
       `SELECT * FROM event_speakers WHERE event_id = $1 AND deleted_at IS NULL ORDER BY created_at ASC`,
       [eventId]
@@ -1661,8 +1655,8 @@ export async function updateSpeakerService({ eventId, speakerId, organizationId,
   const client = await db.connect();
   try {
     await client.query("BEGIN");
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const result = await client.query(
       `UPDATE event_speakers
@@ -1706,8 +1700,8 @@ export async function deleteSpeakerService({ eventId, speakerId, organizationId,
   const client = await db.connect();
   try {
     await client.query("BEGIN");
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const result = await client.query(
       `UPDATE event_speakers SET deleted_at = NOW() WHERE id = $1 AND event_id = $2 AND deleted_at IS NULL RETURNING id`,
@@ -1738,8 +1732,8 @@ export async function listScheduleItemsService({ eventId, organizationId, userId
   const client = await db.connect();
   try {
     await client.query("BEGIN");
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const result = await client.query(
       `SELECT * FROM event_schedule_items
@@ -1762,8 +1756,8 @@ export async function updateScheduleItemService({ eventId, itemId, organizationI
   const client = await db.connect();
   try {
     await client.query("BEGIN");
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const result = await client.query(
       `UPDATE event_schedule_items
@@ -1809,8 +1803,8 @@ export async function deleteScheduleItemService({ eventId, itemId, organizationI
   const client = await db.connect();
   try {
     await client.query("BEGIN");
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const result = await client.query(
       `UPDATE event_schedule_items SET deleted_at = NOW() WHERE id = $1 AND event_id = $2 AND deleted_at IS NULL RETURNING id`,
@@ -1832,3 +1826,4 @@ export async function deleteScheduleItemService({ eventId, itemId, organizationI
     client.release();
   }
 }
+

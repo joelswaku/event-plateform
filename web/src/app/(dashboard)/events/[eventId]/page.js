@@ -12,6 +12,7 @@ import {
   Share2, MoreHorizontal, ArrowLeft, Camera, ExternalLink,
   Send, EyeOff, Archive, Trash2, RotateCcw, CreditCard,
   LayoutGrid, CheckCircle, Copy, Check, X as XIcon, Link2,
+  ClipboardList, Sparkles,
 } from "lucide-react";
 import { useEventStore }  from "@/store/event.store";
 import { useTeamStore }   from "@/store/team.store";
@@ -19,7 +20,12 @@ import { useAuthStore }   from "@/store/auth.store";
 import StatCard           from "@/components/ui/stat-card";
 import ShareEventCard     from "@/components/events/ShareEventCard";
 import { EVENT_CATEGORIES } from "@/config/event-categories";
-import TicketGateModal    from "@/components/events/TicketGateModal";
+import dynamic from "next/dynamic";
+const PerformancePredictionWidget = dynamic(() => import("@/components/ai/PerformancePredictionWidget"), { ssr: false });
+import AIInsightCard          from "@/components/ai/AIInsightCard";
+import { useAIStore }         from "@/store/ai.store";
+import { usePlannerStore }    from "@/store/planner.store";
+import PostEventSummaryModal  from "@/components/ai/PostEventSummaryModal";
 
 // ── Cover image fallbacks ─────────────────────────────────────────────────────
 const EVENT_IMGS = {
@@ -117,6 +123,95 @@ function SectionTitle({ children }) {
   );
 }
 
+// ── AI Guest Insights (desktop) ───────────────────────────────────────────────
+function DesktopGuestInsights({ eventId, guestCount }) {
+  const { analyzeGuestList, loading } = useAIStore();
+  const [insights, setInsights] = React.useState(null);
+
+  useEffect(() => {
+    if (guestCount >= 5 && !insights) {
+      analyzeGuestList(eventId).then((res) => {
+        if (res.success) setInsights(res.data?.insights ?? []);
+      });
+    }
+  }, [eventId, guestCount]);
+
+  if (!insights || insights.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+      <SectionTitle>AI Guest Insights</SectionTitle>
+      <div className="space-y-2">
+        {insights.slice(0, 5).map((ins, i) => (
+          <AIInsightCard key={i} type={ins.type} message={ins.message} count={ins.count} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Event Planner card ────────────────────────────────────────────────────────
+function EventPlannerCard({ eventId, project, loading }) {
+  const router = useRouter();
+
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30">
+            <ClipboardList className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">Event Planner</h3>
+        </div>
+        {project && (
+          <Link
+            href={`/planner/${project.id}`}
+            className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+          >
+            Open <ArrowRight className="w-3 h-3" />
+          </Link>
+        )}
+      </div>
+
+      {loading && !project && (
+        <div className="h-16 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />
+      )}
+
+      {!loading && !project && (
+        <div className="flex flex-col items-center text-center py-4 gap-3">
+          <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20">
+            <Sparkles className="w-5 h-5 text-indigo-500" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">No planner yet</p>
+            <p className="text-xs text-gray-500 mt-0.5">Let AI build a full plan — tasks, timeline, vendors.</p>
+          </div>
+          <button
+            onClick={() => router.push(`/planner/new?eventId=${eventId}`)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors"
+          >
+            <Sparkles className="w-3.5 h-3.5" /> Create AI Planner
+          </button>
+        </div>
+      )}
+
+      {project && (
+        <Link href={`/planner/${project.id}`} className="block group">
+          <div className="flex items-center justify-between p-3 rounded-xl border border-gray-100 dark:border-gray-800 hover:border-indigo-200 dark:hover:border-indigo-700 hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-all">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{project.title}</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {project.task_count ?? 0} tasks · {project.status ?? "active"}
+              </p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-indigo-500 shrink-0 transition-colors" />
+          </div>
+        </Link>
+      )}
+    </div>
+  );
+}
+
 // ── Feature modules with toggles (desktop) ───────────────────────────────────
 const MODULE_CFG = {
   allow_rsvp:      { icon: Users,  label: "RSVP",            desc: "Guest list & tracking", activeBg: "bg-indigo-50 dark:bg-indigo-900/20", activeIcon: "text-indigo-600 dark:text-indigo-400" },
@@ -129,13 +224,15 @@ const MODULE_HREFS = (eventId) => ({
   allow_donations: `/events/${eventId}/donations`,
 });
 
-function FeatureModules({ event, eventId }) {
+function FeatureModules({ event, eventId, readOnly = false }) {
   const { updateEvent } = useEventStore();
+  const router = useRouter();
   const hrefs = MODULE_HREFS(eventId);
   const [local,  setLocal]  = useState(() =>
     Object.fromEntries(Object.keys(MODULE_CFG).map((k) => [k, !!event?.[k]]))
   );
   const [saving, setSaving] = useState({});
+  const [confirmModal, setConfirmModal] = useState(null); // { key, label, desc, otherModules }
 
   const EXCLUSIVE = ['allow_rsvp', 'allow_ticketing', 'allow_donations'];
 
@@ -169,41 +266,89 @@ function FeatureModules({ event, eventId }) {
     setSaving((s) => ({ ...s, ...Object.fromEntries(affectedKeys.map((k) => [k, false])) }));
   };
 
+  const handleCardClick = async (e, key) => {
+    e.preventDefault();
+    if (readOnly) return;
+
+    const active = local[key];
+    const cfg = MODULE_CFG[key];
+
+    // If already active, navigate directly
+    if (active) {
+      router.push(hrefs[key]);
+      return;
+    }
+
+    // If disabled, show confirmation modal
+    const otherActiveModules = EXCLUSIVE
+      .filter(k => k !== key && local[k])
+      .map(k => MODULE_CFG[k]?.label)
+      .filter(Boolean);
+
+    setConfirmModal({
+      key,
+      label: cfg.label,
+      desc: cfg.desc,
+      otherModules: otherActiveModules,
+    });
+  };
+
+  const confirmEnableModule = async () => {
+    if (!confirmModal) return;
+
+    const { key } = confirmModal;
+    setConfirmModal(null);
+
+    // Create a synthetic event for toggle
+    const syntheticEvent = { preventDefault: () => {}, stopPropagation: () => {} };
+    await toggle(syntheticEvent, key);
+
+    // Wait for state to update, then navigate
+    setTimeout(() => {
+      router.push(hrefs[key]);
+    }, 300);
+  };
+
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-      <div className="mb-4 flex items-center justify-between">
-        <SectionTitle>Active Modules</SectionTitle>
-        <Link href={`/events/${eventId}/settings`} className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 transition hover:text-gray-700 dark:hover:text-gray-200">
-          <Settings className="h-3 w-3" /> All settings
-        </Link>
-      </div>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+    <>
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+        <div className="mb-4 flex items-center justify-between">
+          <SectionTitle>Active Modules</SectionTitle>
+          {!readOnly && (
+            <Link href={`/events/${eventId}/settings`} className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 transition hover:text-gray-700 dark:hover:text-gray-200">
+              <Settings className="h-3 w-3" /> All settings
+            </Link>
+          )}
+        </div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         {Object.entries(MODULE_CFG).map(([key, cfg]) => {
           const active = local[key];
           const busy   = !!saving[key];
           const Icon   = cfg.icon;
           return (
             <div key={key} className="relative">
-              <Link
-                href={active ? hrefs[key] : `/events/${eventId}/settings`}
-                className={`flex flex-col gap-2.5 rounded-xl border p-3.5 pr-12 transition ${
-                  active ? `${cfg.activeBg} border-transparent hover:shadow-sm` : "border-gray-100 hover:border-gray-200 dark:border-gray-800 dark:hover:border-gray-700"
-                }`}
+              <button
+                type="button"
+                onClick={(e) => handleCardClick(e, key)}
+                disabled={busy || readOnly}
+                className={`w-full flex flex-col gap-2.5 rounded-xl border p-3.5 pr-12 transition text-left ${
+                  active ? `${cfg.activeBg} border-transparent hover:shadow-sm` : "border-gray-100 hover:border-gray-200 dark:border-gray-800 dark:hover:border-gray-700 cursor-pointer"
+                } ${(busy || readOnly) ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${active ? cfg.activeBg : "bg-gray-100 dark:bg-gray-800"}`}>
                   <Icon className={`h-4 w-4 ${active ? cfg.activeIcon : "text-gray-300 dark:text-gray-600"}`} />
                 </div>
                 <div>
                   <p className={`text-xs font-bold leading-tight ${active ? "text-gray-900 dark:text-gray-100" : "text-gray-400 dark:text-gray-500"}`}>{cfg.label}</p>
-                  <p className="mt-0.5 text-[10px] text-gray-400 dark:text-gray-500">{active ? cfg.desc : "Disabled"}</p>
+                  <p className="mt-0.5 text-[10px] text-gray-400 dark:text-gray-500">{active ? cfg.desc : "Click to enable"}</p>
                 </div>
-              </Link>
+              </button>
               <button
                 type="button"
                 onClick={(e) => toggle(e, key)}
-                disabled={busy}
+                disabled={busy || readOnly}
                 aria-label={`${active ? "Disable" : "Enable"} ${cfg.label}`}
-                className="absolute right-3 top-3 flex items-center focus:outline-none"
+                className={`absolute right-3 top-3 flex items-center focus:outline-none ${readOnly ? "pointer-events-none opacity-40" : ""}`}
               >
                 {busy ? (
                   <svg className="h-4 w-4 animate-spin text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -218,8 +363,70 @@ function FeatureModules({ event, eventId }) {
             </div>
           );
         })}
+        </div>
       </div>
-    </div>
+
+      {/* Confirmation Modal */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setConfirmModal(null)}>
+          <div
+            className="mx-4 w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-900/30">
+                {confirmModal.key === 'allow_rsvp' ? <Users className="h-6 w-6 text-indigo-600 dark:text-indigo-400" /> :
+                 confirmModal.key === 'allow_ticketing' ? <Ticket className="h-6 w-6 text-amber-600 dark:text-amber-400" /> :
+                 <Heart className="h-6 w-6 text-pink-600 dark:text-pink-400" />}
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                  Enable {confirmModal.label}?
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {confirmModal.desc}
+                </p>
+              </div>
+            </div>
+
+            {confirmModal.otherModules.length > 0 && (
+              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
+                <div className="flex gap-2">
+                  <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40">
+                    <span className="text-xs font-bold text-amber-600 dark:text-amber-400">!</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+                      This will disable {confirmModal.otherModules.join(' & ')}
+                    </p>
+                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                      Only one module can be active at a time.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmModal(null)}
+                className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmEnableModule}
+                className="flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400"
+              >
+                Enable & Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -284,14 +491,14 @@ function MobileConfirmDialog({ title, desc, danger, onConfirm, onCancel }) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="h-1 w-10 self-center rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
+        <div className="mx-auto h-[5px] w-10 rounded-full" style={{ background: "rgba(255,255,255,0.18)" }} />
         <p className="text-center text-[18px] font-black text-white" style={{ letterSpacing: "-0.3px" }}>{title}</p>
-        <p className="text-center text-[13px]" style={{ color: "rgba(255,255,255,0.50)" }}>{desc}</p>
+        <p className="text-center text-[13px] leading-[20px]" style={{ color: "rgba(255,255,255,0.50)" }}>{desc}</p>
         <div className="mt-2 flex flex-col gap-2">
           <button
             type="button"
             onClick={onConfirm}
-            className="flex h-[52px] items-center justify-center rounded-[14px] text-[15px] font-extrabold"
+            className="flex h-[52px] items-center justify-center rounded-[14px] text-[15px] font-extrabold transition-transform active:scale-[0.97]"
             style={
               danger
                 ? { background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.35)", color: "#ef4444" }
@@ -303,7 +510,7 @@ function MobileConfirmDialog({ title, desc, danger, onConfirm, onCancel }) {
           <button
             type="button"
             onClick={onCancel}
-            className="flex h-[48px] items-center justify-center rounded-[14px] text-[14px] font-bold"
+            className="flex h-[48px] items-center justify-center rounded-[14px] text-[14px] font-bold transition-opacity active:opacity-60"
             style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.50)" }}
           >
             Cancel
@@ -316,34 +523,42 @@ function MobileConfirmDialog({ title, desc, danger, onConfirm, onCancel }) {
 
 function MobileBottomNav() {
   const pathname = usePathname();
+  const eventIdMatch = pathname.match(/\/events\/([^/]+)/);
+  const scanHref = eventIdMatch ? `/events/${eventIdMatch[1]}/scanner` : "/events";
+
   const tabs = [
-    { href: "/dashboard", label: "Home",    Icon: Home,         active: pathname === "/dashboard" },
-    { href: "/events",    label: "Events",  Icon: CalendarDays, active: pathname.startsWith("/events") && !pathname.includes("create") },
+    { href: "/dashboard", label: "Home",    Icon: Home,          active: pathname === "/dashboard" },
+    { href: "/events",    label: "Events",  Icon: CalendarDays,  active: pathname.startsWith("/events") && !pathname.includes("create") },
     null,
-    { href: "/tickets",   label: "Tickets", Icon: Ticket,       active: pathname === "/tickets" },
-    { href: "/settings",  label: "Account", Icon: User,         active: pathname === "/settings" },
+    { href: "/planner",   label: "Planner", Icon: ClipboardList, active: pathname.startsWith("/planner") },
+    { href: "/settings",  label: "Profile", Icon: User,          active: pathname === "/settings" },
   ];
   return (
     <div
       className="relative z-50 shrink-0 border-t px-1 pt-2"
-      style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.08)", paddingBottom: "max(10px, env(safe-area-inset-bottom))" }}
+      style={{ background: "rgba(10,10,18,0.98)", borderColor: "rgba(255,255,255,0.08)", backdropFilter: "blur(16px)", paddingBottom: "max(10px, env(safe-area-inset-bottom))" }}
     >
       <div className="flex items-end justify-around">
-        {tabs.map((tab, idx) => {
+        {tabs.map((tab) => {
           if (!tab) {
             return (
-              <Link key="create" href="/events/create" className="-mt-5 flex flex-col items-center gap-1">
-                <div className="flex h-14 w-14 items-center justify-center rounded-[18px]" style={{ background: "linear-gradient(135deg, #4f46e5, #6366f1)", boxShadow: "0 4px 20px rgba(99,102,241,0.45)" }}>
-                  <Plus size={24} className="text-white" />
+              <Link key="scan" href={scanHref} className="relative z-10 -mt-5 flex flex-col items-center gap-1 transition-transform active:scale-95">
+                <div className="flex h-14 w-14 items-center justify-center rounded-[18px]" style={{ background: "linear-gradient(135deg, #059669, #10b981)", boxShadow: "0 4px 20px rgba(16,185,129,0.50)" }}>
+                  <QrCode size={22} className="text-white" />
                 </div>
-                <span className="mt-0.5 text-[10px] font-extrabold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.40)" }}>Create</span>
+                <span className="mt-0.5 text-[10px] font-extrabold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.40)" }}>Scan</span>
               </Link>
             );
           }
           const { href, label, Icon, active } = tab;
           return (
-            <Link key={href} href={href} className="flex flex-col items-center gap-1 px-3 py-1">
-              <Icon size={22} style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }} />
+            <Link key={href} href={href} className="flex flex-col items-center gap-1 px-3 py-1 transition-opacity active:opacity-60">
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-all"
+                style={active ? { background: "rgba(99,102,241,0.18)", border: "1px solid rgba(99,102,241,0.28)" } : {}}
+              >
+                <Icon size={20} style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }} />
+              </div>
               <span className="text-[10px] font-extrabold uppercase tracking-wide" style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }}>{label}</span>
             </Link>
           );
@@ -353,15 +568,19 @@ function MobileBottomNav() {
   );
 }
 
-function MobileActionSheet({ event, eventId, status, isPublic, onShare, onAction, onClose }) {
+function MobileActionSheet({ event, eventId, status, isPublic, onShare, onAction, onClose, permissions = null, userRole = null }) {
   const router = useRouter();
+  const perms = permissions ?? { canEdit: false, canDelete: false, canPublish: false };
+  const isOwner = userRole === 'OWNER';
 
   const ITEMS = [];
-  ITEMS.push({
-    Icon: Pencil, label: "Edit Event", sub: "Update details & settings",
-    accent: "#6366f1",
-    onPress: () => { onClose(); router.push(`/events/${eventId}/edit`); },
-  });
+  if (perms.canEdit) {
+    ITEMS.push({
+      Icon: Pencil, label: "Edit Event", sub: "Update details & settings",
+      accent: "#6366f1",
+      onPress: () => { onClose(); router.push(`/events/${eventId}/edit`); },
+    });
+  }
   if (event.slug) {
     ITEMS.push({
       Icon: Globe, label: "See Website",
@@ -375,33 +594,35 @@ function MobileActionSheet({ event, eventId, status, isPublic, onShare, onAction
       onPress: () => { onClose(); onShare(); },
     });
   }
-  if (status === "DRAFT") {
+  if (perms.canPublish && status === "DRAFT") {
     ITEMS.push({
       Icon: Send, label: "Publish Event", sub: "Make it publicly visible",
       accent: "#6366f1",
       onPress: () => { onClose(); onAction("publish"); },
     });
   }
-  if (status === "PUBLISHED") {
+  if (perms.canPublish && status === "PUBLISHED") {
     ITEMS.push({
       Icon: EyeOff, label: "Unpublish", sub: "Move back to draft",
       accent: "#f59e0b",
       onPress: () => { onClose(); onAction("unpublish"); },
     });
   }
-  if (status === "DRAFT" || status === "PUBLISHED") {
+  if (isOwner && perms.canDelete && (status === "DRAFT" || status === "PUBLISHED")) {
     ITEMS.push({
       Icon: Archive, label: "Archive", sub: "Hide from dashboard, restorable later",
       accent: "rgba(255,255,255,0.35)",
       onPress: () => { onClose(); onAction("archive"); },
     });
   }
-  ITEMS.push({
-    Icon: Trash2, label: "Delete Event", sub: "Permanently erase all data",
-    accent: "#ef4444",
-    danger: true,
-    onPress: () => { onClose(); onAction("delete"); },
-  });
+  if (isOwner && perms.canDelete) {
+    ITEMS.push({
+      Icon: Trash2, label: "Delete Event", sub: "Permanently erase all data",
+      accent: "#ef4444",
+      danger: true,
+      onPress: () => { onClose(); onAction("delete"); },
+    });
+  }
 
   return (
     <div
@@ -418,7 +639,7 @@ function MobileActionSheet({ event, eventId, status, isPublic, onShare, onAction
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mx-auto mt-3 h-1 w-9 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
+        <div className="mx-auto mt-3 h-[5px] w-10 rounded-full" style={{ background: "rgba(255,255,255,0.18)" }} />
         <p className="mt-4 truncate px-5 text-center text-[15px] font-extrabold text-white" style={{ letterSpacing: "-0.3px" }}>
           {event.title}
         </p>
@@ -437,7 +658,7 @@ function MobileActionSheet({ event, eventId, status, isPublic, onShare, onAction
                 <button
                   type="button"
                   onClick={item.onPress}
-                  className="flex w-full items-center gap-3 rounded-[14px] px-3 py-[13px] text-left transition-colors hover:bg-white/5"
+                  className="flex w-full items-center gap-3 rounded-[14px] px-3 py-[13px] text-left transition-opacity active:opacity-60"
                 >
                   <div
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]"
@@ -463,7 +684,7 @@ function MobileActionSheet({ event, eventId, status, isPublic, onShare, onAction
         <button
           type="button"
           onClick={onClose}
-          className="mx-3 mt-2 flex h-[50px] w-[calc(100%-24px)] items-center justify-center rounded-[14px] border text-[15px] font-bold"
+          className="mx-3 mt-2 mb-1 flex h-[50px] w-[calc(100%-24px)] items-center justify-center rounded-[14px] border text-[15px] font-bold transition-opacity active:opacity-60"
           style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" }}
         >
           Cancel
@@ -553,7 +774,7 @@ function MShareSheet({ event, onClose }) {
       >
         {/* Handle */}
         <div className="flex justify-center pt-3 pb-1">
-          <div className="h-1 w-10 rounded-full" style={{ background: "rgba(255,255,255,0.18)" }} />
+          <div className="h-[5px] w-10 rounded-full" style={{ background: "rgba(255,255,255,0.20)" }} />
         </div>
 
         <div className="flex flex-col gap-5 px-5 pb-10 pt-3" style={{ paddingBottom: "max(40px, env(safe-area-inset-bottom))" }}>
@@ -567,7 +788,7 @@ function MShareSheet({ event, onClose }) {
             </div>
             <button
               onClick={onClose}
-              className="flex h-8 w-8 items-center justify-center rounded-full"
+              className="flex h-8 w-8 items-center justify-center rounded-full transition-transform active:scale-90"
               style={{ background: "rgba(255,255,255,0.08)" }}
             >
               <XIcon size={14} style={{ color: "rgba(255,255,255,0.6)" }} />
@@ -627,10 +848,10 @@ function MShareSheet({ event, onClose }) {
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={onClose}
-                  className="flex flex-col items-center gap-2 active:opacity-70"
+                  className="flex flex-col items-center gap-2 transition-transform active:scale-90"
                 >
                   <div
-                    className="flex h-12 w-12 items-center justify-center rounded-[16px] border"
+                    className="flex h-12 w-12 items-center justify-center rounded-[16px] border transition-transform"
                     style={{ background: s.bg, borderColor: s.border, color: s.accent }}
                   >
                     {s.icon}
@@ -669,7 +890,8 @@ function MShareSheet({ event, onClose }) {
   );
 }
 
-function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, onTicketGate }) {
+function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, plannerProject, userRole = 'OWNER', permissions = null }) {
+  const perms = permissions ?? { canEdit: false, canDelete: false, canManageTeam: false, canManageGuests: false, canCheckin: false, canViewAnalytics: false, canPublish: false };
   const cfg      = sc(event.status);
   const router   = useRouter();
   const status   = (event.status ?? "DRAFT").toUpperCase();
@@ -768,21 +990,22 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
   }, [eventId, run, publishEvent, unpublishEvent, archiveEvent, deleteEvent, router]);
 
   const FEATURES = [
-    { FIcon: Layout,     label: "Builder",   sub: "Design event page",   accent: "#6366f1", grad: "linear-gradient(135deg,#4f46e5,#6366f1)", href: `/events/${eventId}/builder`   },
-    { FIcon: Users,      label: "Guests",    sub: "Manage attendees",    accent: "#10b981", grad: "linear-gradient(135deg,#059669,#10b981)", href: `/events/${eventId}/guests`    },
-    { FIcon: CreditCard, label: "Tickets",   sub: "Types & orders",      accent: "#f59e0b", grad: "linear-gradient(135deg,#d97706,#f59e0b)", href: `/events/${eventId}/tickets`   },
-    { FIcon: LayoutGrid, label: "Seating",   sub: "Seat assignments",    accent: "#06b6d4", grad: "linear-gradient(135deg,#0891b2,#06b6d4)", href: `/events/${eventId}/seating`   },
-    { FIcon: Camera,     label: "Scanner",   sub: "QR check-in",         accent: "#10b981", grad: "linear-gradient(135deg,#0891b2,#06b6d4)", href: `/events/${eventId}/scanner`   },
-    { FIcon: BarChart3,  label: "Analytics", sub: "Revenue & insights",  accent: "#a78bfa", grad: "linear-gradient(135deg,#7c3aed,#8b5cf6)", href: `/events/${eventId}/analytics` },
-    { FIcon: Heart,      label: "Donations", sub: "Track contributions", accent: "#f43f5e", grad: "linear-gradient(135deg,#be185d,#f43f5e)", href: `/events/${eventId}/donations` },
-    { FIcon: UserPlus,   label: "Team",      sub: "Manage admins",       accent: "#06b6d4", grad: "linear-gradient(135deg,#0891b2,#06b6d4)", href: `/events/${eventId}/team`      },
-    { FIcon: Settings,   label: "Settings",  sub: "Edit event details",  accent: "#6b7280", grad: "linear-gradient(135deg,#374151,#4b5563)", href: `/events/${eventId}/settings`  },
-  ];
+    { FIcon: Layout,        label: "Builder",   sub: "Design event page",      accent: "#6366f1", grad: "linear-gradient(135deg,#4f46e5,#6366f1)", href: `/events/${eventId}/builder`,   show: perms.canEdit         },
+    { FIcon: ClipboardList, label: "Planner",   sub: "AI-powered event plan",  accent: "#8b5cf6", grad: "linear-gradient(135deg,#7c3aed,#8b5cf6)", href: plannerProject ? `/planner/${plannerProject.id}` : `/planner/new?eventId=${eventId}`, show: perms.canEdit },
+    { FIcon: Users,         label: "Guests",    sub: "Manage attendees",       accent: "#10b981", grad: "linear-gradient(135deg,#059669,#10b981)", href: `/events/${eventId}/guests`,    show: perms.canManageGuests  },
+    { FIcon: Ticket,     label: "Tickets",   sub: "Types & orders",      accent: "#f59e0b", grad: "linear-gradient(135deg,#d97706,#f59e0b)", href: `/events/${eventId}/tickets`,   show: perms.canManageGuests  },
+    { FIcon: LayoutGrid, label: "Seating",   sub: "Seat assignments",    accent: "#06b6d4", grad: "linear-gradient(135deg,#0891b2,#06b6d4)", href: `/events/${eventId}/seating`,   show: perms.canEdit          },
+    { FIcon: Camera,     label: "Scanner",   sub: "QR check-in",         accent: "#10b981", grad: "linear-gradient(135deg,#0891b2,#06b6d4)", href: `/events/${eventId}/scanner`,   show: perms.canCheckin       },
+    { FIcon: BarChart3,  label: "Analytics", sub: "Revenue & insights",  accent: "#a78bfa", grad: "linear-gradient(135deg,#7c3aed,#8b5cf6)", href: `/events/${eventId}/analytics`, show: perms.canViewAnalytics },
+    { FIcon: Heart,      label: "Donations", sub: "Track contributions", accent: "#f43f5e", grad: "linear-gradient(135deg,#be185d,#f43f5e)", href: `/events/${eventId}/donations`, show: perms.canManageGuests  },
+    { FIcon: UserPlus,   label: "Team",      sub: "Manage admins",       accent: "#06b6d4", grad: "linear-gradient(135deg,#0891b2,#06b6d4)", href: `/events/${eventId}/team`,      show: perms.canManageTeam    },
+    { FIcon: Settings,   label: "Settings",  sub: "Edit event details",  accent: "#6b7280", grad: "linear-gradient(135deg,#374151,#4b5563)", href: `/events/${eventId}/settings`,  show: perms.canEdit          },
+  ].filter(f => f.show !== false);
 
   const STAT_ITEMS = [
     { SIcon: Users,        label: "Guests",    value: stats.guest_count     ?? 0, accent: "#6366f1", href: `/events/${eventId}/guests`  },
     { SIcon: UserCheck,    label: "Attending", value: stats.attending_count ?? 0, accent: "#10b981"  },
-    { SIcon: CreditCard,   label: "Tickets",   value: stats.ticket_count    ?? 0, accent: "#f59e0b", href: hasFullTicketing ? `/events/${eventId}/tickets` : undefined },
+    { SIcon: Ticket,       label: "Tickets",   value: stats.ticket_count    ?? 0, accent: "#f59e0b", href: `/events/${eventId}/tickets` },
     { SIcon: CheckCircle,  label: "Scanned",   value: stats.checkin_count   ?? 0, accent: "#a78bfa", href: `/events/${eventId}/scanner` },
   ];
 
@@ -800,16 +1023,16 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
       >
         <Link
           href="/events"
-          className="flex h-[38px] w-[38px] items-center justify-center rounded-[12px]"
-          style={{ background: "rgba(0,0,0,0.45)", pointerEvents: "auto" }}
+          className="flex h-[38px] w-[38px] items-center justify-center rounded-[12px] transition-transform active:scale-90"
+          style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(12px)", pointerEvents: "auto" }}
         >
           <ArrowLeft size={17} className="text-white" />
         </Link>
         <button
           type="button"
           onClick={() => setMenuOpen(true)}
-          className="flex h-[38px] w-[38px] items-center justify-center rounded-[12px]"
-          style={{ background: "rgba(0,0,0,0.45)", pointerEvents: "auto" }}
+          className="flex h-[38px] w-[38px] items-center justify-center rounded-[12px] transition-transform active:scale-90"
+          style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(12px)", pointerEvents: "auto" }}
         >
           <MoreHorizontal size={19} className="text-white" />
         </button>
@@ -823,7 +1046,7 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
           <img src={heroImg(event)} alt={event.title} className="absolute inset-0 h-full w-full object-cover" />
           <div
             className="absolute inset-0"
-            style={{ background: "linear-gradient(to bottom, rgba(14,15,17,0.12) 0%, rgba(14,15,17,0.5) 60%, rgba(14,15,17,0.97) 100%)" }}
+            style={{ background: "linear-gradient(to bottom, rgba(14,15,17,0.08) 0%, rgba(14,15,17,0.45) 55%, rgba(14,15,17,0.98) 100%)" }}
           />
           <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-[10px] px-5 pb-6">
             {/* Status pill */}
@@ -895,7 +1118,7 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
           {(event.allow_ticketing || (stats.ticket_count ?? 0) > 0) && (
             <Link
               href={`/events/${eventId}/tickets`}
-              className="block overflow-hidden rounded-[20px] border"
+              className="block overflow-hidden rounded-[20px] border transition-transform active:scale-[0.98]"
               style={{ background: "rgba(12,12,22,0.88)", borderColor: "rgba(99,102,241,0.28)" }}
             >
               <div className="h-1" style={{ background: "#6366f1" }} />
@@ -996,7 +1219,7 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
                   <span className="relative text-[10px] font-bold" style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "0.5px" }}>{label}</span>
                 </div>
               );
-              if (href) return <Link key={label} href={href} className="block">{card}</Link>;
+              if (href) return <Link key={label} href={href} className="block transition-transform active:scale-95">{card}</Link>;
               return <div key={label}>{card}</div>;
             })}
           </div>
@@ -1005,7 +1228,7 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
           <div className="flex flex-wrap gap-2">
             <Link
               href={`/events/${eventId}/guests`}
-              className="flex items-center gap-[6px] rounded-full border px-[14px] py-2"
+              className="flex items-center gap-[6px] rounded-full border px-[14px] py-2 transition-transform active:scale-95"
               style={{ borderColor: "rgba(99,102,241,0.40)", background: "rgba(99,102,241,0.12)" }}
             >
               <Users size={14} style={{ color: "#6366f1" }} />
@@ -1013,39 +1236,27 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
             </Link>
             <Link
               href={`/events/${eventId}/scanner`}
-              className="flex items-center gap-[6px] rounded-full border px-[14px] py-2"
+              className="flex items-center gap-[6px] rounded-full border px-[14px] py-2 transition-transform active:scale-95"
               style={{ borderColor: "rgba(16,185,129,0.40)", background: "rgba(16,185,129,0.12)" }}
             >
               <Camera size={14} style={{ color: "#10b981" }} />
               <span className="text-[11px] font-extrabold" style={{ color: "#10b981", letterSpacing: "0.8px" }}>QR CHECK-IN</span>
             </Link>
             {event.allow_ticketing && (
-              hasFullTicketing ? (
-                <Link
-                  href={`/events/${eventId}/tickets`}
-                  className="flex items-center gap-[6px] rounded-full border px-[14px] py-2"
-                  style={{ borderColor: "rgba(245,158,11,0.40)", background: "rgba(245,158,11,0.12)" }}
-                >
-                  <CreditCard size={14} style={{ color: "#f59e0b" }} />
-                  <span className="text-[11px] font-extrabold" style={{ color: "#f59e0b", letterSpacing: "0.8px" }}>BUY TICKETS</span>
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  onClick={onTicketGate}
-                  className="flex items-center gap-[6px] rounded-full border px-[14px] py-2"
-                  style={{ borderColor: "rgba(245,158,11,0.40)", background: "rgba(245,158,11,0.12)" }}
-                >
-                  <CreditCard size={14} style={{ color: "#f59e0b" }} />
-                  <span className="text-[11px] font-extrabold" style={{ color: "#f59e0b", letterSpacing: "0.8px" }}>BUY TICKETS</span>
-                </button>
-              )
+              <Link
+                href={`/events/${eventId}/tickets`}
+                className="flex items-center gap-[6px] rounded-full border px-[14px] py-2 transition-transform active:scale-95"
+                style={{ borderColor: "rgba(245,158,11,0.40)", background: "rgba(245,158,11,0.12)" }}
+              >
+                <Ticket size={14} style={{ color: "#f59e0b" }} />
+                <span className="text-[11px] font-extrabold" style={{ color: "#f59e0b", letterSpacing: "0.8px" }}>BUY TICKETS</span>
+              </Link>
             )}
             {event.slug && (
               <button
                 type="button"
                 onClick={() => setShareOpen(true)}
-                className="flex items-center gap-[6px] rounded-full border px-[14px] py-2"
+                className="flex items-center gap-[6px] rounded-full border px-[14px] py-2 transition-transform active:scale-95"
                 style={{ borderColor: "rgba(16,185,129,0.40)", background: "rgba(16,185,129,0.12)" }}
               >
                 <Share2 size={14} style={{ color: "#10b981" }} />
@@ -1056,7 +1267,7 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
 
           {/* Primary CTA */}
           <div className="flex flex-col gap-2">
-            {status === "DRAFT" && (
+            {perms.canPublish && status === "DRAFT" && (
               <button
                 type="button"
                 disabled={loading}
@@ -1066,7 +1277,7 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
                   desc: "Your event will be publicly visible.",
                   danger: false,
                 })}
-                className="relative flex h-[52px] items-center justify-center gap-[9px] overflow-hidden rounded-[14px]"
+                className="relative flex h-[52px] items-center justify-center gap-[9px] overflow-hidden rounded-[14px] transition-transform active:scale-[0.97]"
                 style={{ background: "linear-gradient(to right, #4f46e5, #8b5cf6)" }}
               >
                 {loading
@@ -1075,7 +1286,7 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
                 }
               </button>
             )}
-            {status === "PUBLISHED" && (
+            {perms.canPublish && status === "PUBLISHED" && (
               <button
                 type="button"
                 disabled={loading}
@@ -1085,7 +1296,7 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
                   desc: "Event goes back to draft.",
                   danger: false,
                 })}
-                className="flex h-[52px] items-center justify-center gap-[9px] rounded-[14px] border"
+                className="flex h-[52px] items-center justify-center gap-[9px] rounded-[14px] border transition-transform active:scale-[0.97]"
                 style={{ borderColor: "rgba(245,158,11,0.34)", background: "transparent" }}
               >
                 {loading
@@ -1094,12 +1305,12 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
                 }
               </button>
             )}
-            {(status === "ARCHIVED" || status === "CANCELLED") && (
+            {userRole === 'OWNER' && perms.canDelete && (status === "ARCHIVED" || status === "CANCELLED") && (
               <button
                 type="button"
                 disabled={loading}
                 onClick={() => run(() => restoreEvent(eventId))}
-                className="relative flex h-[52px] items-center justify-center gap-[9px] overflow-hidden rounded-[14px]"
+                className="relative flex h-[52px] items-center justify-center gap-[9px] overflow-hidden rounded-[14px] transition-transform active:scale-[0.97]"
                 style={{ background: "linear-gradient(to right, #4f46e5, #8b5cf6)" }}
               >
                 <RotateCcw size={16} className="text-white" />
@@ -1113,7 +1324,7 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
             <Link
               href={isPublic ? `/e/${event.slug}` : `/e/${event.slug}?preview=1`}
               target="_blank"
-              className="flex items-center gap-[9px] rounded-[14px] border px-4 py-[13px]"
+              className="flex items-center gap-[9px] rounded-[14px] border px-4 py-[13px] transition-opacity active:opacity-70"
               style={{ background: "rgba(99,102,241,0.06)", borderColor: "rgba(99,102,241,0.18)" }}
             >
               <Globe size={14} style={{ color: "#6366f1" }} />
@@ -1135,64 +1346,79 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
                 key={label}
                 type="button"
                 onClick={() => {
+                  // Check if module needs to be enabled first
+                  if (label === 'Guests' && !modLocal.allow_rsvp) {
+                    requestMod('allow_rsvp', () => router.push(href));
+                    return;
+                  }
                   if (label === 'Tickets' && !modLocal.allow_ticketing) {
                     requestMod('allow_ticketing', () => router.push(href));
                     return;
                   }
+                  if (label === 'Donations' && !modLocal.allow_donations) {
+                    requestMod('allow_donations', () => router.push(href));
+                    return;
+                  }
+                  // Navigate directly for other features or if module is active
                   router.push(href);
                 }}
-                className="relative flex min-h-[120px] flex-col gap-[6px] overflow-hidden rounded-[20px] border p-4 text-left"
-                style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.07)" }}
+                className="relative flex min-h-[124px] flex-col gap-[6px] overflow-hidden rounded-[20px] border p-4 text-left transition-transform active:scale-[0.96]"
+                style={{ background: "#0d0d18", borderColor: "rgba(255,255,255,0.08)" }}
               >
-                <div className="absolute inset-0 rounded-[20px]" style={{ background: `linear-gradient(135deg, ${accent}14, transparent)` }} />
+                {/* gradient wash */}
+                <div className="absolute inset-0" style={{ background: `linear-gradient(140deg, ${accent}1a 0%, transparent 60%)` }} />
+                {/* top-edge highlight */}
+                <div className="absolute inset-x-0 top-0 h-px" style={{ background: `linear-gradient(to right, ${accent}40, transparent)` }} />
                 <div
-                  className="relative mb-0.5 flex h-[42px] w-[42px] items-center justify-center rounded-[13px]"
-                  style={{ background: grad }}
+                  className="relative mb-1 flex h-[44px] w-[44px] items-center justify-center rounded-[14px]"
+                  style={{ background: grad, boxShadow: `0 4px 12px ${accent}40` }}
                 >
-                  <FIcon size={18} className="text-white" />
+                  <FIcon size={19} className="text-white" />
                 </div>
                 <span className="relative text-[15px] font-black text-white" style={{ letterSpacing: "-0.3px" }}>{label}</span>
-                <span className="relative text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.45)" }}>{sub}</span>
-                <div className="absolute bottom-[14px] right-[14px]">
-                  <ChevronRight size={13} style={{ color: "rgba(255,255,255,0.2)" }} />
+                <span className="relative text-[11px] font-medium leading-[15px]" style={{ color: "rgba(255,255,255,0.42)" }}>{sub}</span>
+                <div className="absolute bottom-[13px] right-[13px]">
+                  <ChevronRight size={14} style={{ color: "rgba(255,255,255,0.22)" }} />
                 </div>
               </button>
             ))}
           </div>
 
           {/* Archive / Delete */}
-          <div className="flex gap-[10px] pb-5">
-            {(status === "DRAFT" || status === "PUBLISHED") && (
+          {(userRole === 'OWNER' && perms.canDelete) && (
+            <div className="flex gap-[10px] pb-5">
+              {(status === "DRAFT" || status === "PUBLISHED") && (
+                <button
+                  type="button"
+                  onClick={() => setModal({
+                    action: () => run(() => archiveEvent(eventId)),
+                    title: "Archive event?",
+                    desc: "Hidden from dashboard but restorable anytime.",
+                    danger: false,
+                  })}
+                  className="flex flex-1 items-center justify-center gap-[6px] rounded-[12px] border transition-opacity active:opacity-60"
+                  style={{ height: 44, background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.10)" }}
+                >
+                  <Archive size={13} style={{ color: "rgba(255,255,255,0.35)" }} />
+                  <span className="text-[13px] font-bold" style={{ color: "rgba(255,255,255,0.35)" }}>Archive</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setModal({
-                  action: () => run(() => archiveEvent(eventId)),
-                  title: "Archive event?",
-                  desc: "Hidden from dashboard but restorable anytime.",
-                  danger: false,
+                  action: () => run(async () => { await deleteEvent(eventId); router.push("/events"); }),
+                  title: "Delete permanently?",
+                  desc: "All guests, tickets, and data will be erased. This cannot be undone.",
+                  danger: true,
                 })}
-                className="flex flex-1 items-center justify-center gap-[6px] rounded-[12px] border"
-                style={{ height: 44, background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.10)" }}
+                className="flex flex-1 items-center justify-center gap-[6px] rounded-[12px] border transition-opacity active:opacity-60"
+                style={{ height: 44, background: "rgba(239,68,68,0.06)", borderColor: "rgba(239,68,68,0.18)" }}
               >
-                <Archive size={13} style={{ color: "rgba(255,255,255,0.35)" }} />
-                <span className="text-[13px] font-bold" style={{ color: "rgba(255,255,255,0.35)" }}>Archive</span>
+                <Trash2 size={13} style={{ color: "#ef4444" }} />
+                <span className="text-[13px] font-bold" style={{ color: "#ef4444" }}>Delete Event</span>
               </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setModal({
-                action: () => run(async () => { await deleteEvent(eventId); router.push("/events"); }),
-                title: "Delete permanently?",
-                desc: "All guests, tickets, and data will be erased. This cannot be undone.",
-                danger: true,
-              })}
-              className="flex flex-1 items-center justify-center gap-[6px] rounded-[12px] border"
-              style={{ height: 44, background: "rgba(239,68,68,0.06)", borderColor: "rgba(239,68,68,0.18)" }}
-            >
-              <Trash2 size={13} style={{ color: "#ef4444" }} />
-              <span className="text-[13px] font-bold" style={{ color: "#ef4444" }}>Delete Event</span>
-            </button>
-          </div>
+            </div>
+          )}
 
         </div>
       </div>
@@ -1211,29 +1437,29 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
             style={{ background: '#0e0e16', borderColor: 'rgba(255,255,255,0.08)', paddingBottom: 'max(28px, env(safe-area-inset-bottom))' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="h-1 w-9 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }} />
+            <div className="mx-auto h-[5px] w-10 rounded-full" style={{ background: 'rgba(255,255,255,0.18)' }} />
             <div
-              className="mt-1 flex h-[60px] w-[60px] items-center justify-center rounded-[18px]"
-              style={{ background: `${pendingMod.color}18` }}
+              className="mt-2 flex h-[64px] w-[64px] items-center justify-center rounded-[20px]"
+              style={{ background: `${pendingMod.color}20`, boxShadow: `0 4px 20px ${pendingMod.color}30` }}
             >
-              <pendingMod.Icon size={26} style={{ color: pendingMod.color }} />
+              <pendingMod.Icon size={28} style={{ color: pendingMod.color }} />
             </div>
-            <p className="text-center text-[18px] font-extrabold text-white">{pendingMod.title}</p>
-            <p className="px-1 text-center text-[13px] leading-[19px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+            <p className="text-center text-[18px] font-extrabold text-white" style={{ letterSpacing: "-0.3px" }}>{pendingMod.title}</p>
+            <p className="px-1 text-center text-[13px] leading-[20px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
               {pendingMod.msg}
             </p>
             <button
               type="button"
               onClick={confirmMod}
-              className="mt-1 w-full rounded-[14px] py-[14px] text-[15px] font-extrabold text-white"
-              style={{ background: pendingMod.color }}
+              className="mt-1 w-full rounded-[14px] py-[14px] text-[15px] font-extrabold text-white transition-transform active:scale-[0.97]"
+              style={{ background: pendingMod.color, boxShadow: `0 4px 16px ${pendingMod.color}50` }}
             >
               {pendingMod.title.replace('?', '')}
             </button>
             <button
               type="button"
               onClick={() => setPendingMod(null)}
-              className="w-full py-3 text-[14px] font-semibold"
+              className="w-full py-3 text-[14px] font-semibold transition-opacity active:opacity-60"
               style={{ color: 'rgba(255,255,255,0.4)' }}
             >
               Cancel
@@ -1261,6 +1487,8 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
           onShare={() => { setMenuOpen(false); setShareOpen(true); }}
           onAction={handleMenuAction}
           onClose={() => setMenuOpen(false)}
+          permissions={perms}
+          userRole={userRole}
         />
       )}
 
@@ -1284,7 +1512,6 @@ const TEAM_ROLE_CFG = {
 function DesktopTeamCard({ eventId }) {
   const { members, meta, isLoading, isSubmitting, fetchMembers, inviteMember } = useTeamStore();
   const [email,  setEmail]  = useState("");
-  const [name,   setName]   = useState("");
   const [invErr, setInvErr] = useState("");
   const [notice, setNotice] = useState(""); // "added" | "invited"
 
@@ -1299,9 +1526,9 @@ function DesktopTeamCard({ eventId }) {
   const handleInvite = async () => {
     setInvErr(""); setNotice("");
     if (!email.trim()) { setInvErr("Enter an email address"); return; }
-    const res = await inviteMember(eventId, email.trim(), name.trim());
+    const res = await inviteMember(eventId, email.trim());
     if (res.success) {
-      setEmail(""); setName("");
+      setEmail("");
       setNotice(res.type === "invited" ? "invited" : "added");
       setTimeout(() => setNotice(""), 4000);
     } else {
@@ -1390,16 +1617,6 @@ function DesktopTeamCard({ eventId }) {
                 className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 pl-8 pr-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none focus:border-indigo-400"
               />
             </div>
-          </div>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleInvite()}
-              placeholder="Their name (optional)"
-              className="flex-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none focus:border-indigo-400"
-            />
             <button
               onClick={handleInvite}
               disabled={isSubmitting}
@@ -1452,20 +1669,37 @@ export default function EventDetailPage() {
   const router      = useRouter();
   const { fetchEventDashboard, dashboard, loading } = useEventStore();
   const { isHydrated, isAuthenticated } = useAuthStore();
-  const [ticketGateOpen, setTicketGateOpen] = useState(false);
+  const { projects, fetchProjects, loading: plannerLoading } = usePlannerStore();
+  const { generatePostEventSummary, loading: aiLoading } = useAIStore();
   const [fetchError, setFetchError] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [summaryData, setSummaryData] = useState(null);
+  const [summaryBannerDismissed, setSummaryBannerDismissed] = useState(false);
 
   useEffect(() => {
     if (!isHydrated) return;
     if (!isAuthenticated) { router.replace("/login?redirect=" + encodeURIComponent(`/events/${eventId}`)); return; }
-    if (eventId) fetchEventDashboard(eventId).catch(() => setFetchError(true));
+    if (eventId) {
+      fetchEventDashboard(eventId).catch(() => setFetchError(true));
+      fetchProjects();
+    }
   }, [eventId, isHydrated, isAuthenticated]);
 
   const event    = dashboard?.event;
   const stats    = dashboard?.stats ?? {};
+  const userRole = dashboard?.userRole ?? 'OWNER';
+  const userPerms = dashboard?.permissions ?? {
+    canEdit: false, canDelete: false, canManageTeam: false, canManageGuests: false,
+    canCheckin: false, canViewAnalytics: false, canPublish: false,
+  };
   const hasFullTicketing = isEntertainmentEvent(event);
   const location = [event?.venue_name, event?.city, event?.country].filter(Boolean).join(", ") || null;
   const isPublic = event?.visibility === "PUBLIC";
+  const plannerProject = projects.find((p) => (p.event_id ?? p.eventId) === eventId);
+  const eventEnded = event
+    ? (event.ends_at_utc && new Date(event.ends_at_utc) < new Date()) ||
+      ["ARCHIVED", "CANCELLED"].includes((event.status ?? "").toUpperCase())
+    : false;
 
   if (fetchError) {
     return (
@@ -1501,38 +1735,75 @@ export default function EventDetailPage() {
 
   return (
     <>
-      {/* ── Mobile layout ── */}
-      <div className="sm:hidden">
+      {/* ── Mobile layout (0–767px) ── */}
+      <div className="md:hidden">
         <MobileEventDetail
           event={event}
           stats={stats}
           eventId={eventId}
           hasFullTicketing={hasFullTicketing}
           isPublic={isPublic}
-          onTicketGate={() => setTicketGateOpen(true)}
+          plannerProject={plannerProject}
+          userRole={userRole}
+          permissions={userPerms}
         />
       </div>
 
-      {/* ── Desktop layout ── */}
-      <div className="hidden sm:block">
+      {/* ── Desktop layout (768px+) ── */}
+      <div className="hidden md:block">
         <div className="space-y-4">
+
+          {/* Post-event AI Summary banner */}
+          {eventEnded && !summaryBannerDismissed && (
+            <div className="flex items-center gap-3 rounded-2xl border border-indigo-500/30 bg-indigo-500/8 px-4 py-3">
+              <Sparkles className="h-4 w-4 shrink-0 text-indigo-400" />
+              <p className="flex-1 text-sm font-medium text-indigo-200">
+                Your event is over — get your <span className="font-bold">AI Post-Event Summary</span>: attendance insights, highlights & performance grade.
+              </p>
+              <button
+                onClick={async () => {
+                  const res = await generatePostEventSummary(eventId);
+                  if (res.success) { setSummaryData(res.data); setSummaryOpen(true); }
+                }}
+                disabled={aiLoading}
+                className="shrink-0 rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+              >
+                {aiLoading ? "Generating…" : "Generate Summary"}
+              </button>
+              <button
+                onClick={() => setSummaryBannerDismissed(true)}
+                className="shrink-0 rounded-lg p-1 text-indigo-400 hover:text-white transition-colors"
+              >
+                <XIcon className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl font-bold text-gray-900 dark:text-gray-50">{event.title}</h1>
                 <StatusBadge status={event.status} />
+                {userRole !== 'OWNER' && (
+                  <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                    style={{ background: 'rgba(99,102,241,0.15)', color: '#6366f1' }}>
+                    {userRole}
+                  </span>
+                )}
               </div>
               {event.short_description && (
                 <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{event.short_description}</p>
               )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <Link
-                href={`/events/${eventId}/edit`}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-              >
-                <Pencil className="h-3.5 w-3.5" /> Edit
-              </Link>
+              {userPerms.canEdit && (
+                <Link
+                  href={`/events/${eventId}/edit`}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  <Pencil className="h-3.5 w-3.5" /> Edit
+                </Link>
+              )}
               <Link
                 href={isPublic ? `/e/${event.slug}` : `/e/${event.slug}?preview=1`}
                 target="_blank"
@@ -1551,16 +1822,21 @@ export default function EventDetailPage() {
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <StatCard title="Guests"    value={stats.guest_count    ?? 0} subtitle="Total invited"    icon={Users}    color="indigo"  href={`/events/${eventId}/guests`} />
             <StatCard title="Attending" value={stats.attending_count ?? 0} subtitle="Confirmed RSVPs" icon={UserCheck} color="emerald" />
-            <StatCard title="Tickets"   value={stats.ticket_count   ?? 0} subtitle="Issued"           icon={Ticket}   color="violet"  href={hasFullTicketing ? `/events/${eventId}/tickets` : undefined} />
+            <StatCard title="Tickets"   value={stats.ticket_count   ?? 0} subtitle="Issued"           icon={Ticket}   color="violet"  href={`/events/${eventId}/tickets`} />
             <StatCard title="Check-ins" value={stats.checkin_count  ?? 0} subtitle="Scanned entries"  icon={QrCode}   color="amber"   href={`/events/${eventId}/scanner`} />
           </div>
 
-          <FeatureModules event={event} eventId={eventId} />
+          <PerformancePredictionWidget eventId={eventId} publishedAt={event.published_at} />
+
+          <DesktopGuestInsights eventId={eventId} guestCount={stats.guest_count ?? 0} />
+
+          <FeatureModules event={event} eventId={eventId} readOnly={!userPerms.canEdit} />
 
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="space-y-4 lg:col-span-2">
               <ShareEventCard slug={event.slug} customDomain={event.custom_domain} />
-              <DesktopTeamCard eventId={eventId} />
+              {userPerms.canManageTeam && <DesktopTeamCard eventId={eventId} />}
+              <EventPlannerCard eventId={eventId} project={plannerProject} loading={plannerLoading} />
               <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
                 <SectionTitle>Event details</SectionTitle>
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -1577,26 +1853,25 @@ export default function EventDetailPage() {
             <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
               <SectionTitle>Quick actions</SectionTitle>
               <div className="space-y-2">
-                <QuickAction label="Open builder"  description="Design your event page"      href={`/events/${eventId}/builder`}   icon={Layout}   primary />
-                <QuickAction label="Manage guests" description="Invite & track attendees"    href={`/events/${eventId}/guests`}    icon={Users}           />
-                {hasFullTicketing ? (
-                  <QuickAction label="Tickets"     description="Manage ticket tiers & sales" href={`/events/${eventId}/tickets`}   icon={Ticket}          />
-                ) : (
-                  <QuickAction label="Tickets"     description="Not available for this event type" icon={Ticket} onClick={() => setTicketGateOpen(true)} />
+                {userPerms.canEdit && <QuickAction label="Open builder"  description="Design your event page"      href={`/events/${eventId}/builder`}   icon={Layout}   primary />}
+                {userPerms.canManageGuests && <QuickAction label="Manage guests" description="Invite & track attendees"    href={`/events/${eventId}/guests`}    icon={Users}           />}
+                {userPerms.canManageGuests && (
+                  <QuickAction label="Tickets" description="Manage ticket tiers & sales" href={`/events/${eventId}/tickets`} icon={Ticket} />
                 )}
-                <QuickAction label="QR Scanner"   description="Check in on arrival"          href={`/events/${eventId}/scanner`}   icon={QrCode}         />
-                <QuickAction label="Analytics"    description="Views & conversions"           href={`/events/${eventId}/analytics`} icon={BarChart3}      />
-                <QuickAction label="Team"         description="Add admins to your event"      href={`/events/${eventId}/team`}      icon={UserPlus}       />
+                {userPerms.canCheckin       && <QuickAction label="QR Scanner"   description="Check in on arrival"          href={`/events/${eventId}/scanner`}   icon={QrCode}         />}
+                {userPerms.canViewAnalytics && <QuickAction label="Analytics"    description="Views & conversions"           href={`/events/${eventId}/analytics`} icon={BarChart3}      />}
+                {userPerms.canManageTeam    && <QuickAction label="Team"         description="Add admins to your event"      href={`/events/${eventId}/team`}      icon={UserPlus}       />}
+                {userPerms.canEdit          && <QuickAction label="Planner"      description="AI-powered event planning"     href={plannerProject ? `/planner/${plannerProject.id}` : `/planner/new?eventId=${eventId}`} icon={ClipboardList}  />}
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <TicketGateModal
-        open={ticketGateOpen}
-        onClose={() => setTicketGateOpen(false)}
-        event={event}
+      <PostEventSummaryModal
+        open={summaryOpen}
+        onClose={() => setSummaryOpen(false)}
+        data={summaryData}
       />
     </>
   );

@@ -22,10 +22,12 @@ export const useEventStore = create((set, get) => ({
 fetchEvents: async () => {
     try {
       set({ loading: true, error: null });
-      const res = await api.get("/events", { params: { page: 1, limit: 10 } });
+      const res = await api.get("/events", { params: { page: 1, limit: 50 } });
       set({ events: res.data.data || [], loading: false });
     } catch (err) {
-      set({ loading: false, error: err?.response?.data?.message || err.message });
+      const message = err?.response?.data?.message || err.message || "Failed to load events";
+      set({ loading: false, error: message });
+      toast.error(message);
     }
   },
   createEvent: async (payload) => {
@@ -200,7 +202,8 @@ deleteEvent: async (id) => {
   
   fetchEventDashboard: async (eventId) => {
     try {
-      set({ loading: true, error: null });
+      // Clear previous event's dashboard so stale userRole/permissions never leak
+      set({ loading: true, error: null, dashboard: null, currentEvent: null });
 
       const res = await api.get(`/events/${eventId}/dashboard`);
 
@@ -212,12 +215,9 @@ deleteEvent: async (id) => {
 
       return res.data?.data;
     } catch (error) {
-      set({
-        loading: false,
-        error:
-          error?.response?.data?.message ||
-          "Failed to fetch event dashboard",
-      });
+      const message = error?.response?.data?.message || "Failed to fetch event";
+      set({ loading: false, error: message });
+      toast.error(message);
       throw error;
     }
   },

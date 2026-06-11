@@ -136,7 +136,7 @@ export function TicketStub({ ticket }: TicketStubProps) {
       </View>
 
       {/* Full-screen QR modal */}
-      <Modal visible={qrModal} transparent animationType="fade">
+      <Modal visible={qrModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setQrModal(false)}>
         <TouchableOpacity style={styles.qrModalBg} activeOpacity={1} onPress={() => setQrModal(false)}>
           <View style={[styles.qrModalCard, { borderColor: `${tier.accent}40` }]}>
             <Text style={[styles.qrModalTitle, { color: tier.accent }]}>{ticket.event_title}</Text>

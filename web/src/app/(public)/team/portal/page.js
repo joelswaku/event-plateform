@@ -74,7 +74,7 @@ export default function TeamPortalPage() {
 
           <div className="px-8 py-8 text-center space-y-4">
             <p className="text-gray-300 text-sm leading-relaxed">
-              You already have an Eventos account. Sign in with your email and password to access the event dashboard.
+              You already have an LiteEvent account. Sign in with your email and password to access the event dashboard.
             </p>
 
             <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3">
@@ -95,7 +95,7 @@ export default function TeamPortalPage() {
               <a href="/events" className="text-indigo-400 hover:text-indigo-300 font-medium">Go to events</a>
             </p>
           </div>
-          <div className="px-8 pb-6 text-center text-xs text-gray-700">Powered by Eventos</div>
+          <div className="px-8 pb-6 text-center text-xs text-gray-700">Powered by LiteEvent</div>
         </div>
       </div>
     );
@@ -167,12 +167,12 @@ export default function TeamPortalPage() {
               <a href="/login" className="text-indigo-400 hover:text-indigo-300 font-medium">Sign in</a>
             </p>
             <p>
-              New to Eventos?{" "}
+              New to LiteEvent?{" "}
               <a href="/register" className="text-indigo-400 hover:text-indigo-300 font-medium">Create a free account</a>
             </p>
           </div>
         </div>
-        <div className="px-8 pb-6 text-center text-xs text-gray-700">Powered by Eventos</div>
+        <div className="px-8 pb-6 text-center text-xs text-gray-700">Powered by LiteEvent</div>
       </div>
     </div>
   );

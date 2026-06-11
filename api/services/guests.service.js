@@ -1,4 +1,4 @@
-
+﻿
 import { db } from "../config/db.js";
 import crypto from "crypto";
 import { assertCanCreateGuest } from "./planLimits.service.js";
@@ -167,42 +167,45 @@ async function assertOrganizationEventPermission(
   client,
   organizationId,
   userId,
+  eventId = null,
 ) {
   const result = await client.query(
-    `
-    SELECT role
-    FROM organization_members
-    WHERE organization_id=$1
-      AND user_id=$2
-    LIMIT 1
-    `,
+    `SELECT role FROM organization_members
+     WHERE organization_id=$1 AND user_id=$2 LIMIT 1`,
     [organizationId, userId],
   );
 
-  if (!result.rows[0]) {
-    throw new AppError("You do not belong to this organization", 403);
+  if (result.rows[0]) return result.rows[0];
+
+  // Allow event-level team admins (users in event_members but not the org)
+  if (eventId) {
+    const memberResult = await client.query(
+      `SELECT role FROM event_members
+       WHERE event_id=$1 AND user_id=$2 AND deleted_at IS NULL LIMIT 1`,
+      [eventId, userId],
+    );
+    if (memberResult.rows[0]) return memberResult.rows[0];
   }
 
-  return result.rows[0];
+  throw new AppError("You do not have permission to manage this event", 403);
 }
 
-async function assertEventExists(client, eventId, organizationId) {
-  const result = await client.query(
-    `
-    SELECT *
-    FROM events
-    WHERE id=$1
-      AND organization_id=$2
-      AND deleted_at IS NULL
-    LIMIT 1
-    `,
+async function assertEventExists(client, eventId, organizationId, userId = null) {
+  let result = await client.query(
+    `SELECT * FROM events WHERE id=$1 AND organization_id=$2 AND deleted_at IS NULL LIMIT 1`,
     [eventId, organizationId],
   );
 
-  if (!result.rows[0]) {
-    throw new AppError("Event not found", 404);
+  if (!result.rows[0] && userId) {
+    result = await client.query(
+      `SELECT * FROM events WHERE id=$1 AND deleted_at IS NULL
+       AND EXISTS (SELECT 1 FROM event_members em WHERE em.event_id=$1 AND em.user_id=$2 AND em.deleted_at IS NULL)
+       LIMIT 1`,
+      [eventId, userId],
+    );
   }
 
+  if (!result.rows[0]) throw new AppError("Event not found", 404);
   return result.rows[0];
 }
 
@@ -322,8 +325,8 @@ export async function createGuestService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
     await assertCanCreateGuest(client, eventId, userId);
 
     const result = await client.query(
@@ -371,8 +374,8 @@ export async function listGuestsService({ eventId, organizationId, userId }) {
   const client = await db.connect();
 
   try {
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const result = await client.query(
       `
@@ -407,8 +410,8 @@ export async function getGuestByIdService({
   const client = await db.connect();
 
   try {
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const result = await client.query(
       `
@@ -447,8 +450,8 @@ export async function updateGuestService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const guest = await assertGuestBelongsToEvent(client, guestId, eventId);
 
@@ -514,8 +517,8 @@ export async function deleteGuestService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const result = await client.query(
       `
@@ -560,7 +563,7 @@ export async function submitGuestRsvpService({
   try {
     await client.query("BEGIN");
 
-    await assertEventExists(client, eventId, organizationId);
+    await assertEventExists(client, eventId, organizationId, userId);
     const guest = await assertGuestBelongsToEvent(
       client,
       payload.guest_id,
@@ -629,8 +632,8 @@ export async function listGuestRsvpsService({
   const client = await db.connect();
 
   try {
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
 
     const result = await client.query(
       `
@@ -665,8 +668,8 @@ export async function markGuestAttendanceService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
     await assertGuestBelongsToEvent(client, payload.guest_id, eventId);
 
     const result = await client.query(
@@ -727,8 +730,8 @@ export async function getGuestDashboardService({
     const client = await db.connect();
   
     try {
-      await assertOrganizationEventPermission(client, organizationId, userId);
-      await assertEventExists(client, eventId, organizationId);
+      await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+      await assertEventExists(client, eventId, organizationId, userId);
   
       const [
         guestsRes,
@@ -850,8 +853,8 @@ export async function generateQrCodeForGuestService({
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
     await assertGuestBelongsToEvent(client, guestId, eventId);
 
     const existingActive = await getActiveQrPassByGuest(
@@ -924,8 +927,8 @@ export async function sendInvitationEmailToGuestService({
 
     const channel = (payload.channel || "EMAIL").toUpperCase();
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    const event = await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    const event = await assertEventExists(client, eventId, organizationId, userId);
     const guest = await assertGuestBelongsToEvent(client, guestId, eventId);
 
     // Channel priority: requested channel → email → SMS/WhatsApp → manual
@@ -1086,8 +1089,8 @@ export async function checkInGuestByQrTokenService({
     try {
       await client.query("BEGIN");
   
-      await assertOrganizationEventPermission(client, organizationId, userId);
-      await assertEventExists(client, eventId, organizationId);
+      await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+      await assertEventExists(client, eventId, organizationId, userId);
   
       const qrResult = await client.query(
         `
@@ -1305,8 +1308,8 @@ export async function manualCheckInGuestService({ eventId, guestId, organization
   try {
     await client.query("BEGIN");
 
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
     const guest = await assertGuestBelongsToEvent(client, guestId, eventId);
 
     const attendanceResult = await client.query(
@@ -1342,8 +1345,8 @@ export async function manualCheckInGuestService({ eventId, guestId, organization
 export async function listGuestAttendanceService({ eventId, organizationId, userId }) {
   const client = await db.connect();
   try {
-    await assertOrganizationEventPermission(client, organizationId, userId);
-    await assertEventExists(client, eventId, organizationId);
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
     const result = await client.query(
       `SELECT guest_id, attendance_status, marked_via, marked_at FROM guest_attendance WHERE event_id = $1`,
       [eventId]
@@ -1652,8 +1655,8 @@ export async function getInvitationByTokenService({ token }) {
   export async function sendQrEmailToGuestService({ eventId, guestId, organizationId, userId }) {
     const client = await db.connect();
     try {
-      await assertOrganizationEventPermission(client, organizationId, userId);
-      const event = await assertEventExists(client, eventId, organizationId);
+      await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+      const event = await assertEventExists(client, eventId, organizationId, userId);
       await assertGuestBelongsToEvent(client, guestId, eventId);
 
       const guestRes = await client.query(
@@ -1707,8 +1710,8 @@ export async function getInvitationByTokenService({ token }) {
     try {
       await client.query("BEGIN");
   
-      await assertOrganizationEventPermission(client, organizationId, userId);
-      const event = await assertEventExists(client, eventId, organizationId);
+      await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+      const event = await assertEventExists(client, eventId, organizationId, userId);
   
       // 👉 GET ALL GUESTS
       const guestsRes = await client.query(
@@ -1848,3 +1851,4 @@ export async function submitOpenRsvpService({ eventId, payload }) {
     client.release();
   }
 }
+

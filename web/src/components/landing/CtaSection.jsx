@@ -1,9 +1,10 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
 import { ArrowRight, Sparkles } from "lucide-react";
+import { useAuthStore } from "@/store/auth.store";
 
 const PROOF_METRICS = [
   { value: "12,000+", label: "couples launched" },
@@ -14,6 +15,10 @@ const PROOF_METRICS = [
 export default function CtaSection() {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: "-100px" });
+  const [mounted, setMounted] = useState(false);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  useEffect(() => { setMounted(true); }, []);
+  const loggedIn = mounted && isAuthenticated;
 
   return (
     <section className="py-24 bg-gray-900 relative overflow-hidden">
@@ -83,19 +88,31 @@ export default function CtaSection() {
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.24 }}
           className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4"
         >
-          <Link
-            href="/register"
-            className="group flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-white font-bold px-8 py-4 rounded-2xl transition-all shadow-2xl shadow-amber-500/30 text-base"
-          >
-            Create Your Wedding Site
-            <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-          </Link>
-          <Link
-            href="/login"
-            className="text-gray-400 hover:text-white text-sm font-medium transition-colors"
-          >
-            Already have an account? Sign in
-          </Link>
+          {loggedIn ? (
+            <Link
+              href="/dashboard"
+              className="group flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-white font-bold px-8 py-4 rounded-2xl transition-all shadow-2xl shadow-amber-500/30 text-base"
+            >
+              Go to Dashboard
+              <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/register"
+                className="group flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-white font-bold px-8 py-4 rounded-2xl transition-all shadow-2xl shadow-amber-500/30 text-base"
+              >
+                Create Your Wedding Site
+                <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+              </Link>
+              <Link
+                href="/login"
+                className="text-gray-400 hover:text-white text-sm font-medium transition-colors"
+              >
+                Already have an account? Sign in
+              </Link>
+            </>
+          )}
         </motion.div>
       </div>
     </section>

@@ -35,8 +35,7 @@ export function SideDrawer() {
   const router   = useRouter();
   const segments = useSegments();
   const { isOpen, close } = useDrawerStore();
-  const user     = useAuthStore(s => s.user);
-  const logout   = useAuthStore(s => s.logout);
+  const user = useAuthStore(s => s.user);
 
   const slideX = useRef(new Animated.Value(-DRAWER_W)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -146,20 +145,11 @@ export function SideDrawer() {
             </Pressable>
           )}
 
-          {/* Sign out */}
-          <Pressable
-            style={styles.signOutBtn}
-            onPress={() => { close(); logout(); }}
-          >
-            <Feather name="log-out" size={15} color={Colors.accent.red} />
-            <Text style={styles.signOutText}>Sign Out</Text>
-          </Pressable>
-
         </ScrollView>
 
         {/* Version */}
         <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-          <Text style={styles.footerText}>EventApp v1.0.0</Text>
+          <Text style={styles.footerText}>LiteEvent v1.0.0</Text>
         </View>
       </Animated.View>
     </Modal>

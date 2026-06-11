@@ -31,7 +31,7 @@ export const appleLoginSchema = z.object({
 });
 
 export const googleLoginSchema = z.object({
-  id_token: z.string().min(10),
+  access_token: z.string().min(10),
 });
 
 

@@ -94,11 +94,16 @@ export function ProEventCard({ event, onRefresh, isActive, onSetActive }: Props)
   const img    = coverImg(event);
 
   const run = async (key: ActionKey, fn: () => Promise<{ success: boolean }>) => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setLoading(key);
-    const result = await fn();
-    setLoading(null);
-    if (result?.success) onRefresh?.();
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setLoading(key);
+      const result = await fn();
+      setLoading(null);
+      if (result?.success) onRefresh?.();
+    } catch (error) {
+      setLoading(null);
+      console.error('EventCard run error:', error);
+    }
   };
 
   const date = event.starts_at_local || event.starts_at_utc;
@@ -273,9 +278,18 @@ export function ProEventCard({ event, onRefresh, isActive, onSetActive }: Props)
           title={modal.title}
           description={modal.desc}
           confirmText={modal.confirm}
-          variant={modal.danger ? 'danger' : 'default'}
-          onConfirm={async () => { await modal.action(); setModal(null); }}
+          variant={modal.danger ? 'danger' : 'warning'}
+          onConfirm={async () => {
+            try {
+              await modal.action();
+              setModal(null);
+            } catch (error) {
+              setModal(null);
+              console.error('EventCard modal action error:', error);
+            }
+          }}
           onCancel={() => setModal(null)}
+          onClose={() => setModal(null)}
         />
       )}
     </>
@@ -327,6 +341,7 @@ const s = StyleSheet.create({
     borderRadius:    20,
     backgroundColor: Colors.bg.card,
     borderWidth:     1,
+    borderColor:     Colors.border.DEFAULT,
     overflow:        'hidden',
   },
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, AlertCircle } from "lucide-react";
@@ -10,7 +10,7 @@ import AuthShell from "@/components/auth/AuthShell";
 
 const BASE   = "w-full px-4 py-3 rounded-xl text-white text-sm placeholder:text-gray-600 outline-none transition-all bg-white/4 border";
 const NORMAL = `${BASE} border-white/8 focus:border-indigo-500/50 focus:bg-white/6`;
-const ERROR  = `${BASE} border-red-500/50   focus:border-red-500/70`;
+const ERROR  = `${BASE} border-red-500/50 focus:border-red-500/70`;
 
 function validate(form) {
   const e = {};
@@ -23,7 +23,7 @@ function validate(form) {
 function Field({ label, id, error, touched, children }) {
   return (
     <div>
-      <label htmlFor={id} className="block text-[13px] font-medium text-gray-400 mb-1.5">
+      <label htmlFor={id} className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
         {label}
       </label>
       {children}
@@ -37,9 +37,8 @@ function Field({ label, id, error, touched, children }) {
   );
 }
 
-// Inner form — isolated so useSearchParams() is inside a Suspense boundary
 function LoginForm() {
-  const { login, isLoading } = useAuthStore();
+  const { login, isLoading, isAuthenticated, isHydrated } = useAuthStore();
   const router       = useRouter();
   const searchParams = useSearchParams();
 
@@ -47,6 +46,13 @@ function LoginForm() {
   const [touched,     setTouched]     = useState({});
   const [showPass,    setShowPass]    = useState(false);
   const [serverError, setServerError] = useState("");
+
+  // Single redirect point — fires when auth state becomes true
+  useEffect(() => {
+    if (isHydrated && isAuthenticated) {
+      router.replace(searchParams.get("redirect") || "/dashboard");
+    }
+  }, [isHydrated, isAuthenticated]);
 
   const errors = validate(form);
   const touch  = (f) => setTouched((t) => ({ ...t, [f]: true }));
@@ -59,10 +65,8 @@ function LoginForm() {
     if (errors.email || errors.password) return;
 
     const res = await login(form);
-    if (res.success) {
-      const redirectTo = searchParams.get("redirect") || "/dashboard";
-      router.push(redirectTo);
-    } else {
+    // Redirect is handled by the useEffect above when isAuthenticated flips to true
+    if (!res.success) {
       setServerError(res.message || "Invalid credentials. Please try again.");
     }
   };
@@ -74,37 +78,24 @@ function LoginForm() {
       headline="Manage your events like a pro."
       subline="Create, sell tickets, track guests, and grow your events effortlessly."
     >
-      <div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">Sign in</h1>
-        <p className="text-gray-500 text-sm mt-1.5">
-          New here?{" "}
-          <Link href="/register" className="text-indigo-400 font-medium hover:text-indigo-300 transition-colors">
-            Create an account
-          </Link>
-        </p>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-white tracking-tight">Welcome back</h1>
+        <p className="text-gray-500 text-sm mt-1">Sign in to continue</p>
       </div>
 
-      <div className="mt-8">
-        <GoogleLoginButton redirectTo={redirectTo} />
-      </div>
-
-      <div className="flex items-center gap-3 mt-6">
-        <div className="h-px flex-1 bg-white/8" />
-        <span className="text-gray-600 text-xs">or continue with email</span>
-        <div className="h-px flex-1 bg-white/8" />
-      </div>
-
-      <form onSubmit={handleSubmit} className="mt-6 space-y-5" noValidate>
-        <Field label="Email address" id="email" error={errors.email} touched={touched.email}>
+      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        <Field label="Email" id="email" error={errors.email} touched={touched.email}>
           <input
             id="email"
             type="email"
-            autoComplete="email"
+            name="login-email"
+            autoComplete="off"
             placeholder="you@example.com"
             value={form.email}
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
             onBlur={() => touch("email")}
             className={cls("email")}
+            suppressHydrationWarning
           />
         </Field>
 
@@ -113,12 +104,14 @@ function LoginForm() {
             <input
               id="password"
               type={showPass ? "text" : "password"}
-              autoComplete="current-password"
+              name="login-password"
+              autoComplete="new-password"
               placeholder="••••••••"
               value={form.password}
               onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
               onBlur={() => touch("password")}
               className={`${cls("password")} pr-11`}
+              suppressHydrationWarning
             />
             <button
               type="button"
@@ -131,8 +124,8 @@ function LoginForm() {
           </div>
         </Field>
 
-        <div className="flex justify-end -mt-2">
-          <Link href="/forgot-password" className="text-[13px] text-gray-500 hover:text-gray-300 transition-colors">
+        <div className="flex justify-end -mt-1">
+          <Link href="/forgot-password" className="text-xs text-gray-500 hover:text-indigo-400 transition-colors font-medium">
             Forgot password?
           </Link>
         </div>
@@ -147,13 +140,29 @@ function LoginForm() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold transition-all"
+          suppressHydrationWarning
         >
           {isLoading ? (
             <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> Signing in…</>
           ) : "Sign in"}
         </button>
       </form>
+
+      <div className="flex items-center gap-3 my-6">
+        <div className="h-px flex-1 bg-white/8" />
+        <span className="text-gray-600 text-xs font-medium uppercase tracking-wider">or</span>
+        <div className="h-px flex-1 bg-white/8" />
+      </div>
+
+      <GoogleLoginButton redirectTo={redirectTo} />
+
+      <p className="text-center text-sm text-gray-500 mt-6">
+        Don&apos;t have an account?{" "}
+        <Link href="/register" className="text-indigo-400 font-semibold hover:text-indigo-300 transition-colors">
+          Sign up free
+        </Link>
+      </p>
     </AuthShell>
   );
 }

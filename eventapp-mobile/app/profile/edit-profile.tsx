@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, ScrollView, StyleSheet, Pressable,
-  Image, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
+  Image, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -9,6 +9,8 @@ import { Feather } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/auth.store';
 import api from '@/lib/api';
 import { Colors } from '@/constants/colors';
+import { toast } from '@/lib/toast';
+import { InfoModal, useInfo } from '@/components/ui/ConfirmModal';
 
 export default function EditProfileScreen() {
   const router    = useRouter();
@@ -17,6 +19,7 @@ export default function EditProfileScreen() {
 
   const [fullName, setFullName] = useState(user?.full_name ?? '');
   const [saving,   setSaving]   = useState(false);
+  const { info, infoProps } = useInfo();
 
   const initials = (user?.full_name ?? 'U')
     .split(' ')
@@ -28,19 +31,19 @@ export default function EditProfileScreen() {
   async function handleSave() {
     const trimmed = fullName.trim();
     if (!trimmed) {
-      Alert.alert('Validation', 'Name cannot be empty.');
+      info({ title: 'Validation', message: 'Name cannot be empty.', variant: 'warning' });
       return;
     }
     setSaving(true);
     try {
       await api.patch('/auth/profile', { full_name: trimmed });
       await fetchMe();
-      Alert.alert('Saved', 'Your profile has been updated.');
+      toast.success('Saved', 'Your profile has been updated.');
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
         'Could not save profile. Please try again.';
-      Alert.alert('Error', msg);
+      toast.error('Error', msg);
     } finally {
       setSaving(false);
     }
@@ -118,6 +121,7 @@ export default function EditProfileScreen() {
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
+      <InfoModal {...infoProps} />
     </SafeAreaView>
   );
 }
