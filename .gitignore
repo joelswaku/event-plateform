@@ -1,16 +1,49 @@
-# Root .gitignore for event-plateform monorepo
+# ========================================
+# Event Platform - Root .gitignore
+# Covers: API, Web, Vendors, Mobile
+# ========================================
 
-# Environment variables
+# ========================================
+# SECRETS & ENVIRONMENT (NEVER COMMIT!)
+# ========================================
 .env
 .env.*
 !.env.example
 
-# Dependencies
+# ========================================
+# DEPENDENCIES
+# ========================================
 node_modules/
 .pnp
 .pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
-# Logs
+# ========================================
+# BUILD OUTPUTS
+# ========================================
+dist/
+build/
+out/
+*.tsbuildinfo
+.turbo/
+
+# Next.js (web & vendors)
+.next/
+next-env.d.ts
+
+# Expo (mobile)
+.expo/
+.expo-shared/
+expo-env.d.ts
+web-build/
+
+# ========================================
+# LOGS
+# ========================================
 logs/
 *.log
 npm-debug.log*
@@ -19,7 +52,46 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# OS files
+# ========================================
+# TESTING
+# ========================================
+coverage/
+.nyc_output/
+
+# ========================================
+# TERRAFORM & AWS (CRITICAL - CONTAINS SECRETS!)
+# ========================================
+terraform/.terraform/
+terraform/**/.terraform/
+terraform/.terraform.lock.hcl
+terraform/**/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/**/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/**/terraform.tfstate.backup
+terraform/terraform.tfvars
+terraform/**/terraform.tfvars
+terraform/.terraform.tfstate.lock.info
+terraform/**/.terraform.tfstate.lock.info
+terraform/tfplan
+terraform/**/tfplan
+terraform/outputs.txt
+terraform/outputs.json
+terraform/**/secrets.txt
+terraform/**/certificate-arn.txt
+*.tfvars
+!*.tfvars.example
+.aws-sam/
+cdk.out/
+
+# ========================================
+# DOCKER
+# ========================================
+docker-compose.override.yml
+
+# ========================================
+# OS FILES
+# ========================================
 .DS_Store
 .DS_Store?
 ._*
@@ -29,7 +101,9 @@ ehthumbs.db
 Thumbs.db
 Desktop.ini
 
-# IDE / Editor
+# ========================================
+# IDE / EDITORS
+# ========================================
 .vscode/
 !.vscode/extensions.json
 !.vscode/settings.json
@@ -45,22 +119,92 @@ Desktop.ini
 *.sublime-workspace
 *.sublime-project
 
-# Build outputs
-dist/
-build/
-out/
-*.tsbuildinfo
-
-# Testing
-coverage/
-.nyc_output/
-
-# Temporary files
+# ========================================
+# TEMPORARY FILES
+# ========================================
 tmp/
 temp/
 *.tmp
 *.bak
 *.cache
 
-# Uploads
+# ========================================
+# USER UPLOADS (may contain sensitive data)
+# ========================================
 uploads/
+api/uploads/
+
+# ========================================
+# MOBILE APP SPECIFIC (iOS & Android)
+# ========================================
+
+# Native certificates & keys
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.keystore
+!debug.keystore
+*.pem
+
+# Metro
+.metro-health-check*
+
+# iOS
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xccheckout
+*.moved-aside
+DerivedData
+*.hmap
+*.ipa
+*.xcuserstate
+ios/.xcode.env.local
+
+# Android
+*.apk
+*.aab
+*.ap_
+*.dex
+.gradle/
+local.properties
+*.iml
+.externalNativeBuild
+.cxx/
+android/app/debug/
+android/app/release/
+
+# ========================================
+# API SPECIFIC
+# ========================================
+
+# PM2
+.pm2/
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# ========================================
+# NEXT.JS / VERCEL
+# ========================================
+.vercel
+
+# ========================================
+# MISC
+# ========================================
+storybook-static/

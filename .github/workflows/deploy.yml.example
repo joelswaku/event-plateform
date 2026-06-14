@@ -1,0 +1,223 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main       # Deploy production on main
+      - develop    # Deploy staging on develop
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  determine-environment:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+    steps:
+      - id: set-env
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          fi
+
+  build-and-deploy:
+    needs: determine-environment
+    runs-on: ubuntu-latest
+    environment: ${{ needs.determine-environment.outputs.environment }}
+    permissions:
+      id-token: write   # Required for OIDC
+      contents: read    # Required for checkout
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-${{ github.run_id }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set environment variables
+        id: vars
+        run: |
+          ENV=${{ needs.determine-environment.outputs.environment }}
+          echo "ENVIRONMENT=$ENV" >> $GITHUB_OUTPUT
+          echo "ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_OUTPUT
+          echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "API_REPO=event-platform-$ENV-api" >> $GITHUB_OUTPUT
+          echo "WEB_REPO=event-platform-$ENV-web" >> $GITHUB_OUTPUT
+          echo "VENDORS_REPO=event-platform-$ENV-vendors" >> $GITHUB_OUTPUT
+          echo "CLUSTER=event-platform-$ENV-cluster" >> $GITHUB_OUTPUT
+
+      - name: Build and push API image
+        env:
+          ECR_REGISTRY: ${{ steps.vars.outputs.ECR_REGISTRY }}
+          ECR_REPOSITORY: ${{ steps.vars.outputs.API_REPO }}
+          IMAGE_TAG: ${{ steps.vars.outputs.IMAGE_TAG }}
+        working-directory: ./api
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "API image pushed: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      - name: Build and push Web image
+        env:
+          ECR_REGISTRY: ${{ steps.vars.outputs.ECR_REGISTRY }}
+          ECR_REPOSITORY: ${{ steps.vars.outputs.WEB_REPO }}
+          IMAGE_TAG: ${{ steps.vars.outputs.IMAGE_TAG }}
+        working-directory: ./web
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "Web image pushed: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      - name: Build and push Vendors image
+        env:
+          ECR_REGISTRY: ${{ steps.vars.outputs.ECR_REGISTRY }}
+          ECR_REPOSITORY: ${{ steps.vars.outputs.VENDORS_REPO }}
+          IMAGE_TAG: ${{ steps.vars.outputs.IMAGE_TAG }}
+        working-directory: ./vendors
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "Vendors image pushed: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      - name: Get VPC configuration for migrations
+        id: vpc-config
+        env:
+          ENVIRONMENT: ${{ steps.vars.outputs.ENVIRONMENT }}
+        run: |
+          # Get private subnets
+          SUBNET_IDS=$(aws ec2 describe-subnets \
+            --filters "Name=tag:Environment,Values=$ENVIRONMENT" "Name=tag:Type,Values=private" \
+            --query 'Subnets[*].SubnetId' \
+            --output text | tr '\t' ',')
+
+          # Get ECS tasks security group
+          SECURITY_GROUP=$(aws ec2 describe-security-groups \
+            --filters "Name=tag:Name,Values=event-platform-$ENVIRONMENT-ecs-tasks-sg" \
+            --query 'SecurityGroups[0].GroupId' \
+            --output text)
+
+          echo "SUBNET_IDS=$SUBNET_IDS" >> $GITHUB_OUTPUT
+          echo "SECURITY_GROUP=$SECURITY_GROUP" >> $GITHUB_OUTPUT
+
+      - name: Run database migrations
+        env:
+          CLUSTER: ${{ steps.vars.outputs.CLUSTER }}
+          ENVIRONMENT: ${{ steps.vars.outputs.ENVIRONMENT }}
+          SUBNET_IDS: ${{ steps.vpc-config.outputs.SUBNET_IDS }}
+          SECURITY_GROUP: ${{ steps.vpc-config.outputs.SECURITY_GROUP }}
+        run: |
+          echo "Running database migrations in $ENVIRONMENT..."
+
+          TASK_ARN=$(aws ecs run-task \
+            --cluster $CLUSTER \
+            --task-definition event-platform-$ENVIRONMENT-api-task \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_IDS],securityGroups=[$SECURITY_GROUP],assignPublicIp=DISABLED}" \
+            --overrides '{"containerOverrides":[{"name":"api","command":["npm","run","migrate"]}]}' \
+            --query 'tasks[0].taskArn' \
+            --output text)
+
+          echo "Migration task started: $TASK_ARN"
+
+          # Wait for migration to complete
+          aws ecs wait tasks-stopped --cluster $CLUSTER --tasks $TASK_ARN
+
+          # Check if migration succeeded
+          EXIT_CODE=$(aws ecs describe-tasks \
+            --cluster $CLUSTER \
+            --tasks $TASK_ARN \
+            --query 'tasks[0].containers[0].exitCode' \
+            --output text)
+
+          if [ "$EXIT_CODE" != "0" ]; then
+            echo "Migration failed with exit code: $EXIT_CODE"
+            exit 1
+          fi
+
+          echo "Migration completed successfully"
+
+      - name: Update ECS services
+        env:
+          CLUSTER: ${{ steps.vars.outputs.CLUSTER }}
+          ENVIRONMENT: ${{ steps.vars.outputs.ENVIRONMENT }}
+        run: |
+          echo "Deploying to $ENVIRONMENT environment..."
+
+          # Update API service
+          aws ecs update-service \
+            --cluster $CLUSTER \
+            --service event-platform-$ENVIRONMENT-api-service \
+            --force-new-deployment \
+            --no-cli-pager
+
+          # Update Web service
+          aws ecs update-service \
+            --cluster $CLUSTER \
+            --service event-platform-$ENVIRONMENT-web-service \
+            --force-new-deployment \
+            --no-cli-pager
+
+          # Update Vendors service
+          aws ecs update-service \
+            --cluster $CLUSTER \
+            --service event-platform-$ENVIRONMENT-vendors-service \
+            --force-new-deployment \
+            --no-cli-pager
+
+          echo "Services updated, waiting for stability..."
+
+      - name: Wait for deployment
+        env:
+          CLUSTER: ${{ steps.vars.outputs.CLUSTER }}
+          ENVIRONMENT: ${{ steps.vars.outputs.ENVIRONMENT }}
+        run: |
+          aws ecs wait services-stable \
+            --cluster $CLUSTER \
+            --services \
+              event-platform-$ENVIRONMENT-api-service \
+              event-platform-$ENVIRONMENT-web-service \
+              event-platform-$ENVIRONMENT-vendors-service
+
+          echo "Deployment completed successfully!"
+
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "### ✅ Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ steps.vars.outputs.ENVIRONMENT }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tag:** ${{ steps.vars.outputs.IMAGE_TAG }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Cluster:** ${{ steps.vars.outputs.CLUSTER }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Services deployed:" >> $GITHUB_STEP_SUMMARY
+          echo "- API service" >> $GITHUB_STEP_SUMMARY
+          echo "- Web service" >> $GITHUB_STEP_SUMMARY
+          echo "- Vendors service" >> $GITHUB_STEP_SUMMARY
+
+      - name: Deployment failure
+        if: failure()
+        run: |
+          echo "### ❌ Deployment Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Please check the workflow logs for details." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ steps.vars.outputs.ENVIRONMENT }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tag:** ${{ steps.vars.outputs.IMAGE_TAG }}" >> $GITHUB_STEP_SUMMARY

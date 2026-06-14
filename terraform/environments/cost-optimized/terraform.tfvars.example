@@ -1,0 +1,126 @@
+# ============================================================================
+# Cost-Optimized Terraform Configuration
+# ============================================================================
+# Copy this file to terraform.tfvars and fill in your actual values
+# NEVER commit terraform.tfvars to git!
+# ============================================================================
+
+# ========================================
+# Basic Configuration
+# ========================================
+
+aws_region   = "us-east-1"
+project_name = "liteevent"
+environment  = "production"
+vpc_cidr     = "10.0.0.0/16"
+
+# ========================================
+# Cost Optimization Flags
+# ========================================
+
+# Enable VPC endpoints? (adds ~$7/month but saves NAT data transfer costs)
+# Recommended if you have high traffic (>100GB/month)
+enable_vpc_endpoints = false
+
+# Enable Redis? (adds ~$12/month)
+# Recommended if you have >1000 concurrent users
+enable_redis = false
+
+# Enable CloudFront CDN? (adds ~$15/month)
+# Recommended if you have global users
+enable_cloudfront = false
+
+# ========================================
+# Database Configuration
+# ========================================
+
+db_name     = "liteevent"
+db_username = "liteevent_admin"
+db_password = "CHANGE_ME_STRONG_PASSWORD_HERE"  # Use openssl rand -base64 32
+
+# ========================================
+# GitHub OIDC Configuration
+# ========================================
+
+github_org  = "your-github-username"     # Your GitHub username or org
+github_repo = "event-plateform"          # Your repository name
+
+# ========================================
+# SSL Certificates
+# ========================================
+
+# Create ACM certificate first in AWS Console
+# Request certificate for: *.liteevent.com, liteevent.com
+# Then copy the ARN here
+acm_certificate_arn = "arn:aws:acm:us-east-1:ACCOUNT_ID:certificate/CERT_ID"
+
+# Only needed if enable_cloudfront = true
+# Must be in us-east-1 region
+acm_certificate_arn_cloudfront = ""
+
+# ========================================
+# Domain Names
+# ========================================
+
+domain_name         = "liteevent.com"
+web_domain_name     = "liteevent.com"
+vendors_domain_name = "vendors.liteevent.com"
+frontend_url        = "https://liteevent.com"
+cors_origin         = "https://liteevent.com,https://www.liteevent.com,https://vendors.liteevent.com"
+
+# ========================================
+# Application Secrets
+# ========================================
+# Generate strong random secrets with: openssl rand -base64 64
+
+jwt_secret         = "CHANGE_ME_64_CHAR_RANDOM_STRING"
+jwt_refresh_secret = "CHANGE_ME_DIFFERENT_64_CHAR_STRING"
+
+# ========================================
+# Stripe Configuration
+# ========================================
+# Get from: https://dashboard.stripe.com/apikeys
+# IMPORTANT: Use LIVE keys (sk_live_...) for production!
+
+stripe_secret_key = "sk_live_YOUR_STRIPE_SECRET_KEY_HERE"
+
+# ========================================
+# Google OAuth Configuration
+# ========================================
+# Get from: https://console.cloud.google.com/apis/credentials
+
+google_client_id     = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+google_client_secret = "YOUR_GOOGLE_CLIENT_SECRET"
+
+# ========================================
+# Resend Email Configuration
+# ========================================
+# Get from: https://resend.com/api-keys
+
+resend_api_key = "re_YOUR_RESEND_API_KEY"
+
+# ========================================
+# Cloudinary Configuration (Optional)
+# ========================================
+# Get from: https://cloudinary.com/console
+# Leave empty if using S3 only
+
+cloudinary_cloud_name = "your_cloud_name"
+cloudinary_api_key    = "your_api_key"
+cloudinary_api_secret = "your_api_secret"
+
+# ============================================================================
+# DEPLOYMENT CHECKLIST
+# ============================================================================
+# Before deploying, make sure you've:
+#
+# [ ] Generated strong random secrets for JWT
+# [ ] Created ACM certificate in AWS
+# [ ] Updated GitHub org/repo names
+# [ ] Using LIVE Stripe keys (not test)
+# [ ] Updated Google OAuth redirect URIs
+# [ ] Verified Resend sender email
+# [ ] Replaced all CHANGE_ME values
+# [ ] Saved as terraform.tfvars (not .example!)
+# [ ] Added terraform.tfvars to .gitignore
+# ============================================================================

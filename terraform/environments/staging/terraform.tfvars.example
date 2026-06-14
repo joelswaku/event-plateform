@@ -1,0 +1,57 @@
+# Staging Environment Configuration
+# Copy this file to terraform.tfvars and fill in the actual values
+
+# AWS Configuration
+aws_region   = "us-east-1"
+project_name = "event-platform"
+environment  = "staging"
+
+# Network
+vpc_cidr = "10.1.0.0/16"
+
+# Database (RDS PostgreSQL)
+db_instance_class = "db.t4g.micro"
+db_name           = "eventplatform_staging"
+db_username       = "postgres"           # Set in terraform.tfvars
+db_password       = "CHANGE_ME"          # Set in terraform.tfvars (generate strong password)
+
+# Redis (Optional - disabled by default to save costs)
+enable_redis    = false
+redis_node_type = "cache.t4g.micro"
+
+# SSL Certificates (Create these in ACM first)
+acm_certificate_arn            = "arn:aws:acm:us-east-1:ACCOUNT_ID:certificate/CERT_ID"
+acm_certificate_arn_cloudfront = "arn:aws:acm:us-east-1:ACCOUNT_ID:certificate/CERT_ID"
+
+# Domain Names
+domain_name         = "staging.yourdomain.com"
+web_domain_name     = "staging.yourdomain.com"
+vendors_domain_name = "vendors-staging.yourdomain.com"
+
+# GitHub OIDC (for CI/CD without AWS keys)
+github_org  = "your-github-org"
+github_repo = "event-platform"
+
+# Application Secrets (Move to AWS Secrets Manager after first apply)
+# Generate strong random values for production
+
+# JWT Secrets (generate with: openssl rand -base64 32)
+jwt_secret         = "CHANGE_ME"
+jwt_refresh_secret = "CHANGE_ME"
+
+# Stripe (use TEST keys for staging)
+stripe_secret_key      = "sk_test_XXXXX"
+stripe_publishable_key = "pk_test_XXXXX"
+stripe_webhook_secret  = "whsec_XXXXX"
+
+# Google OAuth
+google_client_id     = "XXXXX.apps.googleusercontent.com"
+google_client_secret = "CHANGE_ME"
+
+# Resend (Email)
+resend_api_key = "re_XXXXX"
+
+# Cloudinary (Optional - for image hosting)
+cloudinary_cloud_name = ""
+cloudinary_api_key    = ""
+cloudinary_api_secret = ""

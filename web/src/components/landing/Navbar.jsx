@@ -45,10 +45,10 @@ export default function Navbar() {
 
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-linear-to-br from-amber-400 to-yellow-500 flex items-center justify-center shadow">
-            <span className="text-white text-sm font-black">W</span>
+          <div className="w-8 h-8 rounded-lg bg-linear-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow">
+            <span className="text-white text-sm font-black">L</span>
           </div>
-          <span className="font-bold text-gray-900 text-lg tracking-tight">WedSite</span>
+          <span className="font-bold text-gray-900 text-lg tracking-tight">LiteEvent</span>
         </Link>
 
         {/* Desktop nav */}

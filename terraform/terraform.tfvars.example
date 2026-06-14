@@ -1,0 +1,38 @@
+# AWS Configuration
+aws_region   = "us-east-1"
+project_name = "event-platform"
+environment  = "production"
+
+# Network
+vpc_cidr = "10.0.0.0/16"
+
+# Database
+db_instance_class = "db.t4g.micro"  # For production: db.t4g.small or db.m7g.large
+db_name           = "eventplatform"
+db_username       = "your_db_username"
+db_password       = "your_secure_db_password"
+
+# Redis (Optional - set to true to enable)
+enable_redis    = false
+redis_node_type = "cache.t4g.micro"
+
+# SSL Certificates (ACM)
+acm_certificate_arn            = "arn:aws:acm:us-east-1:ACCOUNT_ID:certificate/CERT_ID"
+acm_certificate_arn_cloudfront = "arn:aws:acm:us-east-1:ACCOUNT_ID:certificate/CERT_ID"  # Must be us-east-1
+
+# Domain Names
+domain_name         = "yourdomain.com"
+web_domain_name     = "app.yourdomain.com"
+vendors_domain_name = "vendors.yourdomain.com"
+
+# Application Secrets (use AWS Secrets Manager for production)
+jwt_secret         = "your_jwt_secret_here"
+jwt_refresh_secret = "your_jwt_refresh_secret_here"
+stripe_secret_key  = "sk_test_..."
+google_client_secret = "your_google_client_secret"
+resend_api_key     = "re_..."
+
+# Cloudinary (optional - can use S3 instead)
+cloudinary_cloud_name = "your_cloudinary_cloud_name"
+cloudinary_api_key    = "your_cloudinary_api_key"
+cloudinary_api_secret = "your_cloudinary_api_secret"
