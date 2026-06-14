@@ -1,88 +1,93 @@
 import { Suspense } from "react";
 import dynamic from "next/dynamic";
-import Image from "next/image";
-import Link from "next/link";
-import { FREE_TEMPLATES, PREMIUM_TEMPLATES, WEDDING_TEMPLATES } from "@/lib/weddingTemplates";
 import { Navbar, HeroSection, FeaturesGrid, CtaSection } from "@/components/landing";
+import { FREE_TEMPLATES, PREMIUM_TEMPLATES } from "@/lib/styleTemplates";
 
-/* ─── lazy-load every below-fold section ───────────────────────────────────── */
-const StatsBar          = dynamic(() => import("@/components/landing/StatsBar"),          { ssr: true });
-const TemplatesSection  = dynamic(() => import("@/components/landing/TemplatesSection"),  { ssr: true });
-const HowItWorks        = dynamic(() => import("@/components/landing/HowItWorks"),        { ssr: true });
-const PricingSection    = dynamic(() => import("@/components/landing/PricingSection"),    { ssr: true });
+/* ─── lazy-load sections ───────────────────────────────────── */
+const StatsBar           = dynamic(() => import("@/components/landing/StatsBar"), { ssr: true });
+const TemplatesSection   = dynamic(() => import("@/components/landing/TemplatesSection"), { ssr: true });
+const AppDownloadSection = dynamic(() => import("@/components/landing/AppDownloadSection"), { ssr: true });
+const PlannerSection     = dynamic(() => import("@/components/landing/PlannerSection"), { ssr: true });
+const HowItWorks         = dynamic(() => import("@/components/landing/HowItWorks"), { ssr: true });
+const PricingSection     = dynamic(() => import("@/components/landing/PricingSection"), { ssr: true });
 const TestimonialsSection = dynamic(() => import("@/components/landing/TestimonialsSection"), { ssr: true });
-const Footer            = dynamic(() => import("@/components/landing/Footer"),            { ssr: true });
+const Footer             = dynamic(() => import("@/components/landing/Footer"), { ssr: true });
 
-/* ─── static data (server-side only — no bundle cost) ──────────────────────── */
-const STATS = [
-  { value: "12,000+", label: "Weddings Created" },
-  { value: "30",      label: "Premium Templates" },
-  { value: "4.9★",   label: "Average Rating"    },
-  { value: "99%",     label: "Uptime SLA"        },
-];
-
+/* ─── static data ──────────────────────────────────────────── */
 const TESTIMONIALS = [
   {
-    name: "Emma & Lucas",
-    location: "London, UK",
-    avatar: "https://images.unsplash.com/photo-1520854221256-17451cc331bf?w=80&q=80&auto=format&fit=crop&facepad=2",
-    text: "We chose the Royal Vintage template and every single guest told us it was the most beautiful wedding page they'd ever seen. Set up in under an hour!",
-    template: "Royal Vintage",
+    name: "Emma Johnson",
+    role: "Event Organizer",
+    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&q=80",
+    text: "LiteEvent made organizing our conference incredibly easy. The mobile app is a game-changer!",
+    rating: 5,
   },
   {
-    name: "Sofia & Marco",
-    location: "Bali, Indonesia",
-    avatar: "https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=80&q=80&auto=format&fit=crop",
-    text: "Tropical Destination was perfect for our beach wedding. The RSVP tool alone saved us days of back-and-forth emails.",
-    template: "Tropical Destination",
+    name: "Michael Chen",
+    role: "Wedding Planner",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&q=80",
+    text: "Best event management platform I've used. The templates are beautiful and the RSVP system is flawless.",
+    rating: 5,
   },
   {
-    name: "Aisha & James",
-    location: "New York, USA",
-    avatar: "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?w=80&q=80&auto=format&fit=crop",
-    text: "Elegant Black Tie matched our vision exactly. The builder is so intuitive we were live within 45 minutes. Absolutely worth premium.",
-    template: "Elegant Black Tie",
+    name: "Sarah Williams",
+    role: "Festival Director",
+    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&q=80",
+    text: "From ticket sales to check-ins, everything just works. Our attendees love the mobile experience.",
+    rating: 5,
   },
 ];
 
 const HOW_IT_WORKS = [
-  { step: "01", title: "Pick a Template",      desc: "Browse 30 handcrafted designs and preview in one click." },
-  { step: "02", title: "Personalise",           desc: "Add your story, photos, venue details, and countdown timer." },
-  { step: "03", title: "Share & Collect RSVPs", desc: "Send one beautiful link — no app downloads required for guests." },
+  {
+    step: "01",
+    title: "Choose a Template",
+    desc: "Browse our collection of professionally designed templates and pick the perfect one for your event."
+  },
+  {
+    step: "02",
+    title: "Customize & Publish",
+    desc: "Add your event details, photos, and branding. Publish your event page in minutes."
+  },
+  {
+    step: "03",
+    title: "Manage Everything",
+    desc: "Track RSVPs, sell tickets, and check-in guests — all from your dashboard or mobile app."
+  },
 ];
 
-const SHOWCASE = WEDDING_TEMPLATES.slice(0, 8);
-
-/* ─── shared skeleton ───────────────────────────────────────────────────────── */
+/* ─── skeleton ──────────────────────────────────────────────── */
 function SectionSkeleton({ height = "h-64" }) {
-  return <div className={`w-full ${height} bg-gray-50 animate-pulse`} />;
+  return <div className={`w-full ${height} bg-gray-50 dark:bg-gray-900 animate-pulse`} />;
 }
 
-/* ─── page ──────────────────────────────────────────────────────────────────── */
+/* ─── page ──────────────────────────────────────────────────── */
 export default function LandingPage() {
   return (
     <main className="min-h-screen">
       <Navbar />
 
       {/* Hero: above the fold — no lazy load */}
-      <HeroSection showcase={SHOWCASE} testimonials={TESTIMONIALS} />
+      <HeroSection />
 
-      {/* StatsBar: just below fold */}
+      {/* StatsBar with real data from API */}
       <Suspense fallback={<SectionSkeleton height="h-32" />}>
-        <StatsBar stats={STATS} />
+        <StatsBar />
       </Suspense>
 
-      {/* Templates: heavy section — lazy */}
+      {/* Templates - Real templates from database */}
       <Suspense fallback={<SectionSkeleton height="h-[600px]" />}>
-        <TemplatesSection
-          freeTemplates={FREE_TEMPLATES}
-          premiumTemplates={PREMIUM_TEMPLATES}
-        />
+        <TemplatesSection freeTemplates={FREE_TEMPLATES} premiumTemplates={PREMIUM_TEMPLATES} />
       </Suspense>
 
-      {/* Features: client-side animations — lazy */}
+      {/* Features */}
       <Suspense fallback={<SectionSkeleton height="h-[480px]" />}>
         <FeaturesGrid />
+      </Suspense>
+
+      {/* Planner Section - NEW */}
+      <Suspense fallback={<SectionSkeleton height="h-[600px]" />}>
+        <PlannerSection />
       </Suspense>
 
       {/* How it works */}
@@ -90,9 +95,9 @@ export default function LandingPage() {
         <HowItWorks steps={HOW_IT_WORKS} />
       </Suspense>
 
-      {/* Pricing */}
-      <Suspense fallback={<SectionSkeleton height="h-[560px]" />}>
-        <PricingSection />
+      {/* App Download Section */}
+      <Suspense fallback={<SectionSkeleton height="h-[600px]" />}>
+        <AppDownloadSection />
       </Suspense>
 
       {/* Testimonials */}
@@ -100,7 +105,12 @@ export default function LandingPage() {
         <TestimonialsSection testimonials={TESTIMONIALS} />
       </Suspense>
 
-      {/* CTA: above-fold weight is fine, but keep consistent */}
+      {/* Pricing with real API data */}
+      <Suspense fallback={<SectionSkeleton height="h-[560px]" />}>
+        <PricingSection />
+      </Suspense>
+
+      {/* CTA */}
       <CtaSection />
 
       <Suspense fallback={<SectionSkeleton height="h-24" />}>

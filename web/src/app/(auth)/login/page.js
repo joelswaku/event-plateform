@@ -8,9 +8,9 @@ import { useAuthStore } from "@/store/auth.store";
 import GoogleLoginButton from "@/components/auth/GoogleLoginButton";
 import AuthShell from "@/components/auth/AuthShell";
 
-const BASE   = "w-full px-4 py-3 rounded-xl text-white text-sm placeholder:text-gray-600 outline-none transition-all bg-white/4 border";
-const NORMAL = `${BASE} border-white/8 focus:border-indigo-500/50 focus:bg-white/6`;
-const ERROR  = `${BASE} border-red-500/50 focus:border-red-500/70`;
+const BASE   = "w-full px-4 py-3 rounded-xl text-white text-sm placeholder:text-gray-500 outline-none transition-all bg-white/5 border";
+const NORMAL = `${BASE} border-white/10 focus:border-indigo-500/60 focus:bg-white/8 focus:ring-2 focus:ring-indigo-500/20`;
+const ERROR  = `${BASE} border-red-500/60 focus:border-red-500/80 focus:ring-2 focus:ring-red-500/20`;
 
 function validate(form) {
   const e = {};

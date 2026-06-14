@@ -459,10 +459,9 @@ export default function DateTimePicker({
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setOpen((o) => !o)}
-        className="group flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm transition-all duration-200 focus:outline-none"
+        className="group flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm transition-all duration-200 focus:outline-none bg-white dark:bg-transparent"
         style={{
-          background:  open ? "rgba(99,102,241,0.06)" : "rgba(255,255,255,0.03)",
-          border:      `1.5px solid ${error ? "#f87171" : open ? INDIGO : BORDER}`,
+          border:      `2px solid ${error ? "#f87171" : open ? INDIGO : "rgb(209, 213, 219)"}`,
           boxShadow:   open && !error ? "0 0 0 3px rgba(99,102,241,0.12)" : "none",
           cursor:      disabled ? "not-allowed" : "pointer",
           opacity:     disabled ? 0.5 : 1,
@@ -470,31 +469,30 @@ export default function DateTimePicker({
       >
         {/* Calendar icon */}
         <div
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors"
-          style={{
-            background: open ? "rgba(99,102,241,0.2)" : "rgba(255,255,255,0.06)",
-            border:     `1px solid ${open ? BORDER_A : BORDER}`,
-          }}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700"
+          style={open ? {
+            background: "rgba(99,102,241,0.1)",
+            borderColor: BORDER_A,
+          } : {}}
         >
-          <Calendar size={13} style={{ color: open ? INDIGO : error ? "#f87171" : T_MUTED }} strokeWidth={2} />
+          <Calendar size={13} className={`${open ? 'text-indigo-600 dark:text-indigo-400' : error ? 'text-red-500' : 'text-gray-500 dark:text-gray-400'}`} strokeWidth={2} />
         </div>
 
         {/* Value or placeholder */}
         {label ? (
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-bold" style={{ color: T_WHITE }}>{label.date}</p>
-              <p className="text-[11px]" style={{ color: T_MUTED }}>{label.weekday}</p>
+              <p className="truncate text-[13px] font-bold text-gray-900 dark:text-white">{label.date}</p>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400">{label.weekday}</p>
             </div>
             <div
-              className="shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-black"
-              style={{ background: "rgba(99,102,241,0.15)", color: "#a5b4fc", border: `1px solid rgba(99,102,241,0.25)` }}
+              className="shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-black bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-700"
             >
               {label.time}
             </div>
           </div>
         ) : (
-          <span className="flex-1 text-left text-[13px]" style={{ color: T_HINT }}>{placeholder}</span>
+          <span className="flex-1 text-left text-[13px] text-gray-400 dark:text-gray-500">{placeholder}</span>
         )}
 
         {/* Clear / chevron */}
@@ -504,16 +502,15 @@ export default function DateTimePicker({
             tabIndex={0}
             onClick={clear}
             onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && clear(e)}
-            className="ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-all hover:bg-red-500/15"
-            style={{ color: T_HINT }}
+            className="ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-all hover:bg-red-500/15 text-gray-400 dark:text-gray-500"
           >
             <X size={11} strokeWidth={2.5} />
           </div>
         ) : (
           <ChevronDown
             size={14}
+            className="text-gray-400 dark:text-gray-500"
             style={{
-              color:     T_HINT,
               transform: open ? "rotate(180deg)" : "rotate(0deg)",
               transition: "transform 0.2s",
             }}

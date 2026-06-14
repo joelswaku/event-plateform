@@ -1,0 +1,336 @@
+# ============================================================================
+# LiteEvent Production Deployment
+# ============================================================================
+# Deploys to production environment from 'main' branch
+# REQUIRES MANUAL APPROVAL before deployment
+# Uses GitHub OIDC for authentication (no AWS access keys needed)
+# ============================================================================
+
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual triggering
+
+env:
+  AWS_REGION: us-east-1
+  ENVIRONMENT: production
+  PROJECT_NAME: liteevent
+
+# GitHub OIDC permissions
+permissions:
+  id-token: write  # Required for OIDC
+  contents: read
+
+jobs:
+  # ========================================
+  # Build and Push Docker Images
+  # ========================================
+  build-and-push:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    # Use GitHub Environment for manual approval
+    environment:
+      name: production
+      url: https://liteevent.com
+
+    outputs:
+      api-image: ${{ steps.set-outputs.outputs.api-image }}
+      web-image: ${{ steps.set-outputs.outputs.web-image }}
+      vendors-image: ${{ steps.set-outputs.outputs.vendors-image }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/liteevent-production-github-actions
+          role-session-name: GitHub-Actions-Production
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API image
+        id: build-api
+        uses: docker/build-push-action@v5
+        with:
+          context: ./api
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/liteevent-production-api:latest
+            ${{ steps.login-ecr.outputs.registry }}/liteevent-production-api:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/liteevent-production-api:v${{ github.run_number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NODE_ENV=production
+
+      - name: Build Web image
+        id: build-web
+        uses: docker/build-push-action@v5
+        with:
+          context: ./web
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/liteevent-production-web:latest
+            ${{ steps.login-ecr.outputs.registry }}/liteevent-production-web:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/liteevent-production-web:v${{ github.run_number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NODE_ENV=production
+            NEXT_PUBLIC_API_URL=${{ secrets.PRODUCTION_API_URL }}
+            NEXT_PUBLIC_STRIPE_KEY=${{ secrets.PRODUCTION_STRIPE_PUBLISHABLE_KEY }}
+
+      - name: Build Vendors image
+        id: build-vendors
+        uses: docker/build-push-action@v5
+        with:
+          context: ./vendors
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/liteevent-production-vendors:latest
+            ${{ steps.login-ecr.outputs.registry }}/liteevent-production-vendors:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/liteevent-production-vendors:v${{ github.run_number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NODE_ENV=production
+            NEXT_PUBLIC_API_URL=${{ secrets.PRODUCTION_API_URL }}
+
+      - name: Set outputs
+        id: set-outputs
+        run: |
+          echo "api-image=${{ steps.login-ecr.outputs.registry }}/liteevent-production-api:${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "web-image=${{ steps.login-ecr.outputs.registry }}/liteevent-production-web:${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "vendors-image=${{ steps.login-ecr.outputs.registry }}/liteevent-production-vendors:${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Log deployment info
+        run: |
+          echo "🚀 Production deployment initiated"
+          echo "Commit: ${{ github.sha }}"
+          echo "Author: ${{ github.actor }}"
+          echo "Message: ${{ github.event.head_commit.message }}"
+
+  # ========================================
+  # Deploy to ECS (Sequential, one at a time)
+  # ========================================
+  deploy:
+    name: Deploy to ECS
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/liteevent-production-github-actions
+          role-session-name: GitHub-Actions-Production-Deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy API service
+        run: |
+          echo "Deploying API service..."
+          aws ecs update-service \
+            --cluster liteevent-production-cluster \
+            --service liteevent-production-api-service \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+
+          echo "Waiting for API service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster liteevent-production-cluster \
+            --services liteevent-production-api-service \
+            --region ${{ env.AWS_REGION }}
+
+          echo "✅ API deployed successfully"
+
+      - name: Health check API
+        run: |
+          echo "Checking API health..."
+          sleep 30
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://api.liteevent.com/health || echo "000")
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ API health check failed! HTTP $HTTP_CODE"
+            exit 1
+          fi
+          echo "✅ API is healthy"
+
+      - name: Deploy Web service
+        run: |
+          echo "Deploying Web service..."
+          aws ecs update-service \
+            --cluster liteevent-production-cluster \
+            --service liteevent-production-web-service \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+
+          echo "Waiting for Web service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster liteevent-production-cluster \
+            --services liteevent-production-web-service \
+            --region ${{ env.AWS_REGION }}
+
+          echo "✅ Web deployed successfully"
+
+      - name: Deploy Vendors service
+        run: |
+          echo "Deploying Vendors service..."
+          aws ecs update-service \
+            --cluster liteevent-production-cluster \
+            --service liteevent-production-vendors-service \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+
+          echo "Waiting for Vendors service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster liteevent-production-cluster \
+            --services liteevent-production-vendors-service \
+            --region ${{ env.AWS_REGION }}
+
+          echo "✅ Vendors deployed successfully"
+
+      - name: Final health check
+        run: |
+          echo "Running final health checks..."
+
+          # Check main website
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://liteevent.com || echo "000")
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "⚠️  Main website returned HTTP $HTTP_CODE"
+          else
+            echo "✅ Main website is healthy"
+          fi
+
+          # Check vendors portal
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://vendors.liteevent.com || echo "000")
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "⚠️  Vendors portal returned HTTP $HTTP_CODE"
+          else
+            echo "✅ Vendors portal is healthy"
+          fi
+
+  # ========================================
+  # Run Database Migrations (Manual trigger)
+  # ========================================
+  migrate:
+    name: Run Migrations
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: contains(github.event.head_commit.message, '[migrate]')
+
+    steps:
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/liteevent-production-github-actions
+          role-session-name: GitHub-Actions-Production-Migrate
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run database migrations
+        run: |
+          echo "🔄 Running database migrations..."
+
+          # Get the running task ARN
+          TASK_ARN=$(aws ecs list-tasks \
+            --cluster liteevent-production-cluster \
+            --service-name liteevent-production-api-service \
+            --desired-status RUNNING \
+            --region ${{ env.AWS_REGION }} \
+            --query 'taskArns[0]' \
+            --output text)
+
+          echo "Task ARN: $TASK_ARN"
+
+          # Execute migrations via ECS Exec
+          aws ecs execute-command \
+            --cluster liteevent-production-cluster \
+            --task $TASK_ARN \
+            --container api \
+            --interactive \
+            --command "npm run migrate" \
+            --region ${{ env.AWS_REGION }}
+
+          echo "✅ Migrations completed"
+
+  # ========================================
+  # Create GitHub Release
+  # ========================================
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Production Release v${{ github.run_number }}
+          body: |
+            ## Deployed to Production
+
+            **Commit:** ${{ github.sha }}
+            **Author:** ${{ github.actor }}
+            **Date:** ${{ github.event.head_commit.timestamp }}
+
+            ### Changes
+            ${{ github.event.head_commit.message }}
+
+            ### Docker Images
+            - API: `liteevent-production-api:${{ github.sha }}`
+            - Web: `liteevent-production-web:${{ github.sha }}`
+            - Vendors: `liteevent-production-vendors:${{ github.sha }}`
+
+          draft: false
+          prerelease: false
+
+  # ========================================
+  # Notify Deployment Status
+  # ========================================
+  notify:
+    name: Notify Status
+    runs-on: ubuntu-latest
+    needs: [build-and-push, deploy]
+    if: always()
+
+    steps:
+      - name: Deployment Success
+        if: ${{ needs.deploy.result == 'success' }}
+        run: |
+          echo "🎉 PRODUCTION DEPLOYMENT SUCCESSFUL!"
+          echo ""
+          echo "📦 Images deployed:"
+          echo "  - API: ${{ needs.build-and-push.outputs.api-image }}"
+          echo "  - Web: ${{ needs.build-and-push.outputs.web-image }}"
+          echo "  - Vendors: ${{ needs.build-and-push.outputs.vendors-image }}"
+          echo ""
+          echo "🌐 Live URLs:"
+          echo "  - https://liteevent.com"
+          echo "  - https://vendors.liteevent.com"
+          echo "  - https://api.liteevent.com"
+
+      - name: Deployment Failure
+        if: ${{ needs.deploy.result == 'failure' }}
+        run: |
+          echo "❌ PRODUCTION DEPLOYMENT FAILED!"
+          echo "Check the logs above for details."
+          exit 1

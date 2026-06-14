@@ -36,6 +36,26 @@ const SLIDES = [
   },
   {
     id:       '3',
+    image:    'https://images.unsplash.com/photo-1511578314322-379afb476865?w=900&q=80',
+    eyebrow:  'TICKET SALES',
+    title:    'Sell More\nTickets Faster',
+    body:     'Flexible pricing tiers, early bird deals, and smooth checkout — maximize revenue with zero hassle.',
+    accent:   '#f59e0b',
+    grad:     ['#3a2008', '#0a0a0a'] as const,
+    icon:     'credit-card' as const,
+  },
+  {
+    id:       '4',
+    image:    'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=900&q=80',
+    eyebrow:  'REAL-TIME INSIGHTS',
+    title:    'Track Every\nMoment',
+    body:     'Live analytics, sales tracking, and attendance reports — stay informed and make data-driven decisions.',
+    accent:   '#8b5cf6',
+    grad:     ['#2a0a4a', '#0a0a0a'] as const,
+    icon:     'trending-up' as const,
+  },
+  {
+    id:       '5',
     image:    'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=900&q=80',
     eyebrow:  'YOUR PLATFORM',
     title:    'Plan. Sell.\nCelebrate.',
@@ -49,12 +69,13 @@ const SLIDES = [
 /* ── Slide component ────────────────────────────────────────────── */
 function Slide({ item }: { item: typeof SLIDES[0] }) {
   return (
-    <View style={{ width: W, height: H }}>
+    <View style={{ width: W, height: H, overflow: 'hidden' }}>
       {/* Full-bleed background image */}
       <ImageBackground
         source={{ uri: item.image }}
         style={StyleSheet.absoluteFill}
         resizeMode="cover"
+        key={item.id}
       />
       {/* Heavy dark gradient overlay — image visible at top, darkens to solid at bottom */}
       <LinearGradient
@@ -104,6 +125,11 @@ export default function WelcomeScreen() {
     setActive(Math.max(0, Math.min(SLIDES.length - 1, idx)));
   }, []);
 
+  const onMomentumScrollEnd = useCallback((e: any) => {
+    const idx = Math.round(e.nativeEvent.contentOffset.x / W);
+    setActive(Math.max(0, Math.min(SLIDES.length - 1, idx)));
+  }, []);
+
   const goNext = () => {
     if (active < SLIDES.length - 1) {
       listRef.current?.scrollToIndex({ index: active + 1, animated: true });
@@ -118,22 +144,31 @@ export default function WelcomeScreen() {
       <FlatList
         ref={listRef}
         data={SLIDES}
-        keyExtractor={i => i.id}
+        keyExtractor={(item) => item.id}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={onScroll}
+        onMomentumScrollEnd={onMomentumScrollEnd}
         renderItem={({ item }) => <Slide item={item} />}
         style={StyleSheet.absoluteFill}
         getItemLayout={(_, index) => ({ length: W, offset: W * index, index })}
+        removeClippedSubviews={false}
+        initialNumToRender={5}
+        maxToRenderPerBatch={5}
+        windowSize={5}
+        decelerationRate="fast"
+        snapToInterval={W}
+        snapToAlignment="center"
+        bounces={false}
       />
 
       {/* ── Content overlay (fixed, not scrolling) ── */}
-      <SafeAreaView style={s.overlay} edges={['top', 'bottom']}>
+      <SafeAreaView style={s.overlay} edges={['top', 'bottom']} pointerEvents="box-none">
 
         {/* Logo / brand mark */}
-        <View style={[s.logoWrap, { marginTop: insets.top > 0 ? 0 : 12 }]}>
+        <View style={[s.logoWrap, { marginTop: insets.top > 0 ? 0 : 12 }]} pointerEvents="none">
           <LinearGradient
             colors={[current.accent, current.accent + 'aa']}
             style={s.logoCircle}
@@ -145,10 +180,10 @@ export default function WelcomeScreen() {
         </View>
 
         {/* Spacer — pushes content to bottom */}
-        <View style={{ flex: 1 }} />
+        <View style={{ flex: 1 }} pointerEvents="box-none" />
 
         {/* Text content */}
-        <View style={s.textBlock}>
+        <View style={s.textBlock} pointerEvents="none">
           <View style={[s.eyebrowPill, { borderColor: current.accent + '50', backgroundColor: current.accent + '18' }]}>
             <Feather name={current.icon} size={10} color={current.accent} />
             <Text style={[s.eyebrow, { color: current.accent }]}>{current.eyebrow}</Text>
@@ -159,14 +194,17 @@ export default function WelcomeScreen() {
         </View>
 
         {/* Dots */}
-        <Dots count={SLIDES.length} active={active} accent={current.accent} />
+        <View pointerEvents="none">
+          <Dots count={SLIDES.length} active={active} accent={current.accent} />
+        </View>
 
         {/* CTA buttons */}
-        <View style={[s.ctaBlock, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+        <View style={[s.ctaBlock, { paddingBottom: Math.max(insets.bottom, 20) }]} pointerEvents="box-none">
           {/* Primary: sign up */}
           <Pressable
             style={({ pressed }) => [s.signupBtn, { opacity: pressed ? 0.88 : 1 }]}
             onPress={() => router.push('/(auth)/register')}
+            pointerEvents="auto"
           >
             <LinearGradient
               colors={[current.accent, current.accent + 'cc']}
@@ -182,6 +220,7 @@ export default function WelcomeScreen() {
           <Pressable
             style={({ pressed }) => [s.loginBtn, { opacity: pressed ? 0.75 : 1 }]}
             onPress={() => router.push('/(auth)/login')}
+            pointerEvents="auto"
           >
             <Text style={s.loginTxt}>
               Already have an account?{' '}

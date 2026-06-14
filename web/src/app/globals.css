@@ -8,23 +8,45 @@
   --background: #f9fafb;
   --foreground: #111827;
   --card:        #ffffff;
-  --border:      #e2e8f0;
+  --border:      #e5e7eb;
+  --border-strong: #d1d5db;
   --muted:       #6b7280;
 
   /* Dashboard surface hierarchy */
   --bg-base:      #f8fafc;
   --bg-surface:   #ffffff;
   --bg-elevated:  #f1f5f9;
+  --bg-subtle:    #f9fafb;
   --border-hover: #cbd5e1;
 
   /* Dashboard text */
   --text-primary:   #0f172a;
-  --text-secondary: #334155;
+  --text-secondary: #475569;
   --text-muted:     #94a3b8;
+  --text-hint:      #cbd5e1;
 
   /* Accent */
   --accent:        #6366f1;
+  --accent-hover:  #4f46e5;
+  --accent-light:  #818cf8;
   --accent-purple: #a78bfa;
+
+  /* Status colors - Light mode optimized */
+  --success-bg:    rgba(16, 185, 129, 0.1);
+  --success-text:  #059669;
+  --success-border: rgba(16, 185, 129, 0.3);
+
+  --warning-bg:    rgba(245, 158, 11, 0.1);
+  --warning-text:  #d97706;
+  --warning-border: rgba(245, 158, 11, 0.3);
+
+  --error-bg:      rgba(239, 68, 68, 0.1);
+  --error-text:    #dc2626;
+  --error-border:  rgba(239, 68, 68, 0.3);
+
+  --info-bg:       rgba(99, 102, 241, 0.1);
+  --info-text:     #4f46e5;
+  --info-border:   rgba(99, 102, 241, 0.3);
 
   /* Sidebar — always dark for visual contrast */
   --sidebar-bg:     #0f172a;
@@ -39,6 +61,12 @@
   --svg-label:            rgba(0,0,0,0.45);
   --svg-text-secondary:   rgba(0,0,0,0.25);
   --svg-text-placeholder: rgba(0,0,0,0.30);
+
+  /* Shadow system */
+  --shadow-sm:  0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md:  0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg:  0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl:  0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
 .dark {
@@ -46,22 +74,44 @@
   --foreground: #f9fafb;
   --card:        #0f172a;
   --border:      #1e293b;
+  --border-strong: #334155;
   --muted:       #9ca3af;
 
   /* Dashboard surface hierarchy */
   --bg-base:      #020817;
   --bg-surface:   #0f172a;
   --bg-elevated:  #1e293b;
+  --bg-subtle:    #0a0e1a;
   --border-hover: #334155;
 
   /* Dashboard text */
   --text-primary:   #f8fafc;
-  --text-secondary: #e2e8f0;
+  --text-secondary: #cbd5e1;
   --text-muted:     #64748b;
+  --text-hint:      #475569;
 
-  /* Accent (unchanged) */
+  /* Accent */
   --accent:        #6366f1;
+  --accent-hover:  #818cf8;
+  --accent-light:  #a5b4fc;
   --accent-purple: #a78bfa;
+
+  /* Status colors - Dark mode */
+  --success-bg:    rgba(16, 185, 129, 0.15);
+  --success-text:  #10b981;
+  --success-border: rgba(16, 185, 129, 0.3);
+
+  --warning-bg:    rgba(245, 158, 11, 0.15);
+  --warning-text:  #f59e0b;
+  --warning-border: rgba(245, 158, 11, 0.3);
+
+  --error-bg:      rgba(239, 68, 68, 0.15);
+  --error-text:    #ef4444;
+  --error-border:  rgba(239, 68, 68, 0.3);
+
+  --info-bg:       rgba(99, 102, 241, 0.15);
+  --info-text:     #818cf8;
+  --info-border:   rgba(99, 102, 241, 0.3);
 
   /* Sidebar in dark mode — slightly deeper */
   --sidebar-bg:     #020817;
@@ -75,6 +125,12 @@
   --svg-label:            rgba(255,255,255,0.22);
   --svg-text-secondary:   rgba(255,255,255,0.12);
   --svg-text-placeholder: rgba(255,255,255,0.18);
+
+  /* Shadow system */
+  --shadow-sm:  0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md:  0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg:  0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+  --shadow-xl:  0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.5);
 }
 
 @theme inline {
@@ -116,3 +172,56 @@ body {
   to   { transform: translateY(0);    opacity: 1;   }
 }
 .slide-up { animation: slideUp 0.26s cubic-bezier(0.32,0.72,0,1) both; }
+
+/* ── Light mode utility classes ─────────────────────────────── */
+.card-light {
+  @apply bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl;
+}
+
+.card-elevated {
+  @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm;
+}
+
+.input-light {
+  @apply w-full rounded-xl border-2 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3.5 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-indigo-500 dark:focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900 transition;
+}
+
+.btn-primary {
+  @apply rounded-xl px-4 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900;
+}
+
+.btn-secondary {
+  @apply rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 transition-colors;
+}
+
+.text-primary {
+  @apply text-gray-900 dark:text-white;
+}
+
+.text-secondary {
+  @apply text-gray-600 dark:text-gray-300;
+}
+
+.text-muted {
+  @apply text-gray-500 dark:text-gray-400;
+}
+
+.text-hint {
+  @apply text-gray-400 dark:text-gray-500;
+}
+
+.status-success {
+  @apply bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800;
+}
+
+.status-warning {
+  @apply bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800;
+}
+
+.status-error {
+  @apply bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800;
+}
+
+.status-info {
+  @apply bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800;
+}

@@ -28,6 +28,7 @@ import superAdminRoutes from "./superAdmin.routes.js";
 import vendorsRoutes from "./vendors.routes.js";
 import organizersRoutes from "./organizers.routes.js";
 import chatRoutes from "./chat.routes.js";
+import platformStatsRoutes from "./platform-stats.routes.js";
 
 const router = Router();
 
@@ -36,6 +37,7 @@ router.use("/auth", authRoutes);
 router.use("/public", publicTicketsRoutes);
 router.use("/public", guestPublicRoutes);
 router.use("/team",  teamPublicRoutes);
+router.use("/platform-stats", platformStatsRoutes);
 
 // 🔐 CORE FEATURES
 router.use("/events", eventsRoutes);

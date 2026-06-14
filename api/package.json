@@ -1,7 +1,7 @@
 {
-    "name": "event-platform-api",
+    "name": "liteevent-api",
     "version": "1.0.0",
-    "description": "Event Creation Platform Backend (Events, Guests, QR Check-in, Vendors, Tickets)",
+    "description": "LiteEvent - Event Management Platform API (Events, Guests, QR Check-in, Vendors, Tickets)",
     "main": "server.js",
     "type": "module",
     "author": "Joel Makila",

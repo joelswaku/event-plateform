@@ -1,0 +1,228 @@
+# ============================================================================
+# LiteEvent Staging Deployment
+# ============================================================================
+# Auto-deploys to staging environment when code is pushed to 'develop' branch
+# Uses GitHub OIDC for authentication (no AWS access keys needed)
+# ============================================================================
+
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:  # Allow manual triggering
+
+env:
+  AWS_REGION: us-east-1
+  ENVIRONMENT: staging
+  PROJECT_NAME: liteevent
+
+# GitHub OIDC permissions
+permissions:
+  id-token: write  # Required for OIDC
+  contents: read
+
+jobs:
+  # ========================================
+  # Build and Push Docker Images
+  # ========================================
+  build-and-push:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    outputs:
+      api-image: ${{ steps.set-outputs.outputs.api-image }}
+      web-image: ${{ steps.set-outputs.outputs.web-image }}
+      vendors-image: ${{ steps.set-outputs.outputs.vendors-image }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/liteevent-staging-github-actions
+          role-session-name: GitHub-Actions-Staging
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API image
+        id: build-api
+        uses: docker/build-push-action@v5
+        with:
+          context: ./api
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/liteevent-staging-api:latest
+            ${{ steps.login-ecr.outputs.registry }}/liteevent-staging-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Web image
+        id: build-web
+        uses: docker/build-push-action@v5
+        with:
+          context: ./web
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/liteevent-staging-web:latest
+            ${{ steps.login-ecr.outputs.registry }}/liteevent-staging-web:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ secrets.STAGING_API_URL }}
+            NEXT_PUBLIC_STRIPE_KEY=${{ secrets.STAGING_STRIPE_PUBLISHABLE_KEY }}
+
+      - name: Build Vendors image
+        id: build-vendors
+        uses: docker/build-push-action@v5
+        with:
+          context: ./vendors
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/liteevent-staging-vendors:latest
+            ${{ steps.login-ecr.outputs.registry }}/liteevent-staging-vendors:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ secrets.STAGING_API_URL }}
+
+      - name: Set outputs
+        id: set-outputs
+        run: |
+          echo "api-image=${{ steps.login-ecr.outputs.registry }}/liteevent-staging-api:${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "web-image=${{ steps.login-ecr.outputs.registry }}/liteevent-staging-web:${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "vendors-image=${{ steps.login-ecr.outputs.registry }}/liteevent-staging-vendors:${{ github.sha }}" >> $GITHUB_OUTPUT
+
+  # ========================================
+  # Deploy to ECS
+  # ========================================
+  deploy:
+    name: Deploy to ECS
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/liteevent-staging-github-actions
+          role-session-name: GitHub-Actions-Staging-Deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy API service
+        run: |
+          aws ecs update-service \
+            --cluster liteevent-staging-cluster \
+            --service liteevent-staging-api-service \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Deploy Web service
+        run: |
+          aws ecs update-service \
+            --cluster liteevent-staging-cluster \
+            --service liteevent-staging-web-service \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Deploy Vendors service
+        run: |
+          aws ecs update-service \
+            --cluster liteevent-staging-cluster \
+            --service liteevent-staging-vendors-service \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Wait for services to stabilize
+        run: |
+          echo "Waiting for API service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster liteevent-staging-cluster \
+            --services liteevent-staging-api-service \
+            --region ${{ env.AWS_REGION }}
+
+          echo "Waiting for Web service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster liteevent-staging-cluster \
+            --services liteevent-staging-web-service \
+            --region ${{ env.AWS_REGION }}
+
+          echo "Waiting for Vendors service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster liteevent-staging-cluster \
+            --services liteevent-staging-vendors-service \
+            --region ${{ env.AWS_REGION }}
+
+  # ========================================
+  # Run Database Migrations (Optional)
+  # ========================================
+  migrate:
+    name: Run Migrations
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: contains(github.event.head_commit.message, '[migrate]')
+
+    steps:
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/liteevent-staging-github-actions
+          role-session-name: GitHub-Actions-Staging-Migrate
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run database migrations
+        run: |
+          # Get the running task ARN
+          TASK_ARN=$(aws ecs list-tasks \
+            --cluster liteevent-staging-cluster \
+            --service-name liteevent-staging-api-service \
+            --desired-status RUNNING \
+            --region ${{ env.AWS_REGION }} \
+            --query 'taskArns[0]' \
+            --output text)
+
+          echo "Running migrations on task: $TASK_ARN"
+
+          # Execute migrations via ECS Exec
+          aws ecs execute-command \
+            --cluster liteevent-staging-cluster \
+            --task $TASK_ARN \
+            --container api \
+            --interactive \
+            --command "npm run migrate" \
+            --region ${{ env.AWS_REGION }}
+
+  # ========================================
+  # Notify Deployment Status
+  # ========================================
+  notify:
+    name: Notify Status
+    runs-on: ubuntu-latest
+    needs: [build-and-push, deploy]
+    if: always()
+
+    steps:
+      - name: Deployment Success
+        if: ${{ needs.deploy.result == 'success' }}
+        run: |
+          echo "✅ Staging deployment successful!"
+          echo "API: ${{ needs.build-and-push.outputs.api-image }}"
+          echo "Web: ${{ needs.build-and-push.outputs.web-image }}"
+          echo "Vendors: ${{ needs.build-and-push.outputs.vendors-image }}"
+
+      - name: Deployment Failure
+        if: ${{ needs.deploy.result == 'failure' }}
+        run: |
+          echo "❌ Staging deployment failed!"
+          exit 1
