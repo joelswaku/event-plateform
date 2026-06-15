@@ -48,7 +48,7 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/liteevent-production-github-actions
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/liteevent-production-github-actions-role
           role-session-name: GitHub-Actions-Production
           aws-region: ${{ env.AWS_REGION }}
 
@@ -136,7 +136,7 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/liteevent-production-github-actions
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/liteevent-production-github-actions-role
           role-session-name: GitHub-Actions-Production-Deploy
           aws-region: ${{ env.AWS_REGION }}
 
@@ -235,7 +235,7 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/liteevent-production-github-actions
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/liteevent-production-github-actions-role
           role-session-name: GitHub-Actions-Production-Migrate
           aws-region: ${{ env.AWS_REGION }}
 
