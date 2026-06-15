@@ -22,7 +22,8 @@ resource "aws_secretsmanager_secret_version" "database" {
     host     = var.db_host
     port     = var.db_port
     dbname   = var.db_name
-    url      = "postgresql://${var.db_username}:${var.db_password}@${var.db_host}:${var.db_port}/${var.db_name}"
+    # URL-encode the password to handle special characters like + and =
+    url      = "postgresql://${var.db_username}:${urlencode(var.db_password)}@${var.db_host}:${var.db_port}/${var.db_name}"
   })
 }
 
