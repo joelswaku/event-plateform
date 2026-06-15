@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Standalone output for Docker deployment
+  output: 'standalone',
+
   // Allow any local network device (mobile app, emulator, other machines on LAN)
   // to hit the dev server without triggering the "allowedDevOrigins" warning.
   allowedDevOrigins: ["192.168.0.63"],
