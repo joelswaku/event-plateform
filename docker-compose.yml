@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: eventplatform
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: Liteeventswamaa
     ports:
       - "5432:5432"
     volumes:
@@ -47,7 +47,7 @@ services:
     environment:
       NODE_ENV: development
       PORT: 5000
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/eventplatform
+      DATABASE_URL: postgresql://postgres:Liteeventswamaa@postgres:5432/eventplatform
       REDIS_URL: redis://redis:6379
       JWT_SECRET: dev_jwt_secret_change_in_production
       JWT_REFRESH_SECRET: dev_jwt_refresh_secret_change_in_production
