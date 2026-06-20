@@ -8,8 +8,8 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json* ./
 
-# Install dependencies
-RUN npm ci --only=production && \
+# Install ALL dependencies (including devDependencies for migrations)
+RUN npm ci && \
     npm cache clean --force
 
 # Development stage (optional, for local testing)
@@ -39,6 +39,9 @@ COPY --from=deps --chown=appuser:nodejs /app/node_modules ./node_modules
 # Copy application code
 COPY --chown=appuser:nodejs . .
 
+# Make start script executable
+RUN chmod +x start.sh
+
 # Switch to non-root user
 USER appuser
 
@@ -49,5 +52,5 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:5000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-# Start the application
-CMD ["node", "server.js"]
+# Start the application (runs migrations first)
+CMD ["./start.sh"]
