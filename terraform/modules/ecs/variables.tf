@@ -91,6 +91,12 @@ variable "resend_secret_arn" {
   type        = string
 }
 
+variable "redis_secret_arn" {
+  description = "ARN of the Redis secret in Secrets Manager (optional)"
+  type        = string
+  default     = ""
+}
+
 variable "secret_arns" {
   description = "List of all secret ARNs for IAM policy"
   type        = list(string)
