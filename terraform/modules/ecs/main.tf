@@ -288,7 +288,7 @@ resource "aws_ecs_task_definition" "api" {
       ]
 
       # Secrets from AWS Secrets Manager
-      secrets = [
+      secrets = concat([
         {
           name      = "DATABASE_URL"
           valueFrom = "${var.database_secret_arn}:url::"
@@ -310,11 +310,12 @@ resource "aws_ecs_task_definition" "api" {
           valueFrom = "${var.google_oauth_secret_arn}:client_secret::"
         }
         # RESEND_API_KEY removed - using SES instead
-        # {
-        #   name      = "RESEND_API_KEY"
-        #   valueFrom = "${var.resend_secret_arn}:api_key::"
-        # }
-      ]
+      ], var.redis_secret_arn != "" ? [
+        {
+          name      = "REDIS_URL"
+          valueFrom = "${var.redis_secret_arn}:url::"
+        }
+      ] : [])
 
       logConfiguration = {
         logDriver = "awslogs"

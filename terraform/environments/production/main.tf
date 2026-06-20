@@ -305,6 +305,7 @@ module "ecs" {
   stripe_secret_arn       = module.secrets.stripe_secret_arn
   google_oauth_secret_arn = module.secrets.google_oauth_secret_arn
   resend_secret_arn       = ""  # Using SES instead of Resend
+  redis_secret_arn        = module.secrets.redis_secret_arn
   secret_arns             = module.secrets.all_secret_arns
 
   # ECR repositories
