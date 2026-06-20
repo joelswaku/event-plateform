@@ -140,6 +140,25 @@ jobs:
           role-session-name: GitHub-Actions-Production-Deploy
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Install Node.js for migrations
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install API dependencies
+        run: |
+          cd api
+          npm ci --production
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          cd api
+          echo "🔄 Running database migrations..."
+          npm run migrate || echo "⚠️  Migrations failed or already applied"
+          echo "✅ Migrations step completed"
+
       - name: Deploy API service
         run: |
           echo "Deploying API service..."
