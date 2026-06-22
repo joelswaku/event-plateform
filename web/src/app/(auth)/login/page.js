@@ -149,13 +149,18 @@ function LoginForm() {
         </button>
       </form>
 
-      <div className="flex items-center gap-3 my-6">
-        <div className="h-px flex-1 bg-white/8" />
-        <span className="text-gray-600 text-xs font-medium uppercase tracking-wider">or</span>
-        <div className="h-px flex-1 bg-white/8" />
-      </div>
+      {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID &&
+       process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID_HERE' && (
+        <>
+          <div className="flex items-center gap-3 my-6">
+            <div className="h-px flex-1 bg-white/8" />
+            <span className="text-gray-600 text-xs font-medium uppercase tracking-wider">or</span>
+            <div className="h-px flex-1 bg-white/8" />
+          </div>
 
-      <GoogleLoginButton redirectTo={redirectTo} />
+          <GoogleLoginButton redirectTo={redirectTo} />
+        </>
+      )}
 
       <p className="text-center text-sm text-gray-500 mt-6">
         Don&apos;t have an account?{" "}

@@ -124,13 +124,18 @@ function RegisterForm() {
         <p className="text-gray-500 text-sm mt-1">Join thousands of event organizers</p>
       </div>
 
-      <GoogleLoginButton />
+      {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID &&
+       process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID_HERE' && (
+        <>
+          <GoogleLoginButton />
 
-      <div className="flex items-center gap-3 my-6">
-        <div className="h-px flex-1 bg-white/8" />
-        <span className="text-gray-600 text-xs font-medium uppercase tracking-wider">or</span>
-        <div className="h-px flex-1 bg-white/8" />
-      </div>
+          <div className="flex items-center gap-3 my-6">
+            <div className="h-px flex-1 bg-white/8" />
+            <span className="text-gray-600 text-xs font-medium uppercase tracking-wider">or</span>
+            <div className="h-px flex-1 bg-white/8" />
+          </div>
+        </>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-5" noValidate>
         <Field label="Full Name" id="full_name" error={errors.full_name} touched={touched.full_name}>

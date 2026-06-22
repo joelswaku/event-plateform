@@ -54,12 +54,12 @@ export const shorthands = undefined;
 
 export const up = (pgm) => {
   pgm.sql(`
-    ALTER TABLE issued_tickets
+    ALTER TABLE tickets
       ADD COLUMN IF NOT EXISTS ticket_number VARCHAR(20);
 
     CREATE SEQUENCE IF NOT EXISTS ticket_number_seq START 1000;
 
-    UPDATE issued_tickets
+    UPDATE tickets
       SET ticket_number = 'TKT-' || LPAD(nextval('ticket_number_seq')::text, 6, '0')
     WHERE ticket_number IS NULL;
 
@@ -73,18 +73,18 @@ export const up = (pgm) => {
     END;
     $$ LANGUAGE plpgsql;
 
-    DROP TRIGGER IF EXISTS trg_assign_ticket_number ON issued_tickets;
+    DROP TRIGGER IF EXISTS trg_assign_ticket_number ON tickets;
     CREATE TRIGGER trg_assign_ticket_number
-      BEFORE INSERT ON issued_tickets
+      BEFORE INSERT ON tickets
       FOR EACH ROW EXECUTE FUNCTION assign_ticket_number();
   `);
 };
 
 export const down = (pgm) => {
   pgm.sql(`
-    DROP TRIGGER IF EXISTS trg_assign_ticket_number ON issued_tickets;
+    DROP TRIGGER IF EXISTS trg_assign_ticket_number ON tickets;
     DROP FUNCTION IF EXISTS assign_ticket_number();
-    ALTER TABLE issued_tickets DROP COLUMN IF EXISTS ticket_number;
+    ALTER TABLE tickets DROP COLUMN IF EXISTS ticket_number;
     DROP SEQUENCE IF EXISTS ticket_number_seq;
   `);
 };
