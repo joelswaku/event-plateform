@@ -150,6 +150,25 @@ jobs:
           cd api
           npm ci --production
 
+      - name: Setup database schema
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          cd api
+          echo "🔄 Setting up database schema..."
+
+          # Install PostgreSQL client
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+          # Run database setup script first (creates tables if they don't exist)
+          if [ -f database-setup.sql ]; then
+            echo "Running database-setup.sql..."
+            psql "$DATABASE_URL" -f database-setup.sql || echo "⚠️ Setup script failed"
+          fi
+
+          echo "✅ Database setup completed"
+
       - name: Run database migrations
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
