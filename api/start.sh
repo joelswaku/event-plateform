@@ -1,13 +1,11 @@
 #!/bin/sh
-set -e
 
-echo "🔄 Setting up database schema..."
-node setup-db-task.js || echo "⚠️  Schema already exists or setup skipped"
-
-echo ""
 echo "🔄 Running database migrations..."
+# Clear any stuck migration locks
+npm run migrate unlock 2>/dev/null || true
+# Run migrations
 npm run migrate || {
-  echo "⚠️  Migrations failed or already applied - continuing..."
+  echo "⚠️  Migrations failed or already applied - continuing to start server..."
 }
 
 echo ""
