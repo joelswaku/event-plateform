@@ -144,6 +144,7 @@ module "alb" {
   vpc_id             = module.vpc.vpc_id
   public_subnet_ids  = module.vpc.public_subnet_ids
   certificate_arn    = var.acm_certificate_arn
+  domain_name        = var.domain_name
 }
 
 # ========================================
