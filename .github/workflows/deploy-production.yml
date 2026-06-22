@@ -161,10 +161,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
-          # Run database setup script first (creates tables if they don't exist)
-          if [ -f database-setup.sql ]; then
-            echo "Running database-setup.sql..."
-            psql "$DATABASE_URL" -f database-setup.sql || echo "⚠️ Setup script failed"
+          # Run complete schema setup (creates all tables if they don't exist)
+          if [ -f complete-schema.sql ]; then
+            echo "Running complete-schema.sql..."
+            psql "$DATABASE_URL" -f complete-schema.sql 2>&1 | grep -v "already exists" || true
           fi
 
           echo "✅ Database setup completed"
