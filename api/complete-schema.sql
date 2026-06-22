@@ -1,16 +1,16 @@
+time="2026-06-21T21:53:49-06:00" level=warning msg="C:\\projects\\event-plateform\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
 --
 -- PostgreSQL database dump
 --
 
-\restrict GGTBgX7o7oyxNt0XNyQ7hpWYVhKCtVD5zI5GUzgE44n3ivGjqbjz591hLfJf25X
+\restrict pW9ExeiLQk0IeVJfIQjGYt7eWetKUO5CCjRcZUsYvHV02OfUZ8MuAbYjPcKcqGD
 
--- Dumped from database version 18.1
--- Dumped by pg_dump version 18.1
+-- Dumped from database version 16.14
+-- Dumped by pg_dump version 16.14
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
-SET transaction_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 SELECT pg_catalog.set_config('search_path', '', false);
@@ -18,6 +18,20 @@ SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
+
+--
+-- Name: public; Type: SCHEMA; Schema: -; Owner: -
+--
+
+-- *not* creating schema, since initdb creates it
+
+
+--
+-- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON SCHEMA public IS '';
+
 
 --
 -- Name: citext; Type: EXTENSION; Schema: -; Owner: -
@@ -1573,10 +1587,10 @@ CREATE TABLE public.planner_notes (
 --
 
 CREATE TABLE public.planner_projects (
-    id uuid DEFAULT gen_random_uuid() CONSTRAINT event_planner_projects_id_not_null NOT NULL,
-    organization_id text CONSTRAINT event_planner_projects_organization_id_not_null NOT NULL,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    organization_id text NOT NULL,
     event_id uuid,
-    title text CONSTRAINT event_planner_projects_title_not_null NOT NULL,
+    title text NOT NULL,
     event_type text,
     event_date date,
     guest_count integer,
@@ -5540,5 +5554,5 @@ ALTER TABLE ONLY public.vendors
 -- PostgreSQL database dump complete
 --
 
-\unrestrict GGTBgX7o7oyxNt0XNyQ7hpWYVhKCtVD5zI5GUzgE44n3ivGjqbjz591hLfJf25X
+\unrestrict pW9ExeiLQk0IeVJfIQjGYt7eWetKUO5CCjRcZUsYvHV02OfUZ8MuAbYjPcKcqGD
 
