@@ -1,11 +1,11 @@
 export async function up(pgm) {
   pgm.sql(`
+    -- Create vendors table if it doesn't exist
     CREATE TABLE IF NOT EXISTS vendors (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       organization_id UUID REFERENCES organizations(id),
       user_id UUID REFERENCES users(id),
       business_name VARCHAR(255) NOT NULL,
-      slug VARCHAR(255) UNIQUE NOT NULL,
       category VARCHAR(100) NOT NULL,
       subcategories TEXT[],
       tagline VARCHAR(300),
@@ -39,6 +39,17 @@ export async function up(pgm) {
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
+
+    -- Add slug column if it doesn't exist
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'vendors' AND column_name = 'slug'
+      ) THEN
+        ALTER TABLE vendors ADD COLUMN slug VARCHAR(255) UNIQUE;
+      END IF;
+    END $$;
 
     CREATE INDEX IF NOT EXISTS idx_vendors_category ON vendors(category);
     CREATE INDEX IF NOT EXISTS idx_vendors_slug ON vendors(slug);
