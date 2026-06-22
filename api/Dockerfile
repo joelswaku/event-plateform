@@ -29,6 +29,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=5000
 
+# Install PostgreSQL client for schema setup
+RUN apk add --no-cache postgresql-client
+
 # Create non-root user for security
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 appuser
