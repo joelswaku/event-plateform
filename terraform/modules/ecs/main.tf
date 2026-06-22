@@ -284,7 +284,8 @@ resource "aws_ecs_task_definition" "api" {
         { name = "NODE_ENV", value = "production" },
         { name = "PORT", value = "5000" },
         { name = "AWS_S3_BUCKET", value = var.images_bucket_name },
-        { name = "AWS_REGION", value = data.aws_region.current.name }
+        { name = "AWS_REGION", value = data.aws_region.current.name },
+        { name = "CORS_ORIGIN", value = "https://liteevent.com,https://vendors.liteevent.com,https://api.liteevent.com" }
       ]
 
       # Secrets from AWS Secrets Manager
