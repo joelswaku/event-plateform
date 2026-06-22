@@ -426,7 +426,8 @@ resource "aws_ecs_task_definition" "web" {
 
       environment = [
         { name = "NODE_ENV", value = "production" },
-        { name = "PORT", value = "3000" }
+        { name = "PORT", value = "3000" },
+        { name = "NEXT_PUBLIC_API_URL", value = "http://liteevent-production-alb-976548681.us-east-1.elb.amazonaws.com" }
       ]
 
       logConfiguration = {
@@ -506,7 +507,8 @@ resource "aws_ecs_task_definition" "vendors" {
 
       environment = [
         { name = "NODE_ENV", value = "production" },
-        { name = "PORT", value = "3001" }
+        { name = "PORT", value = "3001" },
+        { name = "NEXT_PUBLIC_API_URL", value = "http://liteevent-production-alb-976548681.us-east-1.elb.amazonaws.com" }
       ]
 
       logConfiguration = {
