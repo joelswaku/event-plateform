@@ -77,7 +77,7 @@ services:
     environment:
       NODE_ENV: development
       PORT: 3000
-      NEXT_PUBLIC_API_URL: http://localhost:5000
+      NEXT_PUBLIC_API_URL: http://localhost:5000/api
     ports:
       - "3000:3000"
     volumes:
@@ -100,7 +100,7 @@ services:
     environment:
       NODE_ENV: development
       PORT: 3001
-      NEXT_PUBLIC_API_URL: http://localhost:5000
+      NEXT_PUBLIC_API_URL: http://localhost:5000/api
     ports:
       - "3001:3001"
     volumes:

@@ -6,13 +6,19 @@ export const up = (pgm) => {
     -- table. Mobile devices generate a UUID locally (never registered in that table),
     -- so every scan insert was failing with a FK violation.
     -- Drop the constraint and keep device_id as a plain informational text column.
-    ALTER TABLE ticket_scans
-      DROP CONSTRAINT IF EXISTS ticket_scans_device_id_fkey,
-      DROP CONSTRAINT IF EXISTS ticket_scans_device_id_key;
+    -- Only run if ticket_scans table exists
+    DO $$
+    BEGIN
+      IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'ticket_scans') THEN
+        ALTER TABLE ticket_scans
+          DROP CONSTRAINT IF EXISTS ticket_scans_device_id_fkey,
+          DROP CONSTRAINT IF EXISTS ticket_scans_device_id_key;
 
-    -- Ensure the column exists as TEXT in case it was previously typed as a FK UUID
-    ALTER TABLE ticket_scans
-      ALTER COLUMN device_id TYPE TEXT USING device_id::TEXT;
+        -- Ensure the column exists as TEXT in case it was previously typed as a FK UUID
+        ALTER TABLE ticket_scans
+          ALTER COLUMN device_id TYPE TEXT USING device_id::TEXT;
+      END IF;
+    END $$;
   `);
 };
 
