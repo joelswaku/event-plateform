@@ -1,9 +1,9 @@
-time="2026-06-21T21:53:49-06:00" level=warning msg="C:\\projects\\event-plateform\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+time="2026-06-22T14:39:07-06:00" level=warning msg="C:\\projects\\event-plateform\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
 --
 -- PostgreSQL database dump
 --
 
-\restrict pW9ExeiLQk0IeVJfIQjGYt7eWetKUO5CCjRcZUsYvHV02OfUZ8MuAbYjPcKcqGD
+\restrict QcQk5sQ55aPzhdf73DMPDNZ3OFyoOfCNz6gOr6pV9ZXwTQwJhkIB0jlGZ4W80ag
 
 -- Dumped from database version 16.14
 -- Dumped by pg_dump version 16.14
@@ -5554,5 +5554,5 @@ ALTER TABLE ONLY public.vendors
 -- PostgreSQL database dump complete
 --
 
-\unrestrict pW9ExeiLQk0IeVJfIQjGYt7eWetKUO5CCjRcZUsYvHV02OfUZ8MuAbYjPcKcqGD
+\unrestrict QcQk5sQ55aPzhdf73DMPDNZ3OFyoOfCNz6gOr6pV9ZXwTQwJhkIB0jlGZ4W80ag
 
