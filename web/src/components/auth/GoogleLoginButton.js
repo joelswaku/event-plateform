@@ -6,6 +6,12 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth.store";
 
 export default function GoogleLoginButton({ redirectTo = "/dashboard" }) {
+  // Don't render if Google OAuth is not configured
+  if (!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
+      process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID_HERE') {
+    return null;
+  }
+
   const router      = useRouter();
   const googleLogin = useAuthStore((s) => s.googleLogin);
   const [loading, setLoading] = useState(false);

@@ -3,6 +3,15 @@
 
 export async function up(pgm) {
   pgm.sql(`
+    -- Create table if it doesn't exist
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      actor_user_id UUID,
+      action TEXT NOT NULL,
+      entity_type TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
     ALTER TABLE audit_logs
       ADD COLUMN IF NOT EXISTS admin_email  TEXT,
       ADD COLUMN IF NOT EXISTS resource_id  TEXT;
