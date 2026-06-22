@@ -188,7 +188,7 @@ resource "aws_lb_listener_rule" "api_https" {
 
   condition {
     host_header {
-      values = ["api.${var.environment == "production" ? "" : "${var.environment}."}yourdomain.com"]
+      values = ["api.${var.domain_name}"]
     }
   }
 }
@@ -223,7 +223,7 @@ resource "aws_lb_listener_rule" "vendors_https" {
 
   condition {
     host_header {
-      values = ["vendors.${var.environment == "production" ? "" : "${var.environment}."}yourdomain.com"]
+      values = ["vendors.${var.domain_name}"]
     }
   }
 }
