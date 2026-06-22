@@ -40,21 +40,50 @@ export async function up(pgm) {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
 
-    -- Add slug column if it doesn't exist
+    -- Add missing columns if table already exists
     DO $$
     BEGIN
-      IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_name = 'vendors' AND column_name = 'slug'
-      ) THEN
-        ALTER TABLE vendors ADD COLUMN slug VARCHAR(255) UNIQUE;
+      -- Add slug if missing
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'slug') THEN
+        ALTER TABLE vendors ADD COLUMN slug VARCHAR(255);
+      END IF;
+
+      -- Add rating if missing
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'rating') THEN
+        ALTER TABLE vendors ADD COLUMN rating NUMERIC(3,2) DEFAULT 0;
+      END IF;
+
+      -- Add is_active if missing
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'is_active') THEN
+        ALTER TABLE vendors ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+      END IF;
+
+      -- Add is_featured if missing
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'is_featured') THEN
+        ALTER TABLE vendors ADD COLUMN is_featured BOOLEAN DEFAULT FALSE;
       END IF;
     END $$;
 
-    CREATE INDEX IF NOT EXISTS idx_vendors_category ON vendors(category);
-    CREATE INDEX IF NOT EXISTS idx_vendors_slug ON vendors(slug);
-    CREATE INDEX IF NOT EXISTS idx_vendors_rating ON vendors(rating DESC);
-    CREATE INDEX IF NOT EXISTS idx_vendors_active ON vendors(is_active, is_featured);
+    -- Create indexes only if columns exist
+    DO $$
+    BEGIN
+      IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'category') THEN
+        CREATE INDEX IF NOT EXISTS idx_vendors_category ON vendors(category);
+      END IF;
+
+      IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'slug') THEN
+        CREATE INDEX IF NOT EXISTS idx_vendors_slug ON vendors(slug);
+      END IF;
+
+      IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'rating') THEN
+        CREATE INDEX IF NOT EXISTS idx_vendors_rating ON vendors(rating DESC);
+      END IF;
+
+      IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'is_active')
+         AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vendors' AND column_name = 'is_featured') THEN
+        CREATE INDEX IF NOT EXISTS idx_vendors_active ON vendors(is_active, is_featured);
+      END IF;
+    END $$;
 
     CREATE TABLE IF NOT EXISTS vendor_reviews (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
