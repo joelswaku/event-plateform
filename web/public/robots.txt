@@ -1,0 +1,31 @@
+# Robots.txt for LiteEvent
+# https://liteevent.com
+
+User-agent: *
+Allow: /
+Allow: /e/
+Allow: /terms
+Allow: /privacy-policy
+Allow: /cookies-policy
+Allow: /acceptable-use
+
+# Disallow authenticated/private pages
+Disallow: /dashboard
+Disallow: /events/
+Disallow: /planner/
+Disallow: /settings/
+Disallow: /billing/
+Disallow: /api/
+Disallow: /invitation/
+Disallow: /invite/
+Disallow: /my-tickets
+Disallow: /team/
+
+# Disallow auth pages (to prevent duplicate content issues)
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+
+# Sitemap
+Sitemap: https://liteevent.com/sitemap.xml

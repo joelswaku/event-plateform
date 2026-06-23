@@ -366,3 +366,21 @@ export async function getPublicEventBySlug(req, res) {
   }
 }
 
+/**
+ * GET /events/public-sitemap
+ * Returns all published public events for sitemap generation
+ */
+export async function getAllPublishedPublicEvents(req, res) {
+  try {
+    const events = await eventsService.getAllPublishedPublicEventsService();
+
+    return res.status(200).json({
+      success: true,
+      message: "Published public events fetched successfully",
+      data: { events },
+    });
+  } catch (error) {
+    return handleControllerError(res, error, "Failed to fetch published public events");
+  }
+}
+
