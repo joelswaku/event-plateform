@@ -86,6 +86,12 @@ variable "google_oauth_secret_arn" {
   type        = string
 }
 
+variable "anthropic_secret_arn" {
+  description = "ARN of the Anthropic API secret in Secrets Manager"
+  type        = string
+  default     = ""
+}
+
 variable "resend_secret_arn" {
   description = "ARN of the Resend secret in Secrets Manager"
   type        = string

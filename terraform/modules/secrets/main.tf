@@ -64,9 +64,11 @@ resource "aws_secretsmanager_secret" "stripe" {
 resource "aws_secretsmanager_secret_version" "stripe" {
   secret_id = aws_secretsmanager_secret.stripe.id
   secret_string = jsonencode({
-    secret_key      = var.stripe_secret_key
-    publishable_key = var.stripe_publishable_key
-    webhook_secret  = var.stripe_webhook_secret
+    secret_key        = var.stripe_secret_key
+    publishable_key   = var.stripe_publishable_key
+    webhook_secret    = var.stripe_webhook_secret
+    starter_price_id  = var.stripe_starter_price_id
+    pro_price_id      = var.stripe_pro_price_id
   })
 }
 
@@ -92,6 +94,28 @@ resource "aws_secretsmanager_secret_version" "google_oauth" {
 }
 
 # Resend removed - using SES only for email
+
+# Anthropic AI Secrets (optional)
+resource "aws_secretsmanager_secret" "anthropic" {
+  count       = var.anthropic_api_key != "" ? 1 : 0
+  name        = "${var.project_name}/${var.environment}/anthropic"
+  description = "Anthropic Claude API key for ${var.environment}"
+
+  recovery_window_in_days = var.environment == "production" ? 30 : 7
+
+  tags = {
+    Name        = "${var.project_name}-${var.environment}-anthropic-secret"
+    Environment = var.environment
+  }
+}
+
+resource "aws_secretsmanager_secret_version" "anthropic" {
+  count     = var.anthropic_api_key != "" ? 1 : 0
+  secret_id = aws_secretsmanager_secret.anthropic[0].id
+  secret_string = jsonencode({
+    api_key = var.anthropic_api_key
+  })
+}
 
 # Cloudinary Secrets (optional)
 resource "aws_secretsmanager_secret" "cloudinary" {
