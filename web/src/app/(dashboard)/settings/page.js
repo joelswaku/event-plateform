@@ -106,8 +106,8 @@ function MobileSettings() {
 
   async function handleLogout() {
     setLoggingOut(true);
+    router.replace("/login");
     try { await logoutAction(); } catch {}
-    router.push("/login");
   }
 
   return (
@@ -426,8 +426,8 @@ function DesktopSettings() {
 
   async function handleLogout() {
     setLoggingOut(true);
+    router.replace("/login");
     try { await logoutAction(); } catch {}
-    router.push("/login");
   }
 
   const perks = PLAN_PERKS[isPro ? "pro" : isStarter ? "starter" : "free"] ?? PLAN_PERKS.free;

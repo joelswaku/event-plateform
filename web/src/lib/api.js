@@ -85,12 +85,28 @@ api.interceptors.response.use(
       } catch (refreshError) {
         // Release the queue FIRST so any pending requests don't deadlock.
         onRefreshed(null);
-        try {
-          const { useAuthStore } = await import("@/store/auth.store");
-          await useAuthStore.getState().logout();
-        } catch {
-          // ignore
+
+        // Only call logout if we're not already on an auth page
+        // This prevents double-logout and error toasts when user manually logs out
+        if (typeof window !== "undefined") {
+          const isAuthPage = window.location.pathname.startsWith("/login") ||
+                            window.location.pathname.startsWith("/register") ||
+                            window.location.pathname.startsWith("/forgot-password");
+
+          if (!isAuthPage) {
+            try {
+              const { useAuthStore } = await import("@/store/auth.store");
+              await useAuthStore.getState().logout();
+              // Navigate to login after logout
+              if (typeof window !== "undefined") {
+                window.location.href = "/login";
+              }
+            } catch {
+              // ignore
+            }
+          }
         }
+
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
