@@ -16,10 +16,12 @@ import {
   duplicateEvent,
   getEventDashboard,
   getPublicEventBySlug,
+  getAllPublishedPublicEvents,
 } from "../controllers/events.controller.js";
 import teamRoutes from "./team.routes.js";
 
 const router = express.Router();
+router.get("/public-sitemap", getAllPublishedPublicEvents);
 router.get("/public/:slug", getPublicEventBySlug);
 
 router.post("/", authenticate, resolveOrganization, createEvent);

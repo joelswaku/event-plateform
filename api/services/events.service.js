@@ -1515,3 +1515,41 @@ export async function canManageEvent(userId, eventId) {
 
   return ["OWNER", "ADMIN", "MANAGER"].includes(role);
 }
+
+/**
+ * GET ALL PUBLISHED PUBLIC EVENTS (for sitemap generation)
+ * Returns only events that are:
+ * - status = 'PUBLISHED'
+ * - visibility = 'PUBLIC'
+ * - not deleted
+ */
+export async function getAllPublishedPublicEventsService() {
+  try {
+    const { rows } = await db.query(
+      `
+        SELECT
+          slug,
+          title,
+          updated_at,
+          published_at,
+          starts_at
+        FROM events
+        WHERE status = 'PUBLISHED'
+          AND visibility = 'PUBLIC'
+          AND deleted_at IS NULL
+        ORDER BY starts_at DESC
+      `,
+    );
+
+    return rows.map((row) => ({
+      slug: row.slug,
+      title: row.title,
+      updated_at: row.updated_at,
+      published_at: row.published_at,
+      starts_at: row.starts_at,
+    }));
+  } catch (error) {
+    console.error("Error fetching published public events:", error);
+    throw new AppError("Failed to fetch published public events", 500);
+  }
+}
