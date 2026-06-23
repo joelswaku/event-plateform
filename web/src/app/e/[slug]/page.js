@@ -50,13 +50,36 @@ export async function generateMetadata({ params }) {
 
   if (!event) return { title: "Event" };
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://liteevent.com";
+
   return {
     title: event.title,
     description: event.short_description || event.description || "Join this event",
+    keywords: [
+      event.event_type,
+      event.title,
+      event.city,
+      event.country,
+      "event",
+      "tickets",
+      "registration",
+    ].filter(Boolean),
     openGraph: {
       title: event.title,
       description: event.short_description || event.description || "",
       images: event.cover_image_url ? [{ url: event.cover_image_url }] : [],
+      type: "website",
+      url: `${appUrl}/e/${slug}`,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: event.title,
+      description: event.short_description || event.description || "",
+      images: event.cover_image_url ? [event.cover_image_url] : [],
+    },
+    robots: {
+      index: event.visibility === "PUBLIC" && event.status === "PUBLISHED",
+      follow: event.visibility === "PUBLIC" && event.status === "PUBLISHED",
     },
   };
 }
@@ -89,8 +112,56 @@ export default async function PublicEventPage({ params, searchParams }) {
   const ev = data.event;
   const showChatbot = ev?.allow_rsvp || ev?.allow_ticketing;
 
+  // Generate JSON-LD structured data for SEO
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://liteevent.com";
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Event",
+    name: ev.title,
+    description: ev.short_description || ev.description || "",
+    image: ev.cover_image_url || "",
+    url: `${appUrl}/e/${slug}`,
+    startDate: ev.starts_at,
+    endDate: ev.ends_at,
+    eventStatus: ev.status === "PUBLISHED" ? "https://schema.org/EventScheduled" : "https://schema.org/EventCancelled",
+    eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+    location: ev.venue_name
+      ? {
+          "@type": "Place",
+          name: ev.venue_name,
+          address: {
+            "@type": "PostalAddress",
+            streetAddress: ev.venue_address || "",
+            addressLocality: ev.city || "",
+            addressRegion: ev.state || "",
+            postalCode: ev.zip_code || "",
+            addressCountry: ev.country || "",
+          },
+        }
+      : undefined,
+    organizer: {
+      "@type": "Organization",
+      name: "LiteEvent",
+      url: appUrl,
+    },
+    offers: ev.allow_ticketing
+      ? {
+          "@type": "Offer",
+          url: `${appUrl}/e/${slug}/tickets`,
+          availability: "https://schema.org/InStock",
+          validFrom: ev.published_at || ev.created_at,
+        }
+      : undefined,
+  };
+
   return (
     <>
+      {/* JSON-LD structured data for search engines */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       <EventPageClient
         event={{ ...ev, speakers: data.speakers || [], schedule_items: data.schedule_items || [] }}
         sections={data.sections || []}

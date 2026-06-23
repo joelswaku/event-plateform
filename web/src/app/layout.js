@@ -28,8 +28,56 @@ const playfair = Playfair_Display({
 });
 
 export const metadata = {
-  title: "LiteEvent",
-  description: "Manage your events with LiteEvent",
+  title: {
+    default: "LiteEvent - Professional Event Management Platform",
+    template: "%s | LiteEvent",
+  },
+  description: "Create, manage, and host unforgettable events with LiteEvent. Powerful event management tools for organizers, featuring ticketing, RSVP, guest management, and more.",
+  keywords: [
+    "event management",
+    "event planning",
+    "event ticketing",
+    "RSVP management",
+    "event organizer",
+    "event platform",
+    "ticket sales",
+    "event registration",
+    "guest management",
+    "event hosting",
+  ],
+  authors: [{ name: "LiteEvent" }],
+  creator: "LiteEvent",
+  publisher: "LiteEvent",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://liteevent.com"),
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "/",
+    siteName: "LiteEvent",
+    title: "LiteEvent - Professional Event Management Platform",
+    description: "Create, manage, and host unforgettable events with LiteEvent. Powerful event management tools for organizers.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "LiteEvent - Professional Event Management Platform",
+    description: "Create, manage, and host unforgettable events with LiteEvent.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  verification: {
+    // Add your verification codes when ready
+    // google: 'your-google-verification-code',
+    // bing: 'your-bing-verification-code',
+  },
 };
 
 export const viewport = {
