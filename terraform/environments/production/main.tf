@@ -82,10 +82,15 @@ module "secrets" {
   stripe_secret_key      = var.stripe_secret_key
   stripe_publishable_key = var.stripe_publishable_key
   stripe_webhook_secret  = var.stripe_webhook_secret
+  stripe_starter_price_id = var.stripe_starter_price_id
+  stripe_pro_price_id     = var.stripe_pro_price_id
 
   # Google OAuth
   google_client_id     = var.google_client_id
   google_client_secret = var.google_client_secret
+
+  # Anthropic AI
+  anthropic_api_key = var.anthropic_api_key
 
   # Resend removed - using SES only
 
@@ -305,6 +310,7 @@ module "ecs" {
   jwt_secret_arn          = module.secrets.jwt_secret_arn
   stripe_secret_arn       = module.secrets.stripe_secret_arn
   google_oauth_secret_arn = module.secrets.google_oauth_secret_arn
+  anthropic_secret_arn    = module.secrets.anthropic_secret_arn
   resend_secret_arn       = ""  # Using SES instead of Resend
   redis_secret_arn        = module.secrets.redis_secret_arn
   secret_arns             = module.secrets.all_secret_arns

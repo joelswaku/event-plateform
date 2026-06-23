@@ -20,6 +20,11 @@ output "google_oauth_secret_arn" {
 
 # Resend removed - using SES only
 
+output "anthropic_secret_arn" {
+  description = "ARN of the Anthropic secret"
+  value       = var.anthropic_api_key != "" ? aws_secretsmanager_secret.anthropic[0].arn : ""
+}
+
 output "cloudinary_secret_arn" {
   description = "ARN of the Cloudinary secret"
   value       = var.cloudinary_cloud_name != "" ? aws_secretsmanager_secret.cloudinary[0].arn : ""
@@ -39,6 +44,7 @@ output "all_secret_arns" {
       aws_secretsmanager_secret.stripe.arn,
       aws_secretsmanager_secret.google_oauth.arn
     ],
+    var.anthropic_api_key != "" ? [aws_secretsmanager_secret.anthropic[0].arn] : [],
     var.cloudinary_cloud_name != "" ? [aws_secretsmanager_secret.cloudinary[0].arn] : [],
     var.redis_host != "" ? [aws_secretsmanager_secret.redis[0].arn] : []
   )

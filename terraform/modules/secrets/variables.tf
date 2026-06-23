@@ -70,6 +70,18 @@ variable "stripe_webhook_secret" {
   default     = ""
 }
 
+variable "stripe_starter_price_id" {
+  description = "Stripe Starter plan price ID"
+  type        = string
+  default     = ""
+}
+
+variable "stripe_pro_price_id" {
+  description = "Stripe Pro plan price ID"
+  type        = string
+  default     = ""
+}
+
 # Google OAuth
 variable "google_client_id" {
   description = "Google OAuth client ID"
@@ -81,6 +93,14 @@ variable "google_client_secret" {
   description = "Google OAuth client secret"
   type        = string
   sensitive   = true
+}
+
+# Anthropic AI
+variable "anthropic_api_key" {
+  description = "Anthropic Claude API key"
+  type        = string
+  sensitive   = true
+  default     = ""
 }
 
 # Resend removed - using SES only for email
