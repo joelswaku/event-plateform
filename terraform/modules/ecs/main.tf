@@ -352,6 +352,9 @@ resource "aws_ecs_service" "api" {
   # Enable ECS Exec
   enable_execute_command = true
 
+  # Give container time to start and become healthy
+  health_check_grace_period_seconds = 60
+
   network_configuration {
     subnets          = var.private_subnet_ids
     security_groups  = [aws_security_group.ecs_tasks.id]
