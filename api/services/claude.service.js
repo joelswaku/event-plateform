@@ -1,19 +1,34 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+
+if (!ANTHROPIC_API_KEY) {
+  console.warn('⚠️  ANTHROPIC_API_KEY not configured - AI features will be disabled');
+}
+
+const client = ANTHROPIC_API_KEY ? new Anthropic({
+  apiKey: ANTHROPIC_API_KEY,
+}) : null;
 
 const MODEL = 'claude-sonnet-4-6';
 
 export async function callClaude({ system, prompt, maxTokens = 1024 }) {
-  const msg = await client.messages.create({
-    model: MODEL,
-    max_tokens: maxTokens,
-    system,
-    messages: [{ role: 'user', content: prompt }],
-  });
-  return msg.content[0].text;
+  if (!client) {
+    throw new Error('Anthropic API key not configured. Please contact support.');
+  }
+
+  try {
+    const msg = await client.messages.create({
+      model: MODEL,
+      max_tokens: maxTokens,
+      system,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    return msg.content[0].text;
+  } catch (error) {
+    console.error('Anthropic API error:', error);
+    throw new Error('AI service temporarily unavailable. Please try again later.');
+  }
 }
 
 export async function generateEventDescription({ title, type, date, location }) {
