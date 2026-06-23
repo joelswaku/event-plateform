@@ -68,12 +68,14 @@ export default function Topbar() {
 
   // ── FIX: await logout then navigate — store cannot call router ──────────────
   async function handleLogout() {
+    // Navigate first to prevent dashboard from trying to fetch data during logout
+    router.replace("/login");
+    // Then clear auth state (async, but we don't wait)
     try {
       await logoutAction();
     } catch {
-      // Even if the API call fails, clear state and redirect
+      // Ignore logout API errors - state is already cleared client-side
     }
-    router.push("/login");
   }
 
   return (

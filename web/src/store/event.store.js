@@ -27,7 +27,10 @@ fetchEvents: async () => {
     } catch (err) {
       const message = err?.response?.data?.message || err.message || "Failed to load events";
       set({ loading: false, error: message });
-      toast.error(message);
+      // Only show toast if it's not an auth error (401) - those are handled by the API interceptor
+      if (err?.response?.status !== 401) {
+        toast.error(message);
+      }
     }
   },
   createEvent: async (payload) => {
