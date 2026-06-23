@@ -335,20 +335,37 @@ Keep replies concise — maximum 3 sentences. Be warm and helpful.`;
 
   // Direct Anthropic call for chatbot (multi-turn)
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-  const resp = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "claude-opus-4-7",
-      max_tokens: 512,
-      system,
-      messages: conversationMessages,
-    }),
-  });
+
+  if (!ANTHROPIC_API_KEY) {
+    throw new Error("Anthropic API key not configured. Please contact support.");
+  }
+
+  let resp;
+  try {
+    resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-opus-4-7",
+        max_tokens: 512,
+        system,
+        messages: conversationMessages,
+      }),
+    });
+  } catch (fetchError) {
+    console.error("Anthropic API fetch failed:", fetchError);
+    throw new Error("AI service temporarily unavailable. Please try again later.");
+  }
+
+  if (!resp.ok) {
+    const errorText = await resp.text();
+    console.error("Anthropic API error:", resp.status, errorText);
+    throw new Error("AI service error. Please try again later.");
+  }
 
   const json = await resp.json();
   const reply = json.content?.[0]?.text ?? "I'm sorry, I couldn't process your question right now.";
