@@ -76,12 +76,14 @@ export default function DashboardSidebar() {
 
   // ── FIX: await store logout then navigate with router ───────────────────────
   async function handleLogout() {
+    // Navigate first to prevent components from fetching during logout
+    router.replace("/login");
+    // Then clear auth state (don't wait to avoid showing errors)
     try {
       await logoutAction();
     } catch {
-      // Even if server call fails, always navigate to login
+      // Ignore logout API errors
     }
-    router.push("/login");
   }
 
   return (

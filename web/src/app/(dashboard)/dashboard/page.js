@@ -465,8 +465,8 @@ function MobileBottomNav() {
   const logoutFn  = useAuthStore(s => s.logout);
 
   async function handleLogout() {
+    router.replace("/login");
     await logoutFn().catch(() => {});
-    router.push("/login");
   }
 
   const tabs = [
