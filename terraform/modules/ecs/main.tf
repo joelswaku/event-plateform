@@ -285,7 +285,9 @@ resource "aws_ecs_task_definition" "api" {
         { name = "PORT", value = "5000" },
         { name = "AWS_S3_BUCKET", value = var.images_bucket_name },
         { name = "AWS_REGION", value = data.aws_region.current.name },
-        { name = "CORS_ORIGIN", value = "https://liteevent.com,https://vendors.liteevent.com,https://api.liteevent.com" }
+        { name = "CORS_ORIGIN", value = "https://liteevent.com,https://vendors.liteevent.com,https://api.liteevent.com" },
+        { name = "FRONTEND_URL", value = "https://liteevent.com" },
+        { name = "VENDOR_APP_URL", value = "https://vendors.liteevent.com" }
       ]
 
       # Secrets from AWS Secrets Manager
@@ -307,14 +309,33 @@ resource "aws_ecs_task_definition" "api" {
           valueFrom = "${var.stripe_secret_arn}:secret_key::"
         },
         {
+          name      = "STRIPE_WEBHOOK_SECRET"
+          valueFrom = "${var.stripe_secret_arn}:webhook_secret::"
+        },
+        {
+          name      = "STRIPE_STARTER_PRICE_ID"
+          valueFrom = "${var.stripe_secret_arn}:starter_price_id::"
+        },
+        {
+          name      = "STRIPE_PRO_PRICE_ID"
+          valueFrom = "${var.stripe_secret_arn}:pro_price_id::"
+        },
+        {
           name      = "GOOGLE_CLIENT_SECRET"
           valueFrom = "${var.google_oauth_secret_arn}:client_secret::"
         }
         # RESEND_API_KEY removed - using SES instead
-      ], var.redis_secret_arn != "" ? [
+      ],
+      var.redis_secret_arn != "" ? [
         {
           name      = "REDIS_URL"
           valueFrom = "${var.redis_secret_arn}:url::"
+        }
+      ] : [],
+      var.anthropic_secret_arn != "" ? [
+        {
+          name      = "ANTHROPIC_API_KEY"
+          valueFrom = "${var.anthropic_secret_arn}:api_key::"
         }
       ] : [])
 
