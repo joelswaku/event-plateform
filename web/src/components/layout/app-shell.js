@@ -26,7 +26,7 @@ export default function AppShell({ children }) {
         {!isBuilder && !isPlannerProject && <DashboardSidebar />}
 
         <div className={`flex flex-1 flex-col min-w-0 ${isFullscreen ? "overflow-hidden min-h-0" : "min-h-screen"}`}>
-          {!isBuilder && !isPlannerProject && <div className="hidden sm:block shrink-0"><Topbar /></div>}
+          {!isBuilder && !isPlannerProject && <div className="shrink-0"><Topbar /></div>}
           {!isBuilder && !isPlannerProject && <div className="hidden sm:block shrink-0"><BillingBanner /></div>}
 
           <main
@@ -41,8 +41,8 @@ export default function AppShell({ children }) {
                 isFullscreen ? "overflow-hidden" : "mx-auto max-w-6xl w-full"
               }`}
             >
-              {/* On mobile+tablet, leave room for the fixed bottom nav (pb-16 ≈ 64px nav height) */}
-              <div className={`flex-1 flex flex-col min-h-0 ${isFullscreen ? "overflow-hidden" : "pb-20 md:pb-0"}`}>
+              {/* On mobile+tablet, leave room for the floating pill bottom nav (~90px total) */}
+              <div className={`flex-1 flex flex-col min-h-0 ${isFullscreen ? "overflow-hidden" : "pb-24 md:pb-0"}`}>
                 {children}
               </div>
             </div>
