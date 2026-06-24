@@ -75,14 +75,27 @@ function MobileBottomNav() {
    MOBILE  (< sm)  — pixel-match of the React Native profile screen
 ───────────────────────────────────────────────────────────────────── */
 function MobileSettings() {
-  const router       = useRouter();
-  const user         = useAuthStore((s) => s.user);
-  const logoutAction = useAuthStore((s) => s.logout);
+  const router        = useRouter();
+  const user          = useAuthStore((s) => s.user);
+  const logoutAction  = useAuthStore((s) => s.logout);
+  const updateAvatar  = useAuthStore((s) => s.updateAvatar);
   const { plan, isSubscribed, fetchSubscription } = useSubscriptionStore();
+
+  const fileInputRef = useRef(null);
 
   const [loggingOut,        setLoggingOut]        = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [legalSlug,         setLegalSlug]         = useState(null);
+  const [avatarLoading,     setAvatarLoading]     = useState(false);
+
+  async function handleAvatarChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarLoading(true);
+    await updateAvatar(file);
+    setAvatarLoading(false);
+    e.target.value = "";
+  }
 
   useEffect(() => { fetchSubscription(); }, [fetchSubscription]);
 
@@ -133,31 +146,91 @@ function MobileSettings() {
         <div className="flex flex-col gap-5 px-5 pb-8 pt-6">
 
           {/* Avatar + name */}
-          <div className="flex flex-col items-center gap-2 py-4">
-            <div
-              style={{
-                width: 96, height: 96, borderRadius: 48, padding: 3,
-                background: "linear-gradient(135deg, rgba(99,102,241,0.55), rgba(167,139,250,0.35))",
-              }}
-            >
+          <div className="flex flex-col items-center gap-2 pt-2 pb-1">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
+            {/* Avatar with camera overlay */}
+            <div className="relative">
               <div
                 style={{
-                  width: "100%", height: "100%", borderRadius: 48,
-                  background: "#14141f",
-                  display: "flex", alignItems: "center", justifyContent: "center",
+                  width: 96, height: 96, borderRadius: 48, padding: 3,
+                  background: "linear-gradient(135deg, rgba(99,102,241,0.55), rgba(167,139,250,0.35))",
                 }}
               >
-                <span style={{ fontSize: 28, fontWeight: 900, color: "#6366f1" }}>
-                  {initials}
-                </span>
+                <div
+                  style={{
+                    width: "100%", height: "100%", borderRadius: 48,
+                    background: "#14141f",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    overflow: "hidden",
+                    position: "relative",
+                  }}
+                >
+                  {user?.avatar_url ? (
+                    <img src={user.avatar_url} alt="avatar"
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <span style={{ fontSize: 28, fontWeight: 900, color: "#6366f1" }}>
+                      {initials}
+                    </span>
+                  )}
+                  {avatarLoading && (
+                    <div style={{
+                      position: "absolute", inset: 0,
+                      background: "rgba(0,0,0,0.5)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <Loader2 size={20} className="animate-spin" style={{ color: "#fff" }} />
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* Camera button */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={avatarLoading}
+                style={{
+                  position: "absolute", bottom: 0, right: 0,
+                  width: 30, height: 30, borderRadius: 15,
+                  background: "#6366f1",
+                  border: "2.5px solid #07070f",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: "pointer",
+                }}
+              >
+                <User size={13} style={{ color: "#fff" }} />
+              </button>
             </div>
-            <p style={{ fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: -0.3 }}>
+
+            <p style={{ fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: -0.3, marginTop: 6 }}>
               {user?.name ?? "—"}
             </p>
             <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
               {user?.email ?? "—"}
             </p>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={avatarLoading}
+              style={{
+                marginTop: 4,
+                padding: "6px 16px",
+                borderRadius: 9999,
+                background: "rgba(99,102,241,0.12)",
+                border: "1px solid rgba(99,102,241,0.25)",
+                color: "#818cf8",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              {avatarLoading ? "Uploading…" : "Change photo"}
+            </button>
           </div>
 
           {/* Plan card */}

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Menu, Bell, Sun, Moon, Sparkles, CreditCard, LogOut, User, Settings, ChevronRight, CalendarDays, Star } from "lucide-react";
+import { Menu, Bell, Sun, Moon, Sparkles, CreditCard, LogOut, User, ChevronRight, CalendarDays, Star } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme }            from "@/providers/ThemeProvider";
 import { useAuthStore }        from "@/store/auth.store";
@@ -81,7 +81,7 @@ export default function Topbar() {
   return (
     <>
     <header className="sticky top-0 z-20 border-b border-border bg-(--bg-surface)/90 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:px-6">
+      <div className="relative mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:px-6">
 
         {/* LEFT */}
         <div className="flex items-center gap-3">
@@ -92,7 +92,15 @@ export default function Topbar() {
           >
             <Menu className="h-5 w-5" />
           </button>
+        </div>
 
+        {/* CENTER — logo visible only on mobile */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 md:hidden">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg"
+            style={{ background: "linear-gradient(135deg, #4f46e5, #6366f1)" }}>
+            <CalendarDays className="h-4 w-4 text-white" />
+          </div>
+          <span className="font-bold text-sm tracking-tight text-(--text-primary)">LiteEvent</span>
         </div>
 
         {/* RIGHT */}
