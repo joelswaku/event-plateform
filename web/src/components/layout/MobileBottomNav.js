@@ -7,7 +7,7 @@ import { Home, CalendarDays, QrCode, ClipboardList, User } from "lucide-react";
 const TABS = [
   { label: "Home",    href: "/dashboard", icon: Home },
   { label: "Events",  href: "/events",    icon: CalendarDays },
-  null, // center Scan FAB
+  { label: "Scan",    href: "/events",    icon: QrCode,        isScan: true },
   { label: "Planner", href: "/planner",   icon: ClipboardList },
   { label: "Profile", href: "/settings",  icon: User },
 ];
@@ -17,52 +17,100 @@ export default function MobileBottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-40 md:hidden border-t border-white/10"
-      style={{ background: "rgba(10,10,20,0.97)", backdropFilter: "blur(12px)", paddingBottom: "env(safe-area-inset-bottom)" }}
+      className="fixed z-40 md:hidden"
+      style={{
+        bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
+        left: "50%",
+        transform: "translateX(-50%)",
+        background: "#ffffff",
+        borderRadius: 9999,
+        boxShadow: "0 8px 40px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10)",
+        padding: "6px 6px",
+        display: "flex",
+        alignItems: "center",
+        gap: 2,
+      }}
     >
-      <div className="flex items-end justify-around px-1 pt-2 pb-2">
-        {TABS.map((tab, idx) => {
-          if (!tab) {
-            return (
-              <Link
-                key="scan"
-                href="/events"
-                className="relative z-10 -mt-5 flex flex-col items-center gap-1 transition-transform active:scale-95"
-              >
-                <div
-                  className="flex h-14 w-14 items-center justify-center rounded-[18px]"
-                  style={{ background: "linear-gradient(135deg, #059669, #10b981)", boxShadow: "0 4px 20px rgba(16,185,129,0.45)" }}
-                >
-                  <QrCode size={22} className="text-white" />
-                </div>
-                <span className="mt-0.5 text-[10px] font-extrabold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.40)" }}>
-                  Scan
-                </span>
-              </Link>
-            );
-          }
+      {TABS.map((tab) => {
+        const { label, href, icon: Icon, isScan } = tab;
 
-          const { label, href, icon: Icon } = tab;
-          const active = pathname === href || pathname.startsWith(href + "/");
-
+        if (isScan) {
           return (
             <Link
-              key={href}
+              key="scan"
               href={href}
-              className="flex flex-1 flex-col items-center justify-center gap-0.5 pt-1 pb-1 text-[10px] font-semibold transition-opacity active:opacity-60"
-              style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }}
+              className="flex flex-col items-center justify-center gap-0.5 transition-transform active:scale-90"
+              style={{
+                minWidth: 54,
+                padding: "8px 10px",
+                borderRadius: 9999,
+              }}
             >
               <div
-                className="w-9 h-9 flex items-center justify-center rounded-xl"
-                style={active ? { background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.25)" } : {}}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 9999,
+                  background: "linear-gradient(135deg, #059669, #10b981)",
+                  boxShadow: "0 4px 16px rgba(16,185,129,0.40)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
-                <Icon className="w-5 h-5" />
+                <Icon size={20} color="#fff" />
               </div>
-              {label}
+              <span style={{ fontSize: 9, fontWeight: 600, color: "#6b7280", marginTop: 1 }}>
+                {label}
+              </span>
             </Link>
           );
-        })}
-      </div>
+        }
+
+        const active =
+          pathname === href ||
+          (href !== "/dashboard" && pathname.startsWith(href + "/")) ||
+          (href === "/dashboard" && pathname === "/dashboard");
+
+        return (
+          <Link
+            key={href}
+            href={href}
+            className="flex flex-col items-center justify-center gap-0.5 transition-all active:scale-90"
+            style={{
+              minWidth: 58,
+              padding: "8px 10px",
+              borderRadius: 9999,
+              background: active ? "rgba(99,102,241,0.10)" : "transparent",
+            }}
+          >
+            <div
+              style={{
+                width: 28,
+                height: 28,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Icon
+                size={22}
+                style={{ color: active ? "#6366f1" : "#374151" }}
+                strokeWidth={active ? 2.2 : 1.8}
+              />
+            </div>
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: active ? 700 : 500,
+                color: active ? "#6366f1" : "#6b7280",
+              }}
+            >
+              {label}
+            </span>
+          </Link>
+        );
+      })}
     </nav>
   );
 }
