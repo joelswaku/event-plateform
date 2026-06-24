@@ -187,11 +187,42 @@ jobs:
             --force-new-deployment \
             --region ${{ env.AWS_REGION }}
 
-          echo "Waiting for API service to stabilize..."
-          aws ecs wait services-stable \
+          echo "Waiting for API service to stabilize (max 15 minutes)..."
+
+          # Try to wait for service stability
+          if ! aws ecs wait services-stable \
             --cluster liteevent-production-cluster \
             --services liteevent-production-api-service \
-            --region ${{ env.AWS_REGION }}
+            --region ${{ env.AWS_REGION }} \
+            --cli-read-timeout 900 \
+            --cli-connect-timeout 60; then
+
+            echo "⚠️ Service failed to stabilize. Checking task status..."
+
+            # Get the latest task ARN
+            TASK_ARN=$(aws ecs list-tasks \
+              --cluster liteevent-production-cluster \
+              --service-name liteevent-production-api-service \
+              --desired-status RUNNING \
+              --region ${{ env.AWS_REGION }} \
+              --query 'taskArns[0]' \
+              --output text)
+
+            if [ "$TASK_ARN" != "None" ] && [ ! -z "$TASK_ARN" ]; then
+              echo "Latest task: $TASK_ARN"
+
+              # Describe the task to see why it's failing
+              aws ecs describe-tasks \
+                --cluster liteevent-production-cluster \
+                --tasks $TASK_ARN \
+                --region ${{ env.AWS_REGION }} \
+                --query 'tasks[0].{LastStatus:lastStatus,HealthStatus:healthStatus,StoppedReason:stoppedReason,Containers:containers[*].{Name:name,LastStatus:lastStatus,ExitCode:exitCode,Reason:reason}}' \
+                --output json
+            fi
+
+            echo "ERROR: Service did not stabilize within timeout"
+            exit 1
+          fi
 
           echo "✅ API deployed successfully"
 
@@ -222,10 +253,13 @@ jobs:
             --region ${{ env.AWS_REGION }}
 
           echo "Waiting for Web service to stabilize..."
-          aws ecs wait services-stable \
+          if ! aws ecs wait services-stable \
             --cluster liteevent-production-cluster \
             --services liteevent-production-web-service \
-            --region ${{ env.AWS_REGION }}
+            --region ${{ env.AWS_REGION }}; then
+            echo "⚠️ Web service failed to stabilize"
+            exit 1
+          fi
 
           echo "✅ Web deployed successfully"
 
@@ -239,10 +273,13 @@ jobs:
             --region ${{ env.AWS_REGION }}
 
           echo "Waiting for Vendors service to stabilize..."
-          aws ecs wait services-stable \
+          if ! aws ecs wait services-stable \
             --cluster liteevent-production-cluster \
             --services liteevent-production-vendors-service \
-            --region ${{ env.AWS_REGION }}
+            --region ${{ env.AWS_REGION }}; then
+            echo "⚠️ Vendors service failed to stabilize"
+            exit 1
+          fi
 
           echo "✅ Vendors deployed successfully"
 
