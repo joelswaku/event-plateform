@@ -51,6 +51,7 @@ function MobileBillingPage({
   handleCheckout, handlePortal,
   selectedPlan, setSelectedPlan, currentTier,
   starterPrice, proPrice,
+  starterPriceId, proPriceId,
 }) {
   const router     = useRouter();
   const statusCfg  = STATUS_LABELS[subscriptionStatus] ?? null;
