@@ -88,8 +88,13 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             NODE_ENV=production
-            NEXT_PUBLIC_API_URL=${{ secrets.PRODUCTION_API_URL }}
-            NEXT_PUBLIC_STRIPE_KEY=${{ secrets.PRODUCTION_STRIPE_PUBLISHABLE_KEY }}
+            NEXT_PUBLIC_API_URL=https://api.liteevent.com/api
+            NEXT_PUBLIC_APP_URL=https://liteevent.com
+            NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_51QMjXKGaoI7icxS6KjU3NqyqJFzWFywaobOdpdewqosV4QxMenOwwPif9hw9wZN2lDOjttwtnerSJPsH3q5B2j0L00iGJysKlv
+            NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID=price_1TYpYyGaoI7icxS612poHHfo
+            NEXT_PUBLIC_STRIPE_PRO_PRICE_ID=price_1TYpb6GaoI7icxS6KMEprJnQ
+            NEXT_PUBLIC_GOOGLE_CLIENT_ID=728056596746-bgeh855s1c8t9snrg5l09kp1vvu2uvqd.apps.googleusercontent.com
+            NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyC7gvp7KT0cVV_ntoXgAyGAveddZMWAfvA
 
       - name: Build Vendors image
         id: build-vendors
