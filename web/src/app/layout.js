@@ -33,6 +33,11 @@ export const metadata = {
     template: "%s | LiteEvent",
   },
   description: "Create, manage, and host unforgettable events with LiteEvent. Powerful event management tools for organizers, featuring ticketing, RSVP, guest management, and more.",
+  icons: {
+    icon:       [{ url: "/lite.png", type: "image/png" }],
+    apple:      [{ url: "/lite.png", type: "image/png" }],
+    shortcut:   [{ url: "/lite.png", type: "image/png" }],
+  },
   keywords: [
     "event management",
     "event planning",

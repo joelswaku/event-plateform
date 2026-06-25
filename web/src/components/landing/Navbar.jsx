@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Menu, X, LayoutDashboard, LogOut } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 
@@ -45,9 +46,7 @@ export default function Navbar() {
 
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-linear-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow">
-            <span className="text-white text-sm font-black">L</span>
-          </div>
+          <Image src="/lite.png" alt="LiteEvent" width={32} height={32} className="rounded-lg shadow" />
           <span className="font-bold text-gray-900 text-lg tracking-tight">LiteEvent</span>
         </Link>
 
