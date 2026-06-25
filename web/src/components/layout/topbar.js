@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Menu, Bell, Sun, Moon, Sparkles, CreditCard, LogOut, User, ChevronRight, CalendarDays, Star } from "lucide-react";
+import Image from "next/image";
+import { Menu, Bell, Sun, Moon, Sparkles, CreditCard, LogOut, User, ChevronRight, Star } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme }            from "@/providers/ThemeProvider";
 import { useAuthStore }        from "@/store/auth.store";
@@ -96,10 +97,7 @@ export default function Topbar() {
 
         {/* CENTER — logo visible only on mobile */}
         <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 md:hidden">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg"
-            style={{ background: "linear-gradient(135deg, #4f46e5, #6366f1)" }}>
-            <CalendarDays className="h-4 w-4 text-white" />
-          </div>
+          <Image src="/lite.png" alt="LiteEvent" width={28} height={28} className="rounded-lg" />
           <span className="font-bold text-sm tracking-tight text-(--text-primary)">LiteEvent</span>
         </div>
 
