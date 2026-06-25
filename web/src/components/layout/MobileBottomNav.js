@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Home, CalendarDays, QrCode, ClipboardList, User } from "lucide-react";
 
@@ -12,6 +13,10 @@ const TABS = [
   { label: "Profile", href: "/settings",  icon: User },
 ];
 
+/* Brand color for active state — matches LiteEvent indigo */
+const ACTIVE_COLOR = "#6366f1";
+const INACTIVE_COLOR = "#1f2937";
+
 export default function MobileBottomNav() {
   const pathname = usePathname();
 
@@ -19,32 +24,29 @@ export default function MobileBottomNav() {
     <nav
       className="fixed z-40 md:hidden"
       style={{
-        bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
+        bottom: "calc(env(safe-area-inset-bottom, 0px) + 14px)",
         left: "50%",
         transform: "translateX(-50%)",
         background: "#ffffff",
         borderRadius: 9999,
-        boxShadow: "0 8px 40px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10)",
-        padding: "6px 6px",
+        boxShadow: "0 4px 24px rgba(0,0,0,0.12), 0 1px 6px rgba(0,0,0,0.08)",
+        padding: "8px 10px",
         display: "flex",
         alignItems: "center",
-        gap: 2,
+        gap: 0,
       }}
     >
       {TABS.map((tab) => {
         const { label, href, icon: Icon, isScan } = tab;
 
+        /* ── Centre Scan FAB ─────────────────── */
         if (isScan) {
           return (
             <Link
               key="scan"
               href={href}
-              className="flex flex-col items-center justify-center gap-0.5 transition-transform active:scale-90"
-              style={{
-                minWidth: 54,
-                padding: "8px 10px",
-                borderRadius: 9999,
-              }}
+              className="flex flex-col items-center justify-center gap-0.5 active:scale-90 transition-transform"
+              style={{ minWidth: 56, padding: "6px 8px" }}
             >
               <div
                 style={{
@@ -52,58 +54,47 @@ export default function MobileBottomNav() {
                   height: 40,
                   borderRadius: 9999,
                   background: "linear-gradient(135deg, #059669, #10b981)",
-                  boxShadow: "0 4px 16px rgba(16,185,129,0.40)",
+                  boxShadow: "0 3px 12px rgba(16,185,129,0.38)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
-                <Icon size={20} color="#fff" />
+                <Icon size={18} color="#fff" />
               </div>
-              <span style={{ fontSize: 9, fontWeight: 600, color: "#6b7280", marginTop: 1 }}>
+              <span style={{ fontSize: 9, fontWeight: 600, color: "#6b7280", marginTop: 2 }}>
                 {label}
               </span>
             </Link>
           );
         }
 
+        /* ── Regular tabs ────────────────────── */
         const active =
           pathname === href ||
           (href !== "/dashboard" && pathname.startsWith(href + "/")) ||
           (href === "/dashboard" && pathname === "/dashboard");
 
+        const color = active ? ACTIVE_COLOR : INACTIVE_COLOR;
+
         return (
           <Link
             key={href}
             href={href}
-            className="flex flex-col items-center justify-center gap-0.5 transition-all active:scale-90"
-            style={{
-              minWidth: 58,
-              padding: "8px 10px",
-              borderRadius: 9999,
-              background: active ? "rgba(99,102,241,0.10)" : "transparent",
-            }}
+            className="flex flex-col items-center justify-center gap-0.5 active:scale-90 transition-transform"
+            style={{ minWidth: 56, padding: "6px 8px" }}
           >
-            <div
-              style={{
-                width: 28,
-                height: 28,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Icon
-                size={22}
-                style={{ color: active ? "#6366f1" : "#374151" }}
-                strokeWidth={active ? 2.2 : 1.8}
-              />
-            </div>
+            <Icon
+              size={22}
+              strokeWidth={active ? 2.3 : 1.9}
+              style={{ color }}
+            />
             <span
               style={{
                 fontSize: 10,
                 fontWeight: active ? 700 : 500,
-                color: active ? "#6366f1" : "#6b7280",
+                color,
+                letterSpacing: active ? -0.1 : 0,
               }}
             >
               {label}

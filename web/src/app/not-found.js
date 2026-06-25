@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Home, ArrowLeft, CalendarCheck } from "lucide-react";
+import Image from "next/image";
+import { Home, ArrowLeft } from "lucide-react";
 
 export default function NotFound() {
   return (
@@ -11,7 +12,7 @@ export default function NotFound() {
     >
       {/* Background glow effects */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full blur-3xl"
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-150 h-100 rounded-full blur-3xl"
           style={{ background: "rgba(99,102,241,0.08)" }} />
         <div className="absolute bottom-0 left-1/4 w-64 h-64 rounded-full blur-3xl"
           style={{ background: "rgba(167,139,250,0.06)" }} />
@@ -21,15 +22,13 @@ export default function NotFound() {
 
         {/* Logo */}
         <Link href="/" className="inline-flex items-center gap-2.5 mb-12 group">
-          <div
-            className="w-10 h-10 rounded-2xl flex items-center justify-center"
-            style={{
-              background: "linear-gradient(135deg, #4f46e5, #6366f1)",
-              boxShadow: "0 4px 24px rgba(99,102,241,0.35)",
-            }}
-          >
-            <CalendarCheck size={18} className="text-white" />
-          </div>
+          <Image
+            src="/lite.png"
+            alt="LiteEvent"
+            width={36}
+            height={36}
+            className="rounded-xl shadow-lg group-hover:opacity-80 transition-opacity"
+          />
           <span className="text-white font-bold text-lg tracking-tight group-hover:opacity-80 transition-opacity">
             LiteEvent
           </span>
@@ -49,7 +48,7 @@ export default function NotFound() {
           {/* Floating icon over the 404 */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div
-              className="w-20 h-20 rounded-[24px] flex items-center justify-center"
+              className="w-20 h-20 rounded-3xl flex items-center justify-center"
               style={{
                 background: "rgba(99,102,241,0.10)",
                 border: "1px solid rgba(99,102,241,0.22)",
@@ -108,10 +107,10 @@ export default function NotFound() {
         {/* Quick links */}
         <div className="mt-12 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
           {[
-            { href: "/", label: "Home" },
-            { href: "/login", label: "Sign In" },
-            { href: "/events", label: "My Events" },
-            { href: "/settings", label: "Settings" },
+            { href: "/",        label: "Home"     },
+            { href: "/login",   label: "Sign In"  },
+            { href: "/events",  label: "My Events"},
+            { href: "/settings",label: "Settings" },
           ].map(({ href, label }) => (
             <Link
               key={href}
