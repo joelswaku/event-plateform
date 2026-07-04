@@ -1,6 +1,3 @@
-# Railway Multi-Service Configuration
-# This file defines all services for the event platform
-
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
