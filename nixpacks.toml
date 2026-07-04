@@ -1,0 +1,11 @@
+# Railway Nixpacks Configuration
+# This file tells Railway this is a monorepo with multiple services
+
+[phases.setup]
+nixPkgs = ["nodejs-22_x"]
+
+[phases.install]
+cmds = ["echo 'This is a monorepo. Deploy from /api, /web, or /vendors subdirectories'"]
+
+[start]
+cmd = "echo 'Set Root Directory to /api, /web, or /vendors in Railway dashboard'"

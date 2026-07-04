@@ -1,0 +1,9 @@
+# Railway Nixpacks Configuration for API Service
+# Tells Railway to use Dockerfile for building
+
+[phases.setup]
+nixPkgs = ["nodejs-22_x"]
+
+[phases.build]
+# Use Dockerfile instead of Nixpacks
+cmds = ["echo 'Using Dockerfile for build'"]
