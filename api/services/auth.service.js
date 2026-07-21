@@ -227,12 +227,16 @@ export async function registerUser({
       );
     } catch { /* non-critical */ }
 
-    /* send welcome email */
+    /* send welcome email (non-blocking - don't fail signup if email fails) */
 
-    await sendWelcomeEmail({
-      to: normalizedEmail,
-      name: full_name,
-    });
+    try {
+      await sendWelcomeEmail({
+        to: normalizedEmail,
+        name: full_name,
+      });
+    } catch (emailError) {
+      console.warn('Welcome email failed (non-critical):', emailError.message);
+    }
 
     /* set cookies */
 
