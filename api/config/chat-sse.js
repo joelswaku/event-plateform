@@ -29,7 +29,9 @@ function ensureRedisSubscriber() {
         deliverLocal(userIds, payload);
       } catch { /* ignore malformed */ }
     });
-  } catch {
+    console.log('✅ Chat SSE Redis subscriber started');
+  } catch (err) {
+    console.log('⚠️  Chat SSE single-instance mode (Redis unavailable)');
     redisSub = null; // single-instance fallback
   }
 }
