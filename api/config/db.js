@@ -14,7 +14,7 @@ export async function connectDatabase(logger) {
     await db.query("SELECT 1");
     logger.info("PostgreSQL connected");
   } catch (error) {
-    logger.error("Database connection failed", error);
+    logger.error({ err: error, message: error.message, code: error.code, url: process.env.DATABASE_URL?.substring(0, 30) + '...' }, "Database connection failed");
     process.exit(1);
   }
 }
