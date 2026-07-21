@@ -19,10 +19,10 @@ export const loginLimiter = rateLimit({
 
 // Register — prevent account creation spam
 export const registerLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 10,
+  windowMs: 15 * 60 * 1000,  // 15 minutes (was 1 hour)
+  max: 50,                    // 50 attempts (was 10)
   skip: () => isDev,
-  message: { success: false, message: "Too many accounts created from this IP, try again in an hour." },
+  message: { success: false, message: "Too many accounts created from this IP, try again in 15 minutes." },
 });
 
 // Google OAuth — prevent token stuffing
