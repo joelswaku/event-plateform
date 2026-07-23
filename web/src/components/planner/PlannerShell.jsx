@@ -4,10 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { usePlannerStore } from "@/store/planner.store";
+import { useTheme } from "@/providers/ThemeProvider";
 import {
   LayoutDashboard, CheckSquare, Clock, DollarSign, Store,
   Users, FileText, Folder, Sparkles, Settings, ChevronLeft,
-  ChevronRight, Heart, Bell, Search, Zap, Menu, X,
+  ChevronRight, Heart, Bell, Search, Zap, Menu, X, Sun, Moon,
 } from "lucide-react";
 
 const TABS = [
@@ -78,7 +79,7 @@ function SidebarLink({ tab, base, pathname, collapsed }) {
         ${collapsed ? "px-0 py-2.5 justify-center" : "px-3 py-2.5"}
         ${active
           ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
-          : "text-gray-400 hover:text-white hover:bg-white/6"
+          : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6"
         }`}
     >
       {active && !collapsed && (
@@ -89,7 +90,7 @@ function SidebarLink({ tab, base, pathname, collapsed }) {
 
       {/* Tooltip for collapsed */}
       {collapsed && (
-        <span className="absolute left-full ml-3 px-2.5 py-1 rounded-lg bg-gray-900 border border-white/10 text-xs text-white whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 z-50 transition-opacity shadow-xl">
+        <span className="absolute left-full ml-3 px-2.5 py-1 rounded-lg bg-gray-800 dark:bg-gray-900 border border-gray-700 dark:border-white/10 text-xs text-white whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 z-50 transition-opacity shadow-xl">
           {tab.label}
         </span>
       )}
@@ -143,6 +144,7 @@ export default function PlannerShell({ children }) {
   const { projectId } = useParams();
   const pathname = usePathname();
   const { currentProject, tasks, team, aiGenerating } = usePlannerStore();
+  const { theme, toggle: toggleTheme } = useTheme();
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -161,7 +163,7 @@ export default function PlannerShell({ children }) {
   const memberAvatars = team.slice(0, 4);
 
   return (
-    <div className="relative flex h-full flex-1 min-h-0 bg-[#07070f] overflow-hidden">
+    <div className="relative flex h-full flex-1 min-h-0 bg-gray-50 dark:bg-[#07070f] overflow-hidden">
 
       {/* ── Mobile overlay ── */}
       {mobileOpen && (
@@ -170,34 +172,34 @@ export default function PlannerShell({ children }) {
 
       {/* ── Left Sidebar ── */}
       <aside className={[
-        "z-50 flex flex-col bg-[#0b0b18] border-r border-white/6 transition-all duration-300 ease-in-out shrink-0",
+        "z-50 flex flex-col bg-white dark:bg-[#0b0b18] border-r border-gray-200 dark:border-white/6 transition-all duration-300 ease-in-out shrink-0",
         collapsed ? "w-15" : "w-55",
         mobileOpen ? "translate-x-0 absolute inset-y-0 left-0 h-full shadow-2xl" : "-translate-x-full lg:translate-x-0 absolute lg:relative",
       ].join(" ")}>
         {/* Mobile sidebar header — close button */}
         <div className="lg:hidden flex items-center justify-between px-3 pt-3 pb-0">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Project</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 dark:text-gray-500">Project</span>
           <button
             type="button"
             onClick={() => setMobileOpen(false)}
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-white/8 transition-colors"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/8 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Project identity */}
-        <div className="px-3 py-4 border-b border-white/6">
+        <div className="px-3 py-4 border-b border-gray-200 dark:border-white/6">
           <div className="flex items-center gap-2.5 mb-3">
             <div className="w-8 h-8 rounded-xl bg-indigo-600/30 border border-indigo-500/30 flex items-center justify-center text-base shrink-0">
               {emoji}
             </div>
             {!collapsed && (
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-white leading-tight truncate">
+                <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight truncate">
                   {currentProject?.title || "Loading…"}
                 </p>
-                <p className="text-[10px] text-gray-500 capitalize mt-0.5">
+                <p className="text-[10px] text-gray-600 dark:text-gray-500 capitalize mt-0.5">
                   {currentProject?.event_type || "Planner"}
                 </p>
               </div>
@@ -288,11 +290,11 @@ export default function PlannerShell({ children }) {
         </div>
 
         {/* Back + collapse toggle */}
-        <div className="px-2 pb-3 pt-2 border-t border-white/6 space-y-1">
+        <div className="px-2 pb-3 pt-2 border-t border-gray-200 dark:border-white/6 space-y-1">
           {!collapsed && (
             <Link
               href="/planner"
-              className="flex items-center gap-2 w-full px-3 py-2 rounded-xl text-gray-500 hover:text-white hover:bg-white/6 text-xs transition-colors"
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-xl text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6 text-xs transition-colors"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
               All Projects
@@ -301,7 +303,7 @@ export default function PlannerShell({ children }) {
           <button
             type="button"
             onClick={() => setCollapsed(p => !p)}
-            className="flex items-center justify-center w-full py-2 rounded-xl text-gray-600 hover:text-white hover:bg-white/6 transition-colors"
+            className="flex items-center justify-center w-full py-2 rounded-xl text-gray-600 dark:text-gray-600 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6 transition-colors"
           >
             {collapsed
               ? <ChevronRight className="w-4 h-4" />
@@ -314,13 +316,13 @@ export default function PlannerShell({ children }) {
       <div className="flex-1 min-w-0 flex flex-col">
 
         {/* Sticky project header */}
-        <header className="sticky top-0 z-30 bg-[#07070f]/90 backdrop-blur-md border-b border-white/6">
+        <header className="sticky top-0 z-30 bg-white/90 dark:bg-[#07070f]/90 backdrop-blur-md border-b border-gray-200 dark:border-white/6">
           <div className="flex items-center gap-3 px-4 py-2.5 lg:px-5 lg:py-3">
             {/* Mobile menu — opens sidebar with project stats */}
             <button
               type="button"
               onClick={() => setMobileOpen(p => !p)}
-              className="lg:hidden p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/8"
+              className="lg:hidden p-1.5 rounded-lg text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/8"
             >
               <Menu className="w-4 h-4" />
             </button>
@@ -329,11 +331,11 @@ export default function PlannerShell({ children }) {
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <span className="text-base">{emoji}</span>
               <div className="min-w-0">
-                <p className="text-sm font-bold text-white truncate leading-tight">
+                <p className="text-sm font-bold text-gray-900 dark:text-white truncate leading-tight">
                   {currentProject?.title || "Loading…"}
                 </p>
                 {currentProject?.event_date && (
-                  <p className="text-[11px] text-gray-500 leading-tight">
+                  <p className="text-[11px] text-gray-600 dark:text-gray-500 leading-tight">
                     {new Date(currentProject.event_date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
                   </p>
                 )}
@@ -396,6 +398,20 @@ export default function PlannerShell({ children }) {
                 <span className="text-[11px] text-indigo-300 font-semibold">AI thinking…</span>
               </div>
             )}
+
+            {/* Theme toggle */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 dark:hover:bg-white/10 transition-colors shrink-0"
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? (
+                <Sun className="w-4 h-4" />
+              ) : (
+                <Moon className="w-4 h-4" />
+              )}
+            </button>
           </div>
 
           {/* Progress bar strip */}

@@ -16,8 +16,10 @@ export async function callAI({ feature, systemPrompt, userPrompt, responseFormat
 
   // Read lazily so dotenv.config() in server.js has already run
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new AppError("ANTHROPIC_API_KEY is not configured", 500);
+  const isValidKey = apiKey && apiKey.startsWith('sk-ant-api03-') && apiKey.length > 50;
+
+  if (!isValidKey) {
+    throw new AppError("ANTHROPIC_API_KEY is not configured or invalid. AI features are disabled.", 500);
   }
 
   const body = {

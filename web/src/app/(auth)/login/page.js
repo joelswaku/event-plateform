@@ -8,9 +8,9 @@ import { useAuthStore } from "@/store/auth.store";
 import GoogleLoginButton from "@/components/auth/GoogleLoginButton";
 import AuthShell from "@/components/auth/AuthShell";
 
-const BASE   = "w-full px-4 py-3 rounded-xl text-white text-sm placeholder:text-gray-500 outline-none transition-all bg-white/5 border";
-const NORMAL = `${BASE} border-white/10 focus:border-indigo-500/60 focus:bg-white/8 focus:ring-2 focus:ring-indigo-500/20`;
-const ERROR  = `${BASE} border-red-500/60 focus:border-red-500/80 focus:ring-2 focus:ring-red-500/20`;
+const BASE   = "w-full px-4 py-3.5 rounded-[14px] text-white text-[15px] font-medium placeholder:text-white/25 outline-none transition-all bg-[#0a0a14] border";
+const NORMAL = `${BASE} border-white/10 focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/20`;
+const ERROR  = `${BASE} border-[#ef4444]/60 focus:border-[#ef4444] focus:ring-2 focus:ring-[#ef4444]/20`;
 
 function validate(form) {
   const e = {};
@@ -23,12 +23,12 @@ function validate(form) {
 function Field({ label, id, error, touched, children }) {
   return (
     <div>
-      <label htmlFor={id} className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+      <label htmlFor={id} className="block text-xs font-semibold text-white/45 tracking-wide mb-1.5">
         {label}
       </label>
       {children}
       {touched && error && (
-        <p className="flex items-center gap-1.5 text-red-400 text-xs mt-1.5">
+        <p className="flex items-center gap-1.5 text-[#ef4444] text-[11px] mt-1.5">
           <AlertCircle className="w-3 h-3 shrink-0" />
           {error}
         </p>
@@ -65,6 +65,13 @@ function LoginForm() {
     if (errors.email || errors.password) return;
 
     const res = await login(form);
+
+    // Check if email verification is required
+    if (res.requiresVerification && res.verificationToken) {
+      router.push(`/verify-email?token=${res.verificationToken}`);
+      return;
+    }
+
     // Redirect is handled by the useEffect above when isAuthenticated flips to true
     if (!res.success) {
       setServerError(res.message || "Invalid credentials. Please try again.");
@@ -125,27 +132,27 @@ function LoginForm() {
         </Field>
 
         <div className="flex justify-end -mt-1">
-          <Link href="/forgot-password" className="text-xs text-gray-500 hover:text-indigo-400 transition-colors font-medium">
+          <Link href="/forgot-password" className="text-xs text-[#6366f1] hover:text-[#818cf8] transition-colors font-semibold">
             Forgot password?
           </Link>
         </div>
 
         {serverError && (
-          <div className="flex items-start gap-2.5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
-            <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-            <p className="text-red-400 text-sm">{serverError}</p>
+          <div className="flex items-start gap-2.5 rounded-xl border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3">
+            <AlertCircle className="w-4 h-4 text-[#ef4444] shrink-0 mt-0.5" />
+            <p className="text-[#ef4444] text-sm">{serverError}</p>
           </div>
         )}
 
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold transition-all"
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#6366f1] hover:bg-[#818cf8] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-bold transition-all shadow-lg shadow-[#6366f1]/20"
           suppressHydrationWarning
         >
           {isLoading ? (
             <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> Signing in…</>
-          ) : "Sign in"}
+          ) : "Sign In"}
         </button>
       </form>
 
@@ -162,10 +169,10 @@ function LoginForm() {
         </>
       )}
 
-      <p className="text-center text-sm text-gray-500 mt-6">
+      <p className="text-center text-sm text-white/40 mt-6">
         Don&apos;t have an account?{" "}
-        <Link href="/register" className="text-indigo-400 font-semibold hover:text-indigo-300 transition-colors">
-          Sign up free
+        <Link href="/register" className="text-[#6366f1] font-bold hover:text-[#818cf8] transition-colors">
+          Sign up
         </Link>
       </p>
     </AuthShell>

@@ -50,20 +50,23 @@ const SECTION_SHAPES = {
   RSVP:      { h: 36, label: "RSVP" },
 };
 
-// ── Live wireframe preview of a single section ─────────────────────────────
+// ── Realistic preview of a single section ─────────────────────────────
 function SectionWireframe({ type, index, bg, accent, heroImg, isHero }) {
   const shape = SECTION_SHAPES[type] ?? { h: 40, label: type };
 
-  // HERO — show actual image if available
+  // HERO — realistic hero section with actual styling
   if (isHero) {
     return (
       <div
         style={{
-          height: shape.h,
+          height: 110,
           position: "relative",
           overflow: "hidden",
-          background: heroImg ? "transparent" : bg,
+          background: heroImg ? "transparent" : `linear-gradient(135deg, ${accent}, ${accent}cc)`,
           flexShrink: 0,
+          display: "flex",
+          alignItems: "flex-end",
+          padding: "16px",
         }}
       >
         {heroImg && (
@@ -72,30 +75,64 @@ function SectionWireframe({ type, index, bg, accent, heroImg, isHero }) {
             alt=""
             crossOrigin="anonymous"
             referrerPolicy="no-referrer"
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
           />
         )}
-        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.42)" }} />
-        {/* Fake headline */}
-        <div style={{ position: "absolute", bottom: 10, left: 10, right: 10 }}>
-          <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.85)", width: "68%", marginBottom: 4 }} />
-          <div style={{ height: 2.5, borderRadius: 2, background: accent, width: "42%", marginBottom: 5 }} />
-          <div style={{ display: "inline-block", height: 8, width: 40, borderRadius: 3, background: accent, opacity: 0.9 }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.6))" }} />
+
+        {/* Realistic headline */}
+        <div style={{ position: "relative", zIndex: 1, width: "100%" }}>
+          <div style={{
+            fontSize: 15,
+            fontWeight: 900,
+            color: "#fff",
+            letterSpacing: "-0.02em",
+            marginBottom: 5,
+            textShadow: "0 2px 8px rgba(0,0,0,0.3)",
+            lineHeight: 1.2,
+          }}>
+            Our Special Day
+          </div>
+          <div style={{
+            fontSize: 8.5,
+            fontWeight: 600,
+            color: "rgba(255,255,255,0.9)",
+            marginBottom: 8,
+            textShadow: "0 1px 4px rgba(0,0,0,0.2)",
+          }}>
+            July 21, 2026 • New York
+          </div>
+          <div style={{
+            display: "inline-block",
+            padding: "6px 16px",
+            borderRadius: 7,
+            background: accent,
+            color: "#fff",
+            fontSize: 8,
+            fontWeight: 700,
+            boxShadow: `0 4px 12px ${accent}60`,
+          }}>
+            RSVP Now
+          </div>
         </div>
       </div>
     );
   }
 
-  // Generic section wireframe
+  // Generic section wireframe with enhanced visual styling
   return (
     <div
       style={{
         height: shape.h,
-        padding: "6px 8px",
+        padding: "8px 10px",
         background: index % 2 === 0 ? bg : `${bg}ee`,
         position: "relative",
         flexShrink: 0,
         borderTop: `1px solid rgba(0,0,0,0.04)`,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        gap: 3,
       }}
     >
       {/* Section label */}
@@ -107,77 +144,166 @@ function SectionWireframe({ type, index, bg, accent, heroImg, isHero }) {
         {shape.label}
       </div>
 
-      {/* Wireframe content */}
+      {/* Realistic content */}
       {type === "TICKETS" && (
-        <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-          {[1, 2, 3].map((i) => (
+        <div style={{ display: "flex", gap: 6, padding: "10px 12px" }}>
+          {["General", "VIP", "Premium"].map((name, i) => (
             <div key={i} style={{
-              flex: 1, height: 40, borderRadius: 4,
-              background: `${accent}18`,
-              border: `1px solid ${accent}30`,
+              flex: 1, padding: "10px 8px", borderRadius: 7,
+              background: `linear-gradient(135deg, ${accent}20, ${accent}08)`,
+              border: `2px solid ${accent}40`,
               display: "flex", flexDirection: "column",
-              alignItems: "center", justifyContent: "center", gap: 3,
+              alignItems: "center", gap: 4,
+              boxShadow: `0 3px 10px ${accent}20`,
             }}>
-              <div style={{ height: 2.5, width: "60%", borderRadius: 1, background: accent, opacity: 0.7 }} />
-              <div style={{ height: 5, width: 28, borderRadius: 2, background: accent, opacity: 0.9 }} />
+              <div style={{ fontSize: 7, fontWeight: 700, color: accent, textAlign: "center" }}>{name}</div>
+              <div style={{ fontSize: 11, fontWeight: 900, color: accent }}>$99</div>
+              <div style={{
+                padding: "3px 10px", borderRadius: 5, background: accent,
+                fontSize: 6.5, fontWeight: 700, color: "#fff"
+              }}>Buy</div>
             </div>
           ))}
         </div>
       )}
 
       {type === "GALLERY" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 3, marginTop: 4 }}>
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} style={{ height: 14, borderRadius: 2, background: `${accent}18`, border: `1px solid ${accent}15` }} />
-          ))}
+        <div style={{ padding: "12px 14px" }}>
+          <div style={{ fontSize: 9, fontWeight: 800, color: accent, marginBottom: 8, textAlign: "center" }}>Photo Gallery</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 4 }}>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} style={{
+                height: 24,
+                borderRadius: 5,
+                background: `linear-gradient(135deg, ${accent}40, ${accent}20)`,
+                border: `1.5px solid ${accent}50`,
+                boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+                position: "relative",
+                overflow: "hidden",
+              }}>
+                <div style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  fontSize: 10,
+                  opacity: 0.5,
+                }}>📷</div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       {type === "COUNTDOWN" && (
-        <div style={{ display: "flex", gap: 4, justifyContent: "center", marginTop: 4 }}>
-          {["DD", "HH", "MM", "SS"].map((l) => (
-            <div key={l} style={{
-              width: 18, height: 18, borderRadius: 3,
-              background: `${accent}20`, border: `1px solid ${accent}30`,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 5, fontWeight: 900, color: accent,
-            }}>
-              {l}
-            </div>
-          ))}
+        <div style={{ padding: "14px 0", textAlign: "center" }}>
+          <div style={{ fontSize: 8, fontWeight: 700, color: "rgba(0,0,0,0.5)", marginBottom: 8 }}>Countdown to Our Day</div>
+          <div style={{ display: "flex", gap: 5, justifyContent: "center" }}>
+            {[
+              { val: "45", label: "Days" },
+              { val: "12", label: "Hours" },
+              { val: "30", label: "Mins" },
+              { val: "15", label: "Secs" }
+            ].map((item, i) => (
+              <div key={i} style={{
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+              }}>
+                <div style={{
+                  width: 30, height: 30, borderRadius: 6,
+                  background: `linear-gradient(135deg, ${accent}, ${accent}dd)`,
+                  border: `2px solid ${accent}`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 12, fontWeight: 900, color: "#fff",
+                  boxShadow: `0 4px 10px ${accent}40`,
+                }}>
+                  {item.val}
+                </div>
+                <div style={{ fontSize: 6, fontWeight: 600, color: accent, textTransform: "uppercase" }}>
+                  {item.label}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       {type === "SCHEDULE" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 6 }}>
-          {[80, 65, 75].map((w, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <div style={{ width: 4, height: 4, borderRadius: "50%", background: accent, flexShrink: 0 }} />
-              <div style={{ height: 2, borderRadius: 1, background: "rgba(0,0,0,0.2)", width: `${w}%` }} />
-            </div>
-          ))}
+        <div style={{ padding: "12px 14px" }}>
+          <div style={{ fontSize: 9, fontWeight: 800, color: accent, marginBottom: 8 }}>Event Schedule</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {[
+              { time: "2:00 PM", event: "Ceremony Begins" },
+              { time: "3:30 PM", event: "Cocktail Hour" },
+              { time: "5:00 PM", event: "Reception" }
+            ].map((item, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{
+                  fontSize: 7, fontWeight: 800, color: accent,
+                  padding: "4px 8px", borderRadius: 5,
+                  background: `${accent}15`, border: `1.5px solid ${accent}30`,
+                  whiteSpace: "nowrap"
+                }}>
+                  {item.time}
+                </div>
+                <div style={{ fontSize: 7.5, fontWeight: 600, color: "rgba(0,0,0,0.7)" }}>
+                  {item.event}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       {type === "COUPLE" && (
-        <div style={{ display: "flex", justifyContent: "center", gap: 10, marginTop: 6 }}>
-          {[1, 2].map((i) => (
-            <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-              <div style={{ width: 20, height: 26, borderRadius: 10, background: `${accent}20`, border: `1px solid ${accent}30` }} />
-              <div style={{ height: 2, width: 20, borderRadius: 1, background: "rgba(0,0,0,0.2)" }} />
-            </div>
-          ))}
+        <div style={{ padding: "14px 0", textAlign: "center" }}>
+          <div style={{ fontSize: 9, fontWeight: 800, color: accent, marginBottom: 10 }}>The Happy Couple</div>
+          <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>
+            {["Sarah", "John"].map((name, i) => (
+              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                <div style={{
+                  width: 38, height: 42, borderRadius: 19,
+                  background: `linear-gradient(135deg, ${accent}30, ${accent}15)`,
+                  border: `2.5px solid ${accent}50`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 16, fontWeight: 600, color: accent,
+                  boxShadow: `0 5px 15px ${accent}20`,
+                }}>
+                  {name[0]}
+                </div>
+                <div style={{ fontSize: 8, fontWeight: 700, color: accent }}>{name}</div>
+                <div style={{ fontSize: 6, color: "rgba(0,0,0,0.5)" }}>Bride{i === 1 ? "groom" : ""}</div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       {type === "VENUE" && (
-        <div style={{ display: "flex", gap: 5, marginTop: 4 }}>
-          <div style={{ flex: 1 }}>
-            {[70, 55, 45].map((w, i) => (
-              <div key={i} style={{ height: 2, borderRadius: 1, background: "rgba(0,0,0,0.18)", width: `${w}%`, marginBottom: 3 }} />
-            ))}
+        <div style={{ padding: "12px 14px" }}>
+          <div style={{ fontSize: 9, fontWeight: 800, color: accent, marginBottom: 8 }}>Venue & Location</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 8.5, fontWeight: 700, color: "rgba(0,0,0,0.8)", marginBottom: 4 }}>
+                Grand Hotel Ballroom
+              </div>
+              <div style={{ fontSize: 6.5, color: "rgba(0,0,0,0.5)", marginBottom: 3 }}>
+                123 Main Street
+              </div>
+              <div style={{ fontSize: 6.5, color: "rgba(0,0,0,0.5)" }}>
+                New York, NY 10001
+              </div>
+            </div>
+            <div style={{
+              width: 52, height: 42, borderRadius: 7,
+              background: `linear-gradient(135deg, ${accent}25, ${accent}10)`,
+              border: `2px solid ${accent}30`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 16,
+              flexShrink: 0,
+            }}>
+              📍
+            </div>
           </div>
-          <div style={{ width: 50, height: 32, borderRadius: 3, background: `${accent}15`, border: `1px solid ${accent}20`, flexShrink: 0 }} />
         </div>
       )}
 
@@ -192,7 +318,19 @@ function SectionWireframe({ type, index, bg, accent, heroImg, isHero }) {
         </div>
       )}
 
-      {(type === "ABOUT" || type === "STORY" || type === "FAQ" || type === "DONATIONS") && (
+      {(type === "STORY") && (
+        <div style={{ padding: "14px 16px", textAlign: "center" }}>
+          <div style={{ fontSize: 9, fontWeight: 800, color: accent, marginBottom: 7 }}>Our Love Story</div>
+          <div style={{ fontSize: 7, lineHeight: 1.6, color: "rgba(0,0,0,0.6)", marginBottom: 5 }}>
+            We met in the spring of 2020, and from the first moment, we knew...
+          </div>
+          <div style={{ fontSize: 7, lineHeight: 1.6, color: "rgba(0,0,0,0.6)" }}>
+            Now we're ready to start our forever together.
+          </div>
+        </div>
+      )}
+
+      {(type === "ABOUT" || type === "FAQ" || type === "DONATIONS") && (
         <div style={{ marginTop: 6 }}>
           <div style={{ height: 2.5, borderRadius: 1, background: "rgba(0,0,0,0.25)", width: "55%", marginBottom: 3 }} />
           {[88, 72, 60].map((w, i) => (
@@ -202,21 +340,39 @@ function SectionWireframe({ type, index, bg, accent, heroImg, isHero }) {
       )}
 
       {(type === "CTA" || type === "RSVP") && (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, paddingTop: 4 }}>
-          <div style={{ height: 2.5, borderRadius: 1, background: "rgba(0,0,0,0.2)", width: "45%" }} />
-          <div style={{ height: 8, width: 48, borderRadius: 4, background: accent, opacity: 0.9 }} />
+        <div style={{ padding: "16px 0", textAlign: "center" }}>
+          <div style={{ fontSize: 8.5, fontWeight: 700, color: "rgba(0,0,0,0.7)", marginBottom: 8 }}>
+            Join us for our special day
+          </div>
+          <div style={{
+            display: "inline-block",
+            padding: "8px 26px", borderRadius: 7,
+            background: `linear-gradient(135deg, ${accent}, ${accent}dd)`,
+            fontSize: 8, fontWeight: 800, color: "#fff",
+            boxShadow: `0 5px 15px ${accent}40`,
+          }}>
+            RSVP NOW
+          </div>
         </div>
       )}
 
       {type === "REGISTRY" && (
-        <div style={{ display: "flex", gap: 4, marginTop: 6, justifyContent: "center" }}>
-          {[1, 2, 3].map((i) => (
-            <div key={i} style={{
-              width: 32, height: 22, borderRadius: 3,
-              border: `1px solid ${accent}30`,
-              background: `${accent}10`,
-            }} />
-          ))}
+        <div style={{ padding: "12px 0", textAlign: "center" }}>
+          <div style={{ fontSize: 9, fontWeight: 800, color: accent, marginBottom: 8 }}>Gift Registry</div>
+          <div style={{ display: "flex", gap: 6, justifyContent: "center", padding: "0 14px" }}>
+            {["Amazon", "Target", "Zola"].map((store, i) => (
+              <div key={i} style={{
+                width: 48, height: 34, borderRadius: 6,
+                border: `2px solid ${accent}35`,
+                background: `${accent}12`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 6.5, fontWeight: 700, color: accent,
+                boxShadow: `0 3px 6px ${accent}10`,
+              }}>
+                {store}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -232,31 +388,32 @@ function PhonePreview({ template, accent, bg, heroImg }) {
   return (
     <div
       style={{
-        width: 160,
+        width: 260,
         flexShrink: 0,
         background: "#1a1b1f",
-        borderRadius: 24,
-        padding: "10px 8px",
-        boxShadow: "0 32px 64px rgba(0,0,0,0.7), inset 0 0 0 1px rgba(255,255,255,0.08)",
-        border: "2px solid rgba(255,255,255,0.1)",
+        borderRadius: 32,
+        padding: "14px 12px",
+        boxShadow: "0 40px 80px rgba(0,0,0,0.8), inset 0 0 0 1px rgba(255,255,255,0.08)",
+        border: "4px solid rgba(255,255,255,0.15)",
       }}
     >
       {/* Notch */}
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>
-        <div style={{ width: 40, height: 5, borderRadius: 99, background: "rgba(255,255,255,0.1)" }} />
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
+        <div style={{ width: 60, height: 7, borderRadius: 99, background: "rgba(255,255,255,0.15)" }} />
       </div>
 
       {/* Screen */}
       <div
         style={{
-          borderRadius: 14,
+          borderRadius: 18,
           overflow: "hidden",
           background: bg,
-          boxShadow: "0 0 0 1px rgba(0,0,0,0.2)",
-          maxHeight: 420,
+          boxShadow: "0 0 0 2px rgba(0,0,0,0.3)",
+          maxHeight: 560,
           overflowY: "auto",
           scrollbarWidth: "none",
         }}
+        className="hide-scrollbar"
       >
         {sections.map((s, i) => (
           <SectionWireframe
@@ -371,12 +528,22 @@ function PreviewModal({ template, userPlan, onClose, onUse, onUpgrade }) {
 
           {/* ── Phone preview */}
           <div
-            className="flex w-full shrink-0 items-center justify-center border-b p-5 sm:w-[220px] sm:border-b-0 sm:border-r sm:p-8"
+            className="flex w-full shrink-0 flex-col items-center justify-center border-b p-5 sm:w-[320px] sm:border-b-0 sm:border-r sm:p-8"
             style={{
               background: `radial-gradient(ellipse at center, ${accent}10 0%, transparent 70%)`,
               borderColor: "rgba(255,255,255,0.05)",
             }}
           >
+            {/* Preview header */}
+            <div className="mb-4 text-center">
+              <p style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: accent, marginBottom: 4 }}>
+                Live Preview
+              </p>
+              <p style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>
+                How your event will look
+              </p>
+            </div>
+
             {/* Desktop: full-size phone */}
             <div className="hidden sm:block">
               <PhonePreview template={template} accent={accent} bg={pageBg} heroImg={heroImg} />
@@ -691,11 +858,14 @@ function TemplateCard({ t, userPlan, applying, onSelect, onPreview }) {
       </div>
 
       {/* Card footer */}
-      <div className="px-3 py-2 flex items-center justify-between" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+      <div className="px-3 py-2 flex items-center justify-between" style={{ borderTop: "1px solid rgba(255,255,255,0.04)", background: "#16181c" }}>
         <p className="text-[10px] truncate" style={{ color: "rgba(255,255,255,0.3)" }}>
           {t.sections.length} sections · {meta.description}
         </p>
-        <div className="h-2 w-2 rounded-full shrink-0 ml-2" style={{ background: accent }} />
+        <div className="flex items-center gap-1 shrink-0">
+          <Eye size={10} style={{ color: accent, opacity: 0.7 }} />
+          <span className="text-[9px] font-semibold" style={{ color: accent }}>Preview</span>
+        </div>
       </div>
 
       {/* Applying overlay */}

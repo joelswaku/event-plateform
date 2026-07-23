@@ -9,9 +9,9 @@ import GoogleLoginButton from "@/components/auth/GoogleLoginButton";
 import AuthShell from "@/components/auth/AuthShell";
 import LegalModal from "@/components/legal/LegalModal";
 
-const BASE   = "w-full px-4 py-3 rounded-xl text-white text-sm placeholder:text-gray-600 outline-none transition-all bg-white/4 border";
-const NORMAL = `${BASE} border-white/8 focus:border-indigo-500/50 focus:bg-white/6`;
-const ERR    = `${BASE} border-red-500/50 focus:border-red-500/70`;
+const BASE   = "w-full px-4 py-3.5 rounded-[14px] text-white text-[15px] font-medium placeholder:text-white/25 outline-none transition-all bg-[#0a0a14] border";
+const NORMAL = `${BASE} border-white/10 focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/20`;
+const ERR    = `${BASE} border-[#ef4444]/60 focus:border-[#ef4444] focus:ring-2 focus:ring-[#ef4444]/20`;
 
 const STRENGTH_META = [
   { label: "Weak",   bar: "bg-red-500"    },
@@ -52,12 +52,12 @@ function PasswordStrength({ password }) {
 function Field({ label, id, error, touched, children }) {
   return (
     <div>
-      <label htmlFor={id} className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+      <label htmlFor={id} className="block text-xs font-semibold text-white/45 tracking-wide mb-1.5">
         {label}
       </label>
       {children}
       {touched && error && (
-        <p className="flex items-center gap-1.5 text-red-400 text-xs mt-1.5">
+        <p className="flex items-center gap-1.5 text-[#ef4444] text-[11px] mt-1.5">
           <AlertCircle className="w-3 h-3 shrink-0" />
           {error}
         </p>
@@ -104,8 +104,15 @@ function RegisterForm() {
 
     const res = await register({ full_name: form.full_name.trim(), email: form.email, password: form.password });
 
+    console.log('Register response:', res); // DEBUG
+    console.log('requiresVerification:', res.data?.requiresVerification); // DEBUG
+
     if (res.success) {
-      if (inviteToken) {
+      // Check if email verification is required
+      if (res.data?.requiresVerification && res.data?.verificationToken) {
+        console.log('Redirecting to verify-email'); // DEBUG
+        router.push(`/verify-email?token=${res.data.verificationToken}`);
+      } else if (inviteToken) {
         const loginRes = await login({ email: form.email, password: form.password });
         router.push(loginRes.success ? `/invite/${inviteToken}` : `/login?redirect=/invite/${inviteToken}`);
       } else {
@@ -202,20 +209,20 @@ function RegisterForm() {
         </Field>
 
         {serverError && (
-          <div className="flex items-start gap-2.5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
-            <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-            <p className="text-red-400 text-sm">{serverError}</p>
+          <div className="flex items-start gap-2.5 rounded-xl border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3">
+            <AlertCircle className="w-4 h-4 text-[#ef4444] shrink-0 mt-0.5" />
+            <p className="text-[#ef4444] text-sm">{serverError}</p>
           </div>
         )}
 
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold transition-all"
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#6366f1] hover:bg-[#818cf8] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-bold transition-all shadow-lg shadow-[#6366f1]/20"
         >
           {isLoading ? (
             <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> Creating account…</>
-          ) : "Create account"}
+          ) : "Create Account"}
         </button>
 
         {/* Terms acceptance checkbox */}
@@ -226,9 +233,9 @@ function RegisterForm() {
               onClick={() => { setTermsChecked(v => !v); setTermsTouched(true); }}
               className={`mt-0.5 shrink-0 flex items-center justify-center rounded-md border-2 transition-all ${
                 termsChecked
-                  ? "bg-indigo-600 border-indigo-600"
+                  ? "bg-[#6366f1] border-[#6366f1]"
                   : termsTouched && !termsChecked
-                  ? "border-red-500 bg-red-500/10"
+                  ? "border-[#ef4444] bg-[#ef4444]/10"
                   : "border-white/20 bg-white/4"
               }`}
               style={{ width: 18, height: 18 }}>
@@ -238,22 +245,22 @@ function RegisterForm() {
                 </svg>
               )}
             </button>
-            <span className="text-xs text-gray-500 leading-relaxed">
+            <span className="text-xs text-white/45 leading-relaxed">
               I have read and agree to the{" "}
               <button type="button" onClick={() => setLegalSlug("terms")}
-                className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors">
+                className="text-[#6366f1] hover:text-[#818cf8] underline underline-offset-2 transition-colors font-semibold">
                 Terms of Service
               </button>
               {" "}and{" "}
               <button type="button" onClick={() => setLegalSlug("privacy-policy")}
-                className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors">
+                className="text-[#6366f1] hover:text-[#818cf8] underline underline-offset-2 transition-colors font-semibold">
                 Privacy Policy
               </button>
               . I am at least 18 years old.
             </span>
           </div>
           {termsTouched && !termsChecked && (
-            <p className="mt-1.5 flex items-center gap-1.5 text-xs text-red-400">
+            <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-[#ef4444]">
               <AlertCircle className="w-3 h-3 shrink-0" />
               You must accept the terms to create an account.
             </p>
@@ -262,9 +269,9 @@ function RegisterForm() {
 
         <LegalModal slug={legalSlug} onClose={() => setLegalSlug(null)} />
 
-        <p className="text-center text-sm text-gray-500">
+        <p className="text-center text-sm text-white/40">
           Already have an account?{" "}
-          <Link href="/login" className="text-indigo-400 font-semibold hover:text-indigo-300 transition-colors">
+          <Link href="/login" className="text-[#6366f1] font-bold hover:text-[#818cf8] transition-colors">
             Sign in
           </Link>
         </p>

@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import { TrendingUp } from "lucide-react";
 import { useSuperAdminStore } from "@/store/superAdmin.store";
 
+export const dynamic = 'force-dynamic';
+
 function fmtMoney(n) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n ?? 0);
 }

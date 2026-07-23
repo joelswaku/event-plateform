@@ -86,14 +86,21 @@ api.interceptors.response.use(
         // Release the queue FIRST so any pending requests don't deadlock.
         onRefreshed(null);
 
-        // Only call logout if we're not already on an auth page
+        // Only call logout if we're not already on an auth page or public page
         // This prevents double-logout and error toasts when user manually logs out
         if (typeof window !== "undefined") {
-          const isAuthPage = window.location.pathname.startsWith("/login") ||
-                            window.location.pathname.startsWith("/register") ||
-                            window.location.pathname.startsWith("/forgot-password");
+          const pathname = window.location.pathname;
 
-          if (!isAuthPage) {
+          // Public pages that should NOT redirect to login on 401
+          const PUBLIC_ROUTES = ["/", "/features", "/pricing", "/templates", "/about", "/contact", "/faq", "/terms", "/privacy-policy", "/cookies-policy", "/acceptable-use"];
+          const isPublicPage = PUBLIC_ROUTES.includes(pathname) || pathname.startsWith("/e/");
+
+          const isAuthPage = pathname.startsWith("/login") ||
+                            pathname.startsWith("/register") ||
+                            pathname.startsWith("/forgot-password");
+
+          // Only logout and redirect if NOT on public page or auth page
+          if (!isAuthPage && !isPublicPage) {
             try {
               const { useAuthStore } = await import("@/store/auth.store");
               await useAuthStore.getState().logout();

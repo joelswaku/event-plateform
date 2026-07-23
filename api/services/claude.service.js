@@ -2,11 +2,16 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
-if (!ANTHROPIC_API_KEY) {
-  console.warn('⚠️  ANTHROPIC_API_KEY not configured - AI features will be disabled');
+// Validate key format (Anthropic keys start with sk-ant-api03- and are 100+ chars)
+const isValidKey = ANTHROPIC_API_KEY &&
+                   ANTHROPIC_API_KEY.startsWith('sk-ant-api03-') &&
+                   ANTHROPIC_API_KEY.length > 50;
+
+if (!isValidKey) {
+  console.warn('⚠️  ANTHROPIC_API_KEY not configured or invalid - AI features will be disabled');
 }
 
-const client = ANTHROPIC_API_KEY ? new Anthropic({
+const client = isValidKey ? new Anthropic({
   apiKey: ANTHROPIC_API_KEY,
 }) : null;
 

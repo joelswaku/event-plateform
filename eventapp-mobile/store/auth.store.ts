@@ -62,16 +62,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (email, password) => {
     set({ isLoading: true, error: null });
     try {
-      const res          = await api.post<{ data: { accessToken: string; refreshToken: string; user: User } }>('/auth/login', { email, password });
+      const res = await api.post<any>('/auth/login', { email, password });
+      console.log('AUTH STORE: Login API Response:', JSON.stringify(res.data, null, 2)); // DEBUG
+
+      // Check if email verification is required
+      if (res.data?.requiresVerification) {
+        console.log('AUTH STORE: Verification required, returning verification response'); // DEBUG
+        set({ isLoading: false });
+        const verificationResponse = {
+          success: false,
+          requiresVerification: true,
+          verificationToken: res.data.verificationToken,
+          message: res.data.message,
+        };
+        console.log('AUTH STORE: Returning:', JSON.stringify(verificationResponse, null, 2)); // DEBUG
+        return verificationResponse;
+      }
+
       const accessToken  = res.data?.data?.accessToken;
       const refreshToken = res.data?.data?.refreshToken;
       const user         = res.data?.data?.user;
       if (!accessToken || !user) throw new Error('Invalid login response');
 
+      // SECURITY: Store tokens securely
       setToken(accessToken);
       applyUser(user);
       await persistSession(user, true, refreshToken ?? undefined);
       set({ user, isAuthenticated: true, isLoading: false, error: null });
+
+      console.log('✅ Login successful, session persisted securely');
       return { success: true };
     } catch (err: unknown) {
       const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
@@ -85,9 +104,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   register: async (data) => {
     set({ isLoading: true, error: null });
     try {
-      await api.post('/auth/register', data);
+      const res = await api.post('/auth/register', data);
+      console.log('API Register Response:', JSON.stringify(res.data, null, 2)); // DEBUG
       set({ isLoading: false });
-      return { success: true, message: 'Account created! Please log in.' };
+      // Return full response data (includes requiresVerification flag)
+      const result = { success: true, ...res.data };
+      console.log('Returning from auth store:', JSON.stringify(result, null, 2)); // DEBUG
+      return result;
     } catch (err: unknown) {
       const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
         ?? (err instanceof Error ? err.message : 'Registration failed');

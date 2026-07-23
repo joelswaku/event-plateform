@@ -6,6 +6,7 @@ import AuthProvider from "@/providers/AuthProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import UpgradeModal from "@/components/ui/UpgradeModal";
 import ThemeInit from "@/components/ThemeInit"; // ✅ added
+import GoogleAnalytics from "@/components/GoogleAnalytics";
 
 import "./globals.css";
 
@@ -34,10 +35,11 @@ export const metadata = {
   },
   description: "Create, manage, and host unforgettable events with LiteEvent. Powerful event management tools for organizers, featuring ticketing, RSVP, guest management, and more.",
   icons: {
-    icon:       [{ url: "/lite.png", type: "image/png" }],
-    apple:      [{ url: "/lite.png", type: "image/png" }],
-    shortcut:   [{ url: "/lite.png", type: "image/png" }],
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
   },
+  manifest: "/manifest.webmanifest",
   keywords: [
     "event management",
     "event planning",
@@ -101,6 +103,9 @@ export default function RootLayout({ children }) {
 
         {/* ✅ REPLACED script with safe client init */}
         <ThemeInit />
+
+        {/* Google Analytics */}
+        <GoogleAnalytics measurementId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
 
         <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}>
           <ThemeProvider>

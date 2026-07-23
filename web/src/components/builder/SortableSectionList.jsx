@@ -53,9 +53,9 @@ function DragHandle(props) {
       {...props}
       onClick={(e) => e.stopPropagation()}
       className="flex h-6 w-5 shrink-0 cursor-grab items-center justify-center rounded active:cursor-grabbing"
-      style={{ color: "#3d4150" }}
-      onMouseEnter={(e) => (e.currentTarget.style.color = "#6b7280")}
-      onMouseLeave={(e) => (e.currentTarget.style.color = "#3d4150")}
+      style={{ color: "#7a7f8e" }}
+      onMouseEnter={(e) => (e.currentTarget.style.color = "#9ca3b4")}
+      onMouseLeave={(e) => (e.currentTarget.style.color = "#7a7f8e")}
     >
       <svg width="10" height="14" viewBox="0 0 10 16" fill="currentColor">
         <circle cx="2.5" cy="2"  r="1.5" />
@@ -118,12 +118,12 @@ function SortableItem({ section, eventId, isSelected, onSelect }) {
 
       <Icon
         className="h-3.5 w-3.5 shrink-0"
-        style={{ color: isSelected ? accent : "#555a66", transition: "color 0.3s" }}
+        style={{ color: isSelected ? accent : "#9ca3b4", transition: "color 0.3s" }}
       />
 
       <span
         className="flex-1 truncate text-[12px] font-medium leading-none"
-        style={{ color: isSelected ? "#e2e4e9" : "#8b8f9a" }}
+        style={{ color: isSelected ? "#e2e4e9" : "#b8bdc9" }}
       >
         {displayName}
       </span>
@@ -131,7 +131,7 @@ function SortableItem({ section, eventId, isSelected, onSelect }) {
       <button
         onClick={(e) => { e.stopPropagation(); updateSection(eventId, section.id, { is_visible: !isVisible }); }}
         className={`shrink-0 p-0.5 rounded transition-opacity ${isVisible ? "opacity-0 group-hover:opacity-100" : "opacity-100"}`}
-        style={{ color: isVisible ? "#555a66" : "#6b7280" }}
+        style={{ color: isVisible ? "#9ca3b4" : "#b8bdc9" }}
         title={isVisible ? "Hide section" : "Show section"}
       >
         {isVisible ? <EyeIcon className="h-3.5 w-3.5" /> : <EyeSlashIcon className="h-3.5 w-3.5" />}
@@ -140,7 +140,7 @@ function SortableItem({ section, eventId, isSelected, onSelect }) {
       <button
         onClick={(e) => { e.stopPropagation(); deleteSection(eventId, section.id); }}
         className="shrink-0 p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400"
-        style={{ color: "#555a66" }}
+        style={{ color: "#9ca3b4" }}
         title="Delete section"
       >
         <TrashIcon className="h-3.5 w-3.5" />

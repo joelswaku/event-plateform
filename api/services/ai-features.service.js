@@ -335,9 +335,10 @@ Keep replies concise — maximum 3 sentences. Be warm and helpful.`;
 
   // Direct Anthropic call for chatbot (multi-turn)
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+  const isValidKey = ANTHROPIC_API_KEY && ANTHROPIC_API_KEY.startsWith('sk-ant-api03-') && ANTHROPIC_API_KEY.length > 50;
 
-  if (!ANTHROPIC_API_KEY) {
-    throw new Error("Anthropic API key not configured. Please contact support.");
+  if (!isValidKey) {
+    throw new Error("Anthropic API key not configured or invalid. AI features are disabled.");
   }
 
   let resp;

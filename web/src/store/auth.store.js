@@ -3,6 +3,8 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { api, setInMemoryToken, clearInMemoryToken } from "@/lib/api";
+import { authSync } from "@/lib/auth-sync";
+import { sessionMonitor } from "@/lib/session-monitor";
 
 export const useAuthStore = create(
   persist(
@@ -13,16 +15,92 @@ export const useAuthStore = create(
       isLoading: false,
       error: null,
       isHydrated: false,
+      _syncUnsubscribe: null,
 
       setHydrated: () => set({ isHydrated: true }),
       clearError:  () => set({ error: null }),
       setUser:     (user) => set({ user }),
+
+      // Initialize cross-tab sync
+      initSync: () => {
+        if (typeof window === 'undefined') return;
+
+        const unsubscribe = authSync.subscribe((event) => {
+          const state = get();
+
+          switch (event.type) {
+            case 'logout':
+              // Another tab logged out - logout this tab too
+              if (state.isAuthenticated) {
+                console.log('Logout detected from another tab');
+                sessionMonitor.stop();
+                clearInMemoryToken();
+                set({
+                  user: null,
+                  accessToken: null,
+                  isAuthenticated: false,
+                  isLoading: false,
+                  error: null,
+                });
+                // Force navigation to homepage
+                window.location.href = '/';
+              }
+              break;
+
+            case 'login':
+              // Another tab logged in - sync user data and navigate
+              if (!state.isAuthenticated && event.payload?.user) {
+                console.log('Login detected from another tab');
+                set({
+                  user: event.payload.user,
+                  isAuthenticated: true,
+                });
+
+                // Navigate to dashboard if on homepage or auth pages
+                const currentPath = window.location.pathname;
+                const REDIRECT_PATHS = ['/', '/login', '/register', '/forgot-password'];
+
+                if (REDIRECT_PATHS.includes(currentPath)) {
+                  console.log('Redirecting to dashboard after login sync from path:', currentPath);
+                  window.location.href = '/dashboard';
+                }
+              }
+              break;
+
+            case 'token_refresh':
+              // Token refreshed in another tab
+              sessionMonitor.reset();
+              break;
+          }
+        });
+
+        set({ _syncUnsubscribe: unsubscribe });
+
+        // Start session monitoring if already authenticated
+        if (get().isAuthenticated) {
+          sessionMonitor.start(async (reason) => {
+            console.log(`Auto-logout triggered: ${reason}`);
+            await get().logout();
+          });
+        }
+      },
 
       login: async ({ email, password }) => {
         try {
           set({ isLoading: true, error: null });
 
           const res = await api.post("/auth/login", { email, password });
+
+          // Check if email verification is required
+          if (res.data?.requiresVerification) {
+            set({ isLoading: false });
+            return {
+              success: false,
+              requiresVerification: true,
+              verificationToken: res.data.verificationToken,
+              message: res.data.message,
+            };
+          }
 
           const accessToken =
             res.data?.data?.accessToken || res.data?.accessToken;
@@ -32,6 +110,15 @@ export const useAuthStore = create(
 
           setInMemoryToken(accessToken);
           set({ user, accessToken, isAuthenticated: true, isLoading: false });
+
+          // Broadcast login to other tabs
+          authSync.broadcast('login', { user });
+
+          // Start session monitoring
+          sessionMonitor.start(async (reason) => {
+            console.log(`Auto-logout triggered: ${reason}`);
+            await get().logout();
+          });
 
           return { success: true };
         } catch (err) {
@@ -71,6 +158,12 @@ export const useAuthStore = create(
 
           setInMemoryToken(accessToken);
           set({ accessToken, isAuthenticated: true });
+
+          // Broadcast token refresh to reset activity timers in other tabs
+          authSync.broadcast('token_refresh');
+
+          // Reset activity timer
+          sessionMonitor.reset();
 
           return accessToken;
         } catch {
@@ -219,6 +312,12 @@ export const useAuthStore = create(
         } catch {
           // ignore backend logout failure
         } finally {
+          // Stop session monitoring
+          sessionMonitor.stop();
+
+          // Broadcast logout to other tabs
+          authSync.broadcast('logout');
+
           clearInMemoryToken();
           set({
             user: null,
@@ -227,6 +326,11 @@ export const useAuthStore = create(
             isLoading: false,
             error: null,
           });
+
+          // Redirect to homepage after logout
+          if (typeof window !== "undefined") {
+            window.location.href = "/";
+          }
         }
       },
     }),

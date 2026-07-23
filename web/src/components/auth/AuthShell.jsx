@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Sparkles, CalendarCheck, Ticket, Users } from "lucide-react";
+import { Zap, CalendarCheck, Ticket, Users } from "lucide-react";
 
 const STATS = [
   { icon: CalendarCheck, label: "Events created",    value: "12,400+" },
@@ -74,10 +74,10 @@ export default function AuthShell({ children, headline, subline }) {
 
           {/* Brand */}
           <Link href="/" className="flex items-center gap-2.5 w-fit group">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/40 group-hover:bg-indigo-500 transition-colors">
-              <Sparkles className="w-4.5 h-4.5 text-white" />
+            <div className="w-10 h-10 rounded-2xl bg-[#6366f1] flex items-center justify-center shadow-lg shadow-[#6366f1]/50 group-hover:bg-[#818cf8] transition-colors">
+              <Zap className="w-5 h-5 text-white" fill="white" />
             </div>
-            <span className="text-white font-bold text-base tracking-tight">LiteEvent</span>
+            <span className="text-white font-black text-lg tracking-tight">LiteEvent</span>
           </Link>
 
           {/* Main copy */}
@@ -134,18 +134,29 @@ export default function AuthShell({ children, headline, subline }) {
       {/* ── Right panel ─────────────────────────────────────────── */}
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 lg:px-14 overflow-y-auto relative">
 
-        {/* Mobile/tablet gradient background (left panel handles it on lg+) */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0f0c29] via-[#1a1040] to-[#24243e] lg:bg-none lg:from-transparent lg:via-transparent lg:to-transparent" />
-        <div className="absolute -top-20 -right-16 w-72 h-72 bg-indigo-600/20 rounded-full blur-3xl lg:hidden" />
-        <div className="absolute bottom-1/4 -left-16 w-56 h-56 bg-violet-600/15 rounded-full blur-3xl lg:hidden" />
-        <div className="absolute bottom-0 right-1/3 w-48 h-48 bg-pink-600/10 rounded-full blur-3xl lg:hidden" />
+        {/* Gradient background - same as mobile app */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0f0c29] via-[#1a1040] to-[#24243e]" />
+
+        {/* Glow orbs - same as mobile app */}
+        <div className="absolute -top-20 -right-16 w-72 h-72 bg-[#4f46e5]/18 rounded-full blur-3xl" />
+        <div className="absolute top-1/3 -left-16 w-56 h-56 bg-[#7c3aed]/18 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/3 w-48 h-48 bg-[#db2777]/18 rounded-full blur-3xl" />
+
+        {/* Grid overlay - same as mobile app */}
+        <div
+          className="absolute inset-0 opacity-[0.04]"
+          style={{
+            backgroundImage: "linear-gradient(rgba(255,255,255,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.8) 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
+          }}
+        />
 
         {/* Mobile brand */}
         <Link href="/" className="relative z-10 flex items-center gap-2 mb-10 lg:hidden self-start">
-          <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-            <Sparkles className="w-4 h-4 text-white" />
+          <div className="w-10 h-10 rounded-2xl bg-[#6366f1] flex items-center justify-center shadow-lg shadow-[#6366f1]/50">
+            <Zap className="w-5 h-5 text-white" fill="white" />
           </div>
-          <span className="text-white font-bold text-sm tracking-tight">LiteEvent</span>
+          <span className="text-white font-black text-base tracking-tight">LiteEvent</span>
         </Link>
 
         <div className="relative z-10 w-full max-w-100">{children}</div>

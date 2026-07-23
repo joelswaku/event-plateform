@@ -1,31 +1,62 @@
-import { verifyEmailSchema } from "../../validators/auth.validator.js";
 import * as authService from "../../services/auth.service.js";
 
 export async function verifyEmail(req, res) {
-  const parsed = verifyEmailSchema.safeParse(req.body);
+  const { token, code } = req.body;
 
-  if (!parsed.success) {
+  if (!token || !code) {
     return res.status(400).json({
       success: false,
-      errors: parsed.error.flatten(),
+      message: "Verification token and code are required",
     });
   }
 
   try {
-    await authService.verifyEmailToken({
-      token: parsed.data.token,
+    const result = await authService.verifyEmailWithCode({
+      token,
+      code,
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+      deviceName: req.headers["x-device-name"] || null,
+      res,
     });
 
-    return res.status(200).json({
-      success: true,
-      message: "Email verified successfully",
-    });
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    return res.status(200).json(result);
   } catch (error) {
-    const status = error.statusCode || 400;
-
-    return res.status(status).json({
+    console.error("VERIFY EMAIL ERROR:", error);
+    res.status(500).json({
       success: false,
-      message: error.message || "Email verification failed",
+      message: error.message,
+    });
+  }
+}
+
+export async function resendCode(req, res) {
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(400).json({
+      success: false,
+      message: "Verification token is required",
+    });
+  }
+
+  try {
+    const result = await authService.resendVerificationCode({ token });
+
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("RESEND CODE ERROR:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
     });
   }
 }

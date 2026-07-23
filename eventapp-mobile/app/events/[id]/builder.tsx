@@ -267,6 +267,14 @@ export default function BuilderScreen() {
               showsVerticalScrollIndicator={false}
               originWhitelist={['*']}
               javaScriptEnabled
+              domStorageEnabled
+              startInLoadingState
+              cacheEnabled={false}
+              mixedContentMode="always"
+              allowsInlineMediaPlayback
+              mediaPlaybackRequiresUserAction={false}
+              sharedCookiesEnabled
+              thirdPartyCookiesEnabled
             />
             {webviewLoading && (
               <View style={s.webviewOverlay}>
