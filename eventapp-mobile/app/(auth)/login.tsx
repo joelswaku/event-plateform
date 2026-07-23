@@ -34,8 +34,21 @@ export default function LoginScreen() {
 
   const onSubmit = async (data: Form) => {
     const result = await login(data.email, data.password);
+
+    console.log('Mobile Login Result:', JSON.stringify(result, null, 2)); // DEBUG
+
+    // Check if email verification is required
+    if (result.requiresVerification && result.verificationToken) {
+      console.log('LOGIN: Redirecting to verify-email with token:', result.verificationToken); // DEBUG
+      router.replace(`/(auth)/verify-email?token=${result.verificationToken}`);
+      return;
+    }
+
     if (!result.success) {
+      console.log('LOGIN: Failed, showing error'); // DEBUG
       notify.loginFailed(result.message);
+    } else {
+      console.log('LOGIN: Success, should redirect to dashboard'); // DEBUG
     }
   };
 

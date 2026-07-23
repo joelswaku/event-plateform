@@ -87,7 +87,7 @@ export default function BuilderSidebar({
           <LogoMark />
           <span
             className="text-[13px] font-semibold whitespace-nowrap overflow-hidden transition-all duration-300"
-            style={{ opacity: isOpen ? 1 : 0, maxWidth: isOpen ? 140 : 0 }}
+            style={{ opacity: isOpen ? 1 : 0, maxWidth: isOpen ? 140 : 0, color: "#e4e6eb" }}
           >
             Page Builder
           </span>
@@ -110,7 +110,7 @@ export default function BuilderSidebar({
               title={label}
               onClick={() => createSectionFromTemplate(eventId, type)}
               className={`${btn} h-9 w-9`}
-              style={{ color: "#8b8f9a", borderRadius: 8 }}
+              style={{ color: "#b8bdc9", borderRadius: 8 }}
             >
               <Icon className="h-4 w-4" />
             </button>
@@ -153,12 +153,12 @@ export default function BuilderSidebar({
                     <span
                       style={{
                         flex: 1, fontSize: 12, fontWeight: 500,
-                        color: locked ? "#44495a" : isActive ? "#c4c6ff" : "#c0c4d0",
+                        color: locked ? "#7a7f8e" : isActive ? "#c4c6ff" : "#d4d7df",
                       }}
                     >
                       {v.label}
                     </span>
-                    <span style={{ fontSize: 10, color: "#44495a" }}>
+                    <span style={{ fontSize: 10, color: "#8b909e" }}>
                       {v.sections.length} blocks
                     </span>
                     {locked && (
@@ -169,7 +169,7 @@ export default function BuilderSidebar({
               })}
             </div>
             {lockedTemplates && (
-              <p style={{ fontSize: 10, color: "#44495a", lineHeight: 1.5, marginTop: 2 }}>
+              <p style={{ fontSize: 10, color: "#9096a3", lineHeight: 1.5, marginTop: 2 }}>
                 Classic is free. Upgrade to Starter to unlock all layouts and styles.
               </p>
             )}
@@ -187,7 +187,7 @@ export default function BuilderSidebar({
                   style={{
                     background: "#1e2026",
                     border: "1px solid rgba(255,255,255,0.07)",
-                    color: "#8b8f9a",
+                    color: "#b8bdc9",
                     borderRadius: 7,
                     fontSize: 10,
                   }}
@@ -219,7 +219,7 @@ export default function BuilderSidebar({
 
 function SidebarLabel({ children }) {
   return (
-    <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#555a66" }}>
+    <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#9ca3b4" }}>
       {children}
     </span>
   );

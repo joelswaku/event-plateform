@@ -46,11 +46,21 @@ export default function RegisterScreen() {
     setTermsTouched(true);
     if (!termsChecked) return notify.warning?.('Terms required', 'Please accept the terms to continue.');
     const result = await register({ full_name: data.full_name, email: data.email, password: data.password });
+
+    console.log('Mobile Register Result:', JSON.stringify(result, null, 2)); // DEBUG
+
     if (result.success) {
-      notify.registerSuccess();
-      // Request permission + schedule welcome notification in the background
-      registerPushToken().then(() => scheduleWelcomeNotification());
-      router.replace('/(auth)/login');
+      // Check if email verification is required
+      if (result.requiresVerification && result.verificationToken) {
+        console.log('Redirecting to verify-email with token:', result.verificationToken); // DEBUG
+        router.replace(`/(auth)/verify-email?token=${result.verificationToken}`);
+      } else {
+        console.log('No verification required, redirecting to login'); // DEBUG
+        notify.registerSuccess();
+        // Request permission + schedule welcome notification in the background
+        registerPushToken().then(() => scheduleWelcomeNotification());
+        router.replace('/(auth)/login');
+      }
     } else {
       notify.registerFailed(result.message);
     }

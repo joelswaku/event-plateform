@@ -244,6 +244,164 @@ export async function sendWelcomeEmail({ to, name }) {
 }
 
 
+/* ── Email Verification Code ─────────────────────────────────────── */
+export async function sendVerificationCodeEmail({ to, name, code }) {
+  const html = `
+  <!DOCTYPE html><html lang="en">
+  <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+  <body style="margin:0;padding:0;background:#0B0A0F;font-family:Arial,sans-serif">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#0B0A0F;padding:40px 16px">
+      <tr><td align="center">
+        <table width="100%" style="max-width:540px" cellpadding="0" cellspacing="0">
+
+          <!-- Brand -->
+          <tr><td style="text-align:center;padding-bottom:28px">
+            <div style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:10px 24px;border-radius:99px">
+              <span style="color:#fff;font-size:13px;font-weight:900;letter-spacing:0.15em;text-transform:uppercase">⚡ LiteEvent</span>
+            </div>
+          </td></tr>
+
+          <!-- Hero card -->
+          <tr><td style="background:linear-gradient(135deg,#13122a,#1e1b4b);border-radius:20px;padding:44px 36px 36px;border:1px solid rgba(99,102,241,0.25)">
+
+            <div style="text-align:center;margin-bottom:28px">
+              <div style="font-size:44px;margin-bottom:14px">🔐</div>
+              <h1 style="margin:0;font-size:26px;font-weight:800;color:#fff;letter-spacing:-0.03em;line-height:1.2">
+                Verify your email
+              </h1>
+              <p style="margin:12px 0 0;font-size:14px;color:rgba(255,255,255,0.5);line-height:1.7">
+                Hi <strong style="color:rgba(255,255,255,0.8);">${name}</strong>, enter this code to complete your registration.
+              </p>
+            </div>
+
+            <!-- Verification Code Box -->
+            <div style="background:rgba(99,102,241,0.1);border:2px solid rgba(99,102,241,0.3);border-radius:16px;padding:24px;text-align:center;margin-bottom:28px">
+              <p style="margin:0 0 8px;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.4)">
+                Your Verification Code
+              </p>
+              <p style="margin:0;font-size:42px;font-weight:900;letter-spacing:0.3em;color:#6366f1;font-family:'Courier New',monospace">
+                ${code}
+              </p>
+              <p style="margin:12px 0 0;font-size:12px;color:rgba(255,255,255,0.35)">
+                Code expires in <strong style="color:#818cf8">10 minutes</strong>
+              </p>
+            </div>
+
+            <!-- Instructions -->
+            <div style="text-align:center">
+              <p style="margin:0 0 8px;font-size:13px;color:rgba(255,255,255,0.5);line-height:1.7">
+                Enter this code in your app or browser to verify your email address.
+              </p>
+              <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.3);line-height:1.6">
+                If you didn't create this account, you can safely ignore this email.
+              </p>
+            </div>
+          </td></tr>
+
+          <!-- Footer -->
+          <tr><td style="text-align:center;padding:28px 0 32px">
+            <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.18);line-height:1.7">
+              This code was requested for ${to}<br/>
+              Never share this code with anyone — not even LiteEvent support.
+            </p>
+          </td></tr>
+
+        </table>
+      </td></tr>
+    </table>
+  </body></html>`;
+  return sendMail({ to, subject: `Your LiteEvent verification code: ${code}`, html });
+}
+
+/* ── New User Welcome Email (after verification) ──────────────────── */
+export async function sendNewUserWelcomeEmail({ to, name }) {
+  const dashboardUrl = process.env.FRONTEND_URL || "http://localhost:3000/dashboard";
+  const html = `
+  <!DOCTYPE html><html lang="en">
+  <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+  <body style="margin:0;padding:0;background:#0B0A0F;font-family:Arial,sans-serif">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#0B0A0F;padding:40px 16px">
+      <tr><td align="center">
+        <table width="100%" style="max-width:540px" cellpadding="0" cellspacing="0">
+
+          <!-- Brand -->
+          <tr><td style="text-align:center;padding-bottom:28px">
+            <div style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:10px 24px;border-radius:99px">
+              <span style="color:#fff;font-size:13px;font-weight:900;letter-spacing:0.15em;text-transform:uppercase">⚡ LiteEvent</span>
+            </div>
+          </td></tr>
+
+          <!-- Hero card -->
+          <tr><td style="background:linear-gradient(135deg,#13122a,#1e1b4b);border-radius:20px;padding:44px 36px 36px;border:1px solid rgba(99,102,241,0.25)">
+
+            <div style="text-align:center;margin-bottom:28px">
+              <div style="font-size:44px;margin-bottom:14px">🎉</div>
+              <h1 style="margin:0;font-size:26px;font-weight:800;color:#fff;letter-spacing:-0.03em;line-height:1.2">
+                Welcome to LiteEvent,<br/>
+                <span style="background:linear-gradient(135deg,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${name}!</span>
+              </h1>
+              <p style="margin:12px 0 0;font-size:14px;color:rgba(255,255,255,0.5);line-height:1.7">
+                Your email is verified and your account is ready. Let's create something amazing!
+              </p>
+            </div>
+
+            <!-- What's Next -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px">
+              ${[
+                ["1", "#4f46e5", "Create your first event", "Set up an event in minutes with our beautiful templates."],
+                ["2", "#7c3aed", "Customize & publish", "Add your branding, ticket types, and go live instantly."],
+                ["3", "#4ade80", "Share & sell tickets", "Share your event page and start selling tickets right away."],
+              ].map(([num, color, title, desc]) => `
+              <tr>
+                <td style="padding:10px 0;vertical-align:top;width:40px">
+                  <div style="width:28px;height:28px;background:${color}22;border:1px solid ${color}44;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:${color};text-align:center;line-height:28px">${num}</div>
+                </td>
+                <td style="padding:10px 0 10px 12px;vertical-align:top">
+                  <p style="margin:0;font-size:14px;font-weight:700;color:#fff">${title}</p>
+                  <p style="margin:3px 0 0;font-size:12px;color:rgba(255,255,255,0.4);line-height:1.6">${desc}</p>
+                </td>
+              </tr>`).join("")}
+            </table>
+
+            <!-- CTA -->
+            <div style="text-align:center">
+              <a href="${dashboardUrl}" style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;text-decoration:none;font-size:14px;font-weight:800;padding:14px 36px;border-radius:12px;letter-spacing:0.02em">
+                Create My First Event →
+              </a>
+              <p style="margin:14px 0 0;font-size:11px;color:rgba(255,255,255,0.25)">
+                All features included · No credit card required
+              </p>
+            </div>
+          </td></tr>
+
+          <!-- Quick Stats -->
+          <tr><td style="padding:24px 0">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#111127;border-radius:14px;border:1px solid rgba(255,255,255,0.07)">
+              <tr>
+                ${[["12K+","Events Created","#818cf8"],["890K+","Tickets Sold","#4ade80"],["98%","Satisfaction","#f59e0b"]].map(([val,label,color],i,arr) => `
+                <td style="padding:18px 16px;text-align:center;${i < arr.length-1 ? 'border-right:1px solid rgba(255,255,255,0.06)' : ''}">
+                  <div style="font-size:20px;font-weight:800;color:${color};letter-spacing:-0.02em">${val}</div>
+                  <div style="font-size:10px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:0.08em;margin-top:3px">${label}</div>
+                </td>`).join("")}
+              </tr>
+            </table>
+          </td></tr>
+
+          <!-- Footer -->
+          <tr><td style="text-align:center;padding:8px 0 32px">
+            <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.18);line-height:1.7">
+              Need help? Reply to this email — we read every message.<br/>
+              Check out our <a href="${dashboardUrl}/help" style="color:#6366f1;text-decoration:none">Help Center</a> for guides and tips.
+            </p>
+          </td></tr>
+
+        </table>
+      </td></tr>
+    </table>
+  </body></html>`;
+  return sendMail({ to, subject: `Welcome to LiteEvent, ${name}! 🎉`, html });
+}
+
 export async function sendPasswordChangedEmail({ to, name }) {
 
   const html = `

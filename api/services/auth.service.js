@@ -19,6 +19,8 @@ import {
   sendWelcomeEmail,
   sendResetPasswordEmail,
   sendPasswordChangedEmail,
+  sendVerificationCodeEmail,
+  sendNewUserWelcomeEmail,
 } from "../utils/sendEmail.js";
 
 import { verifyGoogleAccessToken } from "./google.service.js";
@@ -61,17 +63,22 @@ export async function registerUser({
 
     const passwordHash = await bcrypt.hash(password, 12);
 
+    /* generate verification code (6 digits) and secure token */
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationToken = crypto.randomUUID(); // Secure random UUID token
+    const codeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
     /* create user */
 
     const userResult = await client.query(
       `
       INSERT INTO users
-      (email,password_hash,full_name,status,email_verified,terms_accepted_at,terms_version_accepted)
-      VALUES ($1,$2,$3,'ACTIVE',false,$4,$5)
+      (email,password_hash,full_name,status,email_verified,terms_accepted_at,terms_version_accepted,verification_code,verification_code_expires,verification_token)
+      VALUES ($1,$2,$3,'ACTIVE',false,$4,$5,$6,$7,$8)
       RETURNING *
       `,
       [normalizedEmail, passwordHash, full_name,
-       new Date(), "2025.1"]
+       new Date(), "2025.1", verificationCode, codeExpires, verificationToken]
     );
    
     
@@ -127,26 +134,27 @@ export async function registerUser({
     //   [organization.id, user.id]
     // );
 
-    /* generate tokens */
+    /* DON'T generate tokens yet - wait for email verification */
+    /* Tokens will be generated after user verifies their email */
 
-    const tokens = generateTokens({
-      userId: user.id,
-      organizationId: organization.id,
-      role: "OWNER",
-    });
+    // const tokens = generateTokens({
+    //   userId: user.id,
+    //   organizationId: organization.id,
+    //   role: "OWNER",
+    // });
 
-    /* store session */
+    // /* store session */
 
-    const refreshHash = hashToken(tokens.refreshToken);
+    // const refreshHash = hashToken(tokens.refreshToken);
 
-    await client.query(
-      `
-      INSERT INTO auth_sessions
-      (user_id,refresh_token_hash,device_name,user_agent,ip_address,expires_at)
-      VALUES ($1,$2,$3,$4,$5, now() + interval '7 days')
-      `,
-      [user.id, refreshHash, deviceName, userAgent, ip]
-    );
+    // await client.query(
+    //   `
+    //   INSERT INTO auth_sessions
+    //   (user_id,refresh_token_hash,device_name,user_agent,ip_address,expires_at)
+    //   VALUES ($1,$2,$3,$4,$5, now() + interval '7 days')
+    //   `,
+    //   [user.id, refreshHash, deviceName, userAgent, ip]
+    // );
 
     /* audit log */
 
@@ -227,24 +235,152 @@ export async function registerUser({
       );
     } catch { /* non-critical */ }
 
-    /* send welcome email (non-blocking - don't fail signup if email fails) */
+    /* send verification code email (non-blocking - don't fail signup if email fails) */
 
     try {
-      await sendWelcomeEmail({
+      await sendVerificationCodeEmail({
         to: normalizedEmail,
         name: full_name,
+        code: verificationCode,
+      });
+    } catch (emailError) {
+      console.warn('Verification code email failed (non-critical):', emailError.message);
+    }
+
+    /* DON'T set cookies yet - user must verify email first */
+    /* DON'T return tokens yet */
+
+    return {
+      success: true,
+      message: 'Account created. Please check your email for verification code.',
+      requiresVerification: true,
+      verificationToken: verificationToken, // Secure token for URL
+      user: {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+      },
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/* ------------------------------------------------ */
+/* VERIFY EMAIL WITH CODE */
+/* ------------------------------------------------ */
+
+export async function verifyEmailWithCode({ token, code, ip, userAgent, deviceName, res }) {
+  const client = await db.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    /* Get user with verification token */
+    const userResult = await client.query(
+      `SELECT * FROM users WHERE verification_token = $1`,
+      [token]
+    );
+
+    if (!userResult.rows.length) {
+      await client.query("ROLLBACK");
+      return { success: false, message: "Invalid or expired verification link" };
+    }
+
+    const user = userResult.rows[0];
+
+    /* Check if already verified */
+    if (user.email_verified) {
+      await client.query("ROLLBACK");
+      return { success: false, message: "Email already verified. Please log in." };
+    }
+
+    /* Check code */
+    if (user.verification_code !== code) {
+      await client.query("ROLLBACK");
+      return { success: false, message: "Invalid verification code" };
+    }
+
+    /* Check expiration */
+    if (new Date() > new Date(user.verification_code_expires)) {
+      await client.query("ROLLBACK");
+      return { success: false, message: "Verification code expired. Request a new one." };
+    }
+
+    /* Mark email as verified and clear verification code */
+    await client.query(
+      `UPDATE users
+       SET email_verified = true,
+           verification_code = NULL,
+           verification_code_expires = NULL
+       WHERE id = $1`,
+      [user.id]
+    );
+
+    /* Get user's organization */
+    const orgResult = await client.query(
+      `SELECT id FROM organizations WHERE owner_user_id = $1 AND is_personal = true LIMIT 1`,
+      [user.id]
+    );
+
+    if (!orgResult.rows.length) {
+      await client.query("ROLLBACK");
+      return { success: false, message: "Organization not found" };
+    }
+
+    const organization = orgResult.rows[0];
+
+    /* Generate tokens NOW after email verification */
+    const tokens = generateTokens({
+      userId: user.id,
+      organizationId: organization.id,
+      role: "OWNER",
+    });
+
+    /* Store session */
+    const refreshHash = hashToken(tokens.refreshToken);
+    await client.query(
+      `INSERT INTO auth_sessions
+       (user_id,refresh_token_hash,device_name,user_agent,ip_address,expires_at)
+       VALUES ($1,$2,$3,$4,$5, now() + interval '7 days')`,
+      [user.id, refreshHash, deviceName, userAgent, ip]
+    );
+
+    /* Audit log */
+    await client.query(
+      `INSERT INTO audit_logs
+       (organization_id,actor_user_id,entity_type,entity_id,action,ip_address,user_agent)
+       VALUES ($1,$2,'user',$2,'email_verified',$3,$4)`,
+      [organization.id, user.id, ip, userAgent]
+    );
+
+    await client.query("COMMIT");
+
+    /* Send welcome email (non-blocking) */
+    try {
+      await sendNewUserWelcomeEmail({
+        to: normalizedEmail,
+        name: user.full_name,
       });
     } catch (emailError) {
       console.warn('Welcome email failed (non-critical):', emailError.message);
     }
 
-    /* set cookies */
-
+    /* Set cookies */
     setAuthCookies(res, tokens);
 
     return {
-      user,
-      organization,
+      success: true,
+      message: "Email verified successfully",
+      user: {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        email_verified: true,
+      },
       ...tokens,
     };
   } catch (error) {
@@ -254,6 +390,74 @@ export async function registerUser({
     client.release();
   }
 }
+
+/* ------------------------------------------------ */
+/* RESEND VERIFICATION CODE */
+/* ------------------------------------------------ */
+
+export async function resendVerificationCode({ token }) {
+  const client = await db.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    /* Get user by verification token */
+    const userResult = await client.query(
+      `SELECT * FROM users WHERE verification_token = $1`,
+      [token]
+    );
+
+    if (!userResult.rows.length) {
+      await client.query("ROLLBACK");
+      return { success: false, message: "Invalid or expired verification link" };
+    }
+
+    const user = userResult.rows[0];
+
+    /* Check if already verified */
+    if (user.email_verified) {
+      await client.query("ROLLBACK");
+      return { success: false, message: "Email already verified. Please log in." };
+    }
+
+    /* Generate new verification code */
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const codeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    /* Update user with new code */
+    await client.query(
+      `UPDATE users
+       SET verification_code = $1,
+           verification_code_expires = $2
+       WHERE id = $3`,
+      [verificationCode, codeExpires, user.id]
+    );
+
+    await client.query("COMMIT");
+
+    /* Send verification code email (non-blocking) */
+    try {
+      await sendVerificationCodeEmail({
+        to: user.email,
+        name: user.full_name,
+        code: verificationCode,
+      });
+    } catch (emailError) {
+      console.warn('Verification code email failed (non-critical):', emailError.message);
+    }
+
+    return {
+      success: true,
+      message: "Verification code sent. Check your email.",
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 // export async function registerUser({
 //   email,
 //   password,
@@ -433,6 +637,16 @@ export async function loginUser({
 
     if (user.status !== "ACTIVE")
       throw new Error("Account disabled");
+
+    /* SECURITY: Check email verification BEFORE password check */
+    if (!user.email_verified) {
+      return {
+        success: false,
+        requiresVerification: true,
+        verificationToken: user.verification_token,
+        message: "Please verify your email before logging in. Check your inbox for the verification code.",
+      };
+    }
 
     if (!user.password_hash)
       throw new Error("This account uses social login. Please sign in with Google.");

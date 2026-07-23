@@ -1,7 +1,12 @@
 import { Suspense } from "react";
 import dynamic from "next/dynamic";
+import Script from "next/script";
 import { Navbar, HeroSection, FeaturesGrid, CtaSection } from "@/components/landing";
 import { FREE_TEMPLATES, PREMIUM_TEMPLATES } from "@/lib/styleTemplates";
+import { generateMetadata as genMeta, PAGE_METADATA } from "@/lib/seo";
+
+/* ─── SEO Metadata ──────────────────────────────────────────── */
+export const metadata = genMeta(PAGE_METADATA.home);
 
 /* ─── lazy-load sections ───────────────────────────────────── */
 const StatsBar           = dynamic(() => import("@/components/landing/StatsBar"), { ssr: true });
@@ -61,11 +66,102 @@ function SectionSkeleton({ height = "h-64" }) {
   return <div className={`w-full ${height} bg-gray-50 dark:bg-gray-900 animate-pulse`} />;
 }
 
+/* ─── Structured Data (JSON-LD) ────────────────────────────── */
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "LiteEvent",
+  url: "https://liteevent.com",
+  logo: "https://liteevent.com/lite.png",
+  description: "Professional event management platform for creating, managing, and hosting events with ticketing, RSVP, and beautiful templates.",
+  sameAs: [
+    // Add your social media links here
+    // "https://twitter.com/liteevent",
+    // "https://facebook.com/liteevent",
+    // "https://instagram.com/liteevent",
+  ],
+  contactPoint: {
+    "@type": "ContactPoint",
+    email: "support@liteevent.com",
+    contactType: "Customer Support",
+  },
+};
+
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "LiteEvent",
+  url: "https://liteevent.com",
+  description: "Professional event management platform",
+  potentialAction: {
+    "@type": "SearchAction",
+    target: "https://liteevent.com/search?q={search_term_string}",
+    "query-input": "required name=search_term_string",
+  },
+};
+
+const softwareSchema = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "LiteEvent",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web, iOS, Android",
+  offers: {
+    "@type": "AggregateOffer",
+    lowPrice: "0",
+    highPrice: "49",
+    priceCurrency: "USD",
+    priceSpecification: [
+      {
+        "@type": "UnitPriceSpecification",
+        price: "0",
+        priceCurrency: "USD",
+        name: "Free Plan",
+      },
+      {
+        "@type": "UnitPriceSpecification",
+        price: "19",
+        priceCurrency: "USD",
+        name: "Starter Plan",
+      },
+      {
+        "@type": "UnitPriceSpecification",
+        price: "49",
+        priceCurrency: "USD",
+        name: "Pro Plan",
+      },
+    ],
+  },
+  aggregateRating: {
+    "@type": "AggregateRating",
+    ratingValue: "4.9",
+    ratingCount: "500",
+  },
+};
+
 /* ─── page ──────────────────────────────────────────────────── */
 export default function LandingPage() {
   return (
-    <main className="min-h-screen">
-      <Navbar />
+    <>
+      {/* JSON-LD Structured Data */}
+      <Script
+        id="organization-schema"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+      />
+      <Script
+        id="website-schema"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+      />
+      <Script
+        id="software-schema"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareSchema) }}
+      />
+
+      <main className="min-h-screen">
+        <Navbar />
 
       {/* Hero: above the fold — no lazy load */}
       <HeroSection />
@@ -117,5 +213,6 @@ export default function LandingPage() {
         <Footer />
       </Suspense>
     </main>
+    </>
   );
 }

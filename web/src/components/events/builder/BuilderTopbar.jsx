@@ -5,7 +5,10 @@ import {
   DeviceTabletIcon,
   DevicePhoneMobileIcon,
   ArrowLeftIcon,
+  ChevronRightIcon,
+  HomeIcon,
 } from "@heroicons/react/24/outline";
+import Link from "next/link";
 import { useBuilderStore } from "@/store/builder.store";
 import { useRouter } from "next/navigation";
 
@@ -33,15 +36,39 @@ export default function BuilderTopbar({ eventId, device, onDeviceChange, onTempl
       {/* ── Left ────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 min-w-0">
 
-        {/* Back button — mobile/tablet only */}
+        {/* Back button — mobile only */}
         <button
           onClick={() => router.push(`/events/${eventId}`)}
-          className="flex lg:hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors"
+          className="flex lg:hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors hover:bg-white/10"
           style={{ background: "rgba(255,255,255,0.06)", color: "#8b8f9a" }}
           title="Back to event"
         >
           <ArrowLeftIcon className="h-4 w-4" />
         </button>
+
+        {/* Breadcrumb navigation — desktop only */}
+        <div className="hidden lg:flex items-center gap-2 min-w-0">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-1.5 h-9 px-3 rounded-xl transition-colors hover:bg-white/10"
+            style={{ color: "#8b8f9a" }}
+            title="Back to dashboard"
+          >
+            <HomeIcon className="h-4 w-4" />
+            <span className="text-xs font-medium">Dashboard</span>
+          </Link>
+          <ChevronRightIcon className="h-3.5 w-3.5" style={{ color: "#8b8f9a" }} />
+          <Link
+            href={`/events/${eventId}`}
+            className="flex items-center h-9 px-3 rounded-xl transition-colors hover:bg-white/10"
+            style={{ color: "#8b8f9a" }}
+            title="Back to event"
+          >
+            <span className="text-xs font-medium truncate max-w-[150px]">{event?.title || "Event"}</span>
+          </Link>
+          <ChevronRightIcon className="h-3.5 w-3.5" style={{ color: "#8b8f9a" }} />
+          <span className="text-xs font-semibold text-white/80">Builder</span>
+        </div>
 
         {/* Event name — mobile/tablet only */}
         <span
@@ -50,6 +77,9 @@ export default function BuilderTopbar({ eventId, device, onDeviceChange, onTempl
         >
           {event?.title || "Page Builder"}
         </span>
+
+        {/* Separator */}
+        <div className="hidden lg:block h-6 w-px bg-white/10 ml-1" />
 
         {/* Device switcher — hidden on small phones, visible sm+ */}
         <div

@@ -555,11 +555,43 @@ function CreateEventPageInner() {
   });
   const [submitting, setSubmitting]   = useState(false);
   const [error, setError]             = useState(null);
-  const { openUpgradeModal, isAtEventLimit, fetchSubscription, plan } = useSubscriptionStore();
+  const [pendingEventData, setPendingEventData] = useState(null);
+  const [creatingAfterUpgrade, setCreatingAfterUpgrade] = useState(false);
+  const { openUpgradeModal, isAtEventLimit, fetchSubscription, plan, isPremium } = useSubscriptionStore();
 
   useEffect(() => { fetchSubscription(); }, [fetchSubscription]);
 
-  const atLimit = isAtEventLimit();
+  // Watch for plan upgrades - create event after payment
+  useEffect(() => {
+    const createPendingEvent = async () => {
+      const premium = isPremium();
+      if (pendingEventData && premium && !creatingAfterUpgrade) {
+        setCreatingAfterUpgrade(true);
+        try {
+          const event = await createEvent(pendingEventData);
+          if (event?.id) {
+            if (fromParam === "tickets") {
+              router.push(`/events/${event.id}/builder?from=create`);
+            } else if (pendingEventData.allow_ticketing) {
+              router.push(`/events/${event.id}/tickets`);
+            } else {
+              router.push(`/events/${event.id}/builder?from=create`);
+            }
+          }
+        } catch (err) {
+          setError({ type: "generic", message: "Event created but navigation failed. Check your events list." });
+        } finally {
+          setPendingEventData(null);
+          setCreatingAfterUpgrade(false);
+        }
+      }
+    };
+    createPendingEvent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan, pendingEventData]);
+
+  // Don't block upfront - let users fill the form
+  const atLimit = false;
 
   // When a subcategory is chosen, seed smart defaults
   const selectSubcategory = (sub) => {
@@ -614,7 +646,33 @@ function CreateEventPageInner() {
     } catch (err) {
       const data = err?.response?.data ?? {};
       if (data.code === "PLAN_LIMIT_EVENTS" || err?.response?.status === 403) {
-        setError({ type: "limit" });
+        // Store the event data and open billing modal instead of showing error
+        const defaults = features.ticketing ? TICKET_DEFAULTS : RSVP_DEFAULTS;
+        const payload = {
+          ...defaults,
+          event_type:        subcategory.eventType,
+          dashboard_mode:    subcategory.id,
+          title:             formData.title.trim(),
+          starts_at:         formData.starts_at,
+          ends_at:           formData.ends_at || undefined,
+          timezone:          formData.timezone,
+          venue_name:        formData.venue_name || undefined,
+          venue_address:     formData.venue_address || undefined,
+          city:              formData.city || undefined,
+          zip_code:          formData.zip_code || undefined,
+          country:           formData.country || undefined,
+          description:       formData.description || undefined,
+          short_description: formData.short_description || undefined,
+          visibility:        formData.visibility,
+          allow_rsvp:        features.rsvp,
+          allow_ticketing:   features.ticketing,
+          allow_qr_checkin:  true,
+          allow_donations:   features.donations,
+        };
+        setPendingEventData(payload);
+        setSubmitting(false);
+        openUpgradeModal("events");
+        return;
       } else {
         setError({ type: "generic", message: data.message || "Something went wrong. Please try again." });
       }
@@ -626,30 +684,7 @@ function CreateEventPageInner() {
   const backLabel = fromParam === "tickets" ? "Back to tickets" : "Back to events";
   const backPath  = fromParam === "tickets" ? "/tickets" : "/events";
 
-  // Mobile-only upfront gate — shown before the wizard
-  if (atLimit) {
-    return (
-      <>
-        <MobileUpgradeGate onBack={() => router.push(backPath)} plan={plan} />
-        {/* Desktop: show inline EventLimitCard above the wizard */}
-        <div className="hidden sm:flex flex-col h-full min-h-0 overflow-y-auto bg-gray-50 dark:bg-gray-950">
-          <div className="mx-auto w-full max-w-4xl px-4 py-8">
-            <button
-              onClick={() => router.push(backPath)}
-              className="mb-6 flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              {backLabel}
-            </button>
-            <div className="relative">
-              <EventLimitCard onUpgrade={() => openUpgradeModal("events")} plan={plan} />
-            </div>
-          </div>
-        </div>
-      </>
-    );
-  }
-
+  // No upfront gate - let users fill the form, show billing at the end
   return (
     <div className="flex flex-col h-full min-h-0 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="mx-auto w-full max-w-4xl px-3 sm:px-4 py-4 sm:py-8">
@@ -691,12 +726,6 @@ function CreateEventPageInner() {
             ))}
           </div>
         </div>
-
-        {error?.type === "limit" && (
-          <div className="relative">
-            <EventLimitCard onUpgrade={() => openUpgradeModal("events")} plan={plan} />
-          </div>
-        )}
 
         {error?.type === "generic" && (
           <div className="mb-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400">

@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { href: "#templates", label: "Templates" },
   { href: "#features",  label: "Features"  },
   { href: "#pricing",   label: "Pricing"   },
+  { href: "/contact",   label: "Contact"   },
 ];
 
 export default function Navbar() {

@@ -189,8 +189,8 @@ export async function assertCanCreateEvent(client, userId, organizationId) {
   const limit = PLANS[plan].events;
   if (limit === Infinity) return;
 
-  // Free plan: count all events ever created (including deleted) so deleting
-  // and recreating is not a workaround. Paid plans count only active events.
+  // Free plan: count ALL events (including deleted) to force upgrade after deletion
+  // Paid plans: count only active events
   const current = plan === "free"
     ? await countAllOrgEvents(client, organizationId)
     : await countOrgEvents(client, organizationId);
@@ -327,8 +327,8 @@ export function calculatePlatformFee(plan, ticketAmountCents) {
 export async function getPlanSummary(client, userId, organizationId) {
   const plan       = await getUserPlan(client, userId);
   const p          = PLANS[plan];
-  // Free plan: report all-time event count so UI correctly shows limit as hit
-  // even if the user deleted their one event.
+  // Free plan: count all events (including deleted) so UI shows correct limit status
+  // Paid plans: count only active events
   const eventCount = plan === "free"
     ? await countAllOrgEvents(client, organizationId)
     : await countOrgEvents(client, organizationId);

@@ -8,7 +8,7 @@ import { register } from "../controllers/auth/register.controller.js";
 import { login } from "../controllers/auth/login.controller.js";
 import { logout } from "../controllers/auth/logout.controller.js";
 import { refreshToken } from "../controllers/auth/refreshToken.controller.js";
-import { verifyEmail } from "../controllers/auth/verifyEmail.controller.js";
+import { verifyEmail, resendCode } from "../controllers/auth/verifyEmail.controller.js";
 import { forgotPassword } from "../controllers/auth/forgotPassword.controller.js";
 import { resetPassword } from "../controllers/auth/resetPassword.controller.js";
 import { googleLogin } from "../controllers/auth/googleLogin.controller.js";
@@ -37,8 +37,11 @@ router.post("/google", googleAuthLimiter, googleLogin);
 // Refresh access token
 router.post("/refresh-token", refreshToken);
 
-// Verify email
+// Verify email with code
 router.post("/verify-email", verifyEmail);
+
+// Resend verification code
+router.post("/resend-verification-code", resendCode);
 
 // Request password reset
 router.post("/request-password-reset", forgotPassword);

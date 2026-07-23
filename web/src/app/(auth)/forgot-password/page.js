@@ -6,9 +6,9 @@ import { ArrowLeft, Mail, AlertCircle, CheckCircle, Loader2 } from "lucide-react
 import { useAuthStore } from "@/store/auth.store";
 import AuthShell from "@/components/auth/AuthShell";
 
-const BASE   = "w-full px-4 py-3 rounded-xl text-white text-sm placeholder:text-gray-600 outline-none transition-all bg-white/4 border";
-const NORMAL = `${BASE} border-white/8 focus:border-indigo-500/50 focus:bg-white/6`;
-const ERR    = `${BASE} border-red-500/50 focus:border-red-500/70`;
+const BASE   = "w-full px-4 py-3.5 rounded-[14px] text-white text-[15px] font-medium placeholder:text-white/25 outline-none transition-all bg-[#0a0a14] border";
+const NORMAL = `${BASE} border-white/10 focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/20`;
+const ERR    = `${BASE} border-[#ef4444]/60 focus:border-[#ef4444] focus:ring-2 focus:ring-[#ef4444]/20`;
 
 function validateEmail(v) {
   if (!v) return "Email is required";
@@ -48,7 +48,7 @@ export default function ForgotPasswordPage() {
       {/* Back link */}
       <Link
         href="/login"
-        className="inline-flex items-center gap-1.5 text-[13px] text-gray-500 hover:text-gray-300 transition-colors mb-8"
+        className="inline-flex items-center gap-1.5 text-[13px] text-[#6366f1] hover:text-[#818cf8] transition-colors mb-8 font-semibold"
       >
         <ArrowLeft className="w-3.5 h-3.5" />
         Back to sign in
@@ -65,7 +65,7 @@ export default function ForgotPasswordPage() {
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5" noValidate>
             <div>
-              <label htmlFor="email" className="block text-[13px] font-medium text-gray-400 mb-1.5">
+              <label htmlFor="email" className="block text-xs font-semibold text-white/45 tracking-wide mb-1.5">
                 Email address
               </label>
               <input
@@ -79,7 +79,7 @@ export default function ForgotPasswordPage() {
                 className={fieldError ? ERR : NORMAL}
               />
               {fieldError && (
-                <p className="flex items-center gap-1.5 text-red-400 text-xs mt-1.5">
+                <p className="flex items-center gap-1.5 text-[#ef4444] text-[11px] mt-1.5">
                   <AlertCircle className="w-3 h-3 shrink-0" />
                   {fieldError}
                 </p>
@@ -87,16 +87,16 @@ export default function ForgotPasswordPage() {
             </div>
 
             {serverError && (
-              <div className="flex items-start gap-2.5 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3">
-                <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                <p className="text-red-400 text-sm">{serverError}</p>
+              <div className="flex items-start gap-2.5 rounded-xl bg-[#ef4444]/10 border border-[#ef4444]/20 px-4 py-3">
+                <AlertCircle className="w-4 h-4 text-[#ef4444] shrink-0 mt-0.5" />
+                <p className="text-[#ef4444] text-sm">{serverError}</p>
               </div>
             )}
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.99] text-white text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#6366f1] hover:bg-[#818cf8] active:scale-[0.99] text-white text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#6366f1]/20"
             >
               {isLoading ? (
                 <>
@@ -106,7 +106,7 @@ export default function ForgotPasswordPage() {
               ) : (
                 <>
                   <Mail className="w-4 h-4" />
-                  Send reset link
+                  Send Reset Link
                 </>
               )}
             </button>
@@ -130,15 +130,15 @@ export default function ForgotPasswordPage() {
           <div className="mt-8 space-y-3">
             <button
               onClick={() => { setSent(false); setTouched(false); setServerError(""); }}
-              className="w-full py-3 rounded-xl border border-white/8 text-gray-400 hover:text-white hover:border-white/20 text-sm font-medium transition-all"
+              className="w-full py-3 rounded-xl border border-white/10 text-white/45 hover:text-white hover:border-white/20 text-sm font-semibold transition-all"
             >
               Try a different email
             </button>
             <Link
               href="/login"
-              className="block w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold text-center transition-colors"
+              className="block w-full py-3.5 rounded-xl bg-[#6366f1] hover:bg-[#818cf8] text-white text-sm font-bold text-center transition-colors shadow-lg shadow-[#6366f1]/20"
             >
-              Back to sign in
+              Back to Sign In
             </Link>
           </div>
         </div>
