@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Menu, Bell, Sun, Moon, Sparkles, CreditCard, LogOut, User, ChevronRight, Star, MessageSquare } from "lucide-react";
+import { Menu, Bell, Sun, Moon, Sparkles, CreditCard, LogOut, User, ChevronRight, Star, MessageSquare, Home, CalendarDays, QrCode, ClipboardList } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme }            from "@/providers/ThemeProvider";
 import { useAuthStore }        from "@/store/auth.store";
@@ -108,10 +108,30 @@ export default function Topbar() {
           </button>
         </div>
 
-        {/* CENTER — logo visible only on mobile */}
+        {/* CENTER — logo on mobile, navigation on desktop */}
         <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 md:hidden">
           <Image src="/lite.png" alt="LiteEvent" width={28} height={28} className="rounded-lg" />
           <span className="font-bold text-sm tracking-tight text-(--text-primary)">LiteEvent</span>
+        </div>
+
+        {/* Navigation - Desktop only */}
+        <div className="hidden md:flex items-center gap-1">
+          <Link href="/dashboard" className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-(--text-secondary) hover:bg-(--bg-elevated) hover:text-(--text-primary) transition-colors">
+            <Home size={18} />
+            <span>Home</span>
+          </Link>
+          <Link href="/events" className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-(--text-secondary) hover:bg-(--bg-elevated) hover:text-(--text-primary) transition-colors">
+            <CalendarDays size={18} />
+            <span>Events</span>
+          </Link>
+          <Link href="/events" className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-(--text-secondary) hover:bg-(--bg-elevated) hover:text-(--text-primary) transition-colors">
+            <QrCode size={18} />
+            <span>Scan</span>
+          </Link>
+          <Link href="/planner" className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-(--text-secondary) hover:bg-(--bg-elevated) hover:text-(--text-primary) transition-colors">
+            <ClipboardList size={18} />
+            <span>Planner</span>
+          </Link>
         </div>
 
         {/* RIGHT */}
