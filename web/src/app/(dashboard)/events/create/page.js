@@ -456,10 +456,29 @@ function StepDetails({ subcategory, features, formData, setFormData, onBack, onN
             className={inputCls}
           />
         </Field>
+        <Field label="Street Address">
+          <input
+            value={formData.venue_address}
+            onChange={(e) => set("venue_address", e.target.value)}
+            placeholder="123 Main Street"
+            className={inputCls}
+          />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="City *" error={errors.city}>
           <input
             value={formData.city}
             onChange={(e) => set("city", e.target.value)}
+            placeholder="e.g. New York"
+            className={inputCls}
+          />
+        </Field>
+        <Field label="State / Province">
+          <input
+            value={formData.state}
+            onChange={(e) => set("state", e.target.value)}
             placeholder="e.g. New York"
             className={inputCls}
           />
@@ -549,7 +568,7 @@ function CreateEventPageInner() {
   }));
   const [formData, setFormData]       = useState({
     title: "", starts_at: "", ends_at: "", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    venue_name: "", venue_address: "", city: "", zip_code: "", country: "",
+    venue_name: "", venue_address: "", city: "", state: "", zip_code: "", country: "",
     description: "", short_description: "",
     visibility: "PRIVATE",
   });
@@ -620,6 +639,7 @@ function CreateEventPageInner() {
         venue_name:        formData.venue_name || undefined,
         venue_address:     formData.venue_address || undefined,
         city:              formData.city || undefined,
+        state:             formData.state || undefined,
         zip_code:          formData.zip_code || undefined,
         country:           formData.country || undefined,
         description:       formData.description || undefined,
@@ -659,6 +679,7 @@ function CreateEventPageInner() {
           venue_name:        formData.venue_name || undefined,
           venue_address:     formData.venue_address || undefined,
           city:              formData.city || undefined,
+          state:             formData.state || undefined,
           zip_code:          formData.zip_code || undefined,
           country:           formData.country || undefined,
           description:       formData.description || undefined,

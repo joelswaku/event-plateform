@@ -111,6 +111,7 @@ interface FormState {
   venue_name:       string;
   venue_address:    string;
   city:             string;
+  state:            string;
   zip_code:         string;
   country:          string;
   allow_rsvp:       boolean;
@@ -123,7 +124,7 @@ interface FormState {
 const INITIAL: FormState = {
   subcategory: '', event_type: '', title: '', description: '',
   starts_at: null, ends_at: null, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-  venue_name: '', venue_address: '', city: '', zip_code: '', country: '',
+  venue_name: '', venue_address: '', city: '', state: '', zip_code: '', country: '',
   allow_rsvp: true, allow_ticketing: false, allow_qr_checkin: true, allow_donations: false, open_rsvp: false,
 };
 
@@ -338,6 +339,7 @@ export default function CreateEventScreen() {
       venue_name:       form.venue_name,
       venue_address:    form.venue_address,
       city:             form.city,
+      state:            form.state,
       zip_code:         form.zip_code,
       country:          form.country,
       allow_rsvp:       form.allow_rsvp,
@@ -546,6 +548,7 @@ export default function CreateEventScreen() {
               <Input label="Venue Name"     placeholder="Madison Square Garden" value={form.venue_name}    onChangeText={t => update('venue_name', t)}    icon="map-pin"  />
               <Input label="Street Address" placeholder="4 Pennsylvania Plaza"  value={form.venue_address} onChangeText={t => update('venue_address', t)} icon="navigation"/>
               <Input label="City"           placeholder="New York"               value={form.city}          onChangeText={t => update('city', t)}          icon="map"      />
+              <Input label="State / Province" placeholder="New York"             value={form.state}         onChangeText={t => update('state', t)}         icon="map"      />
               <Input
                 label="Zip / Postal"
                 placeholder="10001"
