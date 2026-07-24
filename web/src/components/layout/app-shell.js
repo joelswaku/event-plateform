@@ -4,7 +4,6 @@ import { usePathname } from "next/navigation";
 import DashboardSidebar from "./dashboard-sidebar";
 import Topbar from "./topbar";
 import BillingBanner from "@/components/ui/BillingBanner";
-import MobileBottomNav from "./MobileBottomNav";
 
 export default function AppShell({ children }) {
   const pathname = usePathname();
@@ -41,8 +40,7 @@ export default function AppShell({ children }) {
                 isFullscreen ? "overflow-hidden" : "mx-auto max-w-6xl w-full"
               }`}
             >
-              {/* On mobile+tablet, leave room for the floating pill bottom nav (~90px total) */}
-              <div className={`flex-1 flex flex-col min-h-0 ${isFullscreen ? "overflow-hidden" : "pb-24 md:pb-0"}`}>
+              <div className={`flex-1 flex flex-col min-h-0 ${isFullscreen ? "overflow-hidden" : ""}`}>
                 {children}
               </div>
             </div>
@@ -50,8 +48,6 @@ export default function AppShell({ children }) {
         </div>
 
       </div>
-
-      {!isBuilder && <MobileBottomNav />}
     </div>
   );
 }
