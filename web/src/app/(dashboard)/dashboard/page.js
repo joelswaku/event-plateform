@@ -837,10 +837,10 @@ function MobileDashboard() {
                 />
               )}
             </Link>
-            {/* Avatar circle — image if available, else initials */}
+            {/* Avatar circle — image if available, else initials (hidden on mobile, visible on desktop) */}
             <Link
               href="/settings"
-              className="flex h-[38px] w-[38px] items-center justify-center overflow-hidden rounded-full"
+              className="hidden md:flex h-[38px] w-[38px] items-center justify-center overflow-hidden rounded-full"
               style={{ background: "linear-gradient(135deg, #6366f1, #a78bfa)" }}
             >
               {user?.avatar_url ? (
