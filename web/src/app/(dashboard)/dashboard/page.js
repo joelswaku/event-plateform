@@ -818,7 +818,7 @@ function MobileDashboard() {
           <div className="flex items-center gap-2.5">
             {/* Bell with dynamic unread badge */}
             <Link
-              href="/settings"
+              href="/notifications"
               className="relative flex h-[38px] w-[38px] items-center justify-center rounded-xl border"
               style={{ background: "#14141f", borderColor: "rgba(255,255,255,0.10)" }}
             >
