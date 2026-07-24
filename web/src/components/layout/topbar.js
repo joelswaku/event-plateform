@@ -193,7 +193,113 @@ export default function Topbar() {
             </AnimatePresence>
           </div>
 
-          {/* Avatar + profile dropdown - REMOVED as per development decision */}
+          {/* Avatar + profile dropdown - Hidden on mobile, visible on desktop */}
+          <div ref={profileRef} className="relative hidden lg:flex items-center gap-2 pl-2 border-l border-border">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
+            <button
+              onClick={() => setProfileOpen((o) => !o)}
+              title="My profile"
+              className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-linear-to-br from-indigo-500 to-purple-600 text-xs font-bold text-white select-none hover:opacity-80 transition-opacity"
+              suppressHydrationWarning
+            >
+              {user?.avatar_url
+                ? <img src={user.avatar_url} alt="avatar" className="h-full w-full object-cover" />
+                : initials}
+              {avatarLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                </div>
+              )}
+            </button>
+
+            <AnimatePresence>
+              {profileOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 4, scale: 0.97 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-full mt-2 w-72 overflow-hidden rounded-2xl border border-border shadow-2xl z-50"
+                  style={{ background: "var(--bg-surface)" }}
+                >
+                  {/* Profile header */}
+                  <div className="relative px-4 pb-4 pt-5" style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(167,139,250,0.08) 100%)" }}>
+                    <div className="flex items-center gap-3">
+                      {/* Avatar with edit-photo overlay */}
+                      <div className="relative shrink-0">
+                        <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-linear-to-br from-indigo-500 to-purple-600 text-sm font-black text-white shadow-lg">
+                          {user?.avatar_url
+                            ? <img src={user.avatar_url} alt="avatar" className="h-full w-full object-cover" />
+                            : initials}
+                        </div>
+                        <button
+                          onClick={() => { fileInputRef.current?.click(); }}
+                          title="Change photo"
+                          className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 transition-opacity hover:opacity-80"
+                          style={{ background: "var(--bg-elevated)", borderColor: "var(--bg-surface)" }}
+                        >
+                          {avatarLoading
+                            ? <div className="h-2 w-2 animate-spin rounded-full border border-current border-t-transparent" style={{ color: "var(--text-muted)" }} />
+                            : <User size={9} style={{ color: "var(--text-muted)" }} />
+                          }
+                        </button>
+                      </div>
+
+                      {/* User info */}
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate text-sm font-bold text-(--text-primary)">{user?.name || "User"}</p>
+                        <p className="truncate text-xs text-(--text-muted)">{user?.email}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Nav links */}
+                  <div className="p-2">
+                    <Link
+                      href="/settings"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-(--bg-elevated)"
+                    >
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "rgba(99,102,241,0.1)" }}>
+                        <User size={13} style={{ color: "#6366f1" }} />
+                      </div>
+                      <span className="flex-1 text-sm font-medium text-(--text-secondary)">My Profile</span>
+                      <ChevronRight size={13} className="text-(--text-muted)" />
+                    </Link>
+                    <button
+                      onClick={() => { setProfileOpen(false); openBillingOrNavigate(); }}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-(--bg-elevated)"
+                    >
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "rgba(245,158,11,0.1)" }}>
+                        <CreditCard size={13} style={{ color: "#f59e0b" }} />
+                      </div>
+                      <span className="flex-1 text-left text-sm font-medium text-(--text-secondary)">Billing</span>
+                      <ChevronRight size={13} className="text-(--text-muted)" />
+                    </button>
+                  </div>
+
+                  {/* Sign out */}
+                  <div className="border-t border-border p-2">
+                    <button
+                      onClick={() => { setProfileOpen(false); handleLogout(); }}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+                    >
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "rgba(239,68,68,0.08)" }}>
+                        <LogOut size={13} style={{ color: "#ef4444" }} />
+                      </div>
+                      <span className="flex-1 text-left text-sm font-medium">Sign out</span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
     </header>

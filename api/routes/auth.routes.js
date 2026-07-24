@@ -2,7 +2,7 @@
 import { Router } from "express";
 
 import { authenticate } from "../middleware/auth.middleware.js";
-import { resetLimiter, loginLimiter, registerLimiter, googleAuthLimiter } from "../utils/rateLimite.js";
+import { resetLimiter, loginLimiter, registerLimiter } from "../utils/rateLimite.js";
 
 import { register } from "../controllers/auth/register.controller.js";
 import { login } from "../controllers/auth/login.controller.js";
@@ -32,7 +32,7 @@ router.post("/register", registerLimiter, register);
 router.post("/login", loginLimiter, login);
 
 // Google OAuth login
-router.post("/google", googleAuthLimiter, googleLogin);
+router.post("/google", googleLogin);
 
 // Refresh access token
 router.post("/refresh-token", refreshToken);
