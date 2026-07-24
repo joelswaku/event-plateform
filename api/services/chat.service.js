@@ -368,7 +368,7 @@ export async function getConversationByIdService({ conversationId, userId }) {
 /* ═══════════════════════════════════════════════════════════════════════════
    MESSAGES — fetch (paginated, newest-first then reversed) + send
    ═══════════════════════════════════════════════════════════════════════════ */
-export async function getMessagesService({ conversationId, userId, before = null, limit = 30 }) {
+export async function getMessagesService({ conversationId, userId, before = null, limit = 30, isSuperAdmin = false }) {
   await ensureSchema();
   if (!(await isParticipant(conversationId, userId))) {
     const e = new Error("Conversation not found"); e.statusCode = 404; throw e;
@@ -378,13 +378,25 @@ export async function getMessagesService({ conversationId, userId, before = null
   let cursor = "";
   if (before) { params.push(before); cursor = `AND m.created_at < $3`; }
 
+  // Hide messages older than 24 hours for non-super-admin users
+  let ageFilter = "";
+  if (!isSuperAdmin) {
+    ageFilter = `AND m.created_at > NOW() - INTERVAL '24 hours'`;
+  }
+
+  // Hide deleted messages for non-super-admin users
+  let deletedFilter = "";
+  if (!isSuperAdmin) {
+    deletedFilter = `AND m.deleted_at IS NULL`;
+  }
+
   const { rows } = await db.query(
     `SELECT m.id, m.sender_id, m.body, m.attachment_url, m.attachment_type,
             m.kind, m.metadata, m.created_at, m.edited_at, m.deleted_at,
             u.full_name AS sender_name, u.avatar_url AS sender_avatar
        FROM messages m
        LEFT JOIN users u ON u.id = m.sender_id
-      WHERE m.conversation_id = $1 ${cursor}
+      WHERE m.conversation_id = $1 ${cursor} ${ageFilter} ${deletedFilter}
       ORDER BY m.created_at DESC
       LIMIT $2`,
     params
@@ -407,6 +419,79 @@ function mapMessage(m) {
     edited_at: m.edited_at,
     deleted: !!m.deleted_at,
   };
+}
+
+/* ─── Auto-reply helper for support conversations ─────────────────────── */
+async function maybeAutoReplyToSupport(conversationId, userId) {
+  try {
+    // Check if this is a support conversation
+    const convCheck = await db.query(
+      `SELECT type, direct_key FROM conversations WHERE id=$1`,
+      [conversationId]
+    );
+    if (!convCheck.rows[0] || convCheck.rows[0].type !== 'support') return;
+    if (!convCheck.rows[0].direct_key?.startsWith('support:')) return;
+
+    // Check if there's a recent auto-reply (within last 6 hours)
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    const recentAutoReply = await db.query(
+      `SELECT id FROM messages
+       WHERE conversation_id=$1
+         AND sender_id='system'
+         AND kind='system'
+         AND created_at > $2
+       ORDER BY created_at DESC LIMIT 1`,
+      [conversationId, sixHoursAgo]
+    );
+
+    // If there's a recent auto-reply, skip
+    if (recentAutoReply.rows.length > 0) return;
+
+    // Send auto-reply
+    const autoReplyText = `Thank you for contacting LiteEvent Support! 🎉\n\nWe've received your message and our team will respond as soon as possible. We typically reply within a few hours during business hours.\n\nIn the meantime, you can check our help center for quick answers to common questions.`;
+
+    await db.query(
+      `INSERT INTO messages (conversation_id, sender_id, body, kind)
+       VALUES ($1, 'system', $2, 'system')`,
+      [conversationId, autoReplyText]
+    );
+
+    // Update conversation last message
+    await db.query(
+      `UPDATE conversations
+          SET last_message_at=NOW(),
+              last_message_preview='Auto-reply sent',
+              last_message_sender='system',
+              updated_at=NOW()
+        WHERE id=$1`,
+      [conversationId]
+    );
+
+    // Notify the user
+    const autoReplyMessage = {
+      id: 'auto-reply-' + Date.now(),
+      sender_id: 'system',
+      sender_name: 'LiteEvent Support',
+      sender_avatar: null,
+      body: autoReplyText,
+      attachment_url: null,
+      attachment_type: null,
+      kind: 'system',
+      metadata: null,
+      created_at: new Date().toISOString(),
+      edited_at: null,
+      deleted: false,
+    };
+
+    publishToUsers([userId], {
+      event: "message:new",
+      conversation_id: conversationId,
+      message: autoReplyMessage,
+    });
+  } catch (err) {
+    // Auto-reply failures should not break message sending
+    console.error('Auto-reply error:', err);
+  }
 }
 
 export async function sendMessageService({ conversationId, userId, body, attachmentUrl = null, attachmentType = null, kind = "text" }) {
@@ -460,13 +545,28 @@ export async function sendMessageService({ conversationId, userId, body, attachm
   });
 
   // ── push fallback for offline recipients (never blocks) ──
+  const { createNotificationService } = await import('./notifications.service.js');
   for (const rid of recipients) {
+    // Send push notification (mobile)
     sendPushToUser(rid, {
       title: sender.rows[0]?.full_name || "New message",
       body: preview || "Sent you a message",
       data: { type: "chat", conversation_id: conversationId },
     }).catch(() => {});
+
+    // Create in-app notification (web)
+    createNotificationService({
+      userId: rid,
+      type: "chat",
+      title: sender.rows[0]?.full_name || "New message",
+      body: preview || "Sent you a message",
+      link: `/chat/${conversationId}`,
+      metadata: { conversation_id: conversationId },
+    }).catch(() => {});
   }
+
+  // ── auto-reply for support conversations ──
+  await maybeAutoReplyToSupport(conversationId, userId);
 
   return message;
 }
@@ -506,6 +606,107 @@ export async function getUnreadCountService({ userId }) {
     [userId]
   );
   return rows[0]?.total ?? 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DELETE MESSAGE — soft-delete (mark deleted_at).
+   Super admins can delete any message. Regular users can only delete their own.
+   ═══════════════════════════════════════════════════════════════════════════ */
+export async function deleteMessageService({ messageId, userId, isSuperAdmin = false }) {
+  await ensureSchema();
+
+  // Check message exists and get conversation_id
+  const msgCheck = await db.query(
+    `SELECT id, conversation_id, sender_id FROM messages WHERE id=$1 AND deleted_at IS NULL`,
+    [messageId]
+  );
+  if (!msgCheck.rows[0]) {
+    const e = new Error("Message not found"); e.statusCode = 404; throw e;
+  }
+  const msg = msgCheck.rows[0];
+
+  // Permission check: super admin can delete any message, others can only delete their own
+  if (!isSuperAdmin && msg.sender_id !== userId) {
+    const e = new Error("You can only delete your own messages"); e.statusCode = 403; throw e;
+  }
+
+  // Check user is participant in the conversation
+  if (!(await isParticipant(msg.conversation_id, userId))) {
+    const e = new Error("Conversation not found"); e.statusCode = 404; throw e;
+  }
+
+  // Soft-delete the message
+  await db.query(`UPDATE messages SET deleted_at=NOW() WHERE id=$1`, [messageId]);
+
+  // Notify participants
+  const participants = await participantIds(msg.conversation_id);
+  publishToUsers(participants, {
+    event: "message:deleted",
+    conversation_id: msg.conversation_id,
+    message_id: messageId,
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DELETE CONVERSATION — soft-delete conversation (super admin only).
+   Removes the conversation from the user's list.
+   ═══════════════════════════════════════════════════════════════════════════ */
+export async function deleteConversationService({ conversationId, userId, isSuperAdmin = false }) {
+  await ensureSchema();
+
+  // Only super admins can delete conversations
+  if (!isSuperAdmin) {
+    const e = new Error("Only super admins can delete conversations"); e.statusCode = 403; throw e;
+  }
+
+  // Check conversation exists and user is participant
+  if (!(await isParticipant(conversationId, userId))) {
+    const e = new Error("Conversation not found"); e.statusCode = 404; throw e;
+  }
+
+  // Soft-delete the conversation
+  await db.query(`UPDATE conversations SET deleted_at=NOW() WHERE id=$1`, [conversationId]);
+
+  // Notify all participants
+  const participants = await participantIds(conversationId);
+  publishToUsers(participants, {
+    event: "conversation:deleted",
+    conversation_id: conversationId,
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DELETE ALL CONVERSATIONS WITH USER — super admin only.
+   Deletes all conversations where the specified user is a participant.
+   ═══════════════════════════════════════════════════════════════════════════ */
+export async function deleteAllConversationsWithUserService({ targetUserId, adminId, isSuperAdmin = false }) {
+  await ensureSchema();
+
+  // Only super admins can delete conversations
+  if (!isSuperAdmin) {
+    const e = new Error("Only super admins can delete conversations"); e.statusCode = 403; throw e;
+  }
+
+  // Find all conversations with the target user
+  const { rows } = await db.query(
+    `SELECT DISTINCT c.id
+     FROM conversations c
+     JOIN conversation_participants cp ON cp.conversation_id = c.id
+     WHERE cp.user_id = $1 AND c.deleted_at IS NULL`,
+    [targetUserId]
+  );
+
+  // Delete each conversation
+  for (const row of rows) {
+    await db.query(`UPDATE conversations SET deleted_at=NOW() WHERE id=$1`, [row.id]);
+    const participants = await participantIds(row.id);
+    publishToUsers(participants, {
+      event: "conversation:deleted",
+      conversation_id: row.id,
+    });
+  }
+
+  return { deleted: rows.length };
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

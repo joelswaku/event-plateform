@@ -4,10 +4,12 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Send, X, MessageCircle, Loader2, ArrowLeft,
-  Megaphone, CheckCheck, ShieldCheck, LifeBuoy,
+  Megaphone, CheckCheck, ShieldCheck, LifeBuoy, MoreVertical, Trash2,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { chatApi, connectChatStream } from "@/lib/chat-api";
+import { useChatStore } from "@/store/chat.store";
+import DeleteModal from "./DeleteModal";
 
 const ACCENT = "#6366f1";
 const GOLD   = "#c9a96e";
@@ -288,6 +290,7 @@ export default function ChatWorkspace({ variant = "support" }) {
   const accessToken = useAuthStore(s => s.accessToken);
   const meId        = user?.id;
   const isAdmin     = variant === "inbox";
+  const isSuperAdmin = !!user?.is_super_admin;
 
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading]   = useState(true);
@@ -295,6 +298,13 @@ export default function ChatWorkspace({ variant = "support" }) {
   const [search, setSearch]     = useState("");
   const [showBroadcast, setShowBroadcast] = useState(false);
   const [typingMap, setTypingMap] = useState({});
+  const [contextMenu, setContextMenu] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [hoveredConv, setHoveredConv] = useState(null);
+  const [deleteModal, setDeleteModal] = useState(null); // { type: 'single' | 'all', id, userId, title }
+
+  const deleteConversation = useChatStore((s) => s.deleteConversation);
+  const deleteAllConversationsWithUser = useChatStore((s) => s.deleteAllConversationsWithUser);
 
   const incomingHandlers = useRef(new Map());
   const streamRef = useRef(null);
@@ -302,6 +312,33 @@ export default function ChatWorkspace({ variant = "support" }) {
   useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
 
   const active = conversations.find(c => c.id === activeId) || null;
+
+  const handleDeleteConversation = async (convId, title) => {
+    setDeleteModal({ type: 'single', id: convId, title });
+    setContextMenu(null);
+  };
+
+  const handleDeleteAll = async (userId, userName) => {
+    setDeleteModal({ type: 'all', userId, userName });
+    setContextMenu(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal) return;
+    setDeleting(true);
+
+    if (deleteModal.type === 'single') {
+      await deleteConversation(deleteModal.id);
+      setConversations(prev => prev.filter(c => c.id !== deleteModal.id));
+      if (activeId === deleteModal.id) setActiveId(null);
+    } else if (deleteModal.type === 'all') {
+      await deleteAllConversationsWithUser(deleteModal.userId);
+      await loadConversations();
+    }
+
+    setDeleting(false);
+    setDeleteModal(null);
+  };
 
   const loadConversations = useCallback(async () => {
     try { setConversations(await chatApi.conversations()); }
@@ -432,29 +469,86 @@ export default function ChatWorkspace({ variant = "support" }) {
             const isActive = c.id === activeId;
             const fromMe = c.last_message_sender === meId;
             return (
-              <button key={c.id} onClick={() => openConversation(c.id)}
-                className={`flex w-full items-center gap-3 px-3 py-3 text-left transition border-l-2 ${isActive ? "bg-white/5" : "hover:bg-white/[0.03] border-transparent"}`}
+              <div key={c.id} className="group relative"
+                onMouseEnter={() => setHoveredConv(c.id)}
+                onMouseLeave={() => setHoveredConv(null)}
                 style={{ borderLeftColor: isActive ? ACCENT : "transparent" }}>
-                <Avatar name={c.title} url={c.counterpart?.avatar_url} size={46} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-bold text-white truncate">{c.title}</p>
-                    <span className="text-[10px] text-white/30 shrink-0">{relTime(c.last_message_at)}</span>
+                <button onClick={() => openConversation(c.id)}
+                  className={`flex w-full items-center gap-3 px-3 py-3 text-left transition border-l-2 ${isActive ? "bg-white/5" : "hover:bg-white/[0.03] border-transparent"}`}
+                  style={{ borderLeftColor: isActive ? ACCENT : "transparent" }}>
+                  <Avatar name={c.title} url={c.counterpart?.avatar_url} size={46} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-bold text-white truncate">{c.title}</p>
+                      <span className="text-[10px] text-white/30 shrink-0">{relTime(c.last_message_at)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 mt-0.5">
+                      <p className="text-xs text-white/45 truncate">
+                        {fromMe && <span className="text-white/30">You: </span>}
+                        {c.last_message_preview || "No messages yet"}
+                      </p>
+                      {c.unread_count > 0 && (
+                        <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-black text-white"
+                          style={{ background: ACCENT }}>
+                          {c.unread_count > 99 ? "99+" : c.unread_count}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between gap-2 mt-0.5">
-                    <p className="text-xs text-white/45 truncate">
-                      {fromMe && <span className="text-white/30">You: </span>}
-                      {c.last_message_preview || "No messages yet"}
-                    </p>
-                    {c.unread_count > 0 && (
-                      <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-black text-white"
-                        style={{ background: ACCENT }}>
-                        {c.unread_count > 99 ? "99+" : c.unread_count}
-                      </span>
-                    )}
-                  </div>
+                </button>
+                {/* Delete menu (super admin only) */}
+                {isSuperAdmin && (
+                <div className={`absolute right-2 top-1/2 -translate-y-1/2 transition-opacity z-50 ${(hoveredConv === c.id || contextMenu === c.id) ? 'opacity-100' : 'opacity-0'}`}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setContextMenu(contextMenu === c.id ? null : c.id);
+                    }}
+                    className="p-2 rounded-lg hover:bg-white/10 transition"
+                    title="Options"
+                  >
+                    <MoreVertical size={14} style={{ color: "rgba(255,255,255,0.6)" }} />
+                  </button>
+                  {contextMenu === c.id && (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute right-0 top-full mt-1 rounded-lg overflow-hidden shadow-xl z-[60]"
+                      style={{
+                        background: "#14141f",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        minWidth: "200px",
+                      }}
+                    >
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteConversation(c.id, c.title);
+                        }}
+                        disabled={deleting}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-white/5 transition"
+                      >
+                        <Trash2 size={14} style={{ color: "#ef4444" }} />
+                        <span className="text-sm font-medium text-white">Delete Conversation</span>
+                      </button>
+                      {c.counterpart?.id && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteAll(c.counterpart.id, c.title);
+                          }}
+                          disabled={deleting}
+                          className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-white/5 transition border-t"
+                          style={{ borderColor: "rgba(255,255,255,0.06)" }}
+                        >
+                          <Trash2 size={14} style={{ color: "#ef4444" }} />
+                          <span className="text-sm font-medium text-white">Delete All with User</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </button>
+                )}
+              </div>
             );
           })}
         </div>
@@ -482,6 +576,21 @@ export default function ChatWorkspace({ variant = "support" }) {
       <AnimatePresence>
         {showBroadcast && <BroadcastModal onClose={() => setShowBroadcast(false)} onSent={loadConversations} />}
       </AnimatePresence>
+
+      {/* Delete Modal */}
+      <DeleteModal
+        isOpen={!!deleteModal}
+        onClose={() => setDeleteModal(null)}
+        onConfirm={confirmDelete}
+        isDeleting={deleting}
+        title={deleteModal?.type === 'single' ? 'Delete Conversation' : 'Delete All Conversations'}
+        message={
+          deleteModal?.type === 'single'
+            ? `Are you sure you want to delete your conversation with ${deleteModal?.title || 'this user'}? This action cannot be undone.`
+            : `Are you sure you want to delete ALL conversations with ${deleteModal?.userName || 'this user'}? This action cannot be undone.`
+        }
+        confirmText={deleteModal?.type === 'single' ? 'Delete' : 'Delete All'}
+      />
     </div>
   );
 }

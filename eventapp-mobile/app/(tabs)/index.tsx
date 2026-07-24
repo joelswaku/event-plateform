@@ -981,20 +981,6 @@ export default function HomeScreen() {
                 </View>
               )}
             </Pressable>
-            <Pressable style={s.avatar} onPress={() => router.push('/(tabs)/profile' as never)} hitSlop={8}>
-              {user?.avatar_url ? (
-                <Image source={{ uri: user.avatar_url }} style={StyleSheet.absoluteFill} contentFit="cover" />
-              ) : (
-                <>
-                  <LinearGradient
-                    colors={[Colors.accent.indigo, Colors.accent.violet]}
-                    style={StyleSheet.absoluteFill}
-                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                  />
-                  <Text style={s.avatarTxt}>{initials}</Text>
-                </>
-              )}
-            </Pressable>
           </View>
         </Animated.View>
 

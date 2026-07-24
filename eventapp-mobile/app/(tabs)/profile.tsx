@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable, Image, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { useAuthStore }         from '@/store/auth.store';
 import { useDrawerStore }       from '@/store/drawer.store';
 import { useSubscriptionStore } from '@/store/subscription.store';
+import { useChatStore }         from '@/store/chat.store';
 import { ConfirmModal }         from '@/components/ui/ConfirmModal';
 import { LegalPageModal }       from '@/components/ui/LegalPageModal';
 import { Colors }               from '@/constants/colors';
@@ -18,9 +19,19 @@ export default function ProfileTab() {
   const user         = useAuthStore(s => s.user);
   const logout       = useAuthStore(s => s.logout);
   const updateAvatar = useAuthStore(s => s.updateAvatar);
+  const isSuperAdmin = !!user?.is_super_admin;
+  const unreadTotal  = useChatStore(s => s.unreadTotal);
+  const fetchUnreadCount = useChatStore(s => s.fetchUnreadCount);
   const [avatarLoading,  setAvatarLoading]  = useState(false);
   const [logoutModal,    setLogoutModal]    = useState(false);
   const [legalSlug,      setLegalSlug]      = useState<string | null>(null);
+
+  // Fetch unread count for all users (including super admins)
+  useEffect(() => {
+    fetchUnreadCount();
+    const interval = setInterval(() => fetchUnreadCount(), 10000); // Poll every 10 seconds
+    return () => clearInterval(interval);
+  }, [fetchUnreadCount]);
 
   async function handlePickAvatar() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -133,7 +144,7 @@ export default function ProfileTab() {
           <MenuItem icon="layers"      label="Plans & Billing" onPress={() => router.push('/profile/billing' as never)} />
           <MenuItem icon="bell"        label="Notifications"   onPress={() => router.push('/profile/notifications' as never)} />
           <MenuItem icon="shield"      label="Security"        onPress={() => router.push('/profile/security' as never)} />
-          <MenuItem icon="help-circle" label="Help & Support"  onPress={() => router.push('/profile/support' as never)} />
+          <MenuItem icon="help-circle" label="Help & Support"  onPress={() => router.push('/profile/support' as never)} badge={!isSuperAdmin ? unreadTotal : 0} />
         </View>
 
         {/* Super Admin entry — only for super admins */}
@@ -204,18 +215,56 @@ export default function ProfileTab() {
   );
 }
 
-function MenuItem({ icon, label, onPress }: {
+function MenuItem({ icon, label, onPress, badge }: {
   icon: keyof typeof Feather.glyphMap;
   label: string;
   onPress: () => void;
+  badge?: number;
 }) {
+  const hasBadge = badge !== undefined && badge > 0;
+
   return (
     <Pressable style={styles.menuItem} onPress={onPress}>
       <View style={styles.menuIconWrap}>
         <Feather name={icon} size={16} color={Colors.accent.indigo} />
+        {hasBadge && (
+          <View style={{
+            position: 'absolute',
+            right: -4,
+            top: -4,
+            backgroundColor: '#ef4444',
+            borderRadius: 8,
+            minWidth: 16,
+            height: 16,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 4,
+          }}>
+            <Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>
+              {badge! > 9 ? '9+' : String(badge)}
+            </Text>
+          </View>
+        )}
       </View>
       <Text style={styles.menuLabel}>{label}</Text>
-      <Feather name="chevron-right" size={16} color={Colors.text.subtle} style={{ marginLeft: 'auto' }} />
+      {!hasBadge && <View style={{ flex: 1 }} />}
+      {hasBadge && (
+        <View style={{
+          backgroundColor: '#ef4444',
+          borderRadius: 10,
+          minWidth: 20,
+          height: 20,
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingHorizontal: 6,
+          marginRight: 8,
+        }}>
+          <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>
+            {badge! > 9 ? '9+' : String(badge)}
+          </Text>
+        </View>
+      )}
+      <Feather name="chevron-right" size={16} color={Colors.text.subtle} />
     </Pressable>
   );
 }

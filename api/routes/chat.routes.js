@@ -13,6 +13,9 @@ import {
   broadcast,
   openSupport,
   stream,
+  deleteMessage,
+  deleteConversation,
+  deleteAllConversationsWithUser,
 } from "../controllers/chat.controller.js";
 
 const router = Router();
@@ -27,14 +30,17 @@ router.get("/contacts",       listContacts);
 router.get("/unread-count",   unreadCount);
 router.post("/support",       openSupport);
 
-router.get("/conversations",                  listConversations);
-router.post("/conversations",                 createConversation);
-router.get("/conversations/:id",              getConversation);
-router.get("/conversations/:id/messages",     getMessages);
-router.post("/conversations/:id/messages",    sendMessage);
-router.post("/conversations/:id/read",        markRead);
-router.post("/conversations/:id/typing",      typing);
+router.get("/conversations",                           listConversations);
+router.post("/conversations",                          createConversation);
+router.get("/conversations/:id",                       getConversation);
+router.delete("/conversations/:id",                    deleteConversation);
+router.get("/conversations/:id/messages",              getMessages);
+router.post("/conversations/:id/messages",             sendMessage);
+router.delete("/conversations/:id/messages/:messageId", deleteMessage);
+router.post("/conversations/:id/read",                 markRead);
+router.post("/conversations/:id/typing",               typing);
 
-router.post("/broadcast",     broadcast);
+router.post("/broadcast",                              broadcast);
+router.post("/conversations/delete-all-with-user",     deleteAllConversationsWithUser);
 
 export default router;

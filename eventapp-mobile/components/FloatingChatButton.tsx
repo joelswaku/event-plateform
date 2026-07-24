@@ -22,36 +22,20 @@ export function FloatingChatButton({ onPress }: FloatingChatButtonProps) {
   const [scaleAnim] = useState(new Animated.Value(1));
   const [pulseAnim] = useState(new Animated.Value(1));
 
-  // Fetch unread count and conversations periodically (only for non-super-admins)
+  // Fetch unread count and conversations periodically
   useEffect(() => {
-    if (isSuperAdmin) {
-      console.log('FloatingChatButton: Super admin - skipping notifications');
-      return;
-    }
-
-    console.log('FloatingChatButton: Starting notification polling for regular user');
-
     // Initial fetch
     fetchUnreadCount();
     fetchConversations();
 
     // Poll every 5 seconds for real-time updates
     const interval = setInterval(() => {
-      console.log('FloatingChatButton: Polling for new messages...');
       fetchUnreadCount();
       fetchConversations();
     }, 5000);
 
-    return () => {
-      console.log('FloatingChatButton: Stopping notification polling');
-      clearInterval(interval);
-    };
-  }, [isSuperAdmin, fetchUnreadCount, fetchConversations]);
-
-  // Log when unread count changes
-  useEffect(() => {
-    console.log('FloatingChatButton: Unread total changed to:', unreadTotal);
-  }, [unreadTotal]);
+    return () => clearInterval(interval);
+  }, [fetchUnreadCount, fetchConversations]);
 
   // Pulse animation when there are new messages
   useEffect(() => {

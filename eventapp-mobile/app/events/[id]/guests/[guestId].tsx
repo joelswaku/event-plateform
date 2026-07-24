@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable,
-  ActivityIndicator, TextInput, Switch, Alert,
+  ActivityIndicator, TextInput, Switch, Alert, Linking, Share, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard';
 import { notify, showSuccess, showError } from '@/lib/toast';
 
 import { useGuestStore }  from '@/store/guest.store';
@@ -76,6 +77,8 @@ export default function GuestDetailScreen() {
   const [editOpen,     setEditOpen]     = useState(false);
   const [deleteModal,  setDeleteModal]  = useState(false);
   const [checkinModal, setCheckinModal] = useState(false);
+  const [inviteModal,  setInviteModal]  = useState(false);
+  const [qrModal,      setQrModal]      = useState(false);
 
   /* Edit form state */
   const [form, setForm] = useState({
@@ -296,19 +299,19 @@ export default function GuestDetailScreen() {
           <ActionRow
             icon="mail"
             label="Send Invitation"
-            sub="Email event details & RSVP link"
+            sub="Email or SMS event details & RSVP link"
             accent={Colors.accent.indigo}
             loading={busy === 'invite'}
-            onPress={() => run('invite', () => sendInvitation(eventId!, guestId!), 'Invitation sent!')}
+            onPress={() => setInviteModal(true)}
           />
           <View style={s.sep} />
           <ActionRow
             icon="grid"
-            label="Send QR Code"
-            sub="Email QR check-in ticket"
+            label="Share QR Code"
+            sub="Share check-in QR code"
             accent={Colors.accent.emerald}
             loading={busy === 'qr'}
-            onPress={() => run('qr', () => sendQrEmail(eventId!, guestId!), 'QR code sent!')}
+            onPress={() => setQrModal(true)}
           />
         </View>
 
@@ -479,6 +482,330 @@ export default function GuestDetailScreen() {
         onConfirm={async () => { await deleteGuest(eventId!, guestId!); router.back(); }}
         onClose={() => setDeleteModal(false)}
       />
+
+      {/* ── Multi-Channel Invitation Modal ────────────────────────── */}
+      {inviteModal && (
+        <View style={StyleSheet.absoluteFill}>
+          <Pressable style={inviteModalStyles.overlay} onPress={() => setInviteModal(false)}>
+            <View style={inviteModalStyles.backdrop} />
+          </Pressable>
+          <View style={inviteModalStyles.container}>
+            <Pressable onPress={(e) => e.stopPropagation()} style={inviteModalStyles.content}>
+              <Text style={inviteModalStyles.title}>Send Invitation</Text>
+              <Text style={inviteModalStyles.subtitle}>
+                Choose how to invite {guest.full_name}
+              </Text>
+
+              <View style={inviteModalStyles.options}>
+                {/* Share Invitation - TOP PRIORITY */}
+                <Pressable
+                  style={inviteModalStyles.option}
+                  onPress={async () => {
+                    try {
+                      const inviteUrl = `${process.env.EXPO_PUBLIC_WEB_URL}/invite/${guestId}`;
+                      const result = await Share.share({
+                        message: `You're invited to the event! RSVP here: ${inviteUrl}`,
+                        title: 'Event Invitation',
+                      });
+
+                      if (result.action === Share.sharedAction) {
+                        setInviteModal(false);
+                        showSuccess('Invitation shared!');
+                      }
+                    } catch (error: any) {
+                      showError(error?.message || 'Failed to share invitation');
+                    }
+                  }}
+                >
+                  <View style={[inviteModalStyles.optionIcon, { backgroundColor: `${Colors.accent.violet}18` }]}>
+                    <Feather name="share-2" size={18} color={Colors.accent.violet} />
+                  </View>
+                  <View style={inviteModalStyles.optionText}>
+                    <Text style={inviteModalStyles.optionLabel}>Share Invitation</Text>
+                    <Text style={inviteModalStyles.optionSub}>Share via any app</Text>
+                  </View>
+                  <Feather name="chevron-right" size={16} color={Colors.accent.violet} />
+                </Pressable>
+
+                {/* WhatsApp */}
+                {guest.phone && (
+                  <Pressable
+                    style={inviteModalStyles.option}
+                    onPress={async () => {
+                      try {
+                        setInviteModal(false);
+                        const phone = guest.phone.replace(/[^0-9]/g, '');
+                        const inviteUrl = `${process.env.EXPO_PUBLIC_WEB_URL}/invite/${guestId}`;
+                        const message = `You're invited to the event!\n\nRSVP here: ${inviteUrl}`;
+                        const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+
+                        const canOpen = await Linking.canOpenURL(url);
+                        if (canOpen) {
+                          await Linking.openURL(url);
+                        } else {
+                          showError('WhatsApp is not installed');
+                        }
+                      } catch (error: any) {
+                        showError(error?.message || 'Failed to open WhatsApp');
+                      }
+                    }}
+                  >
+                    <View style={[inviteModalStyles.optionIcon, { backgroundColor: '#25D366' + '18' }]}>
+                      <Feather name="message-circle" size={18} color="#25D366" />
+                    </View>
+                    <View style={inviteModalStyles.optionText}>
+                      <Text style={inviteModalStyles.optionLabel}>Send via WhatsApp</Text>
+                      <Text style={inviteModalStyles.optionSub} numberOfLines={1}>{guest.phone}</Text>
+                    </View>
+                    <Feather name="chevron-right" size={16} color="#25D366" />
+                  </Pressable>
+                )}
+
+                {/* Email */}
+                {guest.email && (
+                  <Pressable
+                    style={inviteModalStyles.option}
+                    onPress={() => {
+                      setInviteModal(false);
+                      run('invite', () => sendInvitation(eventId!, guestId!, { channel: 'EMAIL' }), 'Invitation sent by email!');
+                    }}
+                  >
+                    <View style={[inviteModalStyles.optionIcon, { backgroundColor: `${Colors.accent.indigo}18` }]}>
+                      <Feather name="mail" size={18} color={Colors.accent.indigo} />
+                    </View>
+                    <View style={inviteModalStyles.optionText}>
+                      <Text style={inviteModalStyles.optionLabel}>Send via Email</Text>
+                      <Text style={inviteModalStyles.optionSub} numberOfLines={1}>{guest.email}</Text>
+                    </View>
+                    <Feather name="chevron-right" size={16} color={Colors.accent.indigo} />
+                  </Pressable>
+                )}
+
+                {/* Copy Link */}
+                <Pressable
+                  style={inviteModalStyles.option}
+                  onPress={async () => {
+                    try {
+                      setInviteModal(false);
+                      const inviteUrl = `${process.env.EXPO_PUBLIC_WEB_URL}/invite/${guestId}`;
+                      await Clipboard.setStringAsync(inviteUrl);
+                      showSuccess('Invitation link copied!');
+                    } catch (error: any) {
+                      showError(error?.message || 'Failed to copy link');
+                    }
+                  }}
+                >
+                  <View style={[inviteModalStyles.optionIcon, { backgroundColor: `${Colors.accent.amber}18` }]}>
+                    <Feather name="copy" size={18} color={Colors.accent.amber} />
+                  </View>
+                  <View style={inviteModalStyles.optionText}>
+                    <Text style={inviteModalStyles.optionLabel}>Copy Invitation Link</Text>
+                    <Text style={inviteModalStyles.optionSub}>Copy to clipboard</Text>
+                  </View>
+                  <Feather name="chevron-right" size={16} color={Colors.accent.amber} />
+                </Pressable>
+
+                {/* SMS (Native) */}
+                {guest.phone && (
+                  <Pressable
+                    style={inviteModalStyles.option}
+                    onPress={async () => {
+                      try {
+                        setInviteModal(false);
+                        const inviteUrl = `${process.env.EXPO_PUBLIC_WEB_URL}/invite/${guestId}`;
+                        const message = `You're invited to the event! RSVP here: ${inviteUrl}`;
+                        const url = `sms:${guest.phone}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(message)}`;
+
+                        await Linking.openURL(url);
+                      } catch (error: any) {
+                        showError(error?.message || 'Failed to open SMS');
+                      }
+                    }}
+                  >
+                    <View style={[inviteModalStyles.optionIcon, { backgroundColor: `${Colors.accent.emerald}18` }]}>
+                      <Feather name="phone" size={18} color={Colors.accent.emerald} />
+                    </View>
+                    <View style={inviteModalStyles.optionText}>
+                      <Text style={inviteModalStyles.optionLabel}>Share via SMS</Text>
+                      <Text style={inviteModalStyles.optionSub} numberOfLines={1}>{guest.phone}</Text>
+                    </View>
+                    <Feather name="chevron-right" size={16} color={Colors.accent.emerald} />
+                  </Pressable>
+                )}
+              </View>
+
+              <Pressable
+                style={inviteModalStyles.cancelBtn}
+                onPress={() => setInviteModal(false)}
+              >
+                <Text style={inviteModalStyles.cancelText}>Cancel</Text>
+              </Pressable>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {/* ── Multi-Channel QR Code Modal ────────────────────────── */}
+      {qrModal && (
+        <View style={StyleSheet.absoluteFill}>
+          <Pressable style={inviteModalStyles.overlay} onPress={() => setQrModal(false)}>
+            <View style={inviteModalStyles.backdrop} />
+          </Pressable>
+          <View style={inviteModalStyles.container}>
+            <Pressable onPress={(e) => e.stopPropagation()} style={inviteModalStyles.content}>
+              <Text style={inviteModalStyles.title}>Share QR Code</Text>
+              <Text style={inviteModalStyles.subtitle}>
+                Share check-in QR code for {guest.full_name}
+              </Text>
+
+              <View style={inviteModalStyles.options}>
+                {/* Share QR Code - TOP PRIORITY */}
+                <Pressable
+                  style={inviteModalStyles.option}
+                  onPress={async () => {
+                    try {
+                      const qrUrl = `${process.env.EXPO_PUBLIC_WEB_URL}/qr/${guestId}`;
+                      const result = await Share.share({
+                        message: `Check-in QR Code for ${guest.full_name}\n\n${qrUrl}`,
+                        title: 'Check-in QR Code',
+                      });
+
+                      if (result.action === Share.sharedAction) {
+                        setQrModal(false);
+                        showSuccess('QR code shared!');
+                      }
+                    } catch (error: any) {
+                      showError(error?.message || 'Failed to share QR code');
+                    }
+                  }}
+                >
+                  <View style={[inviteModalStyles.optionIcon, { backgroundColor: `${Colors.accent.violet}18` }]}>
+                    <Feather name="share-2" size={18} color={Colors.accent.violet} />
+                  </View>
+                  <View style={inviteModalStyles.optionText}>
+                    <Text style={inviteModalStyles.optionLabel}>Share QR Code</Text>
+                    <Text style={inviteModalStyles.optionSub}>Share via any app</Text>
+                  </View>
+                  <Feather name="chevron-right" size={16} color={Colors.accent.violet} />
+                </Pressable>
+
+                {/* WhatsApp */}
+                {guest.phone && (
+                  <Pressable
+                    style={inviteModalStyles.option}
+                    onPress={async () => {
+                      try {
+                        setQrModal(false);
+                        const phone = guest.phone.replace(/[^0-9]/g, '');
+                        const qrUrl = `${process.env.EXPO_PUBLIC_WEB_URL}/qr/${guestId}`;
+                        const message = `Check-in QR Code for ${guest.full_name}\n\n${qrUrl}`;
+                        const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+
+                        const canOpen = await Linking.canOpenURL(url);
+                        if (canOpen) {
+                          await Linking.openURL(url);
+                        } else {
+                          showError('WhatsApp is not installed');
+                        }
+                      } catch (error: any) {
+                        showError(error?.message || 'Failed to open WhatsApp');
+                      }
+                    }}
+                  >
+                    <View style={[inviteModalStyles.optionIcon, { backgroundColor: '#25D366' + '18' }]}>
+                      <Feather name="message-circle" size={18} color="#25D366" />
+                    </View>
+                    <View style={inviteModalStyles.optionText}>
+                      <Text style={inviteModalStyles.optionLabel}>Send via WhatsApp</Text>
+                      <Text style={inviteModalStyles.optionSub} numberOfLines={1}>{guest.phone}</Text>
+                    </View>
+                    <Feather name="chevron-right" size={16} color="#25D366" />
+                  </Pressable>
+                )}
+
+                {/* Email */}
+                {guest.email && (
+                  <Pressable
+                    style={inviteModalStyles.option}
+                    onPress={() => {
+                      setQrModal(false);
+                      run('qr', () => sendQrEmail(eventId!, guestId!), 'QR code sent by email!');
+                    }}
+                  >
+                    <View style={[inviteModalStyles.optionIcon, { backgroundColor: `${Colors.accent.indigo}18` }]}>
+                      <Feather name="mail" size={18} color={Colors.accent.indigo} />
+                    </View>
+                    <View style={inviteModalStyles.optionText}>
+                      <Text style={inviteModalStyles.optionLabel}>Send via Email</Text>
+                      <Text style={inviteModalStyles.optionSub} numberOfLines={1}>{guest.email}</Text>
+                    </View>
+                    <Feather name="chevron-right" size={16} color={Colors.accent.indigo} />
+                  </Pressable>
+                )}
+
+                {/* Copy QR Link */}
+                <Pressable
+                  style={inviteModalStyles.option}
+                  onPress={async () => {
+                    try {
+                      setQrModal(false);
+                      const qrUrl = `${process.env.EXPO_PUBLIC_WEB_URL}/qr/${guestId}`;
+                      await Clipboard.setStringAsync(qrUrl);
+                      showSuccess('QR code link copied!');
+                    } catch (error: any) {
+                      showError(error?.message || 'Failed to copy link');
+                    }
+                  }}
+                >
+                  <View style={[inviteModalStyles.optionIcon, { backgroundColor: `${Colors.accent.amber}18` }]}>
+                    <Feather name="copy" size={18} color={Colors.accent.amber} />
+                  </View>
+                  <View style={inviteModalStyles.optionText}>
+                    <Text style={inviteModalStyles.optionLabel}>Copy QR Link</Text>
+                    <Text style={inviteModalStyles.optionSub}>Copy to clipboard</Text>
+                  </View>
+                  <Feather name="chevron-right" size={16} color={Colors.accent.amber} />
+                </Pressable>
+
+                {/* SMS (Native) */}
+                {guest.phone && (
+                  <Pressable
+                    style={inviteModalStyles.option}
+                    onPress={async () => {
+                      try {
+                        setQrModal(false);
+                        const qrUrl = `${process.env.EXPO_PUBLIC_WEB_URL}/qr/${guestId}`;
+                        const message = `Check-in QR Code for ${guest.full_name}\n\n${qrUrl}`;
+                        const url = `sms:${guest.phone}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(message)}`;
+
+                        await Linking.openURL(url);
+                      } catch (error: any) {
+                        showError(error?.message || 'Failed to open SMS');
+                      }
+                    }}
+                  >
+                    <View style={[inviteModalStyles.optionIcon, { backgroundColor: `${Colors.accent.emerald}18` }]}>
+                      <Feather name="phone" size={18} color={Colors.accent.emerald} />
+                    </View>
+                    <View style={inviteModalStyles.optionText}>
+                      <Text style={inviteModalStyles.optionLabel}>Share via SMS</Text>
+                      <Text style={inviteModalStyles.optionSub} numberOfLines={1}>{guest.phone}</Text>
+                    </View>
+                    <Feather name="chevron-right" size={16} color={Colors.accent.emerald} />
+                  </Pressable>
+                )}
+              </View>
+
+              <Pressable
+                style={inviteModalStyles.cancelBtn}
+                onPress={() => setQrModal(false)}
+              >
+                <Text style={inviteModalStyles.cancelText}>Cancel</Text>
+              </Pressable>
+            </Pressable>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -628,4 +955,95 @@ const ef = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 6,
   },
   saveTxt: { fontSize: 15, fontWeight: '800', color: '#fff' },
+});
+
+/* ── Invite Modal Styles ───────────────────────────────────────── */
+const inviteModalStyles = StyleSheet.create({
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+  },
+  container: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+    zIndex: 101,
+    pointerEvents: 'box-none',
+  },
+  content: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: '#0e0e16',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    padding: 24,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.45)',
+    marginBottom: 20,
+  },
+  options: {
+    gap: 10,
+    marginBottom: 16,
+  },
+  option: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  optionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  optionText: {
+    flex: 1,
+  },
+  optionLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  optionSub: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.45)',
+    marginTop: 2,
+  },
+  noContact: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.35)',
+    textAlign: 'center',
+    paddingVertical: 24,
+  },
+  cancelBtn: {
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+  },
+  cancelText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.5)',
+  },
 });

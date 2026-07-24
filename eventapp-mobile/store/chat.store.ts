@@ -65,6 +65,9 @@ interface ChatState {
   fetchMessages:      (conversationId: string) => Promise<void>;
   loadOlderMessages:  (conversationId: string) => Promise<boolean>; // returns hasMore
   sendMessage:        (conversationId: string, body: string) => Promise<Message | null>;
+  deleteMessage:      (conversationId: string, messageId: string) => Promise<boolean>;
+  deleteConversation: (conversationId: string) => Promise<boolean>;
+  deleteAllConversationsWithUser: (userId: string) => Promise<number>;
   markRead:           (conversationId: string) => Promise<void>;
   sendTyping:         (conversationId: string) => Promise<void>;
 
@@ -114,10 +117,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       const res = await api.get<{ success: boolean; data: { total: number } }>('/chat/unread-count');
       const total = res.data?.data?.total ?? 0;
-      console.log('ChatStore: Fetched unread count:', total);
       set({ unreadTotal: total });
-    } catch (error) {
-      console.error('ChatStore: Failed to fetch unread count:', error);
+    } catch {
+      // Silent fail - non-critical
     }
   },
 
@@ -278,6 +280,52 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   sendTyping: async (conversationId) => {
     try { await api.post(`/chat/conversations/${conversationId}/typing`); } catch { /* silent */ }
+  },
+
+  deleteMessage: async (conversationId, messageId) => {
+    try {
+      await api.delete(`/chat/conversations/${conversationId}/messages/${messageId}`);
+      // Mark message as deleted in local state
+      set(s => ({
+        messagesByConv: {
+          ...s.messagesByConv,
+          [conversationId]: (s.messagesByConv[conversationId] ?? []).map(m =>
+            m.id === messageId ? { ...m, deleted: true, body: null } : m
+          ),
+        },
+      }));
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  deleteConversation: async (conversationId) => {
+    try {
+      await api.delete(`/chat/conversations/${conversationId}`);
+      // Remove conversation from local state
+      set(s => ({
+        conversations: s.conversations.filter(c => c.id !== conversationId),
+        messagesByConv: Object.fromEntries(
+          Object.entries(s.messagesByConv).filter(([id]) => id !== conversationId)
+        ),
+      }));
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  deleteAllConversationsWithUser: async (userId) => {
+    try {
+      const res = await api.post('/chat/conversations/delete-all-with-user', { userId });
+      const deleted = res.data?.deleted ?? 0;
+      // Refresh conversation list
+      await get().fetchConversations();
+      return deleted;
+    } catch {
+      return 0;
+    }
   },
 
   ingestMessages: (conversationId, msgs) => {

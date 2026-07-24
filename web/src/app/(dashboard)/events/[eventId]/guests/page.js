@@ -48,79 +48,134 @@ function GuestCard({ guest, rsvp, attendance, selected, onSelect, onCheckIn, onI
   const { cls: rsvpCls, label: rsvpLabel } = rsvpBadge(rsvp);
   const attCls  = attendanceBadge(attendance);
   const checkedIn = attendance === "CHECKED_IN" || attendance === "PRESENT";
+  const plusOneText = guest.plus_one_allowed
+    ? `+${guest.plus_one_count || 0} companion${guest.plus_one_count !== 1 ? 's' : ''}`
+    : null;
 
   return (
     <div className={`rounded-2xl border bg-white dark:bg-gray-900 shadow-sm transition-all ${selected ? "border-indigo-400 dark:border-indigo-500" : "border-gray-200 dark:border-gray-700"}`}>
-      <div className="flex items-start gap-3 p-4">
-        <button onClick={onSelect} className="mt-0.5 shrink-0">
+      {/* Header */}
+      <div className="flex items-start gap-3 p-4 pb-3">
+        <button onClick={onSelect} className="mt-1 shrink-0">
           {selected
-            ? <CheckSquare className="h-4 w-4 text-indigo-600" />
-            : <Square className="h-4 w-4 text-gray-400" />}
+            ? <CheckSquare className="h-5 w-5 text-indigo-600" />
+            : <Square className="h-5 w-5 text-gray-400" />}
         </button>
+
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-gray-900 dark:text-gray-100 truncate">{guest.full_name}</span>
+          {/* Name & VIP Badge */}
+          <div className="flex items-center gap-2 mb-2">
+            <h3 className="font-semibold text-base text-gray-900 dark:text-gray-100 truncate">
+              {guest.full_name}
+            </h3>
             {guest.is_vip && (
-              <span className="rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">⭐ VIP</span>
+              <span className="shrink-0 rounded-full bg-amber-100 dark:bg-amber-900/30 px-2.5 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-400">
+                ⭐ VIP
+              </span>
             )}
           </div>
-          <div className="mt-0.5 flex items-center gap-2 flex-wrap">
-            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${rsvpCls}`}>{rsvpLabel}</span>
+
+          {/* Contact Info */}
+          <div className="space-y-0.5 mb-2">
+            {guest.email && (
+              <p className="text-sm text-gray-600 dark:text-gray-400 truncate flex items-center gap-1.5">
+                <Mail className="h-3.5 w-3.5 shrink-0" />
+                {guest.email}
+              </p>
+            )}
+            {guest.phone && (
+              <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
+                <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+                {guest.phone}
+              </p>
+            )}
+            {plusOneText && (
+              <p className="text-xs text-gray-500 dark:text-gray-500 flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5 shrink-0" />
+                {plusOneText}
+              </p>
+            )}
+          </div>
+
+          {/* Status Badges */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${rsvpCls}`}>
+              {rsvpLabel}
+            </span>
             {attCls && (
-              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${attCls}`}>{attendance.replace("_", " ")}</span>
+              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${attCls}`}>
+                {attendance.replace("_", " ")}
+              </span>
+            )}
+            {seatLabel && (
+              <span className="rounded-full bg-indigo-50 dark:bg-indigo-900/20 px-2.5 py-1 text-xs font-semibold text-indigo-700 dark:text-indigo-400">
+                🪑 {seatLabel}
+              </span>
             )}
           </div>
-          {(guest.email || guest.phone) && (
-            <p className="mt-1 text-xs text-gray-400 truncate">{guest.email || guest.phone}</p>
-          )}
-          {seatLabel ? (
-            <p className="mt-0.5 text-xs font-semibold text-indigo-400">🪑 {seatLabel}</p>
-          ) : (
-            <button type="button" onClick={onAssignSeat}
-              className="mt-0.5 text-xs text-gray-500 underline underline-offset-2 hover:text-gray-300 text-left">
+
+          {/* Assign Seat Link */}
+          {!seatLabel && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onAssignSeat(); }}
+              className="mt-2 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium underline underline-offset-2"
+            >
               + Assign Seat
             </button>
           )}
         </div>
+
         <button
           onClick={() => setExpanded((v) => !v)}
-          className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+          className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
         >
-          {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          {expanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
         </button>
       </div>
+
+      {/* Actions (Expanded) */}
       {expanded && (
-        <div className="border-t border-gray-100 dark:border-gray-800 px-4 pb-4 pt-3 grid grid-cols-2 gap-2">
-          <button onClick={onCheckIn} disabled={checkedIn}
-            className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-medium transition
-              ${checkedIn
-                ? "border-green-200 bg-green-50 text-green-600 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400 cursor-default"
-                : "border-indigo-200 dark:border-indigo-700 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"}`}>
-            <LogIn className="h-3.5 w-3.5" />
-            {checkedIn ? "Checked In" : "Check In"}
-          </button>
-          <button onClick={onInvite} disabled={!guest.email && !guest.phone}
-            className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40">
-            <Mail className="h-3.5 w-3.5" /> Send Invite
-          </button>
-          <button onClick={onQr}
-            className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
-            <QrCode className="h-3.5 w-3.5" /> View QR
-          </button>
-          <button onClick={onSendQr} disabled={!guest.email || sendingQr}
-            title={!guest.email ? "Guest has no email" : "Send QR pass by email"}
-            className="flex items-center justify-center gap-1.5 rounded-xl border border-violet-200 dark:border-violet-700 px-3 py-2 text-xs font-medium text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 disabled:opacity-40">
-            <Send className="h-3.5 w-3.5" />
-            {sendingQr ? "Sending…" : "Send QR"}
-          </button>
-          <button onClick={onEdit}
-            className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
-            <Pencil className="h-3.5 w-3.5" /> Edit
-          </button>
-          <button onClick={onDelete}
-            className="flex items-center justify-center gap-1.5 rounded-xl border border-red-200 dark:border-red-800 px-3 py-2 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
-            <Trash2 className="h-3.5 w-3.5" /> Delete
-          </button>
+        <div className="border-t border-gray-100 dark:border-gray-800 px-4 pb-4 pt-3">
+          {/* Main Actions - 4 buttons */}
+          <div className="grid grid-cols-4 gap-2 mb-2">
+            <button onClick={onCheckIn} disabled={checkedIn}
+              className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-xs font-semibold transition
+                ${checkedIn
+                  ? "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400 cursor-default"
+                  : "border-indigo-200 dark:border-indigo-700 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"}`}>
+              <LogIn className="h-4 w-4" />
+              <span className="whitespace-nowrap">{checkedIn ? "Checked" : "Check In"}</span>
+            </button>
+            <button onClick={onInvite} disabled={!guest.email && !guest.phone}
+              className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 transition-colors">
+              <Mail className="h-4 w-4" />
+              <span>Invite</span>
+            </button>
+            <button onClick={onQr}
+              className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+              <QrCode className="h-4 w-4" />
+              <span>QR</span>
+            </button>
+            <button onClick={onSendQr} disabled={sendingQr}
+              className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-violet-200 dark:border-violet-700 px-3 py-2.5 text-xs font-semibold text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 disabled:opacity-40 transition-colors">
+              <Send className="h-4 w-4" />
+              <span className="whitespace-nowrap">{sendingQr ? "Sending…" : "Send QR"}</span>
+            </button>
+          </div>
+
+          {/* Secondary Actions - 2 buttons centered */}
+          <div className="grid grid-cols-2 gap-2 max-w-md mx-auto">
+            <button onClick={onEdit}
+              className="flex items-center justify-center gap-2 rounded-xl border border-indigo-200 dark:border-indigo-700 px-4 py-2.5 text-sm font-semibold text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors">
+              <ChevronRight className="h-4 w-4" /> View
+            </button>
+            <button onClick={onDelete}
+              className="flex items-center justify-center gap-2 rounded-xl border border-red-200 dark:border-red-800 px-4 py-2.5 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+              <Trash2 className="h-4 w-4" /> Delete
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -571,6 +626,209 @@ function MobileGuestsPage({
   );
 }
 
+/* ── SendQrModal (Multi-Channel) ────────────────────────────── */
+function SendQrModal({ open, onClose, guest, eventId, sendQrEmail }) {
+  const [sending, setSending] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleSendEmail = async () => {
+    if (!guest?.email) {
+      toast.error("Guest has no email address");
+      return;
+    }
+    setSending(true);
+    const res = await sendQrEmail(eventId, guest.id);
+    setSending(false);
+    if (res?.success) {
+      toast.success(`QR pass sent to ${guest.email}`);
+      onClose();
+    } else {
+      toast.error(res?.error || "Failed to send QR");
+    }
+  };
+
+  const handleWhatsApp = () => {
+    const phone = guest?.phone?.replace(/[^0-9]/g, '');
+    const qrUrl = `${window.location.origin}/qr/${guest.id}`;
+    const message = `Check-in QR Code for ${guest.full_name}\n\n${qrUrl}`;
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+    onClose();
+  };
+
+  const handleShare = async () => {
+    const qrUrl = `${window.location.origin}/qr/${guest.id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Check-in QR Code',
+          text: `Check-in QR Code for ${guest.full_name}`,
+          url: qrUrl,
+        });
+        onClose();
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          handleCopyLink();
+        }
+      }
+    } else {
+      handleCopyLink();
+    }
+  };
+
+  const handleCopyLink = async () => {
+    const qrUrl = `${window.location.origin}/qr/${guest.id}`;
+    await navigator.clipboard.writeText(qrUrl);
+    toast.success('QR link copied!');
+    setCopied(true);
+    setTimeout(() => {
+      setCopied(false);
+      onClose();
+    }, 1500);
+  };
+
+  if (!open) return null;
+
+  const hasEmail = guest?.email;
+  const hasPhone = guest?.phone;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}>
+      <div className="w-full max-w-sm rounded-[24px] overflow-hidden"
+        style={{ background: '#0e0e16', border: '1px solid rgba(255,255,255,0.08)' }}>
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4">
+          <h2 className="text-[20px] font-black text-white">Share QR Code</h2>
+          <p className="text-[13px] mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>
+            Share check-in QR code for {guest?.full_name}
+          </p>
+        </div>
+
+        {/* Options */}
+        <div className="px-4 pb-4 space-y-2">
+          {/* Share */}
+          <button
+            onClick={handleShare}
+            className="w-full flex items-center gap-3 p-4 rounded-[16px] border transition-all hover:bg-opacity-20"
+            style={{
+              background: 'rgba(139,92,246,0.08)',
+              borderColor: 'rgba(139,92,246,0.3)',
+            }}
+          >
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]"
+              style={{ background: 'rgba(139,92,246,0.15)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                <polyline points="16 6 12 2 8 6"></polyline>
+                <line x1="12" y1="2" x2="12" y2="15"></line>
+              </svg>
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-sm font-bold text-white">Share QR Code</p>
+              <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                Share via any app
+              </p>
+            </div>
+            <ChevronRight size={16} style={{ color: '#8b5cf6' }} />
+          </button>
+
+          {/* WhatsApp */}
+          {hasPhone && (
+            <button
+              onClick={handleWhatsApp}
+              disabled={sending}
+              className="w-full flex items-center gap-3 p-4 rounded-[16px] border transition-all disabled:opacity-50 hover:bg-opacity-20"
+              style={{
+                background: 'rgba(37,211,102,0.08)',
+                borderColor: 'rgba(37,211,102,0.3)',
+              }}
+            >
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]"
+                style={{ background: 'rgba(37,211,102,0.15)' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" fill="#25D366"/>
+                </svg>
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-bold text-white">Send via WhatsApp</p>
+                <p className="text-[11px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                  {guest?.phone}
+                </p>
+              </div>
+              <ChevronRight size={16} style={{ color: '#25D366' }} />
+            </button>
+          )}
+
+          {/* Email */}
+          {hasEmail && (
+            <button
+              onClick={handleSendEmail}
+              disabled={sending}
+              className="w-full flex items-center gap-3 p-4 rounded-[16px] border transition-all disabled:opacity-50 hover:bg-opacity-20"
+              style={{
+                background: 'rgba(99,102,241,0.08)',
+                borderColor: 'rgba(99,102,241,0.3)',
+              }}
+            >
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]"
+                style={{ background: 'rgba(99,102,241,0.15)' }}>
+                <Mail size={18} style={{ color: '#6366f1' }} />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-bold text-white">Send via Email</p>
+                <p className="text-[11px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                  {guest?.email}
+                </p>
+              </div>
+              {sending && <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-400/40 border-t-indigo-400" />}
+            </button>
+          )}
+
+          {/* Copy Link */}
+          <button
+            onClick={handleCopyLink}
+            className="w-full flex items-center gap-3 p-4 rounded-[16px] border transition-all hover:bg-opacity-20"
+            style={{
+              background: 'rgba(245,158,11,0.08)',
+              borderColor: 'rgba(245,158,11,0.3)',
+            }}
+          >
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]"
+              style={{ background: 'rgba(245,158,11,0.15)' }}>
+              {copied ? (
+                <Check size={18} style={{ color: '#f59e0b' }} />
+              ) : (
+                <Copy size={18} style={{ color: '#f59e0b' }} />
+              )}
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-sm font-bold text-white">
+                {copied ? 'Link Copied!' : 'Copy QR Link'}
+              </p>
+              <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                {copied ? 'Ready to paste' : 'Copy to clipboard'}
+              </p>
+            </div>
+            {!copied && <ChevronRight size={16} style={{ color: '#f59e0b' }} />}
+          </button>
+        </div>
+
+        {/* Cancel */}
+        <div className="px-4 pb-4">
+          <button
+            onClick={onClose}
+            disabled={sending}
+            className="w-full py-3 rounded-[14px] text-sm font-bold transition-colors disabled:opacity-50"
+            style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ══════════════════════════════════════════════════════════════════
    MAIN PAGE
 ══════════════════════════════════════════════════════════════════ */
@@ -610,6 +868,8 @@ export default function GuestsPage() {
   const [scanToken, setScanToken]           = useState("");
   const [scanning, setScanning]             = useState(false);
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
+  const [inviteChannelModal, setInviteChannelModal] = useState(null);
+  const [qrChannelModal, setQrChannelModal] = useState(null);
 
   useEffect(() => {
     if (!eventId) return;
@@ -720,11 +980,50 @@ export default function GuestsPage() {
     } finally { setDeleting(false); }
   };
 
-  const handleSingleInvite = async (guest) => {
-    const channel = guest.email ? "EMAIL" : "SMS";
-    const res = await sendGuestInvitation(eventId, guest.id, { channel });
+  const handleSingleInvite = (guest) => {
+    setInviteChannelModal(guest);
+  };
+
+  const handleSendEmail = async (guest) => {
+    setInviteChannelModal(null);
+    const res = await sendGuestInvitation(eventId, guest.id, { channel: 'EMAIL' });
     if (res?.success) toast.success(`Invitation sent to ${guest.full_name}`);
     else toast.error(res?.error || "Failed to send invitation");
+  };
+
+  const handleWhatsApp = (guest) => {
+    const phone = guest?.phone?.replace(/[^0-9]/g, '');
+    const inviteUrl = `${window.location.origin}/invite/${guest.id}`;
+    const message = `You're invited to the event!\n\nRSVP here: ${inviteUrl}`;
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+    setInviteChannelModal(null);
+  };
+
+  const handleShare = async (guest) => {
+    const inviteUrl = `${window.location.origin}/invite/${guest.id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Event Invitation',
+          text: "You're invited to the event!",
+          url: inviteUrl,
+        });
+        setInviteChannelModal(null);
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          handleCopyLink(guest);
+        }
+      }
+    } else {
+      handleCopyLink(guest);
+    }
+  };
+
+  const handleCopyLink = async (guest) => {
+    const inviteUrl = `${window.location.origin}/invite/${guest.id}`;
+    await navigator.clipboard.writeText(inviteUrl);
+    toast.success('Invitation link copied!');
+    setInviteChannelModal(null);
   };
 
   const handleQr = async (guest) => {
@@ -733,13 +1032,8 @@ export default function GuestsPage() {
     else toast.error("Failed to generate QR");
   };
 
-  const handleSendQr = async (guest) => {
-    if (!guest.email) { toast.error("Guest has no email address"); return; }
-    setSendingQrIds((s) => new Set(s).add(guest.id));
-    const res = await sendQrEmail(eventId, guest.id);
-    setSendingQrIds((s) => { const n = new Set(s); n.delete(guest.id); return n; });
-    if (res?.success) toast.success(`QR pass sent to ${guest.email}`);
-    else toast.error(res?.error || "Failed to send QR");
+  const handleSendQr = (guest) => {
+    setQrChannelModal(guest);
   };
 
   const handleManualCheckIn = async (guest) => {
@@ -765,7 +1059,7 @@ export default function GuestsPage() {
   };
   const handleBulkInvite = async () => {
     const r = await bulkSendInvitations(eventId, selectedGuestIds, { channel: "EMAIL" });
-    r?.success ? toast.success("Invitations sent") : toast.error("Bulk invite failed");
+    r?.success ? toast.success("Invitations sent via email") : toast.error("Bulk invite failed");
   };
   const handleBulkRsvp = async (status) => {
     const r = await bulkSubmitRsvp(eventId, selectedGuestIds, status);
@@ -789,7 +1083,7 @@ export default function GuestsPage() {
           mobileFilter={mobileFilter}
           setMobileFilter={setMobileFilter}
           onAddGuest={openCreateModal}
-          onEditGuest={openEditModal}
+          onEditGuest={(guest) => router.push(`/events/${eventId}/guests/${guest.id}`)}
           onBulkDelete={async (ids) => {
             const r = await bulkDeleteGuests(eventId, ids);
             r?.success ? toast.success("Deleted") : toast.error("Bulk delete failed");
@@ -921,7 +1215,7 @@ export default function GuestsPage() {
                     onInvite={() => handleSingleInvite(guest)}
                     onQr={() => handleQr(guest)}
                     onSendQr={() => handleSendQr(guest)}
-                    onEdit={() => openEditModal(guest)}
+                    onEdit={() => router.push(`/events/${eventId}/guests/${guest.id}`)}
                     onDelete={() => setDeleteTarget(guest)}
                     sendingQr={sendingQrIds.has(guest.id)}
                     seatLabel={seatMap.get(guest.id) || null}
@@ -1017,9 +1311,9 @@ export default function GuestsPage() {
                                 <Send className="h-3.5 w-3.5" />
                                 {sendingQrIds.has(guest.id) ? "…" : "Send QR"}
                               </button>
-                              <button onClick={() => openEditModal(guest)}
-                                className="inline-flex items-center gap-1 rounded-xl border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
-                                <Pencil className="h-3.5 w-3.5" /> Edit
+                              <button onClick={() => router.push(`/events/${eventId}/guests/${guest.id}`)}
+                                className="inline-flex items-center gap-1 rounded-xl border border-indigo-200 dark:border-indigo-700 px-2.5 py-1.5 text-xs text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20">
+                                <ChevronRight className="h-3.5 w-3.5" /> View
                               </button>
                               <button onClick={() => setDeleteTarget(guest)}
                                 className="inline-flex items-center gap-1 rounded-xl border border-red-200 dark:border-red-800 px-2.5 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
@@ -1102,11 +1396,14 @@ export default function GuestsPage() {
             <p className="mt-3 text-xs text-gray-400 break-all">{qrModal.qr_token}</p>
             <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 mb-5">Present this QR at the entrance for check-in.</p>
             <button
-              onClick={async () => { await handleSendQr(qrModal.guest); }}
-              disabled={!qrModal.guest.email || sendingQrIds.has(qrModal.guest.id)}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-2xl border border-violet-200 dark:border-violet-700 px-4 py-2.5 text-sm font-medium text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 disabled:opacity-40 transition">
+              onClick={() => {
+                const guest = qrModal.guest;
+                setQrModal(null);
+                setQrChannelModal(guest);
+              }}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-2xl border border-violet-200 dark:border-violet-700 px-4 py-2.5 text-sm font-medium text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition">
               <Send className="h-4 w-4" />
-              {sendingQrIds.has(qrModal.guest.id) ? "Sending…" : qrModal.guest.email ? `Send to ${qrModal.guest.email}` : "No email on file"}
+              {qrModal.guest.email ? `Send to ${qrModal.guest.email}` : "Share QR Code"}
             </button>
           </div>
         </div>
@@ -1200,6 +1497,110 @@ export default function GuestsPage() {
           </div>
         </div>
       )}
+
+      {/* Multi-Channel Invitation Modal */}
+      {inviteChannelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl overflow-hidden bg-gray-900 border border-gray-800">
+            <div className="px-6 pt-6 pb-4">
+              <h2 className="text-xl font-black text-white">Send Invitation</h2>
+              <p className="text-sm mt-1 text-gray-400">
+                Choose how to invite {inviteChannelModal.full_name}
+              </p>
+            </div>
+
+            <div className="px-4 pb-4 space-y-2">
+              {/* WhatsApp */}
+              {inviteChannelModal.phone && (
+                <button
+                  onClick={() => handleWhatsApp(inviteChannelModal)}
+                  className="w-full flex items-center gap-3 p-4 rounded-2xl border border-green-600/30 bg-green-900/10 hover:bg-green-900/20 transition-colors"
+                >
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-900/20">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" fill="#25D366"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-bold text-white">Send via WhatsApp</p>
+                    <p className="text-xs mt-0.5 text-gray-400 truncate">{inviteChannelModal.phone}</p>
+                  </div>
+                  <ChevronRight size={16} className="text-green-400" />
+                </button>
+              )}
+
+              {/* Email */}
+              {inviteChannelModal.email && (
+                <button
+                  onClick={() => handleSendEmail(inviteChannelModal)}
+                  className="w-full flex items-center gap-3 p-4 rounded-2xl border border-indigo-700/30 bg-indigo-900/10 hover:bg-indigo-900/20 transition-colors"
+                >
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-900/20">
+                    <Mail size={18} className="text-indigo-400" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-bold text-white">Send via Email</p>
+                    <p className="text-xs mt-0.5 text-gray-400 truncate">{inviteChannelModal.email}</p>
+                  </div>
+                  <ChevronRight size={16} className="text-indigo-400" />
+                </button>
+              )}
+
+              {/* Share */}
+              <button
+                onClick={() => handleShare(inviteChannelModal)}
+                className="w-full flex items-center gap-3 p-4 rounded-2xl border border-purple-700/30 bg-purple-900/10 hover:bg-purple-900/20 transition-colors"
+              >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-900/20">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2">
+                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                    <polyline points="16 6 12 2 8 6"></polyline>
+                    <line x1="12" y1="2" x2="12" y2="15"></line>
+                  </svg>
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-bold text-white">Share Invitation</p>
+                  <p className="text-xs mt-0.5 text-gray-400">Share via any app</p>
+                </div>
+                <ChevronRight size={16} className="text-purple-400" />
+              </button>
+
+              {/* Copy Link */}
+              <button
+                onClick={() => handleCopyLink(inviteChannelModal)}
+                className="w-full flex items-center gap-3 p-4 rounded-2xl border border-amber-700/30 bg-amber-900/10 hover:bg-amber-900/20 transition-colors"
+              >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-900/20">
+                  <Copy size={18} className="text-amber-400" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-bold text-white">Copy Invitation Link</p>
+                  <p className="text-xs mt-0.5 text-gray-400">Copy to clipboard</p>
+                </div>
+                <ChevronRight size={16} className="text-amber-400" />
+              </button>
+            </div>
+
+            <div className="px-4 pb-4">
+              <button
+                onClick={() => setInviteChannelModal(null)}
+                className="w-full py-3 rounded-2xl text-sm font-bold bg-gray-800 text-gray-400 hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR Channel Modal */}
+      <SendQrModal
+        open={!!qrChannelModal}
+        onClose={() => setQrChannelModal(null)}
+        guest={qrChannelModal}
+        eventId={eventId}
+        sendQrEmail={sendQrEmail}
+      />
     </>
   );
 }

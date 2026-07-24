@@ -75,6 +75,7 @@ export async function getMessages(req, res) {
       userId: req.user.id,
       before: req.query.before || null,
       limit: req.query.limit,
+      isSuperAdmin: req.user.isSuperAdmin === true,
     });
     res.json({ success: true, data });
   } catch (e) { fail(res, e); }
@@ -113,6 +114,43 @@ export async function unreadCount(req, res) {
   try {
     const total = await chat.getUnreadCountService({ userId: req.user.id });
     res.json({ success: true, data: { total } });
+  } catch (e) { fail(res, e); }
+}
+
+export async function deleteMessage(req, res) {
+  try {
+    await chat.deleteMessageService({
+      messageId: req.params.messageId,
+      userId: req.user.id,
+      isSuperAdmin: req.user.isSuperAdmin === true,
+    });
+    res.json({ success: true });
+  } catch (e) { fail(res, e); }
+}
+
+export async function deleteConversation(req, res) {
+  try {
+    await chat.deleteConversationService({
+      conversationId: req.params.id,
+      userId: req.user.id,
+      isSuperAdmin: req.user.isSuperAdmin === true,
+    });
+    res.json({ success: true });
+  } catch (e) { fail(res, e); }
+}
+
+export async function deleteAllConversationsWithUser(req, res) {
+  try {
+    const { userId: targetUserId } = req.body || {};
+    if (!targetUserId) {
+      return res.status(400).json({ success: false, message: "userId is required" });
+    }
+    const result = await chat.deleteAllConversationsWithUserService({
+      targetUserId,
+      adminId: req.user.id,
+      isSuperAdmin: req.user.isSuperAdmin === true,
+    });
+    res.json({ success: true, data: result });
   } catch (e) { fail(res, e); }
 }
 

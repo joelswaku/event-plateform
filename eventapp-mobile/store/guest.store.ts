@@ -337,8 +337,8 @@ export const useGuestStore = create<GuestState>((set, get) => ({
   },
 
   // alias used by older screens
-  sendInvitation: async (eventId: string, guestId: string) => {
-    const result = await get().sendGuestInvitation(eventId, guestId);
+  sendInvitation: async (eventId: string, guestId: string, payload = {}) => {
+    const result = await get().sendGuestInvitation(eventId, guestId, payload);
     return result;
   },
 

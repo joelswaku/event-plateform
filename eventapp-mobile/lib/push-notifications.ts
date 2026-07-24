@@ -193,8 +193,8 @@ type RouterType = { push: (route: string) => void; replace: (route: string) => v
 function resolveRoute(data: Record<string, unknown>): string | null {
   if (typeof data.route === 'string') return data.route;
 
-  const { type, eventId, ticketId } = data as {
-    type?: string; eventId?: string; ticketId?: string;
+  const { type, eventId, ticketId, conversation_id } = data as {
+    type?: string; eventId?: string; ticketId?: string; conversation_id?: string;
   };
 
   if (!type) return null;
@@ -205,6 +205,7 @@ function resolveRoute(data: Record<string, unknown>): string | null {
   if (type === 'new_donation' && eventId) return `/events/${eventId}`;
   if (type === 'event_reminder'&& eventId)return `/events/${eventId}`;
   if (type === 'invitation')              return `/notifications`;
+  if (type === 'chat' && conversation_id) return `/chat/${conversation_id}`;
 
   return null;
 }

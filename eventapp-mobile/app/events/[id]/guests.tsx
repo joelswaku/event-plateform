@@ -486,7 +486,7 @@ export default function GuestsScreen() {
 
   const handleBulkInvite = useCallback(async () => {
     setBulkLoading(true);
-    const res = await bulkSendInvitations(eventId!, Array.from(selectedIds));
+    const res = await bulkSendInvitations(eventId!, Array.from(selectedIds), { channel: 'EMAIL' });
     setBulkLoading(false);
     if (res.success) {
       notify.invitesSent(selectedIds.size);
