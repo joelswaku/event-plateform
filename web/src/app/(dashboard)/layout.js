@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AppShell  from "@/components/layout/app-shell";
 import TermsGate from "@/components/legal/TermsGate";
+import { FloatingChatButton } from "@/components/FloatingChatButton";
 import { useAuthStore } from "@/store/auth.store";
 
 export default function DashboardLayout({ children }) {
@@ -26,6 +27,7 @@ export default function DashboardLayout({ children }) {
   return (
     <AppShell>
       <TermsGate>{children}</TermsGate>
+      <FloatingChatButton />
     </AppShell>
   );
 }

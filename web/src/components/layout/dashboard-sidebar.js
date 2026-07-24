@@ -12,6 +12,7 @@ import {
 import { useSidebarStore }      from "@/store/sidebar.store";
 import { useSubscriptionStore } from "@/store/subscription.store";
 import { useAuthStore }         from "@/store/auth.store";
+import { useChatStore }         from "@/store/chat.store";
 
 const navItems = [
   { label: "Dashboard",    href: "/dashboard",    icon: LayoutDashboard },
@@ -22,7 +23,7 @@ const navItems = [
   { label: "Create Event", href: "/events/create", icon: PlusSquare },
 ];
 
-function SidebarItem({ item, showExpanded }) {
+function SidebarItem({ item, showExpanded, badge }) {
   const pathname = usePathname();
   const Icon     = item.icon;
   const active   = pathname === item.href || pathname.startsWith(item.href + "/");
@@ -39,20 +40,33 @@ function SidebarItem({ item, showExpanded }) {
           : "text-(--sidebar-text) hover:bg-(--sidebar-hover) hover:text-white"
       }`}
     >
-      {item.accent ? (
-        <div
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg"
-          style={{ background: active ? "rgba(139,92,246,0.25)" : item.accent, boxShadow: active ? "none" : "0 2px 8px rgba(139,92,246,0.35)" }}
-        >
-          <Icon className="h-3.5 w-3.5 text-white" />
-        </div>
-      ) : (
-        <Icon className="h-4 w-4 shrink-0" />
-      )}
+      <div className="relative flex items-center shrink-0">
+        {item.accent ? (
+          <div
+            className="flex h-6 w-6 items-center justify-center rounded-lg"
+            style={{ background: active ? "rgba(139,92,246,0.25)" : item.accent, boxShadow: active ? "none" : "0 2px 8px rgba(139,92,246,0.35)" }}
+          >
+            <Icon className="h-3.5 w-3.5 text-white" />
+          </div>
+        ) : (
+          <Icon className="h-4 w-4" />
+        )}
+        {badge > 0 && (
+          <span className="absolute -right-2 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+            {badge > 9 ? "9+" : badge}
+          </span>
+        )}
+      </div>
       {showExpanded && <span className="truncate">{item.label}</span>}
+      {showExpanded && badge > 0 && (
+        <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+          {badge > 9 ? "9+" : badge}
+        </span>
+      )}
       {!showExpanded && (
         <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
           {item.label}
+          {badge > 0 && ` (${badge})`}
         </span>
       )}
     </Link>
@@ -66,6 +80,9 @@ export default function DashboardSidebar() {
   const openUpgradeModal = useSubscriptionStore((s) => s.openUpgradeModal);
   const logoutAction     = useAuthStore((s) => s.logout);
   const user             = useAuthStore((s) => s.user);
+  const isSuperAdmin     = !!user?.is_super_admin;
+  const unreadTotal      = useChatStore((s) => s.unreadTotal);
+  const fetchUnreadCount = useChatStore((s) => s.fetchUnreadCount);
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -73,6 +90,13 @@ export default function DashboardSidebar() {
   const safeSubscribed = mounted ? isSubscribed : false;
 
   const showExpanded = !safeCollapsed;
+
+  // Fetch unread count for support badge
+  useEffect(() => {
+    fetchUnreadCount();
+    const interval = setInterval(() => fetchUnreadCount(), 10000); // Poll every 10 seconds
+    return () => clearInterval(interval);
+  }, [fetchUnreadCount]);
 
   // ── FIX: await store logout then navigate with router ───────────────────────
   async function handleLogout() {
@@ -128,7 +152,12 @@ export default function DashboardSidebar() {
         {/* Nav */}
         <nav className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1">
           {navItems.map((item) => (
-            <SidebarItem key={item.href} item={item} showExpanded={showExpanded} />
+            <SidebarItem
+              key={item.href}
+              item={item}
+              showExpanded={showExpanded}
+              badge={item.href === "/support" ? unreadTotal : 0}
+            />
           ))}
         </nav>
 

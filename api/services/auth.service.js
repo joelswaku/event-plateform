@@ -638,16 +638,6 @@ export async function loginUser({
     if (user.status !== "ACTIVE")
       throw new Error("Account disabled");
 
-    /* SECURITY: Check email verification BEFORE password check */
-    if (!user.email_verified) {
-      return {
-        success: false,
-        requiresVerification: true,
-        verificationToken: user.verification_token,
-        message: "Please verify your email before logging in. Check your inbox for the verification code.",
-      };
-    }
-
     if (!user.password_hash)
       throw new Error("This account uses social login. Please sign in with Google.");
 

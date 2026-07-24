@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronDown, Mail, MessageSquare, ExternalLink, HelpCircle } from "lucide-react";
+import { ChevronLeft, ChevronDown, Mail, MessageSquare, ExternalLink, HelpCircle, Loader2 } from "lucide-react";
+import { useChatStore } from "@/store/chat.store";
+import { useAuthStore } from "@/store/auth.store";
+import toast from "react-hot-toast";
 
 const FAQS = [
   {
@@ -58,6 +61,31 @@ function FaqItem({ q, a }) {
 
 export default function SupportPage() {
   const router = useRouter();
+  const user = useAuthStore((s) => s.user);
+  const isSuperAdmin = !!user?.is_super_admin;
+  const openSupport = useChatStore((s) => s.openSupport);
+  const unreadTotal = useChatStore((s) => s.unreadTotal);
+  const fetchUnreadCount = useChatStore((s) => s.fetchUnreadCount);
+  const [opening, setOpening] = useState(false);
+
+  // Fetch unread count on mount and poll
+  useEffect(() => {
+    if (isSuperAdmin) return;
+    fetchUnreadCount();
+    const interval = setInterval(() => fetchUnreadCount(), 5000);
+    return () => clearInterval(interval);
+  }, [isSuperAdmin, fetchUnreadCount]);
+
+  async function handleLiveChat() {
+    if (isSuperAdmin) { router.push('/chat'); return; }
+    if (opening) return;
+    setOpening(true);
+    try {
+      const conv = await openSupport();
+      if (conv) router.push(`/chat/${conv.id}`);
+      else toast.error('Could not open support chat. Try again later.');
+    } finally { setOpening(false); }
+  }
 
   return (
     <div className="mx-auto max-w-lg space-y-6 px-4 py-8">
@@ -117,24 +145,36 @@ export default function SupportPage() {
           </div>
           <ExternalLink className="h-4 w-4 text-(--text-muted)" />
         </a>
-        <a
-          href="https://meetcraft.app/chat"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-3 rounded-2xl px-4 py-3 transition hover:bg-(--bg-elevated)"
+        <button
+          onClick={handleLiveChat}
+          disabled={opening}
+          className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 transition hover:bg-(--bg-elevated) disabled:opacity-50"
         >
           <div
-            className="flex h-9 w-9 items-center justify-center rounded-xl"
+            className="relative flex h-9 w-9 items-center justify-center rounded-xl"
             style={{ background: "rgba(16,185,129,0.10)", border: "1px solid rgba(16,185,129,0.2)" }}
           >
-            <MessageSquare className="h-4 w-4" style={{ color: "#10b981" }} />
+            {opening ? (
+              <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#10b981" }} />
+            ) : (
+              <MessageSquare className="h-4 w-4" style={{ color: "#10b981" }} />
+            )}
+            {!isSuperAdmin && !opening && unreadTotal > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+                {unreadTotal > 9 ? '9+' : unreadTotal}
+              </span>
+            )}
           </div>
-          <div className="flex-1">
+          <div className="flex-1 text-left">
             <p className="text-sm font-semibold text-(--text-primary)">Live chat</p>
-            <p className="text-xs text-(--text-muted)">Available Mon–Fri, 9am–6pm UTC</p>
+            <p className="text-xs text-(--text-muted)">
+              {!isSuperAdmin && unreadTotal > 0
+                ? `${unreadTotal} new message${unreadTotal > 1 ? 's' : ''}`
+                : 'Available Mon–Fri, 9am–6pm UTC'}
+            </p>
           </div>
-          <ExternalLink className="h-4 w-4 text-(--text-muted)" />
-        </a>
+          <div className="h-2 w-2 rounded-full bg-green-500" />
+        </button>
       </div>
 
       <p className="text-center text-xs text-(--text-muted)">

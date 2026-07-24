@@ -4,12 +4,13 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Menu, Bell, Sun, Moon, Sparkles, CreditCard, LogOut, User, ChevronRight, Star } from "lucide-react";
+import { Menu, Bell, Sun, Moon, Sparkles, CreditCard, LogOut, User, ChevronRight, Star, MessageSquare } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme }            from "@/providers/ThemeProvider";
 import { useAuthStore }        from "@/store/auth.store";
 import { useSidebarStore }     from "@/store/sidebar.store";
 import { useSubscriptionStore } from "@/store/subscription.store";
+import { useChatStore }        from "@/store/chat.store";
 import { useNotifications }    from "@/hooks/useNotifications";
 import NotificationPanel       from "@/components/layout/NotificationPanel";
 import BillingModal            from "@/components/layout/BillingModal";
@@ -18,16 +19,28 @@ export default function Topbar() {
   const router         = useRouter();
   const { theme, resolvedTheme, toggle } = useTheme();
   const user           = useAuthStore((s) => s.user);
+  const isSuperAdmin   = !!user?.is_super_admin;
   const logoutAction   = useAuthStore((s) => s.logout);
   const { setMobileOpen, isMobileOpen } = useSidebarStore();
   const { isSubscribed, plan, subscriptionStatus, openCustomerPortal, openUpgradeModal, isLoading } =
     useSubscriptionStore();
 
   const updateAvatar = useAuthStore((s) => s.updateAvatar);
+  const chatUnreadTotal = useChatStore((s) => s.unreadTotal);
+  const fetchChatUnread = useChatStore((s) => s.fetchUnreadCount);
 
   const [billingOpen,   setBillingOpen]  = useState(false);
   const [bellOpen,      setBellOpen]     = useState(false);
   const [profileOpen,   setProfileOpen]  = useState(false);
+
+  // Fetch chat unread count for super admins
+  useEffect(() => {
+    if (isSuperAdmin) {
+      fetchChatUnread();
+      const interval = setInterval(() => fetchChatUnread(), 10000);
+      return () => clearInterval(interval);
+    }
+  }, [isSuperAdmin, fetchChatUnread]);
   const [avatarLoading, setAvatarLoading] = useState(false);
   const bellRef      = useRef(null);
   const profileRef   = useRef(null);
@@ -136,6 +149,22 @@ export default function Topbar() {
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
 
+          {/* Support Chat (Super Admin Only) */}
+          {isSuperAdmin && (
+            <Link
+              href="/chat"
+              className="relative rounded-xl p-2 text-(--text-muted) hover:bg-(--bg-elevated) transition-colors"
+              aria-label="Support Messages"
+            >
+              <MessageSquare className="h-4 w-4" />
+              {chatUnreadTotal > 0 && (
+                <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white leading-none">
+                  {chatUnreadTotal > 9 ? "9+" : chatUnreadTotal}
+                </span>
+              )}
+            </Link>
+          )}
+
           {/* Notifications */}
           <div ref={bellRef} className="relative">
             <button
@@ -165,7 +194,7 @@ export default function Topbar() {
           </div>
 
           {/* Avatar + profile dropdown */}
-          <div ref={profileRef} className="relative flex items-center gap-2 pl-2 border-l border-border">
+          <div ref={profileRef} className="relative hidden md:flex items-center gap-2 pl-2 border-l border-border">
             <input
               ref={fileInputRef}
               type="file"

@@ -3,14 +3,15 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell, X, CheckCheck, Ticket, Heart, Users, ScanLine, Zap } from "lucide-react";
+import { Bell, X, CheckCheck, Ticket, Heart, Users, ScanLine, Zap, MessageSquare } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const TYPE_META = {
-  new_rsvp:    { Icon: Users,    color: "text-indigo-500",  bg: "bg-indigo-50 dark:bg-indigo-950/40" },
-  ticket_sold: { Icon: Ticket,   color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-950/40" },
-  new_donation:{ Icon: Heart,    color: "text-rose-500",    bg: "bg-rose-50 dark:bg-rose-950/40"  },
-  checkin:     { Icon: ScanLine, color: "text-cyan-500",    bg: "bg-cyan-50 dark:bg-cyan-950/40"   },
+  new_rsvp:    { Icon: Users,        color: "text-indigo-500",  bg: "bg-indigo-50 dark:bg-indigo-950/40" },
+  ticket_sold: { Icon: Ticket,       color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-950/40" },
+  new_donation:{ Icon: Heart,        color: "text-rose-500",    bg: "bg-rose-50 dark:bg-rose-950/40"  },
+  checkin:     { Icon: ScanLine,     color: "text-cyan-500",    bg: "bg-cyan-50 dark:bg-cyan-950/40"   },
+  chat:        { Icon: MessageSquare,color: "text-violet-500",  bg: "bg-violet-50 dark:bg-violet-950/40" },
 };
 const DEFAULT_META = { Icon: Zap, color: "text-gray-400", bg: "bg-gray-100 dark:bg-gray-800" };
 

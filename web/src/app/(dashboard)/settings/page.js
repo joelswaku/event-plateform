@@ -154,8 +154,13 @@ function MobileSettings() {
               className="hidden"
               onChange={handleAvatarChange}
             />
-            {/* Avatar with camera overlay */}
-            <div className="relative">
+            {/* Avatar with camera badge - pressable */}
+            <button
+              className="relative"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={avatarLoading}
+              style={{ cursor: avatarLoading ? "default" : "pointer" }}
+            >
               <div
                 style={{
                   width: 96, height: 96, borderRadius: 48, padding: 3,
@@ -165,7 +170,7 @@ function MobileSettings() {
                 <div
                   style={{
                     width: "100%", height: "100%", borderRadius: 48,
-                    background: "#14141f",
+                    background: "linear-gradient(135deg, #4f46e5, #7c3aed)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     overflow: "hidden",
                     position: "relative",
@@ -175,62 +180,40 @@ function MobileSettings() {
                     <img src={user.avatar_url} alt="avatar"
                       style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   ) : (
-                    <span style={{ fontSize: 28, fontWeight: 900, color: "#6366f1" }}>
+                    <span style={{ fontSize: 28, fontWeight: 900, color: "#fff" }}>
                       {initials}
                     </span>
-                  )}
-                  {avatarLoading && (
-                    <div style={{
-                      position: "absolute", inset: 0,
-                      background: "rgba(0,0,0,0.5)",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                    }}>
-                      <Loader2 size={20} className="animate-spin" style={{ color: "#fff" }} />
-                    </div>
                   )}
                 </div>
               </div>
 
-              {/* Camera button */}
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={avatarLoading}
+              {/* Camera badge */}
+              <div
                 style={{
-                  position: "absolute", bottom: 0, right: 0,
-                  width: 30, height: 30, borderRadius: 15,
+                  position: "absolute", bottom: 2, right: 2,
+                  width: 26, height: 26, borderRadius: 13,
                   background: "#6366f1",
                   border: "2.5px solid #07070f",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  cursor: "pointer",
                 }}
               >
-                <User size={13} style={{ color: "#fff" }} />
-              </button>
-            </div>
+                {avatarLoading ? (
+                  <Loader2 size={11} className="animate-spin" style={{ color: "#fff" }} />
+                ) : (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                    <circle cx="12" cy="13" r="4"></circle>
+                  </svg>
+                )}
+              </div>
+            </button>
 
-            <p style={{ fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: -0.3, marginTop: 6 }}>
+            <p style={{ fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: -0.3, marginTop: 8 }}>
               {user?.name ?? "—"}
             </p>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
               {user?.email ?? "—"}
             </p>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={avatarLoading}
-              style={{
-                marginTop: 4,
-                padding: "6px 16px",
-                borderRadius: 9999,
-                background: "rgba(99,102,241,0.12)",
-                border: "1px solid rgba(99,102,241,0.25)",
-                color: "#818cf8",
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              {avatarLoading ? "Uploading…" : "Change photo"}
-            </button>
           </div>
 
           {/* Plan card */}
@@ -297,61 +280,70 @@ function MobileSettings() {
             </div>
           </div>
 
-          {/* Logout — with inline confirmation */}
-          {showLogoutConfirm ? (
-            <div
-              className="rounded-2xl p-4"
-              style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.28)" }}
-            >
-              <p style={{ fontSize: 15, fontWeight: 800, color: "#fff", textAlign: "center" }}>
-                Sign out?
-              </p>
-              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", textAlign: "center", margin: "6px 0 16px" }}>
-                You'll need to log back in to manage your events.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowLogoutConfirm(false)}
-                  className="flex flex-1 items-center justify-center rounded-xl py-3"
-                  style={{ background: "rgba(255,255,255,0.08)" }}
-                >
-                  <span style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>Cancel</span>
-                </button>
-                <button
-                  onClick={handleLogout}
-                  disabled={loggingOut}
-                  className="flex flex-1 items-center justify-center rounded-xl py-3"
-                  style={{
-                    background: "rgba(239,68,68,0.20)",
-                    border: "1px solid rgba(239,68,68,0.40)",
-                    opacity: loggingOut ? 0.6 : 1,
-                  }}
-                >
-                  <span style={{ fontSize: 14, fontWeight: 700, color: "#ef4444" }}>
-                    {loggingOut ? "Signing out…" : "Sign Out"}
-                  </span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowLogoutConfirm(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 transition"
-              style={{
-                border: "1px solid rgba(239,68,68,0.28)",
-                backgroundColor: "rgba(239,68,68,0.08)",
-              }}
-            >
-              <LogOut size={16} style={{ color: "#ef4444" }} />
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#ef4444" }}>Sign Out</span>
-            </button>
-          )}
+          {/* Logout button */}
+          <button
+            onClick={() => setShowLogoutConfirm(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 transition"
+            style={{
+              border: "1px solid rgba(239,68,68,0.28)",
+              backgroundColor: "rgba(239,68,68,0.08)",
+            }}
+          >
+            <LogOut size={16} style={{ color: "#ef4444" }} />
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#ef4444" }}>Sign Out</span>
+          </button>
 
         </div>
       </div>
 
       {/* Bottom nav — same as events page */}
       <MobileBottomNav />
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.85)", backdropFilter: "blur(8px)" }}
+          onClick={() => setShowLogoutConfirm(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-[24px] overflow-hidden"
+            style={{ background: "#0e0e16", border: "1px solid rgba(255,255,255,0.08)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="px-6 pt-6 pb-4">
+              <h2 className="text-[20px] font-black text-white text-center">Sign out?</h2>
+              <p className="text-[13px] mt-2 text-center" style={{ color: "rgba(255,255,255,0.45)" }}>
+                You'll need to log back in to manage your events.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="px-4 pb-4 space-y-2">
+              <button
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="w-full py-3.5 rounded-[16px] text-sm font-bold transition-colors disabled:opacity-50"
+                style={{
+                  background: "rgba(239,68,68,0.15)",
+                  border: "1px solid rgba(239,68,68,0.35)",
+                  color: "#ef4444",
+                }}
+              >
+                {loggingOut ? "Signing out…" : "Sign Out"}
+              </button>
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="w-full py-3 rounded-[14px] text-sm font-bold transition-colors"
+                style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <LegalModal slug={legalSlug} onClose={() => setLegalSlug(null)} />
     </div>

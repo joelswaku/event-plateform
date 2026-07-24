@@ -12,15 +12,15 @@ export const resetLimiter = rateLimit({
 // Login — brute-force protection in production only
 export const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: 100,  // Increased from 20 to 100
   skip: () => isDev,
   message: { success: false, message: "Too many login attempts, try again in 15 minutes." },
 });
 
 // Register — prevent account creation spam
 export const registerLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,  // 15 minutes (was 1 hour)
-  max: 50,                    // 50 attempts (was 10)
+  windowMs: 15 * 60 * 1000,  // 15 minutes
+  max: 200,                   // Increased from 50 to 200
   skip: () => isDev,
   message: { success: false, message: "Too many accounts created from this IP, try again in 15 minutes." },
 });
@@ -28,7 +28,7 @@ export const registerLimiter = rateLimit({
 // Google OAuth — prevent token stuffing
 export const googleAuthLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 30,
+  max: 100,  // Increased from 30 to 100
   skip: () => isDev,
   message: { success: false, message: "Too many OAuth attempts, try again in 15 minutes." },
 });
