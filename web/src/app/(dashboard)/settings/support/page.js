@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronDown, Mail, MessageSquare, ExternalLink, HelpCircle, Loader2 } from "lucide-react";
 import { useChatStore } from "@/store/chat.store";
 import { useAuthStore } from "@/store/auth.store";
+import { FloatingChatButton } from "@/components/FloatingChatButton";
 import toast from "react-hot-toast";
 
 const FAQS = [
@@ -88,98 +89,103 @@ export default function SupportPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg space-y-6 px-4 py-8">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => router.back()}
-          className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-(--bg-surface) transition hover:bg-(--bg-elevated)"
-        >
-          <ChevronLeft className="h-4 w-4 text-(--text-muted)" />
-        </button>
-        <div>
-          <h1 className="text-lg font-black text-(--text-primary)">Help & Support</h1>
-          <p className="text-xs text-(--text-muted)">Answers and ways to reach us</p>
+    <>
+      <div className="mx-auto max-w-lg space-y-6 px-4 py-8">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.back()}
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-(--bg-surface) transition hover:bg-(--bg-elevated)"
+          >
+            <ChevronLeft className="h-4 w-4 text-(--text-muted)" />
+          </button>
+          <div>
+            <h1 className="text-lg font-black text-(--text-primary)">Help & Support</h1>
+            <p className="text-xs text-(--text-muted)">Answers and ways to reach us</p>
+          </div>
         </div>
-      </div>
 
-      {/* Hero */}
-      <div
-        className="flex flex-col items-center gap-2 rounded-3xl px-6 py-8 text-center"
-        style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.10) 0%, rgba(167,139,250,0.07) 100%)", border: "1px solid rgba(99,102,241,0.20)" }}
-      >
+        {/* Hero */}
         <div
-          className="flex h-14 w-14 items-center justify-center rounded-2xl"
-          style={{ background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)" }}
+          className="flex flex-col items-center gap-2 rounded-3xl px-6 py-8 text-center"
+          style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.10) 0%, rgba(167,139,250,0.07) 100%)", border: "1px solid rgba(99,102,241,0.20)" }}
         >
-          <HelpCircle className="h-7 w-7" style={{ color: "#818cf8" }} />
+          <div
+            className="flex h-14 w-14 items-center justify-center rounded-2xl"
+            style={{ background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)" }}
+          >
+            <HelpCircle className="h-7 w-7" style={{ color: "#818cf8" }} />
+          </div>
+          <p className="text-base font-bold text-(--text-primary)">How can we help?</p>
+          <p className="text-xs text-(--text-muted)">Browse the FAQ below or reach out directly — we typically reply within a few hours.</p>
         </div>
-        <p className="text-base font-bold text-(--text-primary)">How can we help?</p>
-        <p className="text-xs text-(--text-muted)">Browse the FAQ below or reach out directly — we typically reply within a few hours.</p>
-      </div>
 
-      {/* FAQ */}
-      <div className="overflow-hidden rounded-3xl border border-border bg-(--bg-surface)">
-        <p className="px-5 pt-4 pb-1 text-[10px] font-bold uppercase tracking-widest text-(--text-muted)">
-          Frequently Asked Questions
+        {/* FAQ */}
+        <div className="overflow-hidden rounded-3xl border border-border bg-(--bg-surface)">
+          <p className="px-5 pt-4 pb-1 text-[10px] font-bold uppercase tracking-widest text-(--text-muted)">
+            Frequently Asked Questions
+          </p>
+          {FAQS.map((faq) => <FaqItem key={faq.q} {...faq} />)}
+        </div>
+
+        {/* Contact */}
+        <div className="rounded-3xl border border-border bg-(--bg-surface) p-5 space-y-3">
+          <p className="text-sm font-bold text-(--text-primary)">Still need help?</p>
+          <a
+            href="mailto:support@meetcraft.app"
+            className="flex items-center gap-3 rounded-2xl px-4 py-3 transition hover:bg-(--bg-elevated)"
+          >
+            <div
+              className="flex h-9 w-9 items-center justify-center rounded-xl"
+              style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.2)" }}
+            >
+              <Mail className="h-4 w-4" style={{ color: "#6366f1" }} />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-(--text-primary)">Email support</p>
+              <p className="text-xs text-(--text-muted)">support@meetcraft.app</p>
+            </div>
+            <ExternalLink className="h-4 w-4 text-(--text-muted)" />
+          </a>
+          <button
+            onClick={handleLiveChat}
+            disabled={opening}
+            className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 transition hover:bg-(--bg-elevated) disabled:opacity-50"
+          >
+            <div
+              className="relative flex h-9 w-9 items-center justify-center rounded-xl"
+              style={{ background: "rgba(16,185,129,0.10)", border: "1px solid rgba(16,185,129,0.2)" }}
+            >
+              {opening ? (
+                <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#10b981" }} />
+              ) : (
+                <MessageSquare className="h-4 w-4" style={{ color: "#10b981" }} />
+              )}
+              {!isSuperAdmin && !opening && unreadTotal > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+                  {unreadTotal > 9 ? '9+' : unreadTotal}
+                </span>
+              )}
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-sm font-semibold text-(--text-primary)">Live chat</p>
+              <p className="text-xs text-(--text-muted)">
+                {!isSuperAdmin && unreadTotal > 0
+                  ? `${unreadTotal} new message${unreadTotal > 1 ? 's' : ''}`
+                  : 'Available Mon–Fri, 9am–6pm UTC'}
+              </p>
+            </div>
+            <div className="h-2 w-2 rounded-full bg-green-500" />
+          </button>
+        </div>
+
+        <p className="text-center text-xs text-(--text-muted)">
+          Version 1.0.0 · Meetcraft
         </p>
-        {FAQS.map((faq) => <FaqItem key={faq.q} {...faq} />)}
       </div>
 
-      {/* Contact */}
-      <div className="rounded-3xl border border-border bg-(--bg-surface) p-5 space-y-3">
-        <p className="text-sm font-bold text-(--text-primary)">Still need help?</p>
-        <a
-          href="mailto:support@meetcraft.app"
-          className="flex items-center gap-3 rounded-2xl px-4 py-3 transition hover:bg-(--bg-elevated)"
-        >
-          <div
-            className="flex h-9 w-9 items-center justify-center rounded-xl"
-            style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.2)" }}
-          >
-            <Mail className="h-4 w-4" style={{ color: "#6366f1" }} />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-(--text-primary)">Email support</p>
-            <p className="text-xs text-(--text-muted)">support@meetcraft.app</p>
-          </div>
-          <ExternalLink className="h-4 w-4 text-(--text-muted)" />
-        </a>
-        <button
-          onClick={handleLiveChat}
-          disabled={opening}
-          className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 transition hover:bg-(--bg-elevated) disabled:opacity-50"
-        >
-          <div
-            className="relative flex h-9 w-9 items-center justify-center rounded-xl"
-            style={{ background: "rgba(16,185,129,0.10)", border: "1px solid rgba(16,185,129,0.2)" }}
-          >
-            {opening ? (
-              <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#10b981" }} />
-            ) : (
-              <MessageSquare className="h-4 w-4" style={{ color: "#10b981" }} />
-            )}
-            {!isSuperAdmin && !opening && unreadTotal > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
-                {unreadTotal > 9 ? '9+' : unreadTotal}
-              </span>
-            )}
-          </div>
-          <div className="flex-1 text-left">
-            <p className="text-sm font-semibold text-(--text-primary)">Live chat</p>
-            <p className="text-xs text-(--text-muted)">
-              {!isSuperAdmin && unreadTotal > 0
-                ? `${unreadTotal} new message${unreadTotal > 1 ? 's' : ''}`
-                : 'Available Mon–Fri, 9am–6pm UTC'}
-            </p>
-          </div>
-          <div className="h-2 w-2 rounded-full bg-green-500" />
-        </button>
-      </div>
-
-      <p className="text-center text-xs text-(--text-muted)">
-        Version 1.0.0 · Meetcraft
-      </p>
-    </div>
+      {/* Floating Chat Button - Only on Support Page */}
+      <FloatingChatButton />
+    </>
   );
 }
