@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import {
-  Plus, Trash2, Edit3, Zap, RotateCcw, ChevronRight,
+  Plus, Trash2, Edit3, Zap, RotateCcw, ChevronRight, ChevronLeft,
   X, Check, Search, Circle, Square, Hexagon, LayoutGrid,
   List, AlertCircle, Loader2, Crown, UserCheck, ArrowRight,
   Eye, EyeOff, Users, ArrowUpRight,
@@ -593,9 +593,18 @@ export default function SeatingPage() {
 
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pt-1">
-        <div>
-          <h1 className="text-xl font-black text-foreground">Seating Chart</h1>
-          <p className="text-sm text-foreground/35 mt-0.5">{event?.title ?? "Event"} · Click a table to open the seat map</p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.back()}
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-foreground/10 bg-foreground/[0.04] hover:bg-foreground/[0.08] transition-colors"
+            title="Go back"
+          >
+            <ChevronLeft className="h-4 w-4 text-foreground/60" />
+          </button>
+          <div>
+            <h1 className="text-xl font-black text-foreground">Seating Chart</h1>
+            <p className="text-sm text-foreground/35 mt-0.5">{event?.title ?? "Event"} · Click a table to open the seat map</p>
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center rounded-xl border border-foreground/10 bg-foreground/[0.04] p-1">
