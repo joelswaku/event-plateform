@@ -160,6 +160,31 @@ function SendQrModal({ open, onClose, onSendEmail, guest }) {
             <ChevronRight size={16} style={{ color: '#8b5cf6' }} />
           </button>
 
+          {/* Email */}
+          {hasEmail && (
+            <button
+              onClick={handleSendEmail}
+              disabled={sending}
+              className="w-full flex items-center gap-3 p-4 rounded-[16px] border transition-all disabled:opacity-50 hover:bg-opacity-20"
+              style={{
+                background: 'rgba(99,102,241,0.08)',
+                borderColor: 'rgba(99,102,241,0.3)',
+              }}
+            >
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]"
+                style={{ background: 'rgba(99,102,241,0.15)' }}>
+                <Mail size={18} style={{ color: '#6366f1' }} />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-bold text-white">Send via Email</p>
+                <p className="text-[11px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                  {guest?.email}
+                </p>
+              </div>
+              {sending && <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-400/40 border-t-indigo-400" />}
+            </button>
+          )}
+
           {/* WhatsApp */}
           {hasPhone && (
             <button
@@ -184,31 +209,6 @@ function SendQrModal({ open, onClose, onSendEmail, guest }) {
                 </p>
               </div>
               <ChevronRight size={16} style={{ color: '#25D366' }} />
-            </button>
-          )}
-
-          {/* Email */}
-          {hasEmail && (
-            <button
-              onClick={handleSendEmail}
-              disabled={sending}
-              className="w-full flex items-center gap-3 p-4 rounded-[16px] border transition-all disabled:opacity-50 hover:bg-opacity-20"
-              style={{
-                background: 'rgba(99,102,241,0.08)',
-                borderColor: 'rgba(99,102,241,0.3)',
-              }}
-            >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]"
-                style={{ background: 'rgba(99,102,241,0.15)' }}>
-                <Mail size={18} style={{ color: '#6366f1' }} />
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-sm font-bold text-white">Send via Email</p>
-                <p className="text-[11px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                  {guest?.email}
-                </p>
-              </div>
-              {sending && <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-400/40 border-t-indigo-400" />}
             </button>
           )}
 

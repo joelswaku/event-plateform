@@ -795,12 +795,19 @@ function MobileDashboard() {
         {/* ── Header ──────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-5 pb-3.5 pt-14">
           <div className="flex items-center gap-3">
-            {/* Gradient ⚡ logo mark */}
+            {/* User Avatar */}
             <div
-              className="flex h-[38px] w-[38px] items-center justify-center rounded-xl"
+              className="flex h-[38px] w-[38px] items-center justify-center overflow-hidden rounded-xl"
               style={{ background: "linear-gradient(135deg, #6366f1, #a78bfa)" }}
             >
-              <Zap size={14} className="text-white" />
+              {user?.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={user.avatar_url} alt={firstName} className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-[14px] font-black tracking-wide text-white select-none">
+                  {initials}
+                </span>
+              )}
             </div>
             <div>
               <p
@@ -818,7 +825,7 @@ function MobileDashboard() {
           <div className="flex items-center gap-2.5">
             {/* Bell with dynamic unread badge */}
             <Link
-              href="/notifications"
+              href="/settings/notifications"
               className="relative flex h-[38px] w-[38px] items-center justify-center rounded-xl border"
               style={{ background: "#14141f", borderColor: "rgba(255,255,255,0.10)" }}
             >
