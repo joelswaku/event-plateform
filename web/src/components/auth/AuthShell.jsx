@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Zap, CalendarCheck, Ticket, Users } from "lucide-react";
 
 const STATS = [
@@ -74,9 +75,13 @@ export default function AuthShell({ children, headline, subline }) {
 
           {/* Brand */}
           <Link href="/" className="flex items-center gap-2.5 w-fit group">
-            <div className="w-10 h-10 rounded-2xl bg-[#6366f1] flex items-center justify-center shadow-lg shadow-[#6366f1]/50 group-hover:bg-[#818cf8] transition-colors">
-              <Zap className="w-5 h-5 text-white" fill="white" />
-            </div>
+            <Image
+              src="/logo.png"
+              alt="LiteEvent"
+              width={40}
+              height={40}
+              className="rounded-2xl shadow-lg group-hover:opacity-90 transition-opacity"
+            />
             <span className="text-white font-black text-lg tracking-tight">LiteEvent</span>
           </Link>
 

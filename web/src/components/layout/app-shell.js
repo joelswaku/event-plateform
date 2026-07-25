@@ -31,7 +31,7 @@ export default function AppShell({ children }) {
           <main
             className={`flex-1 flex flex-col min-h-0 ${
               isBuilder ? "p-0 overflow-hidden"
-              : isPlannerProject ? "p-0 overflow-hidden"
+              : isPlannerProject ? "p-0"
               : "p-0 sm:p-4 md:p-6 overflow-auto"
             }`}
           >

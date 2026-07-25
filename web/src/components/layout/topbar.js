@@ -110,7 +110,7 @@ export default function Topbar() {
 
         {/* CENTER — logo on mobile, navigation on desktop */}
         <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 md:hidden">
-          <Image src="/lite.png" alt="LiteEvent" width={28} height={28} className="rounded-lg" />
+          <Image src="/logo.png" alt="LiteEvent" width={28} height={28} className="rounded-lg" />
           <span className="font-bold text-sm tracking-tight text-(--text-primary)">LiteEvent</span>
         </div>
 

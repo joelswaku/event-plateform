@@ -121,7 +121,7 @@ export default function DashboardSidebar() {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-30 hidden sm:flex flex-col border-r border-white/8 bg-(--sidebar-bg) transition-all duration-300 md:sticky md:top-0 md:h-screen ${
+        className={`fixed inset-y-0 left-0 z-30 flex flex-col border-r border-white/8 bg-(--sidebar-bg) transition-all duration-300 md:sticky md:top-0 md:h-screen ${
           safeCollapsed ? "w-16" : "w-64"
         } ${isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
