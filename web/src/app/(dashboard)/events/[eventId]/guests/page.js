@@ -15,6 +15,7 @@ import { useGuestStore }         from "@/store/guest.store";
 import { useSeatingStore }       from "@/store/seating.store";
 import { useSubscriptionStore }  from "@/store/subscription.store";
 import ConfirmModal, { useConfirm } from "@/components/ui/confirm-modal";
+import { trackConversion } from "@/lib/analytics";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 
@@ -870,6 +871,7 @@ export default function GuestsPage() {
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
   const [inviteChannelModal, setInviteChannelModal] = useState(null);
   const [qrChannelModal, setQrChannelModal] = useState(null);
+  const [filterStatus, setFilterStatus] = useState("ALL"); // ALL, GOING, MAYBE, DECLINED, PENDING
 
   useEffect(() => {
     if (!eventId) return;
@@ -916,12 +918,26 @@ export default function GuestsPage() {
   }, [seatAssignments, seatLocations]);
 
   const filteredGuests = useMemo(() => {
+    let filtered = guests;
+
+    // Filter by status
+    if (filterStatus !== "ALL") {
+      filtered = filtered.filter((g) => {
+        const status = rsvpMap.get(g.id) || "PENDING";
+        return status.toUpperCase() === filterStatus;
+      });
+    }
+
+    // Filter by search query
     const q = query.trim().toLowerCase();
-    if (!q) return guests;
-    return guests.filter((g) =>
-      [g.full_name, g.email, g.phone].some((v) => v && String(v).toLowerCase().includes(q))
-    );
-  }, [guests, query]);
+    if (q) {
+      filtered = filtered.filter((g) =>
+        [g.full_name, g.email, g.phone].some((v) => v && String(v).toLowerCase().includes(q))
+      );
+    }
+
+    return filtered;
+  }, [guests, query, filterStatus, rsvpMap]);
 
   const selectedCount = selectedGuestIds.length;
   const allSelected   = guests.length > 0 && selectedCount === guests.length;
@@ -941,8 +957,19 @@ export default function GuestsPage() {
   const handleChange  = (field, value) => setForm((p) => ({ ...p, [field]: value }));
 
   const handleSubmit = async () => {
+    // Validation
     if (!form.full_name.trim()) { toast.error("Full name is required"); return; }
     if (!form.email.trim() && !form.phone.trim()) { toast.error("Email or phone is required"); return; }
+
+    // Email format validation
+    if (form.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(form.email.trim())) {
+        toast.error("Please enter a valid email address");
+        return;
+      }
+    }
+
     const payload = {
       full_name: form.full_name.trim(),
       email: form.email.trim() || null,
@@ -961,11 +988,19 @@ export default function GuestsPage() {
           closeModal();
           setShowGuestLimitModal(true);
         } else {
-          toast.error(editingGuest ? "Update failed" : "Create failed");
+          // Show specific error message if available
+          const errorMsg = res?.message || (editingGuest ? "Update failed" : "Create failed");
+          toast.error(errorMsg);
         }
         return;
       }
       toast.success(editingGuest ? "Guest updated" : "Guest added");
+
+      // Track guest added conversion
+      if (!editingGuest) {
+        trackConversion.guestAdded();
+      }
+
       closeModal();
     } finally { setSubmitting(false); }
   };
@@ -987,8 +1022,12 @@ export default function GuestsPage() {
   const handleSendEmail = async (guest) => {
     setInviteChannelModal(null);
     const res = await sendGuestInvitation(eventId, guest.id, { channel: 'EMAIL' });
-    if (res?.success) toast.success(`Invitation sent to ${guest.full_name}`);
-    else toast.error(res?.error || "Failed to send invitation");
+    if (res?.success) {
+      toast.success(`Invitation sent to ${guest.full_name}`);
+      trackConversion.invitationSent('email');
+    } else {
+      toast.error(res?.error || "Failed to send invitation");
+    }
   };
 
   const handleWhatsApp = (guest) => {
@@ -996,6 +1035,7 @@ export default function GuestsPage() {
     const inviteUrl = `${window.location.origin}/invite/${guest.id}`;
     const message = `You're invited to the event!\n\nRSVP here: ${inviteUrl}`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+    trackConversion.invitationSent('whatsapp');
     setInviteChannelModal(null);
   };
 
@@ -1038,8 +1078,12 @@ export default function GuestsPage() {
 
   const handleManualCheckIn = async (guest) => {
     const res = await manualCheckIn(eventId, guest.id);
-    if (res?.success) toast.success(`${guest.full_name} checked in ✓`);
-    else toast.error(res?.error || "Check-in failed");
+    if (res?.success) {
+      toast.success(`${guest.full_name} checked in ✓`);
+      trackConversion.qrCheckIn();
+    } else {
+      toast.error(res?.error || "Check-in failed");
+    }
   };
 
   const handleScanCheckIn = async () => {
@@ -1049,8 +1093,11 @@ export default function GuestsPage() {
     setScanning(false);
     if (res?.success) {
       toast.success(`${res.data.guest?.full_name || "Guest"} checked in ✓`);
+      trackConversion.qrCheckIn();
       setScanToken("");
-    } else toast.error(res?.error || "Check-in failed");
+    } else {
+      toast.error(res?.error || "Check-in failed");
+    }
   };
 
   const handleBulkDelete = async () => {
@@ -1157,18 +1204,50 @@ export default function GuestsPage() {
           </div>
         )}
 
-        {/* Search */}
+        {/* Filter Tabs */}
         {!isLoading && guests.length > 0 && (
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search guests by name, email or phone…"
-              className="w-full rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 py-2.5 pl-9 pr-9 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 outline-none focus:border-indigo-400" />
-            {query && (
-              <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
+          <div className="sticky top-0 z-10 bg-background pb-3 space-y-3">
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {[
+                { key: "ALL", label: "All", count: guests.length },
+                { key: "GOING", label: "Going", count: guests.filter(g => (rsvpMap.get(g.id) || "PENDING") === "GOING").length },
+                { key: "MAYBE", label: "Maybe", count: guests.filter(g => (rsvpMap.get(g.id) || "PENDING") === "MAYBE").length },
+                { key: "PENDING", label: "Pending", count: guests.filter(g => (rsvpMap.get(g.id) || "PENDING") === "PENDING").length },
+                { key: "DECLINED", label: "Declined", count: guests.filter(g => (rsvpMap.get(g.id) || "PENDING") === "DECLINED").length },
+              ].map(({ key, label, count }) => (
+                <button
+                  key={key}
+                  onClick={() => setFilterStatus(key)}
+                  className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                    filterStatus === key
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  <span>{label}</span>
+                  <span className={`text-xs font-bold ${
+                    filterStatus === key
+                      ? "text-white/80"
+                      : "text-gray-500 dark:text-gray-400"
+                  }`}>
+                    {count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search guests by name, email or phone…"
+                className="w-full rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 py-2.5 pl-9 pr-9 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 outline-none focus:border-indigo-400" />
+              {query && (
+                <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
           </div>
         )}
 
