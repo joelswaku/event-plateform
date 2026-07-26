@@ -118,7 +118,7 @@ export default function ReviewsPage() {
       "name": "LiteEvent",
       "url": "https://liteevent.com",
       "logo": "https://liteevent.com/logo.png",
-      "description": "Professional event management platform for creating, managing, and hosting events",
+      "description": "Event management software and online event ticketing platform. Best RSVP management software for weddings, conference registration, festival ticketing with QR code check-in. Sell event tickets online with our free event management software.",
       "aggregateRating": {
         "@type": "AggregateRating",
         "ratingValue": averageRating.toFixed(1),

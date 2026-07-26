@@ -30,10 +30,10 @@ const playfair = Playfair_Display({
 
 export const metadata = {
   title: {
-    default: "LiteEvent - Professional Event Management Platform",
+    default: "LiteEvent - Event Management Software | Online Event Ticketing Platform",
     template: "%s | LiteEvent",
   },
-  description: "Create, manage, and host unforgettable events with LiteEvent. Powerful event management tools for organizers, featuring ticketing, RSVP, guest management, and more.",
+  description: "Best event management software for weddings, conferences & festivals. Online event ticket sales, RSVP management, QR code check-in, and wedding invitation website. Free event ticketing platform to sell event tickets online.",
   icons: {
     icon: "/favicon.ico",
     shortcut: "/favicon.ico",
@@ -41,6 +41,19 @@ export const metadata = {
   },
   manifest: "/manifest.webmanifest",
   keywords: [
+    "event management software",
+    "event ticketing platform",
+    "online event ticket sales",
+    "RSVP management software",
+    "wedding RSVP website",
+    "wedding invitation website",
+    "wedding ticketing platform",
+    "conference registration software",
+    "festival ticketing software",
+    "QR code event check-in",
+    "event check-in app",
+    "sell event tickets online",
+    "free event management software",
     "event management",
     "event planning",
     "event ticketing",
@@ -61,13 +74,13 @@ export const metadata = {
     locale: "en_US",
     url: "/",
     siteName: "LiteEvent",
-    title: "LiteEvent - Professional Event Management Platform",
-    description: "Create, manage, and host unforgettable events with LiteEvent. Powerful event management tools for organizers.",
+    title: "LiteEvent - Event Management Software | Event Ticketing Platform",
+    description: "Professional event management software with online ticketing, RSVP management, QR code check-in for weddings, conferences & festivals. Sell event tickets online.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "LiteEvent - Professional Event Management Platform",
-    description: "Create, manage, and host unforgettable events with LiteEvent.",
+    title: "LiteEvent - Event Management Software | Event Ticketing Platform",
+    description: "Event management software with ticketing, RSVP, and QR code check-in. Perfect for weddings, conferences & festivals.",
   },
   robots: {
     index: true,
