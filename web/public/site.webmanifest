@@ -1,28 +1,21 @@
 {
-  "name": "LiteEvent - Event Management Platform",
-  "short_name": "LiteEvent",
-  "description": "Event management software with ticketing, RSVP, and QR code check-in",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#0d0d1a",
-  "theme_color": "#6366f1",
+  "name": "MyWebSite",
+  "short_name": "MySite",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "/web-app-manifest-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/web-app-manifest-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/apple-touch-icon.png",
-      "sizes": "180x180",
-      "type": "image/png"
+      "purpose": "maskable"
     }
-  ]
+  ],
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
+  "display": "standalone"
 }
