@@ -29,6 +29,8 @@ import vendorsRoutes from "./vendors.routes.js";
 import organizersRoutes from "./organizers.routes.js";
 import chatRoutes from "./chat.routes.js";
 import platformStatsRoutes from "./platform-stats.routes.js";
+import reviewsRoutes from "./reviews.routes.js";
+import contactRoutes from "./contact.routes.js";
 
 const router = Router();
 
@@ -38,6 +40,8 @@ router.use("/public", publicTicketsRoutes);
 router.use("/public", guestPublicRoutes);
 router.use("/team",  teamPublicRoutes);
 router.use("/platform-stats", platformStatsRoutes);
+router.use("/reviews", reviewsRoutes);
+router.use("/contact", contactRoutes);
 
 // 🔐 CORE FEATURES
 router.use("/events", eventsRoutes);

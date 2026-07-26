@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Activity, CalendarDays, Building2,
   Users, DollarSign, TrendingUp, ShieldAlert, Sparkles,
   ToggleRight, ClipboardList, Search, LogOut, Shield,
-  ChevronRight, Zap, Heart, Command, Menu, X, Bell, Store, FileText, LifeBuoy,
+  ChevronRight, Zap, Heart, Command, Menu, X, Bell, Store, FileText, LifeBuoy, Star,
 } from "lucide-react";
 import CommandPalette from "@/components/super-admin/CommandPalette";
 import { useSuperAdminStore } from "@/store/superAdmin.store";
@@ -19,6 +19,7 @@ const NAV = [
   { href: "/super-admin/events",        label: "Events",        Icon: CalendarDays    },
   { href: "/super-admin/organizations", label: "Organizations", Icon: Building2       },
   { href: "/super-admin/users",         label: "Users",         Icon: Users           },
+  { href: "/super-admin/reviews",       label: "Reviews",       Icon: Star            },
   { href: "/super-admin/chat",          label: "Support",       Icon: LifeBuoy        },
   { href: "/super-admin/vendors",       label: "Vendors",       Icon: Store           },
   { href: "/super-admin/notifications", label: "Notifications", Icon: Bell            },
