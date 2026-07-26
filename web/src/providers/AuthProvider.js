@@ -6,7 +6,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useSubscriptionStore } from "@/store/subscription.store";
 
 // Public routes that don't need auth checking
-const PUBLIC_ROUTES = ["/", "/login", "/register", "/signup", "/forgot-password", "/reset-password", "/features", "/pricing", "/templates", "/about", "/contact", "/faq", "/terms", "/privacy-policy", "/cookies-policy", "/acceptable-use"];
+const PUBLIC_ROUTES = ["/", "/login", "/register", "/signup", "/forgot-password", "/reset-password", "/features", "/pricing", "/templates", "/about", "/contact", "/faq", "/terms", "/privacy-policy", "/cookies-policy", "/acceptable-use", "/reviews"];
 
 export default function AuthProvider({ children }) {
   const pathname           = usePathname();
