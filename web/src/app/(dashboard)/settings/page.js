@@ -266,6 +266,18 @@ function MobileSettings() {
             <MobileMenuItem Icon={User}       label="Edit Profile"    href="/settings/edit-profile" />
             <MobileMenuItem Icon={Bell}       label="Notifications"   href="/settings/notifications" />
             <MobileMenuItem Icon={Shield}     label="Security"        href="/settings/security" />
+
+            {/* Super Admin access - only for super admins */}
+            {user?.is_super_admin && (
+              <MobileMenuItem
+                Icon={Star}
+                label="Super Admin"
+                href="/super-admin"
+                iconColor="#c9a96e"
+                iconBg="rgba(201,169,110,0.14)"
+              />
+            )}
+
             <MobileMenuItem Icon={HelpCircle} label="Help & Support"  href="/settings/support" />
 
             {/* Legal section */}

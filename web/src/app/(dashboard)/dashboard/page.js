@@ -862,36 +862,7 @@ function MobileDashboard() {
           </div>
         </div>
 
-        {/* ── Super Admin Banner ──────────────────────────────────────────── */}
-        {user?.is_super_admin && (
-          <div
-            className="relative mx-5 mt-2 flex items-center justify-between overflow-hidden rounded-[14px] border px-3 py-3"
-            style={{ background: "rgba(201,169,110,0.10)", borderColor: "rgba(201,169,110,0.30)" }}
-          >
-            <div
-              className="pointer-events-none absolute inset-0"
-              style={{ background: "linear-gradient(90deg, rgba(201,169,110,0.14), rgba(245,158,11,0.05))" }}
-              aria-hidden
-            />
-            <div className="relative flex items-center gap-2.5">
-              <div
-                className="flex h-8 w-8 items-center justify-center rounded-[10px] border"
-                style={{ background: "rgba(201,169,110,0.15)", borderColor: "rgba(201,169,110,0.25)" }}
-              >
-                <Star size={14} style={{ color: "#c9a96e" }} />
-              </div>
-              <div>
-                <p className="text-[13px] font-extrabold" style={{ color: "#c9a96e" }}>Super Admin Mode</p>
-                <p className="text-[10px]" style={{ color: "rgba(201,169,110,0.60)" }}>Full platform access</p>
-              </div>
-            </div>
-            <span
-              className="relative rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[1.2px]"
-              style={{ background: "rgba(201,169,110,0.15)", border: "1px solid rgba(201,169,110,0.30)", color: "#c9a96e" }}
-            >
-              ADMIN
-            </span>
-          </div>
+        {/* Super Admin Banner removed - now in profile section only */}
         )}
 
         {/* ── Active event banner ───────────────────────────────────────── */}
