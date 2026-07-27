@@ -863,7 +863,6 @@ function MobileDashboard() {
         </div>
 
         {/* Super Admin Banner removed - now in profile section only */}
-        )}
 
         {/* ── Active event banner ───────────────────────────────────────── */}
         {activeEvent && (
