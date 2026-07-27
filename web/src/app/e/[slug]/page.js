@@ -52,9 +52,15 @@ export async function generateMetadata({ params }) {
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://liteevent.com";
 
+  // Build description with rating if available
+  let description = event.short_description || event.description || "Join this event";
+  if (event.average_rating && event.review_count) {
+    description = `⭐ ${Number(event.average_rating).toFixed(1)}/5 (${event.review_count} reviews) - ${description}`;
+  }
+
   return {
     title: event.title,
-    description: event.short_description || event.description || "Join this event",
+    description,
     keywords: [
       event.event_type,
       event.title,
@@ -63,10 +69,12 @@ export async function generateMetadata({ params }) {
       "event",
       "tickets",
       "registration",
+      event.average_rating && "top rated event",
+      event.average_rating && "highly reviewed",
     ].filter(Boolean),
     openGraph: {
       title: event.title,
-      description: event.short_description || event.description || "",
+      description,
       images: event.cover_image_url ? [{ url: event.cover_image_url }] : [],
       type: "website",
       url: `${appUrl}/e/${slug}`,
@@ -74,7 +82,7 @@ export async function generateMetadata({ params }) {
     twitter: {
       card: "summary_large_image",
       title: event.title,
-      description: event.short_description || event.description || "",
+      description,
       images: event.cover_image_url ? [event.cover_image_url] : [],
     },
     robots: {
@@ -150,6 +158,16 @@ export default async function PublicEventPage({ params, searchParams }) {
           url: `${appUrl}/e/${slug}/tickets`,
           availability: "https://schema.org/InStock",
           validFrom: ev.published_at || ev.created_at,
+        }
+      : undefined,
+    // Add aggregate rating if event has reviews
+    aggregateRating: ev.average_rating && ev.review_count
+      ? {
+          "@type": "AggregateRating",
+          ratingValue: Number(ev.average_rating).toFixed(1),
+          reviewCount: ev.review_count,
+          bestRating: "5",
+          worstRating: "1"
         }
       : undefined,
   };
