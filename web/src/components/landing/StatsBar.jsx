@@ -15,7 +15,8 @@ export default function StatsBar() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/platform-stats`);
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+        const response = await fetch(`${apiUrl}/platform-stats`);
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.stats) {
