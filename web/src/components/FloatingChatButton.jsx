@@ -19,9 +19,9 @@ export function FloatingChatButton() {
   const [opening, setOpening] = useState(false);
   const [pulse, setPulse] = useState(false);
 
-  // Fetch unread count and conversations periodically (only for non-super-admins)
+  // Fetch unread count and conversations periodically
   useEffect(() => {
-    if (isSuperAdmin || !user) return;
+    if (!user) return;
 
     // Initial fetch
     fetchUnreadCount();
@@ -34,7 +34,7 @@ export function FloatingChatButton() {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [isSuperAdmin, user, fetchUnreadCount, fetchConversations]);
+  }, [user, fetchUnreadCount, fetchConversations]);
 
   // Pulse animation when there are new messages
   useEffect(() => {
@@ -49,7 +49,7 @@ export function FloatingChatButton() {
     if (opening) return;
 
     if (isSuperAdmin) {
-      router.push("/chat");
+      router.push("/super-admin/chat");
       return;
     }
 
@@ -73,7 +73,7 @@ export function FloatingChatButton() {
     <button
       onClick={handleClick}
       disabled={opening}
-      className={`group fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full shadow-2xl transition-all disabled:opacity-50 ${
+      className={`group fixed bottom-24 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full shadow-2xl transition-all disabled:opacity-50 ${
         pulse ? "animate-pulse" : ""
       }`}
       style={{
@@ -90,9 +90,9 @@ export function FloatingChatButton() {
       }}
     >
       {/* Unread badge */}
-      {!isSuperAdmin && unreadTotal > 0 && (
+      {unreadTotal > 0 && (
         <div
-          className="absolute -right-1 -top-1 flex h-7 w-7 items-center justify-center rounded-full"
+          className="absolute -right-1 -top-1 flex h-7 w-7 items-center justify-center rounded-full z-10"
           style={{
             background: "#ef4444",
             border: "3px solid #07070f",

@@ -1598,45 +1598,57 @@ export async function getInvitationByTokenService({ token }) {
 
       await client.query("COMMIT");
 
-      // Fire-and-forget: generate QR pass and send confirmation email for GOING
+      // Fire-and-forget: send instant reminder (if configured) or QR confirmation email for GOING
       if (payload.rsvp_status === "GOING") {
         const guestRow = guestEventResult.rows[0];
         const recipientEmail = payload.email?.trim() || guestRow?.email;
         if (recipientEmail && guestRow) {
           (async () => {
             try {
-              // Upsert a QR pass for the guest
-              let qrToken;
-              const existingPass = await db.query(
-                `SELECT qr_token FROM guest_qr_passes
-                 WHERE guest_id=$1 AND event_id=$2 AND qr_status='ACTIVE'
-                   AND revoked_at IS NULL
-                   AND (expires_at IS NULL OR expires_at > NOW())
-                 ORDER BY created_at DESC LIMIT 1`,
-                [invitation.guest_id, invitation.event_id]
+              // Try sending instant reminder first (uses custom message if configured)
+              const { sendInstantReminder } = await import('./reminder.service.js');
+              const reminderResult = await sendInstantReminder(
+                invitation.event_id,
+                invitation.guest_id,
+                recipientEmail,
+                payload.guest_name?.trim() || guestRow.full_name || "Guest"
               );
-              if (existingPass.rows[0]) {
-                qrToken = existingPass.rows[0].qr_token;
-              } else {
-                qrToken = crypto.randomBytes(32).toString("hex");
-                const expiry = qrExpiryForEvent(guestRow);
-                await db.query(
-                  `INSERT INTO guest_qr_passes
-                   (guest_id, event_id, qr_token, qr_status, expires_at, created_at, updated_at)
-                   VALUES ($1,$2,$3,'ACTIVE',$4,NOW(),NOW())`,
-                  [invitation.guest_id, invitation.event_id, qrToken, expiry]
-                );
-              }
 
-              await sendRsvpConfirmationEmail({
-                to: recipientEmail,
-                guestName: payload.guest_name?.trim() || guestRow.full_name || "Guest",
-                eventTitle: guestRow.event_title,
-                eventDate: guestRow.starts_at,
-                venueName: guestRow.venue_name,
-                qrToken,
-                plusOneCount: finalPlusOneCount,
-              });
+              // If no instant reminder configured, fall back to standard QR confirmation
+              if (!reminderResult.success && reminderResult.reason === 'no_instant_reminder') {
+                // Upsert a QR pass for the guest
+                let qrToken;
+                const existingPass = await db.query(
+                  `SELECT qr_token FROM guest_qr_passes
+                   WHERE guest_id=$1 AND event_id=$2 AND qr_status='ACTIVE'
+                     AND revoked_at IS NULL
+                     AND (expires_at IS NULL OR expires_at > NOW())
+                   ORDER BY created_at DESC LIMIT 1`,
+                  [invitation.guest_id, invitation.event_id]
+                );
+                if (existingPass.rows[0]) {
+                  qrToken = existingPass.rows[0].qr_token;
+                } else {
+                  qrToken = crypto.randomBytes(32).toString("hex");
+                  const expiry = qrExpiryForEvent(guestRow);
+                  await db.query(
+                    `INSERT INTO guest_qr_passes
+                     (guest_id, event_id, qr_token, qr_status, expires_at, created_at, updated_at)
+                     VALUES ($1,$2,$3,'ACTIVE',$4,NOW(),NOW())`,
+                    [invitation.guest_id, invitation.event_id, qrToken, expiry]
+                  );
+                }
+
+                await sendRsvpConfirmationEmail({
+                  to: recipientEmail,
+                  guestName: payload.guest_name?.trim() || guestRow.full_name || "Guest",
+                  eventTitle: guestRow.event_title,
+                  eventDate: guestRow.starts_at,
+                  venueName: guestRow.venue_name,
+                  qrToken,
+                  plusOneCount: finalPlusOneCount,
+                });
+              }
             } catch (emailErr) {
               console.error("RSVP confirmation email failed:", emailErr.message);
             }
@@ -1843,6 +1855,14 @@ export async function submitOpenRsvpService({ eventId, payload }) {
     );
 
     await client.query("COMMIT");
+
+    // Send instant reminder if RSVP status is GOING
+    if (status === 'GOING') {
+      // Import dynamically to avoid circular dependency
+      const { sendInstantReminder } = await import('./reminder.service.js');
+      await sendInstantReminder(eventId, guest.id, email, name);
+    }
+
     return { rsvp_status: status, guest_name: name, email };
   } catch (err) {
     await client.query("ROLLBACK");

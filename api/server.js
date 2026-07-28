@@ -84,10 +84,12 @@
 import http from "http";
 import dotenv from "dotenv";
 import pino from "pino";
+import cron from "node-cron";
 
 import app from "./app.js";
 import { connectDatabase, db } from "./config/db.js";
 import { initWebSocket } from "./config/websocket.js";
+import { processReminders } from "./services/reminder.service.js";
 
 // Optional test email function
 import { sendWelcomeEmail } from "./utils/sendEmail.js"; 
@@ -245,6 +247,22 @@ async function startServer() {
 
     server.listen(PORT, async () => {
       logger.info(`Server running on port ${PORT}`);
+
+      /*
+      |--------------------------------------------------------------------------
+      | REMINDER CRON JOB
+      |--------------------------------------------------------------------------
+      | Runs every minute to check and send event reminders
+      */
+      cron.schedule('* * * * *', async () => {
+        try {
+          logger.info('[Cron] Running reminder check...');
+          await processReminders();
+        } catch (error) {
+          logger.error(error, '[Cron] Reminder processing failed');
+        }
+      });
+      logger.info('[Cron] Reminder scheduler initialized (runs every minute)');
 
       /*
       |--------------------------------------------------------------------------

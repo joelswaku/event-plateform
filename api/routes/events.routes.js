@@ -18,6 +18,10 @@ import {
   getPublicEventBySlug,
   getAllPublishedPublicEvents,
 } from "../controllers/events.controller.js";
+import {
+  getEventReminders,
+  saveEventReminders,
+} from "../controllers/reminders.controller.js";
 import teamRoutes from "./team.routes.js";
 
 const router = express.Router();
@@ -38,6 +42,10 @@ router.post("/:id/restore",  authenticate, resolveOrganization, restoreEvent);
 router.post("/:id/duplicate", authenticate, resolveOrganization, duplicateEvent);
 
 router.get("/:id/dashboard", authenticate, resolveOrganization, getEventDashboard);
+
+// Reminders
+router.get("/:eventId/reminders", authenticate, getEventReminders);
+router.post("/:eventId/reminders", authenticate, saveEventReminders);
 
 router.use("/:eventId/team", teamRoutes);
 

@@ -140,14 +140,14 @@ export default function SuperAdminLayout({ children }) {
                 key={href}
                 href={href}
                 onClick={() => setSidebarOpen(false)}
-                className="group flex items-center gap-3 rounded-xl px-3 py-2 text-[12px] font-semibold transition-all"
+                className="group flex items-center gap-3 rounded-xl px-3 py-2 text-[12px] font-semibold transition-all hover:bg-white/5"
                 style={{
-                  background:  active ? "rgba(201,169,110,0.12)" : "transparent",
-                  color:       active ? "#c9a96e" : "rgba(255,255,255,0.48)",
+                  background:  active ? "rgba(201,169,110,0.15)" : "transparent",
+                  color:       active ? "#f5d99d" : "rgba(255,255,255,0.70)",
                   borderLeft:  active ? "2px solid #c9a96e" : "2px solid transparent",
                 }}
               >
-                <Icon size={14} />
+                <Icon size={14} style={{ color: active ? "#f5d99d" : "rgba(255,255,255,0.65)" }} />
                 <span className="flex-1">{label}</span>
                 {href === "/super-admin/moderation" && alertCount > 0 && !active && (
                   <span className="rounded-full px-1.5 py-0.5 text-[8px] font-black"
@@ -180,16 +180,16 @@ export default function SuperAdminLayout({ children }) {
           </div>
           <Link
             href="/dashboard"
-            className="flex items-center gap-2 rounded-xl px-3 py-2 text-[12px] font-semibold transition-all hover:bg-white/5"
-            style={{ color: "rgba(255,255,255,0.35)" }}
+            className="flex items-center gap-2 rounded-xl px-3 py-2 text-[12px] font-semibold transition-all hover:bg-white/8"
+            style={{ color: "rgba(255,255,255,0.65)" }}
           >
             <ChevronRight size={12} className="rotate-180" />
             Back to Dashboard
           </Link>
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-[12px] font-semibold transition-all hover:bg-red-500/10"
-            style={{ color: "rgba(255,255,255,0.35)" }}
+            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-[12px] font-semibold transition-all hover:bg-red-500/15 hover:text-red-400"
+            style={{ color: "rgba(255,255,255,0.65)" }}
           >
             <LogOut size={12} />
             Sign out
@@ -280,16 +280,16 @@ export default function SuperAdminLayout({ children }) {
                     <Link
                       href="/dashboard"
                       onClick={() => setProfileOpen(false)}
-                      className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-[12px] font-semibold transition-all hover:bg-white/5"
-                      style={{ color: "rgba(255,255,255,0.50)" }}
+                      className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-[12px] font-semibold transition-all hover:bg-white/8"
+                      style={{ color: "rgba(255,255,255,0.70)" }}
                     >
                       <ChevronRight size={12} className="rotate-180" />
                       Back to Dashboard
                     </Link>
                     <button
                       onClick={() => { setProfileOpen(false); handleLogout(); }}
-                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-[12px] font-semibold transition-all hover:bg-red-500/10"
-                      style={{ color: "rgba(255,255,255,0.40)" }}
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-[12px] font-semibold transition-all hover:bg-red-500/15 hover:text-red-400"
+                      style={{ color: "rgba(255,255,255,0.70)" }}
                     >
                       <LogOut size={12} />
                       Sign out

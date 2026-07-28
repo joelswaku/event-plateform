@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Send, X, MessageCircle, Loader2, ArrowLeft,
-  Megaphone, CheckCheck, ShieldCheck, LifeBuoy, MoreVertical, Trash2,
+  Megaphone, CheckCheck, ShieldCheck, LifeBuoy, MoreVertical, Trash2, Plus, UserPlus,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { chatApi, connectChatStream } from "@/lib/chat-api";
@@ -54,6 +54,80 @@ function Avatar({ name, url, size = 40, support }) {
       color: "#fff", fontSize: size * 0.36, fontWeight: 800,
     }}>
       {!url && initials(name)}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   User Search Modal (super admin)
+   ═══════════════════════════════════════════════════════════════════════════ */
+function UserSearchModal({ onClose, onSelectUser, searchQuery, setSearchQuery, searchResults, searching, creating }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-20"
+      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)" }}
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-md rounded-2xl border overflow-hidden shadow-2xl"
+        style={{ background: "#0d0d18", borderColor: `${ACCENT}33` }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
+          <div className="flex items-center gap-2">
+            <UserPlus size={16} style={{ color: ACCENT }} />
+            <h3 className="text-sm font-black text-white">Start New Conversation</h3>
+          </div>
+          <button onClick={onClose} className="text-white/40 hover:text-white"><X size={18} /></button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5">
+            <Search size={14} className="text-white/30" />
+            <input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search users by name or email…"
+              className="flex-1 bg-transparent text-sm text-white placeholder-white/30 outline-none"
+              autoFocus
+            />
+            {searching && <Loader2 size={14} className="animate-spin text-white/30" />}
+          </div>
+
+          <div className="max-h-100 overflow-y-auto space-y-2">
+            {!searchQuery.trim() ? (
+              <div className="text-center py-8">
+                <UserPlus size={32} className="mx-auto mb-2 text-white/20" />
+                <p className="text-sm text-white/40">Type to search for users</p>
+              </div>
+            ) : searching ? (
+              <div className="text-center py-8">
+                <Loader2 size={32} className="mx-auto animate-spin text-white/20" />
+              </div>
+            ) : searchResults.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-sm text-white/40">No users found</p>
+              </div>
+            ) : (
+              searchResults.map(user => (
+                <button
+                  key={user.id}
+                  onClick={() => onSelectUser(user.id)}
+                  disabled={creating}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition disabled:opacity-50 text-left"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-linear-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
+                    {user.avatar_url
+                      ? <img src={user.avatar_url} alt={user.full_name} className="w-full h-full object-cover rounded-xl" />
+                      : (user.full_name || user.email).slice(0, 2).toUpperCase()
+                    }
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">{user.full_name || "No name"}</p>
+                    <p className="text-xs text-white/40 truncate">{user.email}</p>
+                  </div>
+                  {creating && <Loader2 size={14} className="animate-spin text-white/40" />}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }
@@ -145,6 +219,10 @@ function Thread({ conversation, meId, registerIncoming, onBack, typingUser, isAd
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
   }, []);
 
+  // Fetch unread count updates from store
+  const fetchUnreadCount = useChatStore((s) => s.fetchUnreadCount);
+  const markReadStore = useChatStore((s) => s.markRead);
+
   useEffect(() => {
     let active = true;
     setLoading(true); setHasMore(true);
@@ -154,17 +232,32 @@ function Thread({ conversation, meId, registerIncoming, onBack, typingUser, isAd
       setHasMore(d.length >= 30);
       requestAnimationFrame(() => scrollToBottom());
     }).catch(() => active && setLoading(false));
-    chatApi.markRead(conversation.id).catch(() => {});
+
+    // Mark as read and update store
+    chatApi.markRead(conversation.id).then(() => {
+      markReadStore(conversation.id);
+      fetchUnreadCount();
+    }).catch(() => {});
+
     return () => { active = false; };
-  }, [conversation.id, scrollToBottom]);
+  }, [conversation.id, scrollToBottom, markReadStore, fetchUnreadCount]);
 
   useEffect(() => {
     return registerIncoming(conversation.id, (msg) => {
-      setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
+      setMessages(prev => {
+        // Check if message already exists
+        if (prev.some(m => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
       requestAnimationFrame(() => scrollToBottom(true));
-      chatApi.markRead(conversation.id).catch(() => {});
+
+      // Mark as read and update counts
+      chatApi.markRead(conversation.id).then(() => {
+        markReadStore(conversation.id);
+        fetchUnreadCount();
+      }).catch(() => {});
     });
-  }, [conversation.id, registerIncoming, scrollToBottom]);
+  }, [conversation.id, registerIncoming, scrollToBottom, markReadStore, fetchUnreadCount]);
 
   const loadMore = async () => {
     if (loadingMore || !hasMore || messages.length === 0) return;
@@ -185,14 +278,26 @@ function Thread({ conversation, meId, registerIncoming, onBack, typingUser, isAd
     const body = text.trim();
     if (!body || sending) return;
     setText(""); setSending(true);
-    const temp = { id: `temp-${Date.now()}`, sender_id: meId, body, created_at: new Date().toISOString(), optimistic: true, kind: "text" };
+    const tempId = `temp-${Date.now()}-${Math.random()}`;
+    const temp = { id: tempId, sender_id: meId, body, created_at: new Date().toISOString(), optimistic: true, kind: "text" };
     setMessages(prev => [...prev, temp]);
     requestAnimationFrame(() => scrollToBottom(true));
     try {
       const real = await chatApi.send(conversation.id, { body });
-      setMessages(prev => prev.map(m => m.id === temp.id ? real : m));
+      // Replace temp message with real one, ensuring no duplicates
+      setMessages(prev => {
+        const withoutTemp = prev.filter(m => m.id !== tempId);
+        // Check if real message already exists (from websocket)
+        if (withoutTemp.some(m => m.id === real.id)) {
+          return withoutTemp;
+        }
+        return [...withoutTemp, real];
+      });
+
+      // Refresh unread count after sending
+      fetchUnreadCount();
     } catch {
-      setMessages(prev => prev.filter(m => m.id !== temp.id));
+      setMessages(prev => prev.filter(m => m.id !== tempId));
       setText(body);
     } finally { setSending(false); }
   };
@@ -302,6 +407,11 @@ export default function ChatWorkspace({ variant = "support" }) {
   const [deleting, setDeleting] = useState(false);
   const [hoveredConv, setHoveredConv] = useState(null);
   const [deleteModal, setDeleteModal] = useState(null); // { type: 'single' | 'all', id, userId, title }
+  const [showUserSearch, setShowUserSearch] = useState(false);
+  const [userSearch, setUserSearch] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchingUsers, setSearchingUsers] = useState(false);
+  const [creatingConv, setCreatingConv] = useState(false);
 
   const deleteConversation = useChatStore((s) => s.deleteConversation);
   const deleteAllConversationsWithUser = useChatStore((s) => s.deleteAllConversationsWithUser);
@@ -409,6 +519,56 @@ export default function ChatWorkspace({ variant = "support" }) {
     setConversations(prev => prev.map(c => c.id === id ? { ...c, unread_count: 0 } : c));
   };
 
+  // Search for users
+  const searchUsers = useCallback(async (query) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    setSearchingUsers(true);
+    try {
+      const results = await chatApi.searchUsers(query);
+      setSearchResults(results || []);
+    } catch (error) {
+      console.error('Failed to search users:', error);
+      setSearchResults([]);
+    } finally {
+      setSearchingUsers(false);
+    }
+  }, []);
+
+  // Start conversation with user
+  const startConversationWithUser = async (userId) => {
+    setCreatingConv(true);
+    try {
+      const conv = await chatApi.startDirect(userId);
+      if (conv) {
+        // Add to conversations list if not already there
+        setConversations(prev => {
+          const exists = prev.some(c => c.id === conv.id);
+          return exists ? prev : [conv, ...prev];
+        });
+        setActiveId(conv.id);
+        setShowUserSearch(false);
+        setUserSearch("");
+        setSearchResults([]);
+      }
+    } catch (error) {
+      console.error('Failed to start conversation:', error);
+    } finally {
+      setCreatingConv(false);
+    }
+  };
+
+  // Search users when query changes
+  useEffect(() => {
+    if (!showUserSearch) return;
+    const timer = setTimeout(() => {
+      searchUsers(userSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [userSearch, showUserSearch, searchUsers]);
+
   /* ── End-user support view: just the thread ── */
   if (!isAdmin) {
     return (
@@ -443,15 +603,22 @@ export default function ChatWorkspace({ variant = "support" }) {
             <h2 className="text-lg font-black text-white flex items-center gap-2">
               <LifeBuoy size={18} style={{ color: ACCENT }} /> Support inbox
             </h2>
-            <button onClick={() => setShowBroadcast(true)} title="Broadcast to all users"
-              className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 transition text-xs font-bold"
-              style={{ borderColor: `${GOLD}40`, background: `${GOLD}1a`, color: GOLD }}>
-              <Megaphone size={14} /> Broadcast
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setShowUserSearch(true)} title="Start new conversation"
+                className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 transition text-xs font-bold"
+                style={{ borderColor: `${ACCENT}40`, background: `${ACCENT}1a`, color: ACCENT }}>
+                <UserPlus size={14} /> New
+              </button>
+              <button onClick={() => setShowBroadcast(true)} title="Broadcast to all users"
+                className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 transition text-xs font-bold"
+                style={{ borderColor: `${GOLD}40`, background: `${GOLD}1a`, color: GOLD }}>
+                <Megaphone size={14} /> Broadcast
+              </button>
+            </div>
           </div>
           <div className="flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2">
             <Search size={14} className="text-white/30" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search people…"
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search conversations…"
               className="flex-1 bg-transparent text-sm text-white placeholder-white/30 outline-none" />
           </div>
         </div>
@@ -575,6 +742,17 @@ export default function ChatWorkspace({ variant = "support" }) {
 
       <AnimatePresence>
         {showBroadcast && <BroadcastModal onClose={() => setShowBroadcast(false)} onSent={loadConversations} />}
+        {showUserSearch && (
+          <UserSearchModal
+            onClose={() => { setShowUserSearch(false); setUserSearch(""); setSearchResults([]); }}
+            onSelectUser={startConversationWithUser}
+            searchQuery={userSearch}
+            setSearchQuery={setUserSearch}
+            searchResults={searchResults}
+            searching={searchingUsers}
+            creating={creatingConv}
+          />
+        )}
       </AnimatePresence>
 
       {/* Delete Modal */}

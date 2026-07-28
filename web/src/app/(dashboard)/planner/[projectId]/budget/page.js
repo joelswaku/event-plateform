@@ -73,8 +73,8 @@ function EmptyBudget({ onAdd, onAIGenerate, loading }) {
       <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-5">
         <DollarSign className="w-7 h-7 text-emerald-400" />
       </div>
-      <p className="text-white font-bold text-base mb-1">No budget items yet</p>
-      <p className="text-gray-500 text-sm max-w-xs mb-6">
+      <p className="text-foreground font-bold text-base mb-1">No budget items yet</p>
+      <p className="text-muted-foreground text-sm max-w-xs mb-6">
         Let AI break down your event budget by category — venue, catering, décor, photography, and more.
       </p>
       <div className="flex flex-col sm:flex-row gap-3">
@@ -116,14 +116,14 @@ function AddItemModal({ projectId, onClose }) {
     else toast.error(res.error || "Failed to add item");
   }
 
-  const inp = "w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-600 outline-none focus:border-indigo-500/40";
+  const inp = "w-full bg-background border border-input rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-indigo-500/40";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-[#111127] border border-white/10 rounded-2xl w-full max-w-md p-6 space-y-3 max-h-[90vh] overflow-y-auto">
+      <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 space-y-3 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-bold text-white">Add Budget Item</p>
-          <button onClick={onClose}><X className="w-4 h-4 text-gray-400" /></button>
+          <p className="text-sm font-bold text-foreground">Add Budget Item</p>
+          <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
         </div>
         <input className={inp} placeholder="Title *" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
         <div className="grid grid-cols-2 gap-2">

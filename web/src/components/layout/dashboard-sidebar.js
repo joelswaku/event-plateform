@@ -32,12 +32,12 @@ function SidebarItem({ item, showExpanded, badge }) {
     <Link
       href={item.href}
       title={!showExpanded ? item.label : undefined}
-      className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
+      className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 border-l-3 ${
         !showExpanded ? "justify-center" : ""
       } ${
         active
-          ? "bg-(--sidebar-active) text-(--accent)"
-          : "text-(--sidebar-text) hover:bg-(--sidebar-hover) hover:text-white"
+          ? "bg-indigo-100 dark:bg-indigo-500/25 text-indigo-700 dark:text-white border-indigo-600 dark:border-indigo-400"
+          : "text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/15 hover:text-gray-900 dark:hover:text-white border-transparent"
       }`}
     >
       <div className="relative flex items-center shrink-0">
@@ -93,10 +93,12 @@ export default function DashboardSidebar() {
 
   // Fetch unread count for support badge
   useEffect(() => {
+    if (!user) return; // Only fetch if authenticated
     fetchUnreadCount();
     const interval = setInterval(() => fetchUnreadCount(), 10000); // Poll every 10 seconds
     return () => clearInterval(interval);
-  }, [fetchUnreadCount]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── FIX: await store logout then navigate with router ───────────────────────
   async function handleLogout() {
@@ -121,19 +123,19 @@ export default function DashboardSidebar() {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-30 flex flex-col border-r border-white/8 bg-(--sidebar-bg) transition-all duration-300 md:sticky md:top-0 md:h-screen ${
+        className={`fixed inset-y-0 left-0 z-30 flex flex-col border-r border-gray-200 dark:border-white/8 bg-white dark:bg-(--sidebar-bg) transition-all duration-300 md:sticky md:top-0 md:h-screen ${
           safeCollapsed ? "w-16" : "w-64"
         } ${isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
         {/* Header */}
-        <div className={`flex h-16 items-center border-b border-white/8 ${showExpanded ? "justify-between px-4" : "justify-center px-2"}`}>
+        <div className={`flex h-16 items-center border-b border-gray-200 dark:border-white/8 ${showExpanded ? "justify-between px-4" : "justify-center px-2"}`}>
           {showExpanded && (
-            <span className="text-sm font-bold text-white truncate">EventPlatform</span>
+            <span className="text-sm font-bold text-gray-900 dark:text-white truncate">EventPlatform</span>
           )}
           <div className="flex items-center gap-1">
             <button
               onClick={toggleCollapsed}
-              className="hidden rounded-lg p-1.5 text-(--sidebar-muted) hover:bg-(--sidebar-hover) hover:text-white md:flex"
+              className="hidden rounded-lg p-1.5 text-gray-500 dark:text-(--sidebar-muted) hover:bg-gray-100 dark:hover:bg-(--sidebar-hover) hover:text-gray-900 dark:hover:text-white md:flex"
               title={safeCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               suppressHydrationWarning
             >
@@ -141,7 +143,7 @@ export default function DashboardSidebar() {
             </button>
             <button
               onClick={() => setMobileOpen(false)}
-              className="rounded-lg p-1.5 text-(--sidebar-muted) hover:bg-(--sidebar-hover) md:hidden"
+              className="rounded-lg p-1.5 text-gray-500 dark:text-(--sidebar-muted) hover:bg-gray-100 dark:hover:bg-(--sidebar-hover) hover:text-gray-900 dark:hover:text-white md:hidden"
               suppressHydrationWarning
             >
               <X className="h-4 w-4" />
@@ -163,17 +165,17 @@ export default function DashboardSidebar() {
 
         {/* Upgrade banner */}
         {!safeSubscribed && showExpanded && (
-          <div className="shrink-0 mx-3 mb-3 rounded-xl border border-indigo-500/20 bg-indigo-500/10 p-3">
+          <div className="shrink-0 mx-3 mb-3 rounded-xl border border-indigo-200 dark:border-indigo-500/20 bg-indigo-50 dark:bg-indigo-500/10 p-3">
             <div className="flex items-center gap-2 mb-1.5">
-              <Star className="h-3.5 w-3.5 text-indigo-400" />
-              <span className="text-xs font-semibold text-indigo-300">Go Premium</span>
+              <Star className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">Go Premium</span>
             </div>
-            <p className="text-xs text-indigo-400/70 mb-2.5 leading-relaxed">
+            <p className="text-xs text-indigo-600 dark:text-indigo-400/70 mb-2.5 leading-relaxed">
               Unlock unlimited events, all templates, and advanced features.
             </p>
             <button
               onClick={() => openUpgradeModal("general")}
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors"
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 dark:hover:bg-indigo-500 transition-colors"
               suppressHydrationWarning
             >
               <Sparkles className="h-3.5 w-3.5" />
@@ -187,8 +189,12 @@ export default function DashboardSidebar() {
           <div className="shrink-0 mx-3 mb-2">
             <Link
               href="/super-admin"
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition-all ${!showExpanded ? "justify-center" : ""}`}
-              style={{ background: "rgba(201,169,110,0.10)", color: "#c9a96e", border: "1px solid rgba(201,169,110,0.20)" }}
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition-all border ${!showExpanded ? "justify-center" : ""}`}
+              style={{
+                background: "rgba(201,169,110,0.10)",
+                color: "#c9a96e",
+                borderColor: "rgba(201,169,110,0.20)"
+              }}
               title={!showExpanded ? "Super Admin" : undefined}
             >
               <Shield className="h-4 w-4 shrink-0" />
@@ -198,10 +204,10 @@ export default function DashboardSidebar() {
         )}
 
         {/* Footer: Settings + Logout */}
-        <div className="shrink-0 border-t border-white/8 p-3 space-y-1">
+        <div className="shrink-0 border-t border-gray-200 dark:border-white/8 p-3 space-y-1">
           <Link
             href="/settings/billing"
-            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-(--sidebar-text) hover:bg-(--sidebar-hover) hover:text-white transition-colors ${!showExpanded ? "justify-center" : ""}`}
+            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white transition-colors ${!showExpanded ? "justify-center" : ""}`}
             title={!showExpanded ? "Settings" : undefined}
           >
             <Settings className="h-4 w-4 shrink-0" />
@@ -210,7 +216,7 @@ export default function DashboardSidebar() {
 
           <button
             onClick={handleLogout}
-            className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-(--sidebar-text) hover:bg-red-500/15 hover:text-red-400 transition-colors ${!showExpanded ? "justify-center" : ""}`}
+            className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-200 hover:bg-red-50 dark:hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400 transition-colors ${!showExpanded ? "justify-center" : ""}`}
             title={!showExpanded ? "Sign out" : undefined}
             suppressHydrationWarning
           >

@@ -23,13 +23,13 @@ function TaskRing({ done, total }) {
   return (
     <div className="flex items-center gap-2">
       <svg width="40" height="40" viewBox="0 0 40 40" className="-rotate-90">
-        <circle cx="20" cy="20" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="4" />
+        <circle cx="20" cy="20" r={r} fill="none" className="stroke-gray-200 dark:stroke-white/8" strokeWidth="4" />
         <circle cx="20" cy="20" r={r} fill="none" stroke="#6366f1" strokeWidth="4"
           strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" />
       </svg>
       <div>
-        <p className="text-white font-bold text-sm">{pct}%</p>
-        <p className="text-gray-500 text-[10px]">{done}/{total} tasks</p>
+        <p className="text-gray-900 dark:text-white font-bold text-sm">{pct}%</p>
+        <p className="text-gray-500 dark:text-gray-500 text-[10px]">{done}/{total} tasks</p>
       </div>
     </div>
   );
@@ -55,16 +55,16 @@ export default function PlannerPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a14] p-3 sm:p-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a14] p-3 sm:p-6">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-5 sm:mb-8 gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
-              <ClipboardList className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-indigo-400" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-100 dark:bg-indigo-600/20 border border-indigo-200 dark:border-indigo-500/30 flex items-center justify-center shrink-0">
+              <ClipboardList className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-indigo-600 dark:text-indigo-400" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-lg sm:text-xl font-black text-white">Event Planner</h1>
-              <p className="text-gray-500 text-xs sm:text-sm hidden sm:block">Plan and manage every detail of your events</p>
+              <h1 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white">Event Planner</h1>
+              <p className="text-gray-600 dark:text-gray-500 text-xs sm:text-sm hidden sm:block">Plan and manage every detail of your events</p>
             </div>
           </div>
           <button
@@ -159,33 +159,38 @@ export default function PlannerPage() {
               const total = Number(p.task_count || 0);
               const budget = Number(p.total_budget || 0);
               return (
-                <Link key={p.id} href={`/planner/${p.id}`} className="group bg-[#111127] rounded-2xl border border-white/8 hover:border-indigo-500/30 active:scale-[0.98] active:border-indigo-500/40 p-4 sm:p-5 flex flex-col gap-3 sm:gap-4 transition-all hover:shadow-lg hover:shadow-indigo-500/5">
-                  <div className="flex items-start justify-between gap-2">
+                <Link key={p.id} href={`/planner/${p.id}`} className="group bg-white dark:bg-linear-to-br dark:from-[#1a1a2e] dark:to-[#16162a] rounded-2xl border border-gray-200 dark:border-indigo-500/20 hover:border-indigo-300 dark:hover:border-indigo-500/40 active:scale-[0.98] p-4 sm:p-5 flex flex-col gap-3 sm:gap-4 transition-all shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 dark:hover:shadow-2xl dark:hover:shadow-indigo-500/25 relative overflow-hidden before:absolute before:inset-0 before:bg-linear-to-br before:from-indigo-500/0 before:to-purple-500/0 dark:before:hover:from-indigo-500/5 dark:before:hover:to-purple-500/5 before:transition-all before:pointer-events-none">
+                  {/* Top accent line */}
+                  <div className="absolute top-0 left-0 right-0 h-0.5 bg-linear-to-r from-indigo-500 via-purple-500 to-indigo-500 opacity-60 dark:opacity-80" />
+
+                  <div className="flex items-start justify-between gap-2 relative z-10">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xl">{getEmoji(p.event_type)}</span>
-                        <span className="text-xs text-indigo-400 font-semibold uppercase">{p.event_type || "Event"}</span>
+                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20">
+                          <span className="text-lg">{getEmoji(p.event_type)}</span>
+                        </div>
+                        <span className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold uppercase tracking-wider">{p.event_type || "Event"}</span>
                       </div>
-                      <h3 className="text-white font-bold text-sm line-clamp-2">{p.title}</h3>
+                      <h3 className="text-gray-900 dark:text-white font-bold text-base line-clamp-2 mt-1">{p.title}</h3>
                     </div>
                     <button
                       onClick={(e) => handleDelete(e, p.id)}
                       disabled={deleting === p.id}
-                      className="sm:opacity-0 sm:group-hover:opacity-100 p-2 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 active:bg-red-500/15 transition-all shrink-0"
+                      className="sm:opacity-0 sm:group-hover:opacity-100 p-2 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 active:bg-red-100 dark:active:bg-red-500/15 transition-all shrink-0"
                     >
                       {deleting === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                     </button>
                   </div>
 
-                  <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                  <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-400 flex-wrap relative z-10">
                     {p.event_date && (
-                      <span className="flex items-center gap-1">
+                      <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-gray-100 dark:bg-white/5">
                         <Calendar className="w-3 h-3" />
                         {new Date(p.event_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                       </span>
                     )}
                     {p.guest_count && (
-                      <span className="flex items-center gap-1">
+                      <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-gray-100 dark:bg-white/5">
                         <Users className="w-3 h-3" />
                         {p.guest_count} guests
                       </span>
@@ -193,18 +198,23 @@ export default function PlannerPage() {
                   </div>
 
                   {budget > 0 && (
-                    <div>
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="text-gray-500">Budget</span>
-                        <span className="text-white font-semibold">{p.currency || "USD"} {budget.toLocaleString()}</span>
+                    <div className="relative z-10">
+                      <div className="flex justify-between text-xs mb-2">
+                        <span className="text-gray-500 dark:text-gray-400 font-medium">Budget</span>
+                        <span className="text-gray-900 dark:text-white font-bold">{p.currency || "USD"} {budget.toLocaleString()}</span>
                       </div>
-                      <div className="h-1 bg-white/8 rounded-full" />
+                      <div className="h-1.5 bg-gray-200 dark:bg-white/8 rounded-full overflow-hidden">
+                        <div className="h-full w-0 bg-linear-to-r from-indigo-500 to-purple-500 rounded-full" style={{ width: '0%' }} />
+                      </div>
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between pt-1 relative z-10">
                     <TaskRing done={done} total={total} />
-                    <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-indigo-400 transition-colors" />
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 group-hover:translate-x-1 transition-transform">
+                      <span className="hidden sm:inline">View Details</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </div>
                   </div>
                 </Link>
               );

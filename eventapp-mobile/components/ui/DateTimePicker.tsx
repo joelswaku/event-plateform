@@ -105,104 +105,106 @@ export function DateTimePicker({ label, value, onChange, minDate }: Props) {
             </Pressable>
           </View>
 
-          {/* Month nav */}
-          <View style={styles.monthNav}>
-            <Pressable style={styles.monthBtn} onPress={prevMonth} hitSlop={8}>
-              <Feather name="chevron-left" size={18} color="#fff" />
-            </Pressable>
-            <Text style={styles.monthLabel}>{MONTHS[month]} {year}</Text>
-            <Pressable style={styles.monthBtn} onPress={nextMonth} hitSlop={8}>
-              <Feather name="chevron-right" size={18} color="#fff" />
-            </Pressable>
-          </View>
-
-          {/* Day headers */}
-          <View style={styles.dayRow}>
-            {DAYS.map(d => (
-              <Text key={d} style={styles.dayHeader}>{d}</Text>
-            ))}
-          </View>
-
-          {/* Calendar grid */}
-          <View style={styles.calGrid}>
-            {cells.map((day, i) => {
-              const sel  = day !== null && isSelected(day);
-              const past = day !== null && isPast(day);
-              const today = day !== null && isToday(day);
-              return (
-                <Pressable
-                  key={i}
-                  style={[
-                    styles.calCell,
-                    sel   && styles.calCellSelected,
-                    today && !sel && styles.calCellToday,
-                  ]}
-                  onPress={() => day !== null && !past && selectDay(day)}
-                  disabled={day === null || past}
-                >
-                  {day !== null && (
-                    <Text style={[
-                      styles.calCellText,
-                      sel  && styles.calCellTextSelected,
-                      past && styles.calCellTextPast,
-                      today && !sel && { color: Colors.accent.indigo, fontWeight: '800' },
-                    ]}>
-                      {day}
-                    </Text>
-                  )}
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {/* Time picker */}
-          <View style={styles.timeSection}>
-            <Text style={styles.timeSectionLabel}>Time</Text>
-            <View style={styles.timeRow}>
-
-              {/* Hour */}
-              <ScrollView style={styles.timeScroll} showsVerticalScrollIndicator={false} snapToInterval={40} decelerationRate="fast">
-                {HOURS.map(h => (
-                  <Pressable
-                    key={h}
-                    style={[styles.timeCell, hour === h && styles.timeCellActive]}
-                    onPress={() => setHour(h)}
-                  >
-                    <Text style={[styles.timeCellText, hour === h && styles.timeCellTextActive]}>{h}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-
-              <Text style={styles.timeSep}>:</Text>
-
-              {/* Minute */}
-              <ScrollView style={styles.timeScroll} showsVerticalScrollIndicator={false} snapToInterval={40} decelerationRate="fast">
-                {MINS.map(m => (
-                  <Pressable
-                    key={m}
-                    style={[styles.timeCell, minute === m && styles.timeCellActive]}
-                    onPress={() => setMinute(m)}
-                  >
-                    <Text style={[styles.timeCellText, minute === m && styles.timeCellTextActive]}>{m}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-
-              {/* AM/PM */}
-              <View style={styles.ampmCol}>
-                {(['AM','PM'] as const).map(p => (
-                  <Pressable
-                    key={p}
-                    style={[styles.ampmBtn, ampm === p && styles.ampmBtnActive]}
-                    onPress={() => setAmpm(p)}
-                  >
-                    <Text style={[styles.ampmText, ampm === p && styles.ampmTextActive]}>{p}</Text>
-                  </Pressable>
-                ))}
-              </View>
-
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
+            {/* Month nav */}
+            <View style={styles.monthNav}>
+              <Pressable style={styles.monthBtn} onPress={prevMonth} hitSlop={8}>
+                <Feather name="chevron-left" size={18} color="#fff" />
+              </Pressable>
+              <Text style={styles.monthLabel}>{MONTHS[month]} {year}</Text>
+              <Pressable style={styles.monthBtn} onPress={nextMonth} hitSlop={8}>
+                <Feather name="chevron-right" size={18} color="#fff" />
+              </Pressable>
             </View>
-          </View>
+
+            {/* Day headers */}
+            <View style={styles.dayRow}>
+              {DAYS.map(d => (
+                <Text key={d} style={styles.dayHeader}>{d}</Text>
+              ))}
+            </View>
+
+            {/* Calendar grid */}
+            <View style={styles.calGrid}>
+              {cells.map((day, i) => {
+                const sel  = day !== null && isSelected(day);
+                const past = day !== null && isPast(day);
+                const today = day !== null && isToday(day);
+                return (
+                  <Pressable
+                    key={i}
+                    style={[
+                      styles.calCell,
+                      sel   && styles.calCellSelected,
+                      today && !sel && styles.calCellToday,
+                    ]}
+                    onPress={() => day !== null && !past && selectDay(day)}
+                    disabled={day === null || past}
+                  >
+                    {day !== null && (
+                      <Text style={[
+                        styles.calCellText,
+                        sel  && styles.calCellTextSelected,
+                        past && styles.calCellTextPast,
+                        today && !sel && { color: Colors.accent.indigo, fontWeight: '800' },
+                      ]}>
+                        {day}
+                      </Text>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Time picker */}
+            <View style={styles.timeSection}>
+              <Text style={styles.timeSectionLabel}>Time</Text>
+              <View style={styles.timeRow}>
+
+                {/* Hour */}
+                <ScrollView style={styles.timeScroll} showsVerticalScrollIndicator={false} snapToInterval={40} decelerationRate="fast">
+                  {HOURS.map(h => (
+                    <Pressable
+                      key={h}
+                      style={[styles.timeCell, hour === h && styles.timeCellActive]}
+                      onPress={() => setHour(h)}
+                    >
+                      <Text style={[styles.timeCellText, hour === h && styles.timeCellTextActive]}>{h}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+
+                <Text style={styles.timeSep}>:</Text>
+
+                {/* Minute */}
+                <ScrollView style={styles.timeScroll} showsVerticalScrollIndicator={false} snapToInterval={40} decelerationRate="fast">
+                  {MINS.map(m => (
+                    <Pressable
+                      key={m}
+                      style={[styles.timeCell, minute === m && styles.timeCellActive]}
+                      onPress={() => setMinute(m)}
+                    >
+                      <Text style={[styles.timeCellText, minute === m && styles.timeCellTextActive]}>{m}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+
+                {/* AM/PM */}
+                <View style={styles.ampmCol}>
+                  {(['AM','PM'] as const).map(p => (
+                    <Pressable
+                      key={p}
+                      style={[styles.ampmBtn, ampm === p && styles.ampmBtnActive]}
+                      onPress={() => setAmpm(p)}
+                    >
+                      <Text style={[styles.ampmText, ampm === p && styles.ampmTextActive]}>{p}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+              </View>
+            </View>
+          </ScrollView>
 
           {/* Confirm */}
           <Pressable style={styles.confirmBtn} onPress={confirm}>
@@ -237,7 +239,7 @@ const styles = StyleSheet.create({
   triggerLabel: { fontSize: 10, color: Colors.text.subtle, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   triggerValue: { fontSize: 14, color: '#fff', fontWeight: '600', marginTop: 2 },
 
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 9998 },
   sheet: {
     backgroundColor: Colors.bg.sheet,
     borderTopLeftRadius:  28,
@@ -246,6 +248,8 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     borderTopWidth: 1,
     borderTopColor: Colors.border.DEFAULT,
+    maxHeight: '90%',
+    zIndex: 9999,
   },
   handle: {
     width: 36, height: 4, borderRadius: 2,
@@ -265,7 +269,7 @@ const styles = StyleSheet.create({
   dayRow:   { flexDirection: 'row', marginBottom: 6 },
   dayHeader:{ width: CELL_SIZE, textAlign: 'center', fontSize: 10, fontWeight: '800', color: Colors.text.subtle, textTransform: 'uppercase' },
 
-  calGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 20 },
+  calGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 },
   calCell: {
     width: CELL_SIZE, height: CELL_SIZE,
     alignItems: 'center', justifyContent: 'center',
@@ -277,11 +281,11 @@ const styles = StyleSheet.create({
   calCellTextSelected: { color: '#fff', fontWeight: '900' },
   calCellTextPast:     { color: Colors.text.subtle },
 
-  timeSection:      { marginBottom: 20 },
+  timeSection:      { marginBottom: 12 },
   timeSectionLabel: { fontSize: 11, fontWeight: '800', color: Colors.text.subtle, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 10 },
   timeRow:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
   timeSep:  { fontSize: 22, fontWeight: '900', color: Colors.text.muted, marginBottom: 4 },
-  timeScroll: { height: 120, flex: 1 },
+  timeScroll: { height: 100, flex: 1 },
   timeCell: {
     height: 40, alignItems: 'center', justifyContent: 'center',
     borderRadius: 10,
@@ -303,6 +307,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent.indigo,
     borderRadius: 14, paddingVertical: 15,
     alignItems: 'center',
+    marginTop: 16,
   },
   confirmText: { fontSize: 15, fontWeight: '800', color: '#fff' },
 });

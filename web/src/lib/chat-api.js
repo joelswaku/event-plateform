@@ -9,11 +9,13 @@ export const chatApi = {
   messages:      (id, before, limit=30) => api.get(`/chat/conversations/${id}/messages`, { params: { before, limit } }).then(r => r.data?.data ?? []),
   send:          (id, payload)        => api.post(`/chat/conversations/${id}/messages`, payload).then(r => r.data?.data),
   openDirect:    (recipientId)        => api.post(`/chat/conversations`, { recipient_id: recipientId }).then(r => r.data?.data),
+  startDirect:   (recipientId)        => api.post(`/chat/conversations`, { recipient_id: recipientId }).then(r => r.data?.data),
   openSupport:   ()                   => api.post(`/chat/support`).then(r => r.data?.data),
   createGroup:   (payload)            => api.post(`/chat/conversations`, payload).then(r => r.data?.data),
   markRead:      (id)                 => api.post(`/chat/conversations/${id}/read`).then(r => r.data),
   typing:        (id)                 => api.post(`/chat/conversations/${id}/typing`).catch(() => {}),
   broadcast:     (payload)            => api.post(`/chat/broadcast`, payload).then(r => r.data?.data),
+  searchUsers:   (search = "")        => api.get(`/chat/users/search`, { params: { search } }).then(r => r.data?.data ?? []),
 };
 
 /* ── Real-time SSE connector ──────────────────────────────────────────────────

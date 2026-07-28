@@ -11,15 +11,15 @@ const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct
 const HOURS_12     = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 const MINUTES      = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 
-// Design tokens — dark theme matching app
+// Design tokens
 const BG       = "#0d0d1c";
 const BG_CARD  = "#111127";
 const BG_EL    = "#16162a";
 const BORDER   = "rgba(255,255,255,0.08)";
 const BORDER_A = "rgba(99,102,241,0.45)";
 const T_WHITE  = "#ffffff";
-const T_MUTED  = "rgba(255,255,255,0.42)";
-const T_HINT   = "rgba(255,255,255,0.22)";
+const T_MUTED  = "rgba(255,255,255,0.70)"; // Increased visibility
+const T_HINT   = "rgba(255,255,255,0.40)"; // Increased visibility
 const INDIGO   = "#6366f1";
 const VIOLET   = "#8b5cf6";
 const GRAD     = `linear-gradient(135deg, ${INDIGO}, ${VIOLET})`;
@@ -131,8 +131,19 @@ function CalendarPopover({ value, onChange, minValue, onClose }) {
   };
 
   const isDayDisabled = (day) => {
-    if (!minP) return false;
-    return new Date(view.year, view.month, day) < new Date(minP.year, minP.month, minP.day);
+    const dayDate = new Date(view.year, view.month, day);
+    const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    // Disable dates before today
+    if (dayDate < todayDate) return true;
+
+    // Also check minValue if provided
+    if (minP) {
+      const minDate = new Date(minP.year, minP.month, minP.day);
+      return dayDate < minDate;
+    }
+
+    return false;
   };
   const isSelected = (day) => sel.year === view.year && sel.month === view.month && sel.day === day;
   const isToday    = (day) => today.getFullYear() === view.year && today.getMonth() === view.month && today.getDate() === day;
@@ -148,19 +159,22 @@ function CalendarPopover({ value, onChange, minValue, onClose }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 6, scale: 0.97 }}
       transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-      className="absolute left-0 top-full z-50 mt-2 w-78 overflow-hidden rounded-2xl"
+      className="absolute left-0 top-full z-50 mt-2 w-78 rounded-2xl"
       style={{
         background: BG_CARD,
         border: `1px solid ${BORDER}`,
         boxShadow: "0 24px 64px rgba(0,0,0,0.55), 0 4px 20px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.04)",
+        display: "flex",
+        flexDirection: "column",
+        maxHeight: "min(90vh, 600px)",
       }}
       onClick={(e) => e.stopPropagation()}
     >
       {/* Top accent */}
-      <div className="h-0.5 w-full" style={{ background: GRAD }} />
+      <div className="h-0.5 w-full shrink-0" style={{ background: GRAD }} />
 
       {/* Tab bar */}
-      <div className="flex" style={{ borderBottom: `1px solid ${BORDER}` }}>
+      <div className="flex shrink-0" style={{ borderBottom: `1px solid ${BORDER}` }}>
         {[{ id: "date", Icon: Calendar, label: "Date" }, { id: "time", Icon: Clock, label: "Time" }].map(({ id, Icon, label }) => (
           <button
             key={id}
@@ -178,11 +192,12 @@ function CalendarPopover({ value, onChange, minValue, onClose }) {
         ))}
       </div>
 
-      <AnimatePresence mode="wait" initial={false}>
+      <div style={{ flex: "1 1 auto", overflowY: "auto", overflowX: "hidden" }}>
+        <AnimatePresence mode="wait" initial={false}>
 
-        {/* ── DATE TAB ── */}
-        {tab === "date" && (
-          <motion.div key="date" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} transition={{ duration: 0.15 }}>
+          {/* ── DATE TAB ── */}
+          {tab === "date" && (
+            <motion.div key="date" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} transition={{ duration: 0.15 }}>
 
             {/* Month / Year nav */}
             <div className="flex items-center gap-2 px-4 pt-4 pb-3">
@@ -263,13 +278,13 @@ function CalendarPopover({ value, onChange, minValue, onClose }) {
                           onClick={() => !isDis && selectDay(day)}
                           className="relative mx-auto flex h-9 w-9 items-center justify-center rounded-xl text-[13px] font-semibold transition-all duration-150"
                           style={{
-                            background: isSel ? GRAD : isTod ? "rgba(99,102,241,0.12)" : "transparent",
-                            color:      isSel ? "#fff" : isDis ? T_HINT : isTod ? INDIGO : T_WHITE,
+                            background: isSel ? GRAD : isTod ? "rgba(99,102,241,0.15)" : "transparent",
+                            color:      isSel ? "#fff" : isDis ? "rgba(255,255,255,0.2)" : isTod ? "#fff" : T_WHITE,
                             fontWeight: isSel || isTod ? 800 : 500,
                             cursor:     isDis ? "not-allowed" : "pointer",
-                            boxShadow:  isSel ? "0 4px 14px rgba(99,102,241,0.4)" : "none",
-                            border:     isTod && !isSel ? `1px solid ${BORDER_A}` : "1px solid transparent",
-                            opacity:    isDis ? 0.35 : 1,
+                            boxShadow:  isSel ? "0 4px 14px rgba(99,102,241,0.4)" : isTod ? "0 2px 8px rgba(99,102,241,0.25)" : "none",
+                            border:     isTod && !isSel ? `2px solid ${INDIGO}` : isDis ? "1px solid rgba(255,255,255,0.05)" : "1px solid transparent",
+                            opacity:    isDis ? 0.4 : 1,
                           }}
                           onMouseEnter={(e) => { if (!isSel && !isDis) e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
                           onMouseLeave={(e) => {
@@ -292,15 +307,22 @@ function CalendarPopover({ value, onChange, minValue, onClose }) {
 
         {/* ── TIME TAB ── */}
         {tab === "time" && (
-          <motion.div key="time" initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} transition={{ duration: 0.15 }} className="p-4 space-y-3">
+          <motion.div
+            key="time"
+            initial={{ opacity: 0, x: 8 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -8 }}
+            transition={{ duration: 0.15 }}
+            className="p-3 space-y-1.5"
+          >
 
             {/* Selected date chip */}
             {sel.day && (
               <div
-                className="flex items-center justify-center gap-1.5 rounded-xl py-2 text-[11px] font-bold"
+                className="flex items-center justify-center gap-1.5 rounded-xl py-1.5 text-[11px] font-bold"
                 style={{ background: "rgba(99,102,241,0.1)", border: `1px solid ${BORDER_A}`, color: "#a5b4fc" }}
               >
-                <Calendar size={11} strokeWidth={2.5} />
+                <Calendar size={10} strokeWidth={2.5} />
                 {MONTHS[sel.month]} {sel.day}, {sel.year}
               </div>
             )}
@@ -314,7 +336,7 @@ function CalendarPopover({ value, onChange, minValue, onClose }) {
                     key={period}
                     type="button"
                     onClick={() => setHour12(hour12, period === "PM")}
-                    className="flex-1 py-2 text-[12px] font-bold transition-all duration-200"
+                    className="flex-1 py-1.5 text-[11px] font-bold transition-all duration-200"
                     style={{
                       background: active ? GRAD : BG_EL,
                       color:      active ? "#fff" : T_MUTED,
@@ -329,7 +351,7 @@ function CalendarPopover({ value, onChange, minValue, onClose }) {
 
             {/* Hour grid */}
             <div>
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest" style={{ color: T_HINT }}>Hour</p>
+              <p className="mb-1 text-[10px] font-bold uppercase tracking-widest" style={{ color: T_HINT }}>Hour</p>
               <div className="grid grid-cols-6 gap-1">
                 {HOURS_12.map((h) => {
                   const active = hour12 === h;
@@ -338,7 +360,7 @@ function CalendarPopover({ value, onChange, minValue, onClose }) {
                       key={h}
                       type="button"
                       onClick={() => setHour12(h, isPM)}
-                      className="flex h-9 items-center justify-center rounded-xl text-[13px] font-bold transition-all duration-150"
+                      className="flex h-6 items-center justify-center rounded-lg text-[11px] font-bold transition-all duration-150"
                       style={{
                         background: active ? GRAD : BG_EL,
                         color:      active ? "#fff" : T_MUTED,
@@ -357,7 +379,7 @@ function CalendarPopover({ value, onChange, minValue, onClose }) {
 
             {/* Minute grid */}
             <div>
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest" style={{ color: T_HINT }}>Minute</p>
+              <p className="mb-1 text-[10px] font-bold uppercase tracking-widest" style={{ color: T_HINT }}>Minute</p>
               <div className="grid grid-cols-6 gap-1">
                 {MINUTES.map((m) => {
                   const active = sel.minute === m;
@@ -366,7 +388,7 @@ function CalendarPopover({ value, onChange, minValue, onClose }) {
                       key={m}
                       type="button"
                       onClick={() => setSel((s) => ({ ...s, minute: m }))}
-                      className="flex h-9 items-center justify-center rounded-xl text-[13px] font-bold transition-all duration-150"
+                      className="flex h-6 items-center justify-center rounded-lg text-[11px] font-bold transition-all duration-150"
                       style={{
                         background: active ? GRAD : BG_EL,
                         color:      active ? "#fff" : T_MUTED,
@@ -385,27 +407,28 @@ function CalendarPopover({ value, onChange, minValue, onClose }) {
 
             {/* Live preview */}
             <div
-              className="flex items-center justify-center gap-2 rounded-xl py-2.5"
+              className="flex items-center justify-center gap-2 rounded-xl py-1.5"
               style={{ background: "rgba(99,102,241,0.08)", border: `1px solid rgba(99,102,241,0.2)` }}
             >
-              <Clock size={13} style={{ color: INDIGO }} strokeWidth={2.5} />
-              <span className="text-sm font-black" style={{ color: "#a5b4fc" }}>
+              <Clock size={11} style={{ color: INDIGO }} strokeWidth={2.5} />
+              <span className="text-[12px] font-black" style={{ color: "#a5b4fc" }}>
                 {hour12}:{pad(sel.minute)} {isPM ? "PM" : "AM"}
               </span>
             </div>
           </motion.div>
         )}
-      </AnimatePresence>
+        </AnimatePresence>
+      </div>
 
       {/* Footer */}
       <div
-        className="flex items-center justify-between gap-3 px-4 py-3"
-        style={{ borderTop: `1px solid ${BORDER}` }}
+        className="flex items-center gap-3 px-4 py-3.5 shrink-0"
+        style={{ borderTop: `1px solid ${BORDER}`, background: BG_CARD }}
       >
         <button
           type="button"
           onClick={onClose}
-          className="rounded-xl px-4 py-2 text-[12px] font-semibold transition-all hover:bg-white/6"
+          className="rounded-xl px-5 py-2.5 text-[10px] font-semibold transition-all hover:bg-white/6"
           style={{ color: T_MUTED, border: `1px solid ${BORDER}` }}
         >
           Cancel
@@ -414,10 +437,14 @@ function CalendarPopover({ value, onChange, minValue, onClose }) {
           type="button"
           onClick={apply}
           disabled={!sel?.day}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-[13px] font-bold text-white transition-all disabled:opacity-40"
-          style={{ background: GRAD, boxShadow: "0 4px 14px rgba(99,102,241,0.4)" }}
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3.5 text-[15px] font-bold text-white transition-all disabled:opacity-40 hover:scale-[1.02] active:scale-[0.98]"
+          style={{
+            background: GRAD,
+            boxShadow: "0 6px 20px rgba(99,102,241,0.5)",
+            minHeight: "48px",
+          }}
         >
-          <Check size={13} strokeWidth={3} />
+          <Check size={16} strokeWidth={3} />
           Confirm
         </button>
       </div>

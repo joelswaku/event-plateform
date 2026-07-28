@@ -33,14 +33,14 @@ export default function Topbar() {
   const [bellOpen,      setBellOpen]     = useState(false);
   const [profileOpen,   setProfileOpen]  = useState(false);
 
-  // Fetch chat unread count for super admins
+  // Fetch chat unread count for all users
   useEffect(() => {
-    if (isSuperAdmin) {
-      fetchChatUnread();
-      const interval = setInterval(() => fetchChatUnread(), 10000);
-      return () => clearInterval(interval);
-    }
-  }, [isSuperAdmin, fetchChatUnread]);
+    if (!user) return; // Only fetch if authenticated
+    fetchChatUnread();
+    const interval = setInterval(() => fetchChatUnread(), 10000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [avatarLoading, setAvatarLoading] = useState(false);
   const bellRef      = useRef(null);
   const profileRef   = useRef(null);

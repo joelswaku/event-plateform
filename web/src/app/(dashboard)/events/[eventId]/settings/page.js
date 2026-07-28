@@ -469,18 +469,113 @@ export default function EventSettingsPage() {
     }
   }, [dashboard, eventId, router]);
 
+  // Convert UTC time to local datetime string for the picker
+  function utcToLocalForPicker(utcString, timezone) {
+    if (!utcString) return "";
+    try {
+      // Parse the UTC string and convert to the event's timezone
+      const date = new Date(utcString);
+      // Use Intl API to format in the event's timezone
+      const options = {
+        timeZone: timezone || "UTC",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      };
+      const formatter = new Intl.DateTimeFormat("en-US", options);
+      const parts = formatter.formatToParts(date);
+      const year = parts.find(p => p.type === "year").value;
+      const month = parts.find(p => p.type === "month").value;
+      const day = parts.find(p => p.type === "day").value;
+      const hour = parts.find(p => p.type === "hour").value;
+      const minute = parts.find(p => p.type === "minute").value;
+      return `${year}-${month}-${day}T${hour}:${minute}`;
+    } catch (error) {
+      console.error("Error converting UTC to local:", error);
+      return utcString.slice(0, 16); // Fallback
+    }
+  }
+
+  function localToUtcForApi(localString, timezone) {
+    if (!localString) return null;
+    try {
+      // localString is like "2026-07-27T17:10" (local time in event timezone)
+      // We need to convert to UTC
+
+      // Parse components
+      const [year, month, day] = localString.slice(0, 10).split('-').map(Number);
+      const [hour, minute] = localString.slice(11).split(':').map(Number);
+
+      // Create a date in UTC for calculation purposes
+      const utcTestDate = new Date(Date.UTC(year, month - 1, day, hour, minute));
+
+      // Format this UTC date as if it's in the target timezone
+      const tzFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+
+      const tzParts = tzFormatter.formatToParts(utcTestDate);
+      const tzYear = parseInt(tzParts.find(p => p.type === 'year').value);
+      const tzMonth = parseInt(tzParts.find(p => p.type === 'month').value);
+      const tzDay = parseInt(tzParts.find(p => p.type === 'day').value);
+      const tzHour = parseInt(tzParts.find(p => p.type === 'hour').value);
+      const tzMinute = parseInt(tzParts.find(p => p.type === 'minute').value);
+
+      // Calculate the difference
+      const localMs = Date.UTC(year, month - 1, day, hour, minute);
+      const tzMs = Date.UTC(tzYear, tzMonth - 1, tzDay, tzHour, tzMinute);
+      const offsetMs = localMs - tzMs;
+
+      // Apply offset to get actual UTC time
+      const actualUtcMs = utcTestDate.getTime() - offsetMs;
+      const actualUtcDate = new Date(actualUtcMs);
+
+      return actualUtcDate.toISOString();
+    } catch (error) {
+      console.error("Timezone conversion error:", error);
+      // Fallback
+      return `${localString}:00Z`;
+    }
+  }
+
   useEffect(() => {
     const e = dashboard?.event;
     if (!e) return;
     if (dirty) return; // preserve unsaved local edits
+    const tz = e.timezone || "UTC";
+
+    console.log('Initializing form with UTC times:', {
+      starts_at_utc: e.starts_at_utc,
+      ends_at_utc: e.ends_at_utc,
+      timezone: tz
+    });
+
+    const localStart = utcToLocalForPicker(e.starts_at_utc, tz);
+    const localEnd = utcToLocalForPicker(e.ends_at_utc, tz);
+
+    console.log('Converted to local times:', {
+      starts_at: localStart,
+      ends_at: localEnd
+    });
+
     const init = {
       title: e.title ?? "",
       description: e.description ?? "",
       short_description: e.short_description ?? "",
       visibility: e.visibility ?? "PRIVATE",
-      timezone: e.timezone ?? "UTC",
-      starts_at: e.starts_at_utc ?? "",
-      ends_at: e.ends_at_utc ?? "",
+      timezone: tz,
+      starts_at: localStart,
+      ends_at: localEnd,
       venue_name: e.venue_name ?? "",
       venue_address: e.venue_address ?? "",
       city: e.city ?? "",
@@ -508,13 +603,48 @@ export default function EventSettingsPage() {
 
   const handleSave = async () => {
     setSaving(true);
-    const result = await updateEvent(eventId, form);
+
+    // Prepare payload - ensure datetime strings have seconds for Luxon
+    const payload = { ...form };
+
+    // Add seconds if not present (datetime-local gives "YYYY-MM-DDTHH:MM", we need "YYYY-MM-DDTHH:MM:SS")
+    if (payload.starts_at && payload.starts_at.length === 16) {
+      payload.starts_at = payload.starts_at + ':00';
+    }
+    if (payload.ends_at && payload.ends_at.length === 16) {
+      payload.ends_at = payload.ends_at + ':00';
+    }
+
+    // Validate that end time is after start time
+    if (payload.starts_at && payload.ends_at) {
+      const startMs = new Date(payload.starts_at).getTime();
+      const endMs = new Date(payload.ends_at).getTime();
+      if (endMs <= startMs) {
+        console.error('End time must be after start time:', { starts_at: payload.starts_at, ends_at: payload.ends_at });
+        alert('End time must be after start time. Please adjust the times.');
+        setSaving(false);
+        return;
+      }
+    }
+
+    console.log('Saving event times:', {
+      starts_at: payload.starts_at,
+      ends_at: payload.ends_at,
+      timezone: payload.timezone
+    });
+
+    // Backend uses Luxon to convert local time + timezone to UTC
+    const result = await updateEvent(eventId, payload);
     setSaving(false);
     if (result?.success) {
-      setSaved(true);
+      // Refresh event dashboard to get updated UTC times from server
+      await fetchEventDashboard(eventId);
+      // Mark as not dirty so useEffect will re-initialize form with new data
       setDirty(false);
-      initialRef.current = JSON.stringify(form);
+      setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+    } else {
+      console.error('Failed to save event:', result);
     }
   };
 
@@ -777,23 +907,66 @@ export default function EventSettingsPage() {
               <GlassCard delay={0.15} className="p-10">
                 <SectionHeader icon={CalendarDays} label="Date & Location" colorClass="text-amber-500" description="Logistics for venue and scheduling." />
                 <div className="space-y-8">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                    <Field label="Event Starts"><DateTimePicker value={form.starts_at} onChange={v => set("starts_at", v)} /></Field>
-                    <Field label="Event Ends"><DateTimePicker value={form.ends_at} onChange={v => set("ends_at", v)} /></Field>
+                  {/* Date & Time Section */}
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4 px-1">Schedule</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <Field label="Event Starts">
+                        <DateTimePicker
+                          value={form.starts_at}
+                          onChange={v => {
+                            console.log('Start time changed to:', v);
+                            // Always update start time
+                            set("starts_at", v);
+
+                            // Check if we need to adjust end time
+                            const newStart = new Date(v + ':00');
+                            const currentEnd = new Date(form.ends_at + ':00');
+
+                            // If end time is not at least 30 minutes after new start, adjust it
+                            const minEndTime = new Date(newStart.getTime() + 30 * 60000); // 30 minutes minimum
+                            if (currentEnd <= minEndTime) {
+                              const newEndStr = new Date(newStart.getTime() + 3600000).toISOString().slice(0, 16); // Add 1 hour
+                              console.log('Auto-adjusting end time to:', newEndStr);
+                              set("ends_at", newEndStr);
+                            }
+                          }}
+                          minValue={new Date().toISOString()}
+                        />
+                      </Field>
+                      <Field label="Event Ends">
+                        <DateTimePicker
+                          value={form.ends_at}
+                          onChange={v => {
+                            console.log('End time changed to:', v);
+                            set("ends_at", v);
+                          }}
+                          minValue={form.starts_at}
+                        />
+                      </Field>
+                    </div>
                   </div>
+
                   <div className="h-px bg-slate-200/50 dark:bg-white/5" />
-                  <Field label="Venue or Platform Name"><Input value={form.venue_name} onChange={e => set("venue_name", e.target.value)} /></Field>
-                  <Field label="Exact Address"><Input value={form.venue_address} onChange={e => set("venue_address", e.target.value)} /></Field>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
-                    <Field label="City"><Input value={form.city} onChange={e => set("city", e.target.value)} /></Field>
-                    <Field label="State"><Input value={form.state} onChange={e => set("state", e.target.value)} /></Field>
-                    <Field label="Country">
-                      <CountrySelector
-                        value={form.country}
-                        onChange={(country) => set("country", country.code)}
-                        placeholder="Select country"
-                      />
-                    </Field>
+
+                  {/* Venue Section */}
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4 px-1">Venue Information</h4>
+                    <div className="space-y-6">
+                      <Field label="Venue or Platform Name"><Input value={form.venue_name} onChange={e => set("venue_name", e.target.value)} placeholder="e.g., Madison Square Garden" /></Field>
+                      <Field label="Street Address"><Input value={form.venue_address} onChange={e => set("venue_address", e.target.value)} placeholder="e.g., 1800 E Main Street" /></Field>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                        <Field label="City"><Input value={form.city} onChange={e => set("city", e.target.value)} placeholder="City" /></Field>
+                        <Field label="State / Region"><Input value={form.state} onChange={e => set("state", e.target.value)} placeholder="State" /></Field>
+                        <Field label="Country">
+                          <CountrySelector
+                            value={form.country}
+                            onChange={(country) => set("country", country.code)}
+                            placeholder="Select country"
+                          />
+                        </Field>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </GlassCard>

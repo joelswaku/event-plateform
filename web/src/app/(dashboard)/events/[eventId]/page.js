@@ -12,11 +12,12 @@ import {
   Share2, MoreHorizontal, ArrowLeft, Camera, ExternalLink,
   Send, EyeOff, Archive, Trash2, RotateCcw, CreditCard,
   LayoutGrid, CheckCircle, Copy, Check, X as XIcon, Link2,
-  ClipboardList, Sparkles,
+  ClipboardList, Sparkles, Bell,
 } from "lucide-react";
 import { useEventStore }  from "@/store/event.store";
 import { useTeamStore }   from "@/store/team.store";
 import { useAuthStore }   from "@/store/auth.store";
+import { useSubscriptionStore } from "@/store/subscription.store";
 import StatCard           from "@/components/ui/stat-card";
 import ShareEventCard     from "@/components/events/ShareEventCard";
 import { EVENT_CATEGORIES } from "@/config/event-categories";
@@ -26,6 +27,7 @@ import AIInsightCard          from "@/components/ai/AIInsightCard";
 import { useAIStore }         from "@/store/ai.store";
 import { usePlannerStore }    from "@/store/planner.store";
 import PostEventSummaryModal  from "@/components/ai/PostEventSummaryModal";
+import toast from "react-hot-toast";
 
 // ── Cover image fallbacks ─────────────────────────────────────────────────────
 const EVENT_IMGS = {
@@ -1669,12 +1671,14 @@ export default function EventDetailPage() {
   const router      = useRouter();
   const { fetchEventDashboard, dashboard, loading } = useEventStore();
   const { isHydrated, isAuthenticated } = useAuthStore();
+  const { isSubscribed, openUpgradeModal } = useSubscriptionStore();
   const { projects, fetchProjects, loading: plannerLoading } = usePlannerStore();
   const { generatePostEventSummary, loading: aiLoading } = useAIStore();
   const [fetchError, setFetchError] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [summaryData, setSummaryData] = useState(null);
   const [summaryBannerDismissed, setSummaryBannerDismissed] = useState(false);
+  const [reminderModalOpen, setReminderModalOpen] = useState(false);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -1858,6 +1862,12 @@ export default function EventDetailPage() {
                 {userPerms.canManageGuests && (
                   <QuickAction label="Tickets" description="Manage ticket tiers & sales" href={`/events/${eventId}/tickets`} icon={Ticket} />
                 )}
+                <QuickAction
+                  label="Event Reminders"
+                  description="Send automated reminders"
+                  onClick={() => setReminderModalOpen(true)}
+                  icon={Bell}
+                />
                 {userPerms.canCheckin       && <QuickAction label="QR Scanner"   description="Check in on arrival"          href={`/events/${eventId}/scanner`}   icon={QrCode}         />}
                 {userPerms.canViewAnalytics && <QuickAction label="Analytics"    description="Views & conversions"           href={`/events/${eventId}/analytics`} icon={BarChart3}      />}
                 {userPerms.canManageTeam    && <QuickAction label="Team"         description="Add admins to your event"      href={`/events/${eventId}/team`}      icon={UserPlus}       />}
@@ -1868,11 +1878,395 @@ export default function EventDetailPage() {
         </div>
       </div>
 
+      <EventRemindersModal
+        open={reminderModalOpen}
+        onClose={() => setReminderModalOpen(false)}
+        eventId={eventId}
+        eventTitle={event?.title}
+      />
+
       <PostEventSummaryModal
         open={summaryOpen}
         onClose={() => setSummaryOpen(false)}
         data={summaryData}
       />
     </>
+  );
+}
+
+// ── Event Reminders Modal ──────────────────────────────────────────────────────
+function EventRemindersModal({ open, onClose, eventId, eventTitle }) {
+  const defaultReminders = [
+    { id: 1, enabled: true, timing: 'instant', message: 'Thank you for registering! Event details inside.', locked: true },
+    { id: 2, enabled: true, timing: '7_days', message: 'Your event is 1 week away!', locked: false },
+    { id: 3, enabled: true, timing: '24_hours', message: 'Event starts tomorrow! See you soon.', locked: false },
+    { id: 4, enabled: true, timing: '2_hours', message: 'Event starts in 2 hours!', locked: false },
+  ];
+
+  const [reminders, setReminders] = useState(defaultReminders);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editMessage, setEditMessage] = useState('');
+
+  // Load existing reminders when modal opens
+  useEffect(() => {
+    if (open && eventId) {
+      loadReminders();
+    }
+  }, [open, eventId]);
+
+  async function loadReminders() {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/events/${eventId}/reminders`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success && data.data.length > 0) {
+        // Map database reminders to include local IDs
+        const loadedReminders = data.data.map((r, idx) => ({
+          id: idx + 1,
+          enabled: r.enabled,
+          timing: r.timing,
+          message: r.message,
+          locked: r.locked || r.timing === 'instant',
+        }));
+        setReminders(loadedReminders);
+      } else {
+        // Use defaults if no reminders exist
+        setReminders(defaultReminders);
+      }
+    } catch (error) {
+      console.error('Error loading reminders:', error);
+      setReminders(defaultReminders);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!open) return null;
+
+  const handleToggle = (id) => {
+    setReminders(prev => prev.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r));
+  };
+
+  const handleRemove = (id) => {
+    setReminders(prev => prev.filter(r => r.id !== id || r.locked));
+  };
+
+  const handleAddReminder = () => {
+    const newId = Math.max(...reminders.map(r => r.id), 0) + 1;
+    setReminders(prev => [...prev, {
+      id: newId,
+      enabled: false,
+      timing: '1_minute',
+      message: 'Test reminder - 1 minute!',
+      locked: false
+    }]);
+  };
+
+  const handleEditStart = (reminder) => {
+    setEditingId(reminder.id);
+    setEditMessage(reminder.message);
+  };
+
+  const handleEditSave = (id) => {
+    setReminders(prev => prev.map(r => r.id === id ? { ...r, message: editMessage } : r));
+    setEditingId(null);
+    setEditMessage('');
+  };
+
+  const handleEditCancel = () => {
+    setEditingId(null);
+    setEditMessage('');
+  };
+
+  // Suggested messages based on timing
+  const getSuggestedMessage = (timing) => {
+    const suggestions = {
+      'instant': 'Thank you for registering! Event details inside.',
+      '30_days': 'Your event is 1 month away! Mark your calendar.',
+      '14_days': 'Just 2 weeks until your event!',
+      '7_days': 'Your event is 1 week away!',
+      '3_days': 'Only 3 days until the event!',
+      '24_hours': 'Event starts tomorrow! See you soon.',
+      '12_hours': 'Event starts in 12 hours!',
+      '6_hours': 'Event starts in 6 hours! Get ready.',
+      '2_hours': 'Event starts in 2 hours!',
+      '1_hour': 'Event starts in 1 hour!',
+      '30_minutes': 'Event starts in 30 minutes!',
+      '15_minutes': 'Event starts in 15 minutes!',
+      '1_minute': 'Event starts in 1 minute! (TEST)',
+    };
+    return suggestions[timing] || 'Reminder about your upcoming event.';
+  };
+
+  const handleTimingChange = (id, newTiming) => {
+    setReminders(prev => prev.map(r => {
+      if (r.id === id) {
+        // Auto-update message to match new timing
+        const suggestedMessage = getSuggestedMessage(newTiming);
+        return { ...r, timing: newTiming, message: suggestedMessage };
+      }
+      return r;
+    }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const token = localStorage.getItem('token');
+
+      // Clean up reminders - only send necessary fields
+      const cleanReminders = reminders.map(r => ({
+        timing: r.timing,
+        message: r.message,
+        enabled: r.enabled,
+        locked: r.locked || false,
+      }));
+
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/events/${eventId}/reminders`;
+      console.log('Saving reminders to:', url);
+      console.log('Reminders data:', cleanReminders);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({ reminders: cleanReminders }),
+      });
+
+      console.log('Response status:', response.status);
+      const data = await response.json();
+      console.log('Save response:', data);
+
+      if (response.ok && data.success) {
+        toast.success('Reminders saved successfully!');
+        onClose();
+      } else {
+        console.error('Save failed. Status:', response.status, 'Data:', data);
+        toast.error(data.error || data.message || 'Failed to save reminders');
+      }
+    } catch (error) {
+      console.error('Error saving reminders:', error);
+      toast.error('Failed to save reminders');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const timingLabels = {
+    'instant': 'Instant Confirmation',
+    '30_days': '30 days before',
+    '14_days': '14 days before',
+    '7_days': '7 days before',
+    '3_days': '3 days before',
+    '24_hours': '24 hours before',
+    '12_hours': '12 hours before',
+    '6_hours': '6 hours before',
+    '2_hours': '2 hours before',
+    '1_hour': '1 hour before',
+    '30_minutes': '30 minutes before',
+    '15_minutes': '15 minutes before',
+    '1_minute': '1 minute before (TEST)',
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-lg border border-gray-200 dark:border-gray-800 shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-800">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-500/20">
+                <Bell className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Event Reminders</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{eventTitle}</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+            >
+              <XIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            Automatically send email reminders to your guests. Customize timing and messages below.
+          </p>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex flex-col items-center gap-3">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+                <p className="text-sm text-gray-500 dark:text-gray-400">Loading reminders...</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              {reminders.map((reminder) => (
+            <div
+              key={reminder.id}
+              className="relative flex flex-col gap-3 p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50"
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    {reminder.locked ? (
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {timingLabels[reminder.timing]}
+                      </p>
+                    ) : (
+                      <select
+                        value={reminder.timing}
+                        onChange={(e) => handleTimingChange(reminder.id, e.target.value)}
+                        className="text-sm font-semibold text-gray-900 dark:text-white bg-white dark:bg-gray-800 border-b border-gray-300 dark:border-gray-600 focus:border-indigo-500 focus:outline-none pr-2 px-1"
+                      >
+                        {Object.entries(timingLabels).map(([key, label]) => (
+                          <option key={key} value={key} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">{label}</option>
+                        ))}
+                      </select>
+                    )}
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                      reminder.enabled
+                        ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                    }`}>
+                      {reminder.enabled ? 'Active' : 'Inactive'}
+                    </span>
+                    {reminder.locked && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400">
+                        Required
+                      </span>
+                    )}
+                  </div>
+
+                  {editingId === reminder.id ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={editMessage}
+                        onChange={(e) => setEditMessage(e.target.value)}
+                        className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                        placeholder="Enter reminder message..."
+                      />
+                      <button
+                        onClick={() => handleEditSave(reminder.id)}
+                        className="px-2 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs transition"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={handleEditCancel}
+                        className="px-2 py-1.5 rounded-lg bg-gray-300 dark:bg-gray-700 hover:bg-gray-400 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs transition"
+                      >
+                        <XIcon className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-2">
+                      <p className="flex-1 text-xs text-gray-600 dark:text-gray-400">{reminder.message}</p>
+                      <button
+                        onClick={() => handleEditStart(reminder)}
+                        className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 text-xs font-semibold transition"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => handleToggle(reminder.id)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors ${
+                      reminder.enabled ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-700'
+                    }`}
+                  >
+                    <span
+                      className="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
+                      style={{ transform: reminder.enabled ? 'translateX(20px)' : 'translateX(4px)' }}
+                    />
+                  </button>
+                  {!reminder.locked && (
+                    <button
+                      onClick={() => handleRemove(reminder.id)}
+                      className="p-1.5 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+              ))}
+
+              <button
+                onClick={handleAddReminder}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all text-sm font-semibold"
+              >
+                <Plus className="w-4 h-4" />
+                Add Custom Reminder
+              </button>
+
+              <div className="mt-4 p-4 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20">
+                <div className="flex gap-2">
+                  <Bell className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-300">Automatic Reminders</p>
+                    <p className="text-xs text-indigo-700 dark:text-indigo-400 mt-1">
+                      Reminders are sent automatically via email to all confirmed guests based on your schedule.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-800 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-semibold text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {saving ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Check className="h-4 w-4" />
+                Save Reminders
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -37,6 +37,7 @@ export async function createNotificationService({
 
 /**
  * Fetch notifications for a user with unread count.
+ * Excludes chat notifications (they appear in chat UI only).
  */
 export async function getNotificationsService(userId, { limit = 30, offset = 0 } = {}) {
   const safeLimit  = Math.min(Number(limit)  || 30, 50);
@@ -46,13 +47,13 @@ export async function getNotificationsService(userId, { limit = 30, offset = 0 }
     db.query(
       `SELECT id, type, title, body, link, metadata, read_at, created_at
        FROM notifications
-       WHERE user_id = $1
+       WHERE user_id = $1 AND type != 'chat'
        ORDER BY created_at DESC
        LIMIT $2 OFFSET $3`,
       [userId, safeLimit, safeOffset]
     ),
     db.query(
-      `SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND read_at IS NULL`,
+      `SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND read_at IS NULL AND type != 'chat'`,
       [userId]
     ),
   ]);
@@ -88,6 +89,22 @@ export async function markAllReadService(userId) {
     `UPDATE notifications SET read_at = NOW()
      WHERE user_id = $1 AND read_at IS NULL`,
     [userId]
+  );
+  return { updated: res.rowCount };
+}
+
+/**
+ * Mark all chat notifications for a conversation as read.
+ */
+export async function markChatNotificationsReadService(userId, conversationId) {
+  const res = await db.query(
+    `UPDATE notifications
+     SET read_at = NOW()
+     WHERE user_id = $1
+       AND type = 'chat'
+       AND metadata->>'conversation_id' = $2
+       AND read_at IS NULL`,
+    [userId, conversationId]
   );
   return { updated: res.rowCount };
 }
