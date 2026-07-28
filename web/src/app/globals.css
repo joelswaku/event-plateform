@@ -159,6 +159,19 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  cursor: default;
+}
+
+* {
+  cursor: inherit;
+}
+
+button, a, input, textarea, select, [role="button"], [onclick] {
+  cursor: pointer;
+}
+
+input, textarea {
+  cursor: text;
 }
 
 /* ── Prevent iOS Safari auto-zoom on input focus ─────────────
