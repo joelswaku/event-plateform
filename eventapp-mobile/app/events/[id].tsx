@@ -254,6 +254,7 @@ export default function EventDetailScreen() {
     action: () => Promise<any>; title: string; desc: string; danger: boolean;
   } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [remindersModalOpen, setRemindersModalOpen] = useState(false);
   const menuAnim = useRef(new Animated.Value(0)).current;
 
   /* ── Module toggle state ── */
@@ -381,6 +382,10 @@ export default function EventDetailScreen() {
   }, [pendingModule, modLocal, updateEvent, id, refresh]);
 
   const handleFeaturePress = useCallback((route: string, label: string) => {
+    if (label === 'Reminders') {
+      setRemindersModalOpen(true);
+      return;
+    }
     if (label === 'Tickets' && !modLocal.allow_ticketing) {
       requestModule('allow_ticketing', () => router.push(route as never));
       return;
@@ -435,16 +440,16 @@ export default function EventDetailScreen() {
   const plannerRoute   = plannerProject ? `/planner/${plannerProject.id}` : `/planner/new?eventId=${id}`;
 
   const ALL_FEATURES = [
-    { icon: 'layout'      as const, label: 'Builder',   sub: 'Design event page',     accent: Colors.accent.indigo,  grad: ['#4f46e5','#6366f1'] as const, route: `/events/${id}/builder`,   show: perms.canEdit           },
-    { icon: 'users'       as const, label: 'Guests',    sub: 'Manage attendees',       accent: Colors.accent.emerald, grad: ['#059669','#10b981'] as const, route: `/events/${id}/guests`,    show: perms.canManageGuests   },
-    { icon: 'credit-card' as const, label: 'Tickets',   sub: 'Types & orders',         accent: Colors.accent.amber,   grad: ['#d97706','#f59e0b'] as const, route: `/events/${id}/tickets`,   show: perms.canEdit           },
-    { icon: 'grid'        as const, label: 'Seating',   sub: 'Seat assignments',       accent: '#06b6d4',             grad: ['#0891b2','#06b6d4'] as const, route: `/events/${id}/seating`,   show: perms.canEdit           },
-    { icon: 'camera'      as const, label: 'Scanner',   sub: 'QR check-in',            accent: Colors.accent.emerald, grad: ['#0891b2','#06b6d4'] as const, route: `/events/${id}/scanner`,   show: perms.canCheckin        },
-    { icon: 'bar-chart-2' as const, label: 'Analytics', sub: 'Revenue & insights',     accent: Colors.accent.violet,  grad: ['#7c3aed','#8b5cf6'] as const, route: `/events/${id}/analytics`, show: perms.canViewAnalytics  },
-    { icon: 'heart'       as const, label: 'Donations', sub: 'Track contributions',    accent: '#f43f5e',             grad: ['#be185d','#f43f5e'] as const, route: `/events/${id}/donations`, show: perms.canEdit           },
-    { icon: 'user-plus'   as const, label: 'Team',      sub: 'Manage admins',          accent: '#06b6d4',             grad: ['#0891b2','#06b6d4'] as const, route: `/events/${id}/team`,      show: perms.canManageTeam     },
-    { icon: 'clipboard'   as const, label: 'Planner',   sub: 'AI-powered event plan',  accent: '#8b5cf6',             grad: ['#7c3aed','#8b5cf6'] as const, route: plannerRoute,              show: perms.canEdit           },
-    { icon: 'settings'    as const, label: 'Settings',  sub: 'Edit event details',     accent: '#6b7280',             grad: ['#374151','#4b5563'] as const, route: `/events/${id}/settings`,  show: perms.canEdit           },
+    { icon: 'layout'      as const, label: 'Builder',   sub: 'Design event page',        accent: Colors.accent.indigo,  grad: ['#4f46e5','#6366f1'] as const, route: `/events/${id}/builder`,   show: perms.canEdit           },
+    { icon: 'clipboard'   as const, label: 'Planner',   sub: 'AI-powered event plan',    accent: '#8b5cf6',             grad: ['#7c3aed','#8b5cf6'] as const, route: plannerRoute,              show: perms.canEdit           },
+    { icon: 'users'       as const, label: 'Guests',    sub: 'Manage attendees',         accent: Colors.accent.emerald, grad: ['#059669','#10b981'] as const, route: `/events/${id}/guests`,    show: perms.canManageGuests   },
+    { icon: 'bell'        as const, label: 'Reminders', sub: 'Automated notifications',  accent: '#ec4899',             grad: ['#db2777','#ec4899'] as const, route: 'reminders',                show: perms.canManageGuests   },
+    { icon: 'credit-card' as const, label: 'Tickets',   sub: 'Types & orders',           accent: Colors.accent.amber,   grad: ['#d97706','#f59e0b'] as const, route: `/events/${id}/tickets`,   show: perms.canEdit           },
+    { icon: 'grid'        as const, label: 'Seating',   sub: 'Seat assignments',         accent: '#06b6d4',             grad: ['#0891b2','#06b6d4'] as const, route: `/events/${id}/seating`,   show: perms.canEdit           },
+    { icon: 'bar-chart-2' as const, label: 'Analytics', sub: 'Revenue & insights',       accent: Colors.accent.violet,  grad: ['#7c3aed','#8b5cf6'] as const, route: `/events/${id}/analytics`, show: perms.canViewAnalytics  },
+    { icon: 'heart'       as const, label: 'Donations', sub: 'Track contributions',      accent: '#f43f5e',             grad: ['#be185d','#f43f5e'] as const, route: `/events/${id}/donations`, show: perms.canEdit           },
+    { icon: 'user-plus'   as const, label: 'Team',      sub: 'Manage admins',            accent: '#06b6d4',             grad: ['#0891b2','#06b6d4'] as const, route: `/events/${id}/team`,      show: perms.canManageTeam     },
+    { icon: 'settings'    as const, label: 'Settings',  sub: 'Edit event details',       accent: '#6b7280',             grad: ['#374151','#4b5563'] as const, route: `/events/${id}/settings`,  show: perms.canEdit           },
   ];
   const FEATURES = ALL_FEATURES.filter(f => f.show);
 
@@ -972,6 +977,41 @@ export default function EventDetailScreen() {
               <Text style={ms.cancelTxt}>Cancel</Text>
             </Pressable>
           </Animated.View>
+        </View>
+      </Modal>
+
+      {/* Event Reminders Modal */}
+      <Modal visible={remindersModalOpen} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setRemindersModalOpen(false)}>
+        <View style={ms.backdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setRemindersModalOpen(false)} />
+          <View style={[ms.sheet, { maxHeight: '80%' }]}>
+            <View style={ms.handle} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, marginBottom: 8 }}>
+              <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(236,72,153,0.18)', alignItems: 'center', justifyContent: 'center' }}>
+                <Feather name="bell" size={20} color="#ec4899" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={ms.sheetTitle}>Event Reminders</Text>
+                <Text style={ms.sheetSub}>Automated email notifications</Text>
+              </View>
+              <Pressable onPress={() => setRemindersModalOpen(false)} hitSlop={10}>
+                <Feather name="x" size={22} color="rgba(255,255,255,0.5)" />
+              </Pressable>
+            </View>
+
+            <View style={{ padding: 20, gap: 16 }}>
+              <View style={{ padding: 16, backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(99,102,241,0.2)' }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#6366f1', marginBottom: 6 }}>Coming Soon</Text>
+                <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', lineHeight: 18 }}>
+                  Event reminders feature is coming to the mobile app soon. For now, you can manage reminders from the web dashboard.
+                </Text>
+              </View>
+            </View>
+
+            <Pressable style={ms.cancelBtn} onPress={() => setRemindersModalOpen(false)}>
+              <Text style={ms.cancelTxt}>Close</Text>
+            </Pressable>
+          </View>
         </View>
       </Modal>
     </View>
