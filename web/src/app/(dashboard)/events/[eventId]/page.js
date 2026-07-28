@@ -1695,6 +1695,15 @@ export default function EventDetailPage() {
     }
   }, [eventId, isHydrated, isAuthenticated]);
 
+  // Auto-open reminders modal if coming from settings
+  useEffect(() => {
+    const shouldOpenReminders = localStorage.getItem('openRemindersModal');
+    if (shouldOpenReminders === 'true') {
+      localStorage.removeItem('openRemindersModal');
+      setReminderModalOpen(true);
+    }
+  }, []);
+
   const event    = dashboard?.event;
   const stats    = dashboard?.stats ?? {};
   const userRole = dashboard?.userRole ?? 'OWNER';
