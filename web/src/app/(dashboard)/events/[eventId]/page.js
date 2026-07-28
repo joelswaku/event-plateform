@@ -892,7 +892,7 @@ function MShareSheet({ event, onClose }) {
   );
 }
 
-function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, plannerProject, userRole = 'OWNER', permissions = null }) {
+function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, plannerProject, userRole = 'OWNER', permissions = null, onOpenReminders }) {
   const perms = permissions ?? { canEdit: false, canDelete: false, canManageTeam: false, canManageGuests: false, canCheckin: false, canViewAnalytics: false, canPublish: false };
   const cfg      = sc(event.status);
   const router   = useRouter();
@@ -995,6 +995,7 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
     { FIcon: Layout,        label: "Builder",   sub: "Design event page",      accent: "#6366f1", grad: "linear-gradient(135deg,#4f46e5,#6366f1)", href: `/events/${eventId}/builder`,   show: perms.canEdit         },
     { FIcon: ClipboardList, label: "Planner",   sub: "AI-powered event plan",  accent: "#8b5cf6", grad: "linear-gradient(135deg,#7c3aed,#8b5cf6)", href: plannerProject ? `/planner/${plannerProject.id}` : `/planner/new?eventId=${eventId}`, show: perms.canEdit },
     { FIcon: Users,         label: "Guests",    sub: "Manage attendees",       accent: "#10b981", grad: "linear-gradient(135deg,#059669,#10b981)", href: `/events/${eventId}/guests`,    show: perms.canManageGuests  },
+    { FIcon: Bell,          label: "Reminders", sub: "Automated notifications", accent: "#ec4899", grad: "linear-gradient(135deg,#db2777,#ec4899)", onClick: onOpenReminders,              show: perms.canManageGuests  },
     { FIcon: Ticket,     label: "Tickets",   sub: "Types & orders",      accent: "#f59e0b", grad: "linear-gradient(135deg,#d97706,#f59e0b)", href: `/events/${eventId}/tickets`,   show: perms.canManageGuests  },
     { FIcon: LayoutGrid, label: "Seating",   sub: "Seat assignments",    accent: "#06b6d4", grad: "linear-gradient(135deg,#0891b2,#06b6d4)", href: `/events/${eventId}/seating`,   show: perms.canEdit          },
     { FIcon: Camera,     label: "Scanner",   sub: "QR check-in",         accent: "#10b981", grad: "linear-gradient(135deg,#0891b2,#06b6d4)", href: `/events/${eventId}/scanner`,   show: perms.canCheckin       },
@@ -1343,11 +1344,16 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
 
           {/* Feature grid 2×N */}
           <div className="grid grid-cols-2 gap-3">
-            {FEATURES.map(({ FIcon, label, sub, accent, grad, href }) => (
+            {FEATURES.map(({ FIcon, label, sub, accent, grad, href, onClick }) => (
               <button
                 key={label}
                 type="button"
                 onClick={() => {
+                  // If onClick is provided, use it (for modals like Reminders)
+                  if (onClick) {
+                    onClick();
+                    return;
+                  }
                   // Check if module needs to be enabled first
                   if (label === 'Guests' && !modLocal.allow_rsvp) {
                     requestMod('allow_rsvp', () => router.push(href));
@@ -1750,6 +1756,7 @@ export default function EventDetailPage() {
           plannerProject={plannerProject}
           userRole={userRole}
           permissions={userPerms}
+          onOpenReminders={() => setReminderModalOpen(true)}
         />
       </div>
 
