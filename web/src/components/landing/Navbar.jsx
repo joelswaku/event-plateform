@@ -10,7 +10,7 @@ const NAV_LINKS = [
   { href: "#templates", label: "Templates" },
   { href: "#features",  label: "Features"  },
   { href: "#pricing",   label: "Pricing"   },
-  { href: "/contact",   label: "Contact"   },
+  { href: "/contact#contact-form",   label: "Contact"   },
 ];
 
 export default function Navbar() {
@@ -47,7 +47,7 @@ export default function Navbar() {
 
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
-          <Image src="/lite.png" alt="LiteEvent" width={32} height={32} className="rounded-lg shadow" />
+          <Image src="/logo.png" alt="LiteEvent" width={32} height={32} className="rounded-lg shadow" />
           <span className="font-bold text-gray-900 text-lg tracking-tight">LiteEvent</span>
         </Link>
 

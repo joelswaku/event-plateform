@@ -114,6 +114,18 @@ export default function EventEditor() {
         endsAt = endsAt + ':00';
       }
 
+      // Validate date range BEFORE sending to API
+      if (startsAt && endsAt) {
+        const startDate = new Date(startsAt);
+        const endDate = new Date(endsAt);
+
+        if (endDate < startDate) {
+          setError("Event end date/time must be after the start date/time");
+          setSaving(false);
+          return;
+        }
+      }
+
       const payload = {
         title:             form.title,
         description:       form.description,
@@ -140,7 +152,7 @@ export default function EventEditor() {
       const result = await updateEvent(eventId, payload);
 
       if (result?.success === false) {
-        setError("Auto-save failed — check your inputs");
+        setError(result?.message || "Auto-save failed — check your inputs");
       } else {
         setSaved(true);
         // Note: We don't refresh dashboard here to avoid scroll jumping
