@@ -122,9 +122,9 @@ export default function SupportPage() {
             icon: Mail,
             color: "#10b981",
             bg: "rgba(16,185,129,0.12)",
-            title: "Email us",
-            desc: "support@meetcraft.app",
-            href: "mailto:support@meetcraft.app",
+            title: "Email Support",
+            desc: "Send us a message",
+            href: "/contact#contact-form",
           },
           {
             icon: MessageSquare,
