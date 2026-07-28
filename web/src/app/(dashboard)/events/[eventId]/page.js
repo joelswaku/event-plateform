@@ -1970,6 +1970,11 @@ function EventRemindersModal({ open, onClose, eventId, eventTitle }) {
       message: 'Event starts in 1 hour!',
       locked: false
     }]);
+
+    toast.success('Custom reminder added successfully!', {
+      duration: 3000,
+      icon: '🔔',
+    });
   };
 
   const handleEditStart = (reminder) => {

@@ -72,7 +72,7 @@ const organizationSchema = {
   "@type": "Organization",
   name: "LiteEvent",
   url: "https://liteevent.com",
-  logo: "https://liteevent.com/lite.png",
+  logo: "https://liteevent.com/logo.png",
   description: "Professional event management platform for creating, managing, and hosting events with ticketing, RSVP, and beautiful templates.",
   sameAs: [
     // Add your social media links here

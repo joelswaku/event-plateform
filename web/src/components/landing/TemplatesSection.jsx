@@ -6,7 +6,7 @@ import { useAuthStore } from "@/store/auth.store";
 
 function TemplateCard({ template: t }) {
   return (
-    <div className="group relative rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer">
+    <Link href="/register" className="group relative block rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer">
       <div className="relative overflow-hidden" style={{ aspectRatio: "3/4" }}>
         <Image
           src={t.assets.cover_image}
@@ -30,13 +30,16 @@ function TemplateCard({ template: t }) {
           </span>
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-2 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
-          <Link
-            href="/register"
-            className="block w-full text-center py-1.5 rounded-lg bg-white text-gray-900 text-xs font-bold hover:bg-amber-400 hover:text-white transition-colors"
-          >
+        {/* Desktop hover button */}
+        <div className="hidden md:block absolute bottom-0 left-0 right-0 p-3 translate-y-2 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+          <div className="block w-full text-center py-1.5 rounded-lg bg-white text-gray-900 text-xs font-bold group-hover:bg-amber-400 group-hover:text-white transition-colors">
             Use This Template
-          </Link>
+          </div>
+        </div>
+
+        {/* Mobile tap indicator */}
+        <div className="md:hidden absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm text-gray-900 text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+          Tap to use
         </div>
       </div>
 
@@ -46,7 +49,7 @@ function TemplateCard({ template: t }) {
           {t.description}
         </p>
       </div>
-    </div>
+    </Link>
   );
 }
 

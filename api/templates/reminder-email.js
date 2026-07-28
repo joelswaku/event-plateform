@@ -76,21 +76,21 @@ export function generateReminderEmail({
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 32px rgba(0,0,0,0.12);">
                 <tr>
                   <td style="padding: 32px;">
-                    <h2 style="margin: 0 0 8px 0; color: #ffffff; font-size: 24px; font-weight: 700; line-height: 1.3;">
+                    <h2 style="margin: 0 0 8px 0; color: #ffffff; font-size: 28px; font-weight: 700; line-height: 1.3;">
                       ${eventTitle}
                     </h2>
 
                     ${eventDate ? `
-                    <div style="margin: 20px 0 0 0; padding: 16px; background: rgba(255,255,255,0.08); border-radius: 12px; border-left: 3px solid #6366f1;">
+                    <div style="margin: 20px 0 0 0; padding: 18px; background: rgba(255,255,255,0.12); border-radius: 12px; border-left: 4px solid #6366f1;">
                       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                         <tr>
                           <td style="padding: 4px 0;">
-                            <span style="color: rgba(255,255,255,0.6); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Date & Time</span>
+                            <span style="color: rgba(255,255,255,0.75); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Date & Time</span>
                           </td>
                         </tr>
                         <tr>
-                          <td style="padding: 4px 0;">
-                            <span style="color: #ffffff; font-size: 16px; font-weight: 600;">
+                          <td style="padding: 6px 0;">
+                            <span style="color: #ffffff; font-size: 17px; font-weight: 600;">
                               📅 ${eventDate}${eventTime ? ` at ${eventTime}` : ''}
                             </span>
                           </td>
@@ -100,18 +100,19 @@ export function generateReminderEmail({
                     ` : ''}
 
                     ${eventLocation ? `
-                    <div style="margin: 12px 0 0 0; padding: 16px; background: rgba(255,255,255,0.08); border-radius: 12px; border-left: 3px solid #8b5cf6;">
+                    <div style="margin: 12px 0 0 0; padding: 18px; background: rgba(255,255,255,0.12); border-radius: 12px; border-left: 4px solid #8b5cf6;">
                       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                         <tr>
                           <td style="padding: 4px 0;">
-                            <span style="color: rgba(255,255,255,0.6); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Location</span>
+                            <span style="color: rgba(255,255,255,0.75); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Location</span>
                           </td>
                         </tr>
                         <tr>
-                          <td style="padding: 4px 0;">
-                            <span style="color: #ffffff; font-size: 16px; font-weight: 600;">
+                          <td style="padding: 6px 0;">
+                            <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(eventLocation)}" style="color: #ffffff; font-size: 17px; font-weight: 600; text-decoration: none; display: inline-block;">
                               📍 ${eventLocation}
-                            </span>
+                              <span style="color: rgba(255,255,255,0.6); font-size: 14px; font-weight: 400; margin-left: 8px;">→ Open in Maps</span>
+                            </a>
                           </td>
                         </tr>
                       </table>

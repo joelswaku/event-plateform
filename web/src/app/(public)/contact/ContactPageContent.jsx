@@ -26,7 +26,7 @@ const CONTACT_INFO = [
     title: "Email Support",
     description: "Get help from our support team",
     value: "support@liteevent.com",
-    link: "mailto:support@liteevent.com",
+    link: "#contact-form",
   },
   {
     icon: Clock,
@@ -34,13 +34,14 @@ const CONTACT_INFO = [
     description: "We typically respond within",
     value: "24 hours",
     highlight: true,
+    link: "#contact-form",
   },
   {
     icon: BookOpen,
     title: "Documentation",
     description: "Browse our help center",
     value: "Help Center",
-    link: "/help",
+    link: "#contact-form",
   },
 ];
 
@@ -171,7 +172,7 @@ export default function ContactPageContent() {
           </div>
 
           {/* Contact Form & Info Grid */}
-          <div className="grid lg:grid-cols-2 gap-12 items-start">
+          <div id="contact-form" className="grid lg:grid-cols-2 gap-12 items-start scroll-mt-24">
             {/* Contact Form */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
