@@ -134,32 +134,6 @@ function SendQrModal({ open, onClose, onSendEmail, guest }) {
 
         {/* Options */}
         <div className="px-4 pb-4 space-y-2">
-          {/* Share */}
-          <button
-            onClick={handleShare}
-            className="w-full flex items-center gap-3 p-4 rounded-[16px] border transition-all hover:bg-opacity-20"
-            style={{
-              background: 'rgba(139,92,246,0.08)',
-              borderColor: 'rgba(139,92,246,0.3)',
-            }}
-          >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]"
-              style={{ background: 'rgba(139,92,246,0.15)' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2">
-                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
-                <polyline points="16 6 12 2 8 6"></polyline>
-                <line x1="12" y1="2" x2="12" y2="15"></line>
-              </svg>
-            </div>
-            <div className="flex-1 text-left">
-              <p className="text-sm font-bold text-white">Share QR Code</p>
-              <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                Share via any app
-              </p>
-            </div>
-            <ChevronRight size={16} style={{ color: '#8b5cf6' }} />
-          </button>
-
           {/* Email */}
           {hasEmail && (
             <button
@@ -211,34 +185,6 @@ function SendQrModal({ open, onClose, onSendEmail, guest }) {
               <ChevronRight size={16} style={{ color: '#25D366' }} />
             </button>
           )}
-
-          {/* Copy Link */}
-          <button
-            onClick={handleCopyLink}
-            className="w-full flex items-center gap-3 p-4 rounded-[16px] border transition-all hover:bg-opacity-20"
-            style={{
-              background: 'rgba(245,158,11,0.08)',
-              borderColor: 'rgba(245,158,11,0.3)',
-            }}
-          >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]"
-              style={{ background: 'rgba(245,158,11,0.15)' }}>
-              {copied ? (
-                <Check size={18} style={{ color: '#f59e0b' }} />
-              ) : (
-                <Copy size={18} style={{ color: '#f59e0b' }} />
-              )}
-            </div>
-            <div className="flex-1 text-left">
-              <p className="text-sm font-bold text-white">
-                {copied ? 'Link Copied!' : 'Copy QR Link'}
-              </p>
-              <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                {copied ? 'Ready to paste' : 'Copy to clipboard'}
-              </p>
-            </div>
-            {!copied && <ChevronRight size={16} style={{ color: '#f59e0b' }} />}
-          </button>
         </div>
 
         {/* Cancel */}
@@ -326,32 +272,6 @@ function SendInviteModal({ open, onClose, onSend, guest, eventId }) {
 
         {/* Options */}
         <div className="px-4 pb-4 space-y-2">
-          {/* Share */}
-          <button
-            onClick={handleShare}
-            className="w-full flex items-center gap-3 p-4 rounded-[16px] border transition-all hover:bg-opacity-20"
-            style={{
-              background: 'rgba(139,92,246,0.08)',
-              borderColor: 'rgba(139,92,246,0.3)',
-            }}
-          >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]"
-              style={{ background: 'rgba(139,92,246,0.15)' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2">
-                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
-                <polyline points="16 6 12 2 8 6"></polyline>
-                <line x1="12" y1="2" x2="12" y2="15"></line>
-              </svg>
-            </div>
-            <div className="flex-1 text-left">
-              <p className="text-sm font-bold text-white">Share Invitation</p>
-              <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                Share via any app
-              </p>
-            </div>
-            <ChevronRight size={16} style={{ color: '#8b5cf6' }} />
-          </button>
-
           {/* Email */}
           {hasEmail && (
             <button
@@ -377,8 +297,8 @@ function SendInviteModal({ open, onClose, onSend, guest, eventId }) {
             </button>
           )}
 
-          {/* WhatsApp */}
-          {hasPhone && (
+          {/* Removed - WhatsApp */}
+          {false && hasPhone && (
             <button
               onClick={handleWhatsApp}
               disabled={sending}
@@ -403,34 +323,6 @@ function SendInviteModal({ open, onClose, onSend, guest, eventId }) {
               <ChevronRight size={16} style={{ color: '#25D366' }} />
             </button>
           )}
-
-          {/* Copy Link */}
-          <button
-            onClick={handleCopyLink}
-            className="w-full flex items-center gap-3 p-4 rounded-[16px] border transition-all hover:bg-opacity-20"
-            style={{
-              background: 'rgba(245,158,11,0.08)',
-              borderColor: 'rgba(245,158,11,0.3)',
-            }}
-          >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]"
-              style={{ background: 'rgba(245,158,11,0.15)' }}>
-              {copied ? (
-                <Check size={18} style={{ color: '#f59e0b' }} />
-              ) : (
-                <Copy size={18} style={{ color: '#f59e0b' }} />
-              )}
-            </div>
-            <div className="flex-1 text-left">
-              <p className="text-sm font-bold text-white">
-                {copied ? 'Link Copied!' : 'Copy Invitation Link'}
-              </p>
-              <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                {copied ? 'Ready to paste' : 'Copy to clipboard'}
-              </p>
-            </div>
-            {!copied && <ChevronRight size={16} style={{ color: '#f59e0b' }} />}
-          </button>
         </div>
 
         {/* Cancel */}

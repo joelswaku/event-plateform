@@ -1966,8 +1966,8 @@ function EventRemindersModal({ open, onClose, eventId, eventTitle }) {
     setReminders(prev => [...prev, {
       id: newId,
       enabled: false,
-      timing: '1_minute',
-      message: 'Test reminder - 1 minute!',
+      timing: '1_hour',
+      message: 'Event starts in 1 hour!',
       locked: false
     }]);
   };
@@ -2003,7 +2003,6 @@ function EventRemindersModal({ open, onClose, eventId, eventTitle }) {
       '1_hour': 'Event starts in 1 hour!',
       '30_minutes': 'Event starts in 30 minutes!',
       '15_minutes': 'Event starts in 15 minutes!',
-      '1_minute': 'Event starts in 1 minute! (TEST)',
     };
     return suggestions[timing] || 'Reminder about your upcoming event.';
   };
@@ -2078,7 +2077,7 @@ function EventRemindersModal({ open, onClose, eventId, eventTitle }) {
     '1_hour': '1 hour before',
     '30_minutes': '30 minutes before',
     '15_minutes': '15 minutes before',
-    '1_minute': '1 minute before (TEST)',
+    '15_minutes': '15 minutes before',
   };
 
   return (
