@@ -14,7 +14,7 @@ import {
   Save, Loader2, CheckCircle2, Trash2, AlertTriangle,
   CalendarDays, ChevronDown, Ticket, Users, QrCode,
   Heart, Settings2, Info, Zap, EyeOff, LayoutDashboard,
-  Rocket, Globe, Lock, ShieldAlert, ChevronLeft, Home, User, Plus,
+  Rocket, Globe, Lock, ShieldAlert, ChevronLeft, Home, User, Plus, Bell, ChevronRight,
 } from "lucide-react";
 import PostEventSummaryModal from "@/components/ai/PostEventSummaryModal";
 import { useAIStore } from "@/store/ai.store";
@@ -187,6 +187,25 @@ function Toggle({ icon: Icon, label, description, checked, onChange, colorClass 
           className="h-4 w-4 rounded-full bg-white shadow-md" 
         />
       </div>
+    </button>
+  );
+}
+
+function ActionCard({ icon: Icon, label, description, onClick, colorClass = "text-pink-500" }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-5 rounded-[24px] border border-slate-200 dark:border-white/5 bg-transparent hover:border-pink-300 dark:hover:border-pink-500/20 hover:bg-pink-500/[0.02] p-5 text-left transition-all duration-300"
+    >
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-pink-500/10 text-pink-500">
+        <Icon size={20} />
+      </div>
+      <div className="flex-1">
+        <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{label}</p>
+        <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-1 font-medium leading-tight">{description}</p>
+      </div>
+      <ChevronRight className="h-5 w-5 text-slate-400" />
     </button>
   );
 }
@@ -991,6 +1010,10 @@ export default function EventSettingsPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <Toggle icon={Heart} label="Donation Portal" colorClass="text-pink-500" description="Accept tips and contributions" checked={form.allow_donations} onChange={v => applyModuleToggle("allow_donations", v)} />
+                    <ActionCard icon={Bell} label="Event Reminders" colorClass="text-pink-500" description="Automated email notifications" onClick={() => {
+                      localStorage.setItem('openRemindersModal', 'true');
+                      router.push(`/events/${eventId}`);
+                    }} />
                   </div>
                 </div>
               </GlassCard>
