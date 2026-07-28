@@ -21,6 +21,34 @@ export default function EventEditor() {
   const initializedRef = useRef(false);
   const debounceRef = useRef(null);
 
+  // Convert UTC time to local datetime string for the picker
+  function utcToLocalForPicker(utcString, timezone) {
+    if (!utcString) return "";
+    try {
+      const date = new Date(utcString);
+      const options = {
+        timeZone: timezone || "UTC",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      };
+      const formatter = new Intl.DateTimeFormat("en-US", options);
+      const parts = formatter.formatToParts(date);
+      const year = parts.find(p => p.type === "year").value;
+      const month = parts.find(p => p.type === "month").value;
+      const day = parts.find(p => p.type === "day").value;
+      const hour = parts.find(p => p.type === "hour").value;
+      const minute = parts.find(p => p.type === "minute").value;
+      return `${year}-${month}-${day}T${hour}:${minute}`;
+    } catch (error) {
+      console.error("Error converting UTC to local:", error);
+      return utcString.slice(0, 16);
+    }
+  }
+
   /* ================= LOAD ================= */
   useEffect(() => {
     // Reset so the next dashboard load re-initializes the form with fresh data
@@ -36,6 +64,8 @@ export default function EventEditor() {
     if (dashboard.event.id && dashboard.event.id !== eventId) return;
 
     const e = dashboard.event;
+    const tz = e.timezone || "UTC";
+
     setForm({
       title:             e.title             ?? "",
       description:       e.description       ?? "",
@@ -48,10 +78,10 @@ export default function EventEditor() {
       state:             e.state             ?? "",
       zip_code:          e.zip_code          ?? "",
       country:           e.country           ?? "",
-      // backend stores as starts_at_utc; input sends as starts_at
-      starts_at:         e.starts_at_utc     ?? "",
-      ends_at:           e.ends_at_utc       ?? "",
-      timezone:          e.timezone          ?? "",
+      // Convert UTC times to local time for display
+      starts_at:         utcToLocalForPicker(e.starts_at_utc, tz),
+      ends_at:           utcToLocalForPicker(e.ends_at_utc, tz),
+      timezone:          tz,
       visibility:        e.visibility        ?? "PRIVATE",
       allow_rsvp:        e.allow_rsvp        ?? false,
       allow_plus_ones:   e.allow_plus_ones   ?? false,
@@ -73,6 +103,17 @@ export default function EventEditor() {
       setSaved(false);
       setError(null);
 
+      // Ensure datetime strings have seconds for Luxon
+      let startsAt = form.starts_at || undefined;
+      let endsAt = form.ends_at || undefined;
+
+      if (startsAt && startsAt.length === 16) {
+        startsAt = startsAt + ':00';
+      }
+      if (endsAt && endsAt.length === 16) {
+        endsAt = endsAt + ':00';
+      }
+
       const payload = {
         title:             form.title,
         description:       form.description,
@@ -85,8 +126,8 @@ export default function EventEditor() {
         state:             form.state,
         zip_code:          form.zip_code,
         country:           form.country,
-        starts_at:         form.starts_at  || undefined,
-        ends_at:           form.ends_at    || undefined,
+        starts_at:         startsAt,
+        ends_at:           endsAt,
         timezone:          form.timezone,
         visibility:        form.visibility,
         allow_rsvp:        form.allow_rsvp,
@@ -102,6 +143,8 @@ export default function EventEditor() {
         setError("Auto-save failed — check your inputs");
       } else {
         setSaved(true);
+        // Note: We don't refresh dashboard here to avoid scroll jumping
+        // The form already has the correct local times
       }
 
       setSaving(false);
@@ -201,9 +244,10 @@ export default function EventEditor() {
           <label className="text-sm text-gray-700 dark:text-gray-300">Start</label>
           <div className="mt-1">
             <DateTimePicker
-              value={formatDate(form.starts_at)}
+              value={form.starts_at}
               onChange={(v) => handleChange("starts_at", v)}
               placeholder="Pick start date & time"
+              minValue={new Date().toISOString()}
             />
           </div>
         </div>
@@ -212,10 +256,10 @@ export default function EventEditor() {
           <label className="text-sm text-gray-700 dark:text-gray-300">End</label>
           <div className="mt-1">
             <DateTimePicker
-              value={formatDate(form.ends_at)}
+              value={form.ends_at}
               onChange={(v) => handleChange("ends_at", v)}
               placeholder="Pick end date & time"
-              minValue={formatDate(form.starts_at)}
+              minValue={form.starts_at}
             />
           </div>
         </div>

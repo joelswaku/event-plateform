@@ -2,6 +2,7 @@ import {
   getNotificationsService,
   markNotificationReadService,
   markAllReadService,
+  markChatNotificationsReadService,
 } from "../services/notifications.service.js";
 import { savePushToken } from "../services/push.service.js";
 
@@ -36,6 +37,20 @@ export async function markAllRead(req, res) {
     return res.status(200).json({ success: true, data });
   } catch (err) {
     console.error("[notifications] markAllRead:", err.message);
+    return res.status(httpStatus(err)).json({ success: false, message: err.message });
+  }
+}
+
+export async function markChatNotificationsRead(req, res) {
+  try {
+    const { conversationId } = req.params;
+    if (!conversationId) {
+      return res.status(400).json({ success: false, message: "conversationId is required" });
+    }
+    const data = await markChatNotificationsReadService(req.user.id, conversationId);
+    return res.status(200).json({ success: true, data });
+  } catch (err) {
+    console.error("[notifications] markChatNotificationsRead:", err.message);
     return res.status(httpStatus(err)).json({ success: false, message: err.message });
   }
 }

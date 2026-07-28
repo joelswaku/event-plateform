@@ -126,8 +126,8 @@ function EmptyBoard({ onAI, onAdd, loading }) {
           <Sparkles className="w-3 h-3 text-white" />
         </div>
       </div>
-      <h3 className="text-lg font-bold text-white mb-2">Start building your task board</h3>
-      <p className="text-sm text-gray-500 max-w-sm mb-8 leading-relaxed">
+      <h3 className="text-lg font-bold text-foreground mb-2">Start building your task board</h3>
+      <p className="text-sm text-muted-foreground max-w-sm mb-8 leading-relaxed">
         Let AI generate a complete checklist tailored to your event type and timeline, or create tasks manually.
       </p>
       <div className="flex flex-col sm:flex-row gap-3">
@@ -140,7 +140,7 @@ function EmptyBoard({ onAI, onAdd, loading }) {
         </button>
         <button
           onClick={onAdd}
-          className="flex items-center gap-2 px-5 py-3 rounded-xl border border-white/12 text-gray-300 hover:text-white hover:bg-white/6 text-sm font-semibold transition-colors"
+          className="flex items-center gap-2 px-5 py-3 rounded-xl border border-border text-foreground/70 hover:text-foreground hover:bg-accent text-sm font-semibold transition-colors"
         >
           <Plus className="w-4 h-4" /> Add Manually
         </button>
@@ -163,12 +163,12 @@ function CompactCard({ task, onClick, onDelete }) {
     <div
       ref={setNodeRef} style={style}
       onClick={() => onClick(task)}
-      className="group flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-white/4 cursor-pointer transition-colors"
+      className="group flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-accent cursor-pointer transition-colors"
     >
       <div
         {...attributes} {...listeners}
         onClick={e => e.stopPropagation()}
-        className="shrink-0 cursor-grab active:cursor-grabbing text-gray-700 hover:text-gray-500 transition-colors"
+        className="shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors"
       >
         <GripVertical className="w-3 h-3" />
       </div>
@@ -176,17 +176,17 @@ function CompactCard({ task, onClick, onDelete }) {
         className="w-1.5 h-1.5 rounded-full shrink-0"
         style={{ backgroundColor: pm.color, boxShadow: `0 0 5px ${pm.color}50` }}
       />
-      <p className={`flex-1 text-[12px] font-medium leading-tight truncate min-w-0 ${overdue ? "text-red-300" : "text-gray-300"}`}>
+      <p className={`flex-1 text-[12px] font-medium leading-tight truncate min-w-0 ${overdue ? "text-red-400" : "text-foreground/80"}`}>
         {task.title}
       </p>
       {task.due_date && (
-        <span className={`text-[10px] tabular-nums shrink-0 font-semibold ${overdue ? "text-red-400" : "text-gray-600"}`}>
+        <span className={`text-[10px] tabular-nums shrink-0 font-semibold ${overdue ? "text-red-400" : "text-muted-foreground"}`}>
           {dueFmt(task.due_date)}
         </span>
       )}
       <button
         onClick={e => { e.stopPropagation(); onDelete(task.id); }}
-        className="shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded text-gray-700 hover:text-red-400 transition-all"
+        className="shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded text-muted-foreground/40 hover:text-red-400 transition-all"
       >
         <X className="w-2.5 h-2.5" />
       </button>
@@ -216,22 +216,22 @@ function SortableCard({ task, onDelete, onClick }) {
           <div
             {...attributes} {...listeners}
             onClick={e => e.stopPropagation()}
-            className="mt-0.5 shrink-0 cursor-grab active:cursor-grabbing text-gray-700 hover:text-gray-400 transition-colors"
+            className="mt-0.5 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors"
           >
             <GripVertical className="w-3.5 h-3.5" />
           </div>
-          <p className="flex-1 text-sm font-semibold text-white leading-snug line-clamp-2 min-w-0">
+          <p className="flex-1 text-sm font-semibold text-foreground leading-snug line-clamp-2 min-w-0">
             {task.title}
           </p>
           <button
             onClick={e => { e.stopPropagation(); onDelete(task.id); }}
-            className="shrink-0 opacity-0 group-hover:opacity-100 p-1 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
+            className="shrink-0 opacity-0 group-hover:opacity-100 p-1 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-all"
           >
             <Trash2 className="w-3 h-3" />
           </button>
         </div>
         {task.description && (
-          <p className="text-[11px] text-gray-500 line-clamp-1 mb-2.5 ml-5 leading-relaxed">
+          <p className="text-[11px] text-muted-foreground line-clamp-1 mb-2.5 ml-5 leading-relaxed">
             {task.description}
           </p>
         )}
@@ -246,7 +246,7 @@ function SortableCard({ task, onDelete, onClick }) {
           </span>
           {task.due_date && (
             <span className={`flex items-center gap-0.5 text-[10px] font-semibold ${
-              overdue ? "text-red-400" : days !== null && days <= 3 ? "text-amber-400" : "text-gray-500"
+              overdue ? "text-red-400" : days !== null && days <= 3 ? "text-amber-400" : "text-muted-foreground"
             }`}>
               <Calendar className="w-2.5 h-2.5" />
               {dueFmt(task.due_date)}
@@ -254,7 +254,7 @@ function SortableCard({ task, onDelete, onClick }) {
             </span>
           )}
           {task.estimated_cost > 0 && (
-            <span className="text-[10px] text-gray-600 font-semibold">
+            <span className="text-[10px] text-muted-foreground font-semibold">
               ${Number(task.estimated_cost).toLocaleString()}
             </span>
           )}
@@ -285,10 +285,10 @@ function PhaseGroup({ phase, tasks, density, onCardClick, onDelete }) {
       {/* Accordion header */}
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/3 transition-colors"
+        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-accent transition-colors"
       >
         <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: phase.color }} />
-        <span className="flex-1 text-[10px] font-black text-left uppercase tracking-widest text-gray-500">
+        <span className="flex-1 text-[10px] font-black text-left uppercase tracking-widest text-muted-foreground">
           {phase.label}
         </span>
         <span
@@ -298,7 +298,7 @@ function PhaseGroup({ phase, tasks, density, onCardClick, onDelete }) {
           {tasks.length}
         </span>
         <ChevronDown
-          className="w-3 h-3 text-gray-700 shrink-0 transition-transform duration-200"
+          className="w-3 h-3 text-muted-foreground/40 shrink-0 transition-transform duration-200"
           style={{ transform: open ? "rotate(0deg)" : "rotate(-90deg)" }}
         />
       </button>
@@ -317,10 +317,10 @@ function PhaseGroup({ phase, tasks, density, onCardClick, onDelete }) {
           {remaining > 0 && (
             <button
               onClick={e => { e.stopPropagation(); setShown(s => s + PAGE_SIZE); }}
-              className="w-full py-1.5 flex items-center justify-center gap-1.5 text-[10px] font-semibold text-gray-600 hover:text-gray-300 transition-colors"
+              className="w-full py-1.5 flex items-center justify-center gap-1.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
             >
               <span>Show {Math.min(remaining, PAGE_SIZE)} more</span>
-              <span className="text-gray-700">·</span>
+              <span className="text-muted-foreground/40">·</span>
               <span className="tabular-nums">{remaining} remaining</span>
             </button>
           )}

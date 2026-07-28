@@ -50,13 +50,13 @@ function ProgressRing({ pct = 0, size = 56, stroke = 5, color = "#6366f1", label
             style={{ transition: "stroke-dasharray 0.7s ease" }} />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-xs font-black text-white">{pct}%</span>
+          <span className="text-xs font-black text-foreground">{pct}%</span>
         </div>
       </div>
       {label && (
         <div>
-          <p className="text-sm font-bold text-white leading-tight">{label}</p>
-          {sub && <p className="text-[11px] text-gray-500 mt-0.5">{sub}</p>}
+          <p className="text-sm font-bold text-foreground leading-tight">{label}</p>
+          {sub && <p className="text-[11px] text-muted-foreground mt-0.5">{sub}</p>}
         </div>
       )}
     </div>
@@ -83,9 +83,9 @@ function KPICard({ title, value, sub, color, icon: Icon, href, ring }) {
         {ring !== undefined && <ProgressRing pct={ring} size={36} stroke={3.5} color={c.bar} />}
         {href && ring === undefined && <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-gray-400 mt-1 transition-colors" />}
       </div>
-      <p className="text-2xl font-black text-white tabular-nums leading-none">{value ?? "—"}</p>
-      <p className="text-xs text-gray-400 mt-1 font-semibold">{title}</p>
-      {sub && <p className="text-[11px] text-gray-600 mt-0.5">{sub}</p>}
+      <p className="text-2xl font-black text-foreground tabular-nums leading-none">{value ?? "—"}</p>
+      <p className="text-xs text-muted-foreground mt-1 font-semibold">{title}</p>
+      {sub && <p className="text-[11px] text-muted-foreground/60 mt-0.5">{sub}</p>}
     </Card>
   );
 }
@@ -96,15 +96,15 @@ function TaskRow({ task }) {
   const dot = PRIORITY_DOT[task.priority?.toUpperCase()] ?? "bg-gray-600";
   const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== "DONE";
   return (
-    <div className="flex items-center gap-3 px-4 py-3 border-b border-white/5 last:border-0 hover:bg-white/2 active:bg-white/4 transition-colors cursor-default">
+    <div className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-0 hover:bg-accent/50 active:bg-accent transition-colors cursor-default">
       <span className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
-      <p className="text-sm text-gray-200 flex-1 truncate">{task.title}</p>
+      <p className="text-sm text-foreground flex-1 truncate">{task.title}</p>
       <div className="flex items-center gap-2 shrink-0">
         {task.category && (
           <span className="hidden sm:block text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-400 uppercase">{task.category}</span>
         )}
         {task.due_date && (
-          <span className={`text-[11px] flex items-center gap-1 ${isOverdue ? "text-red-400 font-semibold" : "text-gray-500"}`}>
+          <span className={`text-[11px] flex items-center gap-1 ${isOverdue ? "text-red-400 font-semibold" : "text-muted-foreground"}`}>
             {isOverdue && <AlertTriangle className="w-2.5 h-2.5" />}
             {new Date(task.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
           </span>
@@ -150,18 +150,18 @@ function ActivityItem({ item }) {
   const label = ACTION_LABELS[item.action] ?? item.action.replace(/_/g, " ");
 
   return (
-    <div className="flex items-start gap-3 py-2.5 border-b border-white/5 last:border-0">
+    <div className="flex items-start gap-3 py-2.5 border-b border-border last:border-0">
       <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${m.bg}`}>
         <Icon className={`w-3.5 h-3.5 ${m.color}`} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-gray-300 leading-snug">
-          <span className="font-semibold text-white">{label}</span>
-          {item.entity_title && <span className="text-indigo-300"> "{item.entity_title}"</span>}
+        <p className="text-xs text-foreground/70 leading-snug">
+          <span className="font-semibold text-foreground">{label}</span>
+          {item.entity_title && <span className="text-indigo-300 dark:text-indigo-400"> "{item.entity_title}"</span>}
         </p>
-        {item.actor_name && <p className="text-[10px] text-gray-600 mt-0.5">{item.actor_name}</p>}
+        {item.actor_name && <p className="text-[10px] text-muted-foreground mt-0.5">{item.actor_name}</p>}
       </div>
-      <span className="text-[10px] text-gray-600 shrink-0">{timeAgo(item.created_at)}</span>
+      <span className="text-[10px] text-muted-foreground shrink-0">{timeAgo(item.created_at)}</span>
     </div>
   );
 }
@@ -169,13 +169,13 @@ function ActivityItem({ item }) {
 function EmptyWidget({ icon: Icon, title, desc, href, linkLabel }) {
   return (
     <div className="flex flex-col items-center justify-center py-8 text-center px-4">
-      <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/8 flex items-center justify-center mb-3">
-        <Icon className="w-5 h-5 text-gray-600" />
+      <div className="w-10 h-10 rounded-2xl bg-accent border border-border flex items-center justify-center mb-3">
+        <Icon className="w-5 h-5 text-muted-foreground" />
       </div>
-      <p className="text-sm font-semibold text-gray-400 mb-1">{title}</p>
-      <p className="text-xs text-gray-600 mb-3 max-w-[180px]">{desc}</p>
+      <p className="text-sm font-semibold text-foreground/80 mb-1">{title}</p>
+      <p className="text-xs text-muted-foreground mb-3 max-w-[180px]">{desc}</p>
       {href && (
-        <Link href={href} className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1 active:opacity-60 transition-opacity">
+        <Link href={href} className="text-xs text-indigo-400 hover:text-indigo-300 dark:text-indigo-400 dark:hover:text-indigo-300 font-semibold flex items-center gap-1 active:opacity-60 transition-opacity">
           {linkLabel} <ArrowRight className="w-3 h-3" />
         </Link>
       )}
@@ -355,10 +355,10 @@ export default function PlannerOverviewPage() {
 
       {/* ── Task status breakdown bar ── */}
       {totalTasks > 0 && (
-        <div className="bg-white/3 border border-white/8 rounded-2xl px-5 py-4">
+        <div className="bg-accent/50 border border-border rounded-2xl px-5 py-4">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Task Breakdown</p>
-            <Link href={`${base}/tasks`} className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1 active:opacity-60 transition-opacity">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Task Breakdown</p>
+            <Link href={`${base}/tasks`} className="text-xs text-indigo-400 hover:text-indigo-300 dark:text-indigo-400 dark:hover:text-indigo-300 font-semibold flex items-center gap-1 active:opacity-60 transition-opacity">
               Manage <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
@@ -381,8 +381,8 @@ export default function PlannerOverviewPage() {
             ].map(s => (
               <div key={s.key} className="flex items-center gap-1.5">
                 <span className={`w-2 h-2 rounded-full ${s.dot}`} />
-                <span className="text-xs text-gray-400">{s.label}</span>
-                <span className="text-xs font-bold text-white">{s.count}</span>
+                <span className="text-xs text-muted-foreground">{s.label}</span>
+                <span className="text-xs font-bold text-foreground">{s.count}</span>
               </div>
             ))}
           </div>
@@ -396,20 +396,20 @@ export default function PlannerOverviewPage() {
         <div className="xl:col-span-2 space-y-4 sm:space-y-5">
 
           {/* Upcoming Tasks */}
-          <div className="bg-white/3 border border-white/8 rounded-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3.5 border-b border-white/6">
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3.5 border-b border-border">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center">
                   <CheckSquare className="w-3.5 h-3.5 text-indigo-400" />
                 </div>
-                <p className="text-sm font-bold text-white">Upcoming Tasks</p>
+                <p className="text-sm font-bold text-foreground">Upcoming Tasks</p>
                 {overdueTasks > 0 && (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400">
                     {overdueTasks} overdue
                   </span>
                 )}
               </div>
-              <Link href={`${base}/tasks`} className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 font-semibold active:opacity-60 transition-opacity">
+              <Link href={`${base}/tasks`} className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 dark:text-indigo-400 dark:hover:text-indigo-300 font-semibold active:opacity-60 transition-opacity">
                 View all <ArrowRight className="w-3 h-3" />
               </Link>
             </div>
@@ -427,20 +427,20 @@ export default function PlannerOverviewPage() {
           </div>
 
           {/* Timeline preview */}
-          <div className="bg-white/3 border border-white/8 rounded-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3.5 border-b border-white/6">
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3.5 border-b border-border">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-violet-500/20 flex items-center justify-center">
                   <Clock className="w-3.5 h-3.5 text-violet-400" />
                 </div>
-                <p className="text-sm font-bold text-white">Event Timeline</p>
+                <p className="text-sm font-bold text-foreground">Event Timeline</p>
                 {timeline.length > 0 && (
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-400">
                     {timeline.length} items
                   </span>
                 )}
               </div>
-              <Link href={`${base}/timeline`} className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 font-semibold active:opacity-60 transition-opacity">
+              <Link href={`${base}/timeline`} className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 dark:text-indigo-400 dark:hover:text-indigo-300 font-semibold active:opacity-60 transition-opacity">
                 View all <ArrowRight className="w-3 h-3" />
               </Link>
             </div>
@@ -462,8 +462,8 @@ export default function PlannerOverviewPage() {
                       <div key={item.id} className="flex items-start gap-4">
                         <div className={`w-3 h-3 rounded-full border-2 border-[#07070f] shrink-0 mt-1 z-10 ${item.is_milestone ? "bg-amber-500" : "bg-indigo-500"}`} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-white truncate">{item.title}</p>
-                          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500">
+                          <p className="text-sm font-semibold text-foreground truncate">{item.title}</p>
+                          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
                             {displayTime && <span className="font-mono">{String(displayTime).slice(0, 5)}</span>}
                             {item.duration_minutes && <span>{item.duration_minutes}min</span>}
                             {item.location && <span>· {item.location}</span>}
@@ -480,7 +480,7 @@ export default function PlannerOverviewPage() {
                   })}
                 </div>
                 {timeline.length > 5 && (
-                  <Link href={`${base}/timeline`} className="flex items-center gap-1 text-xs text-gray-500 hover:text-indigo-400 mt-4 transition-colors">
+                  <Link href={`${base}/timeline`} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-indigo-400 mt-4 transition-colors">
                     +{timeline.length - 5} more items <ArrowRight className="w-3 h-3" />
                   </Link>
                 )}
@@ -489,12 +489,12 @@ export default function PlannerOverviewPage() {
           </div>
 
           {/* Activity Feed */}
-          <div className="bg-white/3 border border-white/8 rounded-2xl overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3.5 border-b border-white/6">
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3.5 border-b border-border">
               <div className="w-7 h-7 rounded-lg bg-gray-500/20 flex items-center justify-center">
                 <Activity className="w-3.5 h-3.5 text-gray-400" />
               </div>
-              <p className="text-sm font-bold text-white">Recent Activity</p>
+              <p className="text-sm font-bold text-foreground">Recent Activity</p>
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-1" />
             </div>
             {activity.length === 0 ? (
@@ -511,10 +511,10 @@ export default function PlannerOverviewPage() {
         <div className="space-y-5">
 
           {/* Project info */}
-          <div className="bg-white/3 border border-white/8 rounded-2xl p-4">
+          <div className="bg-card border border-border rounded-2xl p-4">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-bold text-white">Project Details</p>
-              <Link href={`${base}/settings`} className="text-xs text-indigo-400 hover:text-indigo-300 active:opacity-60 transition-opacity">Edit →</Link>
+              <p className="text-sm font-bold text-foreground">Project Details</p>
+              <Link href={`${base}/settings`} className="text-xs text-indigo-400 hover:text-indigo-300 dark:text-indigo-400 dark:hover:text-indigo-300 active:opacity-60 transition-opacity">Edit →</Link>
             </div>
             <div className="space-y-2.5">
               {[
@@ -525,29 +525,29 @@ export default function PlannerOverviewPage() {
                 { label: "Currency", value: currentProject.currency, icon: DollarSign },
               ].filter(r => r.value).map(({ label, value }) => (
                 <div key={label} className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-gray-500 shrink-0">{label}</span>
-                  <span className="text-xs font-semibold text-white capitalize truncate text-right">{value}</span>
+                  <span className="text-xs text-muted-foreground shrink-0">{label}</span>
+                  <span className="text-xs font-semibold text-foreground capitalize truncate text-right">{value}</span>
                 </div>
               ))}
               {currentProject.style_notes && (
-                <div className="mt-3 pt-3 border-t border-white/6">
-                  <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Style Notes</p>
-                  <p className="text-xs text-gray-300 leading-relaxed line-clamp-3">{currentProject.style_notes}</p>
+                <div className="mt-3 pt-3 border-t border-border">
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Style Notes</p>
+                  <p className="text-xs text-foreground/80 leading-relaxed line-clamp-3">{currentProject.style_notes}</p>
                 </div>
               )}
             </div>
           </div>
 
           {/* Budget mini */}
-          <div className="bg-white/3 border border-white/8 rounded-2xl p-4">
+          <div className="bg-card border border-border rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
-                <p className="text-sm font-bold text-white">Budget</p>
+                <p className="text-sm font-bold text-foreground">Budget</p>
               </div>
-              <Link href={`${base}/budget`} className="text-xs text-indigo-400 hover:text-indigo-300 active:opacity-60 transition-opacity">View →</Link>
+              <Link href={`${base}/budget`} className="text-xs text-indigo-400 hover:text-indigo-300 dark:text-indigo-400 dark:hover:text-indigo-300 active:opacity-60 transition-opacity">View →</Link>
             </div>
-            <div className="h-1.5 bg-white/8 rounded-full overflow-hidden mb-3">
+            <div className="h-1.5 bg-accent rounded-full overflow-hidden mb-3">
               <div
                 className="h-full rounded-full transition-all duration-700"
                 style={{
@@ -558,13 +558,13 @@ export default function PlannerOverviewPage() {
             </div>
             <div className="space-y-1.5">
               {[
-                ["Total Budget", `$${fmt(totalBudget)}`,                                              "text-white"],
-                ["Estimated",    `$${fmt(totalEst)}`,                                                 "text-gray-300"],
+                ["Total Budget", `$${fmt(totalBudget)}`,                                              "text-foreground"],
+                ["Estimated",    `$${fmt(totalEst)}`,                                                 "text-foreground/80"],
                 ["Spent",        `$${fmt(totalActual)}`,                                               "text-amber-400"],
                 ["Remaining",    `$${fmt(Math.max(0, totalBudget - totalActual))}`, totalBudget >= totalActual ? "text-emerald-400" : "text-red-400"],
               ].map(([l, v, cls]) => (
                 <div key={l} className="flex justify-between text-xs">
-                  <span className="text-gray-500">{l}</span>
+                  <span className="text-muted-foreground">{l}</span>
                   <span className={`font-bold ${cls}`}>{v}</span>
                 </div>
               ))}
@@ -572,21 +572,21 @@ export default function PlannerOverviewPage() {
           </div>
 
           {/* Vendors mini */}
-          <div className="bg-white/3 border border-white/8 rounded-2xl p-4">
+          <div className="bg-card border border-border rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Store className="w-3.5 h-3.5 text-amber-400" />
-                <p className="text-sm font-bold text-white">Vendors</p>
+                <p className="text-sm font-bold text-foreground">Vendors</p>
               </div>
-              <Link href={`${base}/vendors`} className="text-xs text-indigo-400 hover:text-indigo-300 active:opacity-60 transition-opacity">View →</Link>
+              <Link href={`${base}/vendors`} className="text-xs text-indigo-400 hover:text-indigo-300 dark:text-indigo-400 dark:hover:text-indigo-300 active:opacity-60 transition-opacity">View →</Link>
             </div>
             {vendors.length === 0 ? (
-              <p className="text-xs text-gray-600 text-center py-3">No vendors yet</p>
+              <p className="text-xs text-muted-foreground text-center py-3">No vendors yet</p>
             ) : (
               <div className="space-y-2">
                 {vendors.slice(0, 5).map(v => (
                   <div key={v.id} className="flex items-center justify-between gap-2">
-                    <p className="text-xs text-gray-300 truncate flex-1">{v.name}</p>
+                    <p className="text-xs text-foreground/80 truncate flex-1">{v.name}</p>
                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
                       isConfirmed(v.booking_status) ? "bg-emerald-500/20 text-emerald-400" :
                       v.booking_status === "quoted" || v.booking_status === "QUOTED" ? "bg-amber-500/20 text-amber-400" :
@@ -598,7 +598,7 @@ export default function PlannerOverviewPage() {
                   </div>
                 ))}
                 {vendors.length > 5 && (
-                  <p className="text-[11px] text-gray-600 text-center pt-1">+{vendors.length - 5} more</p>
+                  <p className="text-[11px] text-muted-foreground text-center pt-1">+{vendors.length - 5} more</p>
                 )}
               </div>
             )}
@@ -606,13 +606,13 @@ export default function PlannerOverviewPage() {
 
           {/* Team mini */}
           {team.length > 0 && (
-            <div className="bg-white/3 border border-white/8 rounded-2xl p-4">
+            <div className="bg-card border border-border rounded-2xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Users className="w-3.5 h-3.5 text-teal-400" />
-                  <p className="text-sm font-bold text-white">Team</p>
+                  <p className="text-sm font-bold text-foreground">Team</p>
                 </div>
-                <Link href={`${base}/team`} className="text-xs text-indigo-400 hover:text-indigo-300 active:opacity-60 transition-opacity">View →</Link>
+                <Link href={`${base}/team`} className="text-xs text-indigo-400 hover:text-indigo-300 dark:text-indigo-400 dark:hover:text-indigo-300 active:opacity-60 transition-opacity">View →</Link>
               </div>
               <div className="space-y-2">
                 {team.slice(0, 4).map(m => (
@@ -623,13 +623,13 @@ export default function PlannerOverviewPage() {
                         : (m.name || "?").slice(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold text-white truncate">{m.name}</p>
-                      {m.role && <p className="text-[10px] text-gray-500 capitalize">{m.role}</p>}
+                      <p className="text-xs font-semibold text-foreground truncate">{m.name}</p>
+                      {m.role && <p className="text-[10px] text-muted-foreground capitalize">{m.role}</p>}
                     </div>
                   </div>
                 ))}
                 {team.length > 4 && (
-                  <p className="text-[11px] text-gray-600 pt-1">+{team.length - 4} more members</p>
+                  <p className="text-[11px] text-muted-foreground pt-1">+{team.length - 4} more members</p>
                 )}
               </div>
             </div>
@@ -640,7 +640,7 @@ export default function PlannerOverviewPage() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Bot className="w-3.5 h-3.5 text-indigo-400" />
-                <p className="text-sm font-bold text-white">AI Brief</p>
+                <p className="text-sm font-bold text-foreground">AI Brief</p>
               </div>
               <AIGenerateButton
                 onClick={handleGenerateBrief}
@@ -659,11 +659,11 @@ export default function PlannerOverviewPage() {
             {!parsedBrief && !aiGenerating && (
               <div className="text-center py-4">
                 <Sparkles className="w-8 h-8 text-indigo-500/50 mx-auto mb-2" />
-                <p className="text-xs text-gray-500">Generate an executive AI brief with risk analysis, critical path, and action plan.</p>
+                <p className="text-xs text-muted-foreground">Generate an executive AI brief with risk analysis, critical path, and action plan.</p>
               </div>
             )}
             {parsedBrief && !aiGenerating && (
-              <div className="space-y-2.5 text-xs text-gray-300">
+              <div className="space-y-2.5 text-xs text-foreground/80">
                 {parsedBrief.executiveSummary && (
                   <p className="leading-relaxed line-clamp-4">{parsedBrief.executiveSummary}</p>
                 )}
@@ -679,7 +679,7 @@ export default function PlannerOverviewPage() {
                     <span className="line-clamp-1">{typeof p === "string" ? p : p.action || p.title || JSON.stringify(p)}</span>
                   </div>
                 ))}
-                <Link href={`${base}/ai-brief`} className="flex items-center gap-1 text-indigo-400 hover:text-indigo-300 font-semibold pt-1">
+                <Link href={`${base}/ai-brief`} className="flex items-center gap-1 text-indigo-400 hover:text-indigo-300 dark:text-indigo-400 dark:hover:text-indigo-300 font-semibold pt-1">
                   Full brief <ArrowRight className="w-3 h-3" />
                 </Link>
               </div>

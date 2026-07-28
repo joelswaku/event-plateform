@@ -78,14 +78,14 @@ export async function generateTicketPricingService({ organizationId, userId, eve
   if (eventId) {
     const [tiersRes, eventRes] = await Promise.all([
       db.query("SELECT name, price, quantity_total FROM ticket_types WHERE event_id = $1", [eventId]),
-      db.query("SELECT title, event_type, capacity, starts_at, venue_name, city, country FROM events WHERE id = $1", [eventId]),
+      db.query("SELECT title, event_type, starts_at, venue_name, city, country FROM events WHERE id = $1", [eventId]),
     ]);
     existingTiers = tiersRes.rows;
     eventRow = eventRes.rows[0] ?? {};
   }
 
   const resolvedEventType = eventType || eventRow.event_type || "general";
-  const resolvedCapacity = capacity || eventRow.capacity || "unknown";
+  const resolvedCapacity = capacity || "unknown";
   const resolvedCity = city || eventRow.city || "";
   const resolvedCountry = country || eventRow.country || "";
 
@@ -428,16 +428,18 @@ Return JSON:
 // 10. Performance Prediction
 export async function generatePerformancePredictionService({ organizationId, userId, eventId }) {
   const [eventRes, salesRes] = await Promise.all([
-    db.query("SELECT title, event_type, starts_at, capacity, is_published, created_at FROM events WHERE id = $1", [eventId]),
+    db.query("SELECT title, event_type, starts_at, created_at FROM events WHERE id = $1", [eventId]),
     db.query(`
       SELECT
         COUNT(DISTINCT it.id) AS tickets_sold,
         COALESCE(SUM(o.total) FILTER (WHERE o.payment_status = 'PAID'), 0) AS revenue,
-        COUNT(DISTINCT CASE WHEN g.rsvp_status = 'GOING' THEN g.id END) AS rsvp_confirmed
+        COUNT(DISTINCT g.id) AS total_guests,
+        COALESCE(SUM(tt.quantity_total), 0) AS total_capacity
       FROM events e
       LEFT JOIN issued_tickets it ON it.event_id = e.id
       LEFT JOIN ticket_orders o ON o.event_id = e.id
       LEFT JOIN guests g ON g.event_id = e.id
+      LEFT JOIN ticket_types tt ON tt.event_id = e.id
       WHERE e.id = $1
     `, [eventId]),
   ]);
@@ -449,12 +451,11 @@ export async function generatePerformancePredictionService({ organizationId, use
   const user = `Predict performance for "${event.title}":
 Event Type: ${event.event_type}
 Event Date: ${event.starts_at}
-Capacity: ${event.capacity || "unlimited"}
-Published: ${event.is_published}
-Published At: ${event.created_at}
+Capacity: ${sales.total_capacity > 0 ? sales.total_capacity : "unlimited"}
+Created At: ${event.created_at}
 Tickets Sold: ${sales.tickets_sold}
 Revenue So Far: ${sales.revenue}
-RSVP Confirmed: ${sales.rsvp_confirmed}
+Total Guests: ${sales.total_guests}
 
 Return JSON:
 {

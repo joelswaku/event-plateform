@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Bell } from "lucide-react";
+import { ChevronLeft, Bell, Crown } from "lucide-react";
+import { useSubscriptionStore } from "@/store/subscription.store";
 
 const GROUPS = [
   {
     label: "Events",
     items: [
-      { id: "event_reminders",  label: "Event reminders",   desc: "Get reminded before your events go live", default: true },
+      { id: "event_reminders",  label: "Event reminders",   desc: "Get reminded before your events go live", default: true, requiresPaid: false },
       { id: "guest_activity",   label: "Guest activity",    desc: "RSVP confirmations and guest updates",     default: true },
       { id: "ticket_updates",   label: "Ticket updates",    desc: "Ticket purchases and check-in activity",   default: true },
     ],
@@ -41,12 +42,18 @@ function Toggle({ on, onChange, disabled }) {
 
 export default function NotificationsPage() {
   const router = useRouter();
+  const { isSubscribed, openUpgradeModal } = useSubscriptionStore();
 
   const initial = {};
   GROUPS.forEach((g) => g.items.forEach((i) => { initial[i.id] = i.default; }));
   const [prefs, setPrefs] = useState(initial);
 
   function toggle(id) {
+    const item = GROUPS.flatMap(g => g.items).find(i => i.id === id);
+    if (item?.requiresPaid && !isSubscribed) {
+      openUpgradeModal("event_reminders");
+      return;
+    }
     setPrefs((p) => ({ ...p, [id]: !p[id] }));
   }
 
@@ -82,22 +89,45 @@ export default function NotificationsPage() {
           <p className="px-5 pt-4 pb-2 text-[10px] font-bold uppercase tracking-widest text-(--text-muted)">
             {group.label}
           </p>
-          {group.items.map((item, idx) => (
-            <div
-              key={item.id}
-              className="flex items-center gap-4 px-5 py-4"
-              style={{ borderTop: idx > 0 ? "1px solid var(--border)" : undefined }}
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-(--text-primary)">{item.label}</p>
-                <p className="mt-0.5 text-xs text-(--text-muted)">{item.desc}</p>
-                {item.locked && (
-                  <p className="mt-0.5 text-[10px] text-indigo-400">Always enabled for your security</p>
-                )}
+          {group.items.map((item, idx) => {
+            const isPremiumLocked = item.requiresPaid && !isSubscribed;
+            return (
+              <div
+                key={item.id}
+                className="flex items-center gap-4 px-5 py-4"
+                style={{ borderTop: idx > 0 ? "1px solid var(--border)" : undefined }}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-(--text-primary)">{item.label}</p>
+                    {item.requiresPaid && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 border border-amber-200 dark:border-amber-500/30">
+                        <Crown className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                        <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Pro</span>
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-xs text-(--text-muted)">{item.desc}</p>
+                  {item.locked && (
+                    <p className="mt-0.5 text-[10px] text-indigo-400">Always enabled for your security</p>
+                  )}
+                  {isPremiumLocked && (
+                    <button
+                      onClick={() => openUpgradeModal("event_reminders")}
+                      className="mt-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 hover:underline"
+                    >
+                      Upgrade to enable
+                    </button>
+                  )}
+                </div>
+                <Toggle
+                  on={isPremiumLocked ? false : prefs[item.id]}
+                  onChange={() => toggle(item.id)}
+                  disabled={item.locked || isPremiumLocked}
+                />
               </div>
-              <Toggle on={prefs[item.id]} onChange={() => toggle(item.id)} disabled={item.locked} />
-            </div>
-          ))}
+            );
+          })}
         </div>
       ))}
 

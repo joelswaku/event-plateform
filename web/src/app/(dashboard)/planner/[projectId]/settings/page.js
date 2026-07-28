@@ -12,7 +12,7 @@ const COLORS = [
   "#f97316","#eab308","#22c55e","#14b8a6","#3b82f6",
 ];
 
-const input = "w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder:text-gray-600 outline-none focus:border-indigo-500/40 transition-colors";
+const input = "w-full bg-background border border-input rounded-lg px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-indigo-500/40 transition-colors";
 
 export default function SettingsPage() {
   const { projectId } = useParams();
@@ -90,63 +90,63 @@ export default function SettingsPage() {
       <div>
         <div className="flex items-center gap-2 mb-5">
           <Settings2 className="w-4 h-4 text-indigo-400" />
-          <h2 className="text-sm font-bold text-white">Project Details</h2>
+          <h2 className="text-sm font-bold text-foreground">Project Details</h2>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="block text-xs text-gray-500 mb-1.5">Project Title</label>
+            <label className="block text-xs text-muted-foreground mb-1.5">Project Title</label>
             <input className={input} value={form.title} onChange={e => set("title", e.target.value)} placeholder="My Event Planner" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1.5">Event Type</label>
+              <label className="block text-xs text-muted-foreground mb-1.5">Event Type</label>
               <select className={input} value={form.event_type} onChange={e => set("event_type", e.target.value)}>
-                {EVENT_TYPES.map(t => <option key={t} value={t} className="bg-[#111127] capitalize">{t}</option>)}
+                {EVENT_TYPES.map(t => <option key={t} value={t} className="bg-background capitalize">{t}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1.5">Currency</label>
+              <label className="block text-xs text-muted-foreground mb-1.5">Currency</label>
               <select className={input} value={form.currency} onChange={e => set("currency", e.target.value)}>
-                {CURRENCIES.map(c => <option key={c} value={c} className="bg-[#111127]">{c}</option>)}
+                {CURRENCIES.map(c => <option key={c} value={c} className="bg-background">{c}</option>)}
               </select>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1.5">Event Start Date</label>
+              <label className="block text-xs text-muted-foreground mb-1.5">Event Start Date</label>
               <input type="date" className={input} value={form.event_date} onChange={e => set("event_date", e.target.value)} />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1.5">Event End Date</label>
+              <label className="block text-xs text-muted-foreground mb-1.5">Event End Date</label>
               <input type="date" className={input} value={form.event_end_date} onChange={e => set("event_end_date", e.target.value)} />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1.5">Venue</label>
+            <label className="block text-xs text-muted-foreground mb-1.5">Venue</label>
             <input className={input} value={form.venue} onChange={e => set("venue", e.target.value)} placeholder="Venue name or address" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1.5">City</label>
+              <label className="block text-xs text-muted-foreground mb-1.5">City</label>
               <input className={input} value={form.city} onChange={e => set("city", e.target.value)} placeholder="New York" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1.5">Country</label>
+              <label className="block text-xs text-muted-foreground mb-1.5">Country</label>
               <input className={input} value={form.country} onChange={e => set("country", e.target.value)} placeholder="USA" />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1.5">Expected Guests</label>
+              <label className="block text-xs text-muted-foreground mb-1.5">Expected Guests</label>
               <input type="number" className={input} value={form.guest_count} onChange={e => set("guest_count", e.target.value)} placeholder="150" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1.5">Total Budget</label>
+              <label className="block text-xs text-muted-foreground mb-1.5">Total Budget</label>
               <input type="number" className={input} value={form.total_budget} onChange={e => set("total_budget", e.target.value)} placeholder="25000" />
             </div>
           </div>

@@ -63,7 +63,11 @@ export const useChatStore = create((set, get) => ({
       const total = res.data?.total ?? 0;
       set({ unreadTotal: total });
     } catch (error) {
-      console.error('Failed to fetch unread count:', error);
+      // Silently fail if not authenticated (401) or other errors
+      if (!error.message?.includes('401')) {
+        console.error('Failed to fetch unread count:', error);
+      }
+      set({ unreadTotal: 0 });
     }
   },
 

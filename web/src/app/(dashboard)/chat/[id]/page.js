@@ -21,6 +21,7 @@ export default function ChatConversationPage() {
   const markRead = useChatStore((s) => s.markRead);
   const getConversation = useChatStore((s) => s.getConversation);
   const deleteMessage = useChatStore((s) => s.deleteMessage);
+  const fetchUnreadCount = useChatStore((s) => s.fetchUnreadCount);
 
   const [inputText, setInputText] = useState("");
   const [sending, setSending] = useState(false);
@@ -33,15 +34,21 @@ export default function ChatConversationPage() {
     if (!id) return;
     getConversation(id);
     fetchMessages(id);
+
+    // Mark as read and update unread count
     markRead(id);
+    fetchUnreadCount();
 
     // Poll for new messages every 3 seconds
     const interval = setInterval(() => {
       fetchMessages(id);
+      // Re-mark as read while viewing (in case new messages arrive)
+      markRead(id);
+      fetchUnreadCount();
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [id, getConversation, fetchMessages, markRead]);
+  }, [id, getConversation, fetchMessages, markRead, fetchUnreadCount]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -56,6 +63,10 @@ export default function ChatConversationPage() {
     const text = inputText;
     setInputText("");
     await sendMessage(id, text);
+
+    // Refresh unread count after sending message
+    fetchUnreadCount();
+
     setSending(false);
   }
 
