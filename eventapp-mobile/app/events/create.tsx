@@ -328,6 +328,12 @@ export default function CreateEventScreen() {
     if (!form.starts_at) return showWarning('Start date required', 'Select a start date for your event.');
     if (!form.venue_name.trim()) return showWarning('Venue required', 'Enter a venue name or location.');
     if (!form.city.trim()) return showWarning('City required', 'Enter the city where your event takes place.');
+
+    // Validate date range
+    if (form.starts_at && form.ends_at && form.ends_at < form.starts_at) {
+      return showWarning('Invalid dates', 'Event end date/time must be after the start date/time');
+    }
+
     setSaving(true);
     const result = await createEvent({
       event_type:       form.event_type,

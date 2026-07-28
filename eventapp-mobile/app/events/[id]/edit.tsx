@@ -76,6 +76,16 @@ export default function EditEventScreen() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       setSaving(true); setSaved(false); setSaveErr(null);
+
+      // Validate date range before saving
+      if (form.starts_at instanceof Date && form.ends_at instanceof Date) {
+        if (form.ends_at < form.starts_at) {
+          setSaving(false);
+          setSaveErr('Invalid dates: end must be after start');
+          return;
+        }
+      }
+
       const res = await updateEvent(id, {
         title:             form.title,
         description:       form.description,
