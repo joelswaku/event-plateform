@@ -185,13 +185,12 @@ export default function SupportPage() {
             <p className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-white/40 px-1 pb-2">Still need help?</p>
 
             <ContactCard
-              href="mailto:support@meetcraft.app"
+              href="/contact#contact-form"
               icon={Mail}
               iconColor="#6366f1"
               iconBg="rgba(99,102,241,0.12)"
               title="Email support"
-              sub="support@meetcraft.app"
-              external
+              sub="Send us a message"
             />
 
             <button

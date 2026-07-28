@@ -132,7 +132,7 @@ export default function SupportPage() {
         <div className="rounded-3xl border border-border bg-(--bg-surface) p-5 space-y-3">
           <p className="text-sm font-bold text-(--text-primary)">Still need help?</p>
           <a
-            href="mailto:support@meetcraft.app"
+            href="/contact#contact-form"
             className="flex items-center gap-3 rounded-2xl px-4 py-3 transition hover:bg-(--bg-elevated)"
           >
             <div
@@ -143,9 +143,8 @@ export default function SupportPage() {
             </div>
             <div className="flex-1">
               <p className="text-sm font-semibold text-(--text-primary)">Email support</p>
-              <p className="text-xs text-(--text-muted)">support@meetcraft.app</p>
+              <p className="text-xs text-(--text-muted)">Send us a message</p>
             </div>
-            <ExternalLink className="h-4 w-4 text-(--text-muted)" />
           </a>
           <button
             onClick={handleLiveChat}
