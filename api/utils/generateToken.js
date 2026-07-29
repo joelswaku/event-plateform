@@ -30,7 +30,9 @@ export function generateTokens({ userId, organizationId, role, isSuperAdmin = fa
 export function setAuthCookies(res, { accessToken, refreshToken }) {
   const isProd = process.env.NODE_ENV === "production";
   const domain = isProd ? ".liteevent.com" : undefined;
-  const base   = { httpOnly: true, secure: isProd, sameSite: isProd ? "none" : "lax", path: "/", domain };
+  // SECURITY FIX: Use "lax" instead of "none" to prevent CSRF
+  // "lax" allows cookies on top-level navigation but blocks CSRF from third-party sites
+  const base   = { httpOnly: true, secure: isProd, sameSite: "lax", path: "/", domain };
 
   res.cookie("accessToken",  accessToken,  { ...base, maxAge: ACCESS_EXPIRES_MS  });
   res.cookie("refreshToken", refreshToken, { ...base, maxAge: REFRESH_EXPIRES_MS });
@@ -39,7 +41,7 @@ export function setAuthCookies(res, { accessToken, refreshToken }) {
 export function clearAuthCookies(res) {
   const isProd = process.env.NODE_ENV === "production";
   const domain = isProd ? ".liteevent.com" : undefined;
-  const base   = { httpOnly: true, secure: isProd, sameSite: isProd ? "none" : "lax", path: "/", domain };
+  const base   = { httpOnly: true, secure: isProd, sameSite: "lax", path: "/", domain };
 
   res.clearCookie("accessToken",  base);
   res.clearCookie("refreshToken", base);

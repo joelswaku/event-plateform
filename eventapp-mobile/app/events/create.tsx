@@ -139,8 +139,8 @@ function UpgradeGate({ onBack }: { onBack: () => void }) {
     ? 'Starter Limit Reached'
     : 'Event Limit Reached';
   const sub = isStarter
-    ? "You've used all 5 Starter events. Upgrade to Pro for unlimited events — no caps, ever."
-    : 'Your free plan includes 1 event. Upgrade to Starter for 5 events, or Pro for unlimited.';
+    ? "You've used your 1 Starter event. Upgrade to Pro for 3 active events & unlimited guests."
+    : 'Your free plan includes 1 event. Upgrade to Starter for 1 event, or Pro for 3 events.';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -183,7 +183,7 @@ function UpgradeGate({ onBack }: { onBack: () => void }) {
                   {prices.starter?.amount != null ? `$${prices.starter.amount}` : '$19'}
                 </Text>
                 <Text style={ug.planPeriod}>/month</Text>
-                {['5 events', '500 guests', 'All themes', 'Tickets (2% fee)', '1 reminder/guest'].map(f => (
+                {['1 active event', '500 guests/event', 'All templates', 'Full planner', '1 team invite', 'Tickets (2% fee)'].map(f => (
                   <View key={f} style={ug.featureRow}>
                     <Feather name="check" size={11} color="#818cf8" />
                     <Text style={ug.featureTxt}>{f}</Text>
@@ -204,7 +204,7 @@ function UpgradeGate({ onBack }: { onBack: () => void }) {
                 {prices.pro?.amount != null ? `$${prices.pro.amount}` : '$49'}
               </Text>
               <Text style={ug.planPeriod}>/month</Text>
-              {['Unlimited events', 'Unlimited guests', 'All themes', 'Tickets (1.5% fee)', '∞ reminders'].map(f => (
+              {['3 active events', 'Unlimited guests', 'Full planner', '3 team invites', 'Unlimited reminders', 'Tickets (1.5% fee)'].map(f => (
                 <View key={f} style={ug.featureRow}>
                   <Feather name="check" size={11} color="#C9A96E" />
                   <Text style={ug.featureTxt}>{f}</Text>

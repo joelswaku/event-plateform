@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, X, ArrowRight, Loader2, Lock, Ticket, CheckCircle, Zap } from "lucide-react";
 import SharedEventRenderer from "@/components/events/shared/SharedEventRenderer";
 import RsvpPanel from "@/components/events/shared/RsvpPanel";
 import OpenRsvpModal from "@/components/events/shared/OpenRsvpModal";
+import { createPaymentRequestKey } from "@/lib/payment-idempotency";
 
 const API          = process.env.NEXT_PUBLIC_API_URL;
 const DON_DEFAULTS = [5, 10, 25];
@@ -114,6 +115,7 @@ function DonationDrawer({ event, onClose, donConfig }) {
   const [submitting, setSubmitting] = useState(false);
   const [done,       setDone]       = useState(false);
   const [error,      setError]      = useState("");
+  const donationRequestKey = useRef(createPaymentRequestKey("donation"));
 
   const presets    = donConfig?.amounts?.length === 3 ? donConfig.amounts : DON_DEFAULTS;
   const amount     = preset === "custom" ? Number(custom) : (preset ?? 0);
@@ -126,7 +128,7 @@ function DonationDrawer({ event, onClose, donConfig }) {
     try {
       const res  = await fetch(`${API}/engagement/events/${event.id}/donations`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ donor_name: name.trim() || null, amount, currency: "USD", frequency: freq }),
+        body: JSON.stringify({ donor_name: name.trim() || null, amount, currency: "USD", frequency: freq, idempotency_key: donationRequestKey.current }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Donation failed");
@@ -211,6 +213,7 @@ function TicketCheckoutDrawer({ ticket, event, onClose, onBack }) {
   const [submitting, setSubmitting] = useState(false);
   const [error,      setError]      = useState("");
   const [result,     setResult]     = useState(null);
+  const ticketRequestKey = useRef(createPaymentRequestKey("ticket"));
 
   const total = priceEach * qty;
   const fmt   = (n) => fmtPrice(n, ticket.currency);
@@ -223,7 +226,7 @@ function TicketCheckoutDrawer({ ticket, event, onClose, onBack }) {
     try {
       const res  = await fetch(`${API}/public/events/${event.id}/orders`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ buyer_name: form.name.trim(), buyer_email: form.email.trim().toLowerCase(), buyer_phone: form.phone.trim() || undefined, items: [{ ticket_type_id: ticket.id, quantity: qty }] }),
+        body: JSON.stringify({ buyer_name: form.name.trim(), buyer_email: form.email.trim().toLowerCase(), buyer_phone: form.phone.trim() || undefined, items: [{ ticket_type_id: ticket.id, quantity: qty }], idempotency_key: ticketRequestKey.current }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Order failed");

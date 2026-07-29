@@ -1,5 +1,5 @@
 "use client";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { usePlannerStore } from "@/store/planner.store";
 import { useSubscriptionStore } from "@/store/subscription.store";
@@ -11,7 +11,7 @@ import {
   Circle, Pause, Ban, Target, FileText, MapPin,
 } from "lucide-react";
 import AIGenerateButton from "@/components/ai/AIGenerateButton";
-import UpgradeNotificationModal from "@/components/planner/UpgradeNotificationModal";
+import UpgradeModal from "@/components/ui/UpgradeModal";
 import toast from "react-hot-toast";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -209,49 +209,20 @@ function OverviewSkeleton() {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PlannerOverviewPage() {
+  const router = useRouter();
   const { projectId } = useParams();
   const { currentProject, tasks, timeline, vendors, budget, team, activity, aiGenerating, generateAIBrief } = usePlannerStore();
-  const { isSubscribed, plan } = useSubscriptionStore();
+  const { isSubscribed, plan, features } = useSubscriptionStore();
 
   const base = `/planner/${projectId}`;
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
-  // TESTING: Always show modal
+  // SECURITY: Check planner access - show upgrade modal if Free user
   useEffect(() => {
-    console.log('TESTING MODE: Always showing upgrade modal');
-    setShowUpgradeModal(true);
-  }, []);
-
-  /* PRODUCTION CODE - Uncomment when ready for production:
-  // Check if we should show upgrade notification
-  // Planner requires Pro plan - show for Free and Starter users
-  useEffect(() => {
-    if (!currentProject) return;
-
-    // Check if user is on Pro plan or higher
-    const isPro = isSubscribed && (plan === "pro" || plan === "premium" || plan === "enterprise");
-    if (isPro) return;
-
-    const dismissedKey = `planner_upgrade_dismissed_${projectId}`;
-    const alreadyDismissed = localStorage.getItem(dismissedKey);
-    if (alreadyDismissed) return;
-
-    // Check if project is older than 24 hours
-    const createdAt = new Date(currentProject.created_at);
-    const now = new Date();
-    const hoursSinceCreation = (now - createdAt) / (1000 * 60 * 60);
-
-    if (hoursSinceCreation >= 24) {
+    if (!isSubscribed || !features?.planner) {
       setShowUpgradeModal(true);
     }
-  }, [currentProject, isSubscribed, plan, projectId]);
-  */
-
-  const handleDismissUpgrade = () => {
-    const dismissedKey = `planner_upgrade_dismissed_${projectId}`;
-    localStorage.setItem(dismissedKey, "true");
-    setShowUpgradeModal(false);
-  };
+  }, [isSubscribed, features]);
 
   async function handleGenerateBrief() {
     const res = await generateAIBrief(projectId);
@@ -688,10 +659,16 @@ export default function PlannerOverviewPage() {
         </div>
       </div>
 
-      {/* Upgrade Notification Modal */}
-      <UpgradeNotificationModal
+      {/* Upgrade Modal */}
+      <UpgradeModal
         isOpen={showUpgradeModal}
-        onDismiss={handleDismissUpgrade}
+        onClose={() => {
+          setShowUpgradeModal(false);
+          router.push("/planner");
+        }}
+        feature="planner"
+        title="Planner Requires Paid Plan"
+        description="Access the full event planner with tasks, timeline, vendors, and budget management."
       />
     </div>
   );

@@ -19,14 +19,67 @@ const navItems = [
   { label: "Events",       href: "/events",        icon: CalendarDays },
   { label: "Tickets",      href: "/tickets",       icon: Ticket },
   { label: "Support",      href: "/support",       icon: LifeBuoy },
-  { label: "Planner",      href: "/planner",       icon: ClipboardList, accent: "linear-gradient(135deg, #7c3aed, #8b5cf6)" },
+  { label: "Planner",      href: "/planner",       icon: ClipboardList, accent: "linear-gradient(135deg, #7c3aed, #8b5cf6)", requiresPaid: true },
   { label: "Create Event", href: "/events/create", icon: PlusSquare },
 ];
 
-function SidebarItem({ item, showExpanded, badge }) {
+function SidebarItem({ item, showExpanded, badge, onClick }) {
   const pathname = usePathname();
   const Icon     = item.icon;
   const active   = pathname === item.href || pathname.startsWith(item.href + "/");
+
+  const content = (
+    <>
+      <div className="relative flex items-center shrink-0">
+        {item.accent ? (
+          <div
+            className="flex h-6 w-6 items-center justify-center rounded-lg"
+            style={{ background: active ? "rgba(139,92,246,0.25)" : item.accent, boxShadow: active ? "none" : "0 2px 8px rgba(139,92,246,0.35)" }}
+          >
+            <Icon className="h-3.5 w-3.5 text-white" />
+          </div>
+        ) : (
+          <Icon className="h-4 w-4" />
+        )}
+        {badge > 0 && (
+          <span className="absolute -right-2 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+            {badge > 9 ? "9+" : badge}
+          </span>
+        )}
+      </div>
+      {showExpanded && <span className="truncate">{item.label}</span>}
+      {showExpanded && badge > 0 && (
+        <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+          {badge > 9 ? "9+" : badge}
+        </span>
+      )}
+      {!showExpanded && (
+        <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+          {item.label}
+          {badge > 0 && ` (${badge})`}
+        </span>
+      )}
+    </>
+  );
+
+  // If it's a locked item with onClick handler, render as button
+  if (onClick) {
+    return (
+      <button
+        onClick={onClick}
+        title={!showExpanded ? item.label : undefined}
+        className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 border-l-3 w-full ${
+          !showExpanded ? "justify-center" : ""
+        } ${
+          active
+            ? "bg-indigo-100 dark:bg-indigo-500/25 text-indigo-700 dark:text-white border-indigo-600 dark:border-indigo-400"
+            : "text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/15 hover:text-gray-900 dark:hover:text-white border-transparent"
+        }`}
+      >
+        {content}
+      </button>
+    );
+  }
 
   return (
     <Link
@@ -76,13 +129,13 @@ function SidebarItem({ item, showExpanded, badge }) {
 export default function DashboardSidebar() {
   const router = useRouter();
   const { isCollapsed, isMobileOpen, toggleCollapsed, setMobileOpen } = useSidebarStore();
-  const isSubscribed     = useSubscriptionStore((s) => s.isSubscribed);
-  const openUpgradeModal = useSubscriptionStore((s) => s.openUpgradeModal);
-  const logoutAction     = useAuthStore((s) => s.logout);
-  const user             = useAuthStore((s) => s.user);
-  const isSuperAdmin     = !!user?.is_super_admin;
-  const unreadTotal      = useChatStore((s) => s.unreadTotal);
-  const fetchUnreadCount = useChatStore((s) => s.fetchUnreadCount);
+  const isSubscribed      = useSubscriptionStore((s) => s.isSubscribed);
+  const openBillingModal  = useSubscriptionStore((s) => s.openBillingModal);
+  const logoutAction      = useAuthStore((s) => s.logout);
+  const user              = useAuthStore((s) => s.user);
+  const isSuperAdmin      = !!user?.is_super_admin;
+  const unreadTotal       = useChatStore((s) => s.unreadTotal);
+  const fetchUnreadCount  = useChatStore((s) => s.fetchUnreadCount);
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -153,14 +206,29 @@ export default function DashboardSidebar() {
 
         {/* Nav */}
         <nav className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1">
-          {navItems.map((item) => (
-            <SidebarItem
-              key={item.href}
-              item={item}
-              showExpanded={showExpanded}
-              badge={item.href === "/support" ? unreadTotal : 0}
-            />
-          ))}
+          {navItems.map((item) => {
+            // If item requires paid plan and user is not subscribed, show upgrade prompt
+            if (item.requiresPaid && !safeSubscribed) {
+              return (
+                <SidebarItem
+                  key={item.href}
+                  item={item}
+                  showExpanded={showExpanded}
+                  badge={0}
+                  onClick={openBillingModal}
+                />
+              );
+            }
+
+            return (
+              <SidebarItem
+                key={item.href}
+                item={item}
+                showExpanded={showExpanded}
+                badge={item.href === "/support" ? unreadTotal : 0}
+              />
+            );
+          })}
         </nav>
 
         {/* Upgrade banner */}
@@ -168,18 +236,18 @@ export default function DashboardSidebar() {
           <div className="shrink-0 mx-3 mb-3 rounded-xl border border-indigo-200 dark:border-indigo-500/20 bg-indigo-50 dark:bg-indigo-500/10 p-3">
             <div className="flex items-center gap-2 mb-1.5">
               <Star className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">Go Premium</span>
+              <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">Upgrade Plan</span>
             </div>
             <p className="text-xs text-indigo-600 dark:text-indigo-400/70 mb-2.5 leading-relaxed">
-              Unlock unlimited events, all templates, and advanced features.
+              Unlock planner, email reminders, and lower ticket fees.
             </p>
             <button
-              onClick={() => openUpgradeModal("general")}
+              onClick={openBillingModal}
               className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 dark:hover:bg-indigo-500 transition-colors"
               suppressHydrationWarning
             >
               <Sparkles className="h-3.5 w-3.5" />
-              Upgrade now
+              Choose a plan
             </button>
           </div>
         )}

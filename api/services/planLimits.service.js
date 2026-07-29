@@ -11,57 +11,61 @@ export const PLANS = {
     freeTemplateStyle: "CLASSIC",
     lockedTemplates: true,
     lockedStyles: true,
-    teamMembers: 1,
+    teamMembers: 1, // owner only, no additional team members
     customDomain: false,
     analytics: false,
     advancedBuilder: false,
-    stripeTicketing: false,
+    // Ticket selling is available on every tier. Paid plans reduce the fee.
+    stripeTicketing: true,
     qrScanner: true,
-    platformFeePercent: 0,
+    platformFeePercent: 2,
     pageBuilder: true,
-    guestEmailReminders: 0,
+    guestEmailReminders: 0, // instant confirmation is free; scheduled reminders are locked
+    planner: false, // no planner access
     rsvp: true,
   },
 
   starter: {
     name: "Starter",
     price: 19,
-    events: 5,
-    guests: 500,
+    events: 1, // 1 active event maximum
+    guests: 500, // 500 guests maximum per event
     templates: Infinity,
     freeTemplateStyle: null,
     lockedTemplates: false,
     lockedStyles: false,
-    teamMembers: 2,
+    teamMembers: 2, // owner + 1 additional invited member = 2 total
     customDomain: false,
     analytics: true,
     advancedBuilder: true,
     stripeTicketing: true,
     qrScanner: true,
-    platformFeePercent: 2,
+    platformFeePercent: 2, // 2% platform fee
     pageBuilder: true,
-    guestEmailReminders: 1,
+    guestEmailReminders: 1, // 1 custom scheduled reminder; instant confirmation does not count
+    planner: true, // full planner access
     rsvp: true,
   },
 
   pro: {
     name: "Pro",
     price: 49,
-    events: Infinity,
-    guests: Infinity,
+    events: 3, // 3 active events maximum
+    guests: Infinity, // unlimited guests per event
     templates: Infinity,
     freeTemplateStyle: null,
     lockedTemplates: false,
     lockedStyles: false,
-    teamMembers: 4,
+    teamMembers: 4, // owner + 3 additional invited members = 4 total
     customDomain: true,
     analytics: true,
     advancedBuilder: true,
     stripeTicketing: true,
     qrScanner: true,
-    platformFeePercent: 1.5,
+    platformFeePercent: 1.5, // 1.5% platform fee on paid-ticket subtotal
     pageBuilder: true,
-    guestEmailReminders: Infinity,
+    guestEmailReminders: Infinity, // unlimited email reminders
+    planner: true, // full planner access
     rsvp: true,
   },
 
@@ -83,32 +87,33 @@ export const PLANS = {
     platformFeePercent: 0,
     pageBuilder: true,
     guestEmailReminders: Infinity,
+    planner: true,
     whiteLabel: true,
     sso: true,
     apiAccess: true,
     rsvp: true,
   },
 
-  // "premium" is what activateSubscriptionService writes to subscription_plan.
-  // Treat it as equivalent to "pro" (all features, unlimited everything).
+  // "premium" is legacy — treat as equivalent to "pro" for backward compatibility
   premium: {
     name: "Premium",
-    price: 19,
-    events: Infinity,
+    price: 49,
+    events: 3,
     guests: Infinity,
     templates: Infinity,
     freeTemplateStyle: null,
     lockedTemplates: false,
     lockedStyles: false,
-    teamMembers: Infinity,
+    teamMembers: 4,
     customDomain: true,
     analytics: true,
     advancedBuilder: true,
     stripeTicketing: true,
     qrScanner: true,
-    platformFeePercent: 0,
+    platformFeePercent: 1.5,
     pageBuilder: true,
     guestEmailReminders: Infinity,
+    planner: true,
     rsvp: true,
   },
 };
@@ -123,14 +128,53 @@ export const LIMIT_CODES = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Resolve a user's current plan key from the DB. Defaults to "free". */
+/**
+ * CRITICAL FIX #5: Resolve a user's current plan with strict validation.
+ * Checks database flags AND validates period end and subscription status.
+ * Returns "free" if ANY required field is missing or invalid.
+ */
 export async function getUserPlan(client, userId) {
   const result = await client.query(
-    `SELECT subscription_plan, is_subscribed FROM users WHERE id = $1 LIMIT 1`,
+    `SELECT subscription_plan, is_subscribed, subscription_id, subscription_status,
+            subscription_current_period_end FROM users WHERE id = $1 LIMIT 1`,
     [userId]
   );
   const row = result.rows[0];
   if (!row || !row.is_subscribed) return "free";
+
+  // CRITICAL: Require subscription_id - cannot be subscribed without one
+  if (!row.subscription_id) {
+    console.warn(`User ${userId} marked subscribed but missing subscription_id`);
+    return "free";
+  }
+
+  // CRITICAL: Require subscription_status - cannot validate without it
+  if (!row.subscription_status) {
+    console.warn(`User ${userId} missing subscription_status`);
+    return "free";
+  }
+
+  // CRITICAL: Validate subscription status is active
+  const validStatuses = ["active", "trialing"];
+  if (!validStatuses.includes(row.subscription_status)) {
+    console.warn(`Invalid subscription status for user ${userId}: ${row.subscription_status}`);
+    return "free";
+  }
+
+  // CRITICAL: Require period_end for active/trialing subscriptions
+  if (!row.subscription_current_period_end) {
+    console.warn(`User ${userId} missing subscription_current_period_end`);
+    return "free";
+  }
+
+  // CRITICAL: Validate subscription period hasn't expired
+  const periodEnd = new Date(row.subscription_current_period_end);
+  const now = new Date();
+  if (periodEnd < now) {
+    console.warn(`Subscription expired for user ${userId}, period ended ${periodEnd.toISOString()}`);
+    return "free";
+  }
+
   const validPlans = ["starter", "pro", "enterprise", "premium"];
   return validPlans.includes(row.subscription_plan) ? row.subscription_plan : "free";
 }
@@ -162,10 +206,15 @@ export async function countEventGuests(client, eventId) {
   return parseInt(result.rows[0]?.total ?? 0, 10);
 }
 
-/** Resolve plan from the event's organization owner — used for public RSVP paths where no auth userId is available. */
+/**
+ * CRITICAL FIX #5: Resolve plan from the event's organization owner with strict validation.
+ * Used for public RSVP paths where no auth userId is available.
+ * Returns "free" if ANY required field is missing or invalid.
+ */
 export async function getEventOwnerPlan(client, eventId) {
   const result = await client.query(
-    `SELECT u.subscription_plan, u.is_subscribed
+    `SELECT u.subscription_plan, u.is_subscribed, u.subscription_id, u.subscription_status,
+            u.subscription_current_period_end, u.id as user_id
      FROM events e
      JOIN organizations o ON o.id = e.organization_id
      JOIN users u ON u.id = o.owner_user_id
@@ -174,6 +223,38 @@ export async function getEventOwnerPlan(client, eventId) {
   );
   const row = result.rows[0];
   if (!row || !row.is_subscribed) return "free";
+
+  // CRITICAL: Require all fields for paid plans
+  if (!row.subscription_id) {
+    console.warn(`Event ${eventId} owner marked subscribed but missing subscription_id`);
+    return "free";
+  }
+
+  if (!row.subscription_status) {
+    console.warn(`Event ${eventId} owner missing subscription_status`);
+    return "free";
+  }
+
+  // CRITICAL: Validate subscription status is active
+  const validStatuses = ["active", "trialing"];
+  if (!validStatuses.includes(row.subscription_status)) {
+    console.warn(`Event ${eventId} owner invalid subscription status: ${row.subscription_status}`);
+    return "free";
+  }
+
+  if (!row.subscription_current_period_end) {
+    console.warn(`Event ${eventId} owner missing subscription_current_period_end`);
+    return "free";
+  }
+
+  // CRITICAL: Validate subscription period hasn't expired
+  const periodEnd = new Date(row.subscription_current_period_end);
+  const now = new Date();
+  if (periodEnd < now) {
+    console.warn(`Event ${eventId} owner subscription expired, period ended ${periodEnd.toISOString()}`);
+    return "free";
+  }
+
   const validPlans = ["starter", "pro", "enterprise", "premium"];
   return validPlans.includes(row.subscription_plan) ? row.subscription_plan : "free";
 }
@@ -242,11 +323,11 @@ export async function assertCanUseTemplate(client, userId, themeId) {
   }
 }
 
-/** Throws 403 if user's plan does not include ticket selling. */
+/** Throws 403 only if ticket selling is disabled for a future plan. */
 export async function assertCanSellTicket(client, userId) {
   const plan = await getUserPlan(client, userId);
   if (!PLANS[plan]?.stripeTicketing) {
-    const err = new Error("Ticket selling requires Starter plan or above.");
+    const err = new Error("Ticket selling is not available on your current plan.");
     err.statusCode = 403;
     err.code = "PLAN_LIMIT_FEATURE";
     err.details = {
@@ -302,10 +383,73 @@ export async function assertCanAddTeamMember(client, userId, eventId) {
 
   if (current >= limit) {
     const maxAdmins = limit - 1;
-    const err = new Error(`Team limit reached. Your ${plan} plan allows up to ${maxAdmins} admin${maxAdmins === 1 ? "" : "s"}.`);
+    const err = new Error(`Team limit reached. Your ${plan} plan allows up to ${maxAdmins} additional team member${maxAdmins === 1 ? "" : "s"}.`);
     err.statusCode = 403;
     err.code = "PLAN_LIMIT_FEATURE";
     err.details = { code: "PLAN_LIMIT_FEATURE", feature: "teamMembers", plan, limit: maxAdmins, current: current - 1 };
+    throw err;
+  }
+}
+
+/** Throws 403 if user's plan does not include planner access. */
+export async function assertCanUsePlanner(client, userId) {
+  const plan = await getUserPlan(client, userId);
+  if (!PLANS[plan]?.planner) {
+    const err = new Error("Planner access requires Starter plan or above.");
+    err.statusCode = 403;
+    err.code = "PLAN_LIMIT_FEATURE";
+    err.details = {
+      code: "PLAN_LIMIT_FEATURE",
+      feature: "planner",
+      plan,
+    };
+    throw err;
+  }
+}
+
+/**
+ * Enforces scheduled-reminder entitlements.
+ * Instant Confirmation is included in every plan and does not count as a custom
+ * reminder. Free may retain disabled reminders after a downgrade, but cannot
+ * enable any; Starter can enable one; Pro/Enterprise can enable unlimited.
+ */
+export async function assertCanEnableReminder(client, userId, eventId, newReminders) {
+  const plan = await getUserPlan(client, userId);
+  const limit = PLANS[plan]?.guestEmailReminders ?? 0;
+
+  const customReminders = newReminders.filter(reminder => reminder.timing !== "instant");
+  const enabledCustomReminders = customReminders.filter(reminder => reminder.enabled);
+
+  // Free can retain disabled settings, but may not activate a scheduled email.
+  if (limit === 0 && enabledCustomReminders.length > 0) {
+    const err = new Error("Upgrade to Starter to enable email reminders.");
+    err.statusCode = 403;
+    err.code = "PLAN_LIMIT_FEATURE";
+    err.details = {
+      code: "PLAN_LIMIT_FEATURE",
+      feature: "guestEmailReminders",
+      plan,
+      requiredPlan: "starter",
+    };
+    throw err;
+  }
+
+  if (limit === Infinity || limit === 0) return; // Pro unlimited; Free has no active custom reminder
+
+  // Starter may enable one custom reminder. Existing disabled settings remain
+  // stored so they are restored if the user later upgrades to Pro.
+  if (enabledCustomReminders.length > limit) {
+    const err = new Error(`Your ${plan} plan allows one active custom reminder. Upgrade to Pro to enable more.`);
+    err.statusCode = 403;
+    err.code = "PLAN_LIMIT_FEATURE";
+    err.details = {
+      code: "PLAN_LIMIT_FEATURE",
+      feature: "guestEmailReminders",
+      plan,
+      limit,
+      requested: enabledCustomReminders.length,
+      requiredPlan: "pro",
+    };
     throw err;
   }
 }
@@ -336,9 +480,11 @@ export async function getPlanSummary(client, userId, organizationId) {
   return {
     plan,
     limits: {
-      events:    p.events    === Infinity ? null : p.events,
-      templates: p.templates === Infinity ? null : p.templates,
-      guests:    p.guests    === Infinity ? null : p.guests,
+      events:              p.events              === Infinity ? null : p.events,
+      templates:           p.templates           === Infinity ? null : p.templates,
+      guests:              p.guests              === Infinity ? null : p.guests,
+      teamMembers:         p.teamMembers         === Infinity ? null : p.teamMembers,
+      guestEmailReminders: p.guestEmailReminders === Infinity ? null : p.guestEmailReminders,
     },
     usage: {
       events: eventCount,
@@ -355,6 +501,8 @@ export async function getPlanSummary(client, userId, organizationId) {
       stripeTicketing:     p.stripeTicketing,
       guestEmailReminders: p.guestEmailReminders === Infinity ? null : p.guestEmailReminders,
       platformFeePercent:  p.platformFeePercent,
+      planner:             p.planner, // planner access entitlement
+      teamMembers:         p.teamMembers === Infinity ? null : p.teamMembers, // team size limit
     },
     freeTemplateStyle: p.freeTemplateStyle ?? null,
   };

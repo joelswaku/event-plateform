@@ -26,7 +26,7 @@ const SHEET_H = 560;
 
 /* Injected into the WebView once the page loads.
    Finds every section wrapper (id="s-{sectionId}") and wires a tap listener
-   that posts a message back to React Native. */
+   that posts a message back to React Native. Also prevents Stripe from loading. */
 const INJECTED_JS = `
 (function() {
   function wire() {
@@ -260,8 +260,72 @@ export default function BuilderScreen() {
               style={{ flex: 1 }}
               onLoadStart={() => setWebviewLoading(true)}
               onLoadEnd={() => setWebviewLoading(false)}
-              onError={() => setWebviewLoading(false)}
+              onError={(syntheticEvent) => {
+                const { nativeEvent } = syntheticEvent;
+                console.warn('WebView error:', nativeEvent);
+                setWebviewLoading(false);
+              }}
               onMessage={handleWebViewMessage}
+              injectedJavaScriptBeforeContentLoaded={`
+                (function() {
+                  // Stub Stripe object completely to prevent HTTPS requirement error
+                  window.Stripe = function() {
+                    console.log('[Mobile Preview] Stripe disabled in HTTP preview');
+                    return {
+                      elements: function() {
+                        return {
+                          create: function() {
+                            return {
+                              mount: function() {},
+                              on: function() {},
+                              update: function() {},
+                              destroy: function() {}
+                            };
+                          }
+                        };
+                      },
+                      createToken: function() {
+                        return Promise.resolve({ error: { message: 'Stripe disabled in preview mode' } });
+                      },
+                      createPaymentMethod: function() {
+                        return Promise.resolve({ error: { message: 'Stripe disabled in preview mode' } });
+                      },
+                      confirmCardPayment: function() {
+                        return Promise.resolve({ error: { message: 'Stripe disabled in preview mode' } });
+                      }
+                    };
+                  };
+
+                  // Suppress Stripe console errors
+                  if (window.console && window.console.error) {
+                    var origError = window.console.error;
+                    window.console.error = function() {
+                      var args = Array.prototype.slice.call(arguments);
+                      var msg = args.join(' ');
+                      if (msg.indexOf('Stripe') === -1 && msg.indexOf('stripe') === -1 && msg.indexOf('HTTPS') === -1) {
+                        origError.apply(console, args);
+                      }
+                    };
+                  }
+
+                  // Block Stripe.js script from loading
+                  var observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
+                      mutation.addedNodes.forEach(function(node) {
+                        if (node.tagName === 'SCRIPT' && node.src && (node.src.includes('stripe.com') || node.src.includes('js.stripe'))) {
+                          console.log('[Mobile Preview] Blocked Stripe script:', node.src);
+                          node.parentNode.removeChild(node);
+                        }
+                      });
+                    });
+                  });
+
+                  if (document.documentElement) {
+                    observer.observe(document.documentElement, { childList: true, subtree: true });
+                  }
+                })();
+                true;
+              `}
               injectedJavaScript={INJECTED_JS}
               scrollEnabled
               showsVerticalScrollIndicator={false}

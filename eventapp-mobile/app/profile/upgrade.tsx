@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator,
 } from 'react-native';
@@ -12,42 +12,60 @@ import { Colors } from '@/constants/colors';
 import { Config } from '@/constants/config';
 
 const FEATURES = [
-  { icon: 'calendar',    text: 'Unlimited events'                },
+  { icon: 'calendar',    text: '3 active events (Pro)'           },
   { icon: 'users',       text: 'Unlimited guests per event'      },
-  { icon: 'layout',      text: 'All 6 premium themes'            },
-  { icon: 'mail',        text: 'Custom email invitations'        },
+  { icon: 'layout',      text: 'All premium templates'           },
+  { icon: 'clipboard',   text: 'Full event planner access'       },
   { icon: 'bar-chart-2', text: 'Advanced analytics & exports'    },
-  { icon: 'credit-card', text: 'Full ticketing & Stripe payouts' },
+  { icon: 'credit-card', text: 'Ticket selling (1.5% Pro fee)'   },
   { icon: 'camera',      text: 'QR scanner with offline sync'    },
-  { icon: 'globe',       text: 'Custom domain support'           },
+  { icon: 'bell',        text: 'Unlimited email reminders (Pro)' },
 ] as const;
 
 type Plan = 'starter' | 'pro';
 
 export default function UpgradeScreen() {
   const router = useRouter();
-  const { plan, isPremium, isSubscribed, currentPeriodEnd, createCheckoutSession, openCustomerPortal, fetchSubscription, prices } =
+  const { plan, isSubscribed, currentPeriodEnd, createCheckoutSession, changeSubscriptionPlan, openCustomerPortal, fetchSubscription, prices } =
     useSubscriptionStore();
-  const [selectedPlan, setSelectedPlan] = useState<Plan>('starter');
+  const [selectedPlan, setSelectedPlan] = useState<Plan>(plan === 'starter' ? 'pro' : 'starter');
   const [loading, setLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
 
-  const alreadyPremium = isPremium();
+  const alreadyPremium = isSubscribed && ['pro', 'premium', 'enterprise'].includes(plan);
   const planLabel = plan === 'starter' ? 'Starter Plan' : plan === 'pro' ? 'Pro Plan' : 'Free Plan';
+
+  useEffect(() => {
+    void fetchSubscription();
+  }, [fetchSubscription]);
+
+  useEffect(() => {
+    if (isSubscribed && plan === 'starter') setSelectedPlan('pro');
+  }, [isSubscribed, plan]);
 
   const handleUpgrade = async () => {
     const priceId = selectedPlan === 'pro'
-      ? Config.STRIPE.PRO_PRICE_ID
-      : Config.STRIPE.STARTER_PRICE_ID;
+      ? (prices.pro?.id || Config.STRIPE.PRO_PRICE_ID)
+      : (prices.starter?.id || Config.STRIPE.STARTER_PRICE_ID);
+
+    if (!priceId) {
+      toast.error('Pricing unavailable', 'Please try again in a moment.');
+      return;
+    }
 
     setLoading(true);
-    const result = await createCheckoutSession(priceId);
+    const result = isSubscribed
+      ? await changeSubscriptionPlan(priceId)
+      : await createCheckoutSession(priceId);
     setLoading(false);
 
     if (result.success) {
-      toast.success('Welcome to Premium!', "You're now on the Premium plan.");
-      router.back();
-    } else if (!result.canceled) {
+      toast.success(
+        isSubscribed ? 'Plan updated' : 'Welcome to LiteEvent!',
+        isSubscribed ? 'Your subscription has been updated.' : 'Your payment was confirmed.'
+      );
+      if (isSubscribed) router.back();
+    } else if (!("canceled" in result && result.canceled)) {
       toast.error('Payment failed', result.message ?? 'Something went wrong. Please try again.');
     }
     // canceled: do nothing — user dismissed the sheet
@@ -153,13 +171,14 @@ export default function UpgradeScreen() {
         <View style={styles.planToggle}>
           <Pressable
             style={[styles.planOption, selectedPlan === 'starter' && styles.planOptionActive]}
-            onPress={() => setSelectedPlan('starter')}
+            onPress={() => !isSubscribed && setSelectedPlan('starter')}
+            disabled={isSubscribed}
           >
             <Text style={[styles.planOptionLabel, selectedPlan === 'starter' && styles.planOptionLabelActive]}>Starter</Text>
             <Text style={[styles.planOptionPrice, selectedPlan === 'starter' && { color: Colors.accent.gold }]}>
-              {prices.starter?.amount != null ? `$${prices.starter.amount}/mo` : '$5/mo'}
+              {prices.starter?.amount != null ? `$${prices.starter.amount}/mo` : '$19/mo'}
             </Text>
-            <Text style={[{ fontSize: 10, color: Colors.text.subtle }]}>5 events · 500 guests</Text>
+            <Text style={[{ fontSize: 10, color: Colors.text.subtle }]}>1 event · 500 guests</Text>
           </Pressable>
           <Pressable
             style={[styles.planOption, selectedPlan === 'pro' && styles.planOptionActive]}
@@ -170,9 +189,9 @@ export default function UpgradeScreen() {
             </View>
             <Text style={[styles.planOptionLabel, selectedPlan === 'pro' && styles.planOptionLabelActive]}>Pro</Text>
             <Text style={[styles.planOptionPrice, selectedPlan === 'pro' && { color: Colors.accent.gold }]}>
-              {prices.pro?.amount != null ? `$${prices.pro.amount}/mo` : '$12/mo'}
+              {prices.pro?.amount != null ? `$${prices.pro.amount}/mo` : '$49/mo'}
             </Text>
-            <Text style={[{ fontSize: 10, color: Colors.text.subtle }]}>Unlimited everything</Text>
+            <Text style={[{ fontSize: 10, color: Colors.text.subtle }]}>3 events · ∞ guests</Text>
           </Pressable>
         </View>
 
@@ -197,8 +216,8 @@ export default function UpgradeScreen() {
                 <Feather name="zap" size={17} color={Colors.text.inverse} />
                 <Text style={styles.ctaText}>
                   {selectedPlan === 'pro'
-                    ? `Upgrade to Pro — ${prices.pro?.amount != null ? `$${prices.pro.amount}/mo` : '$12/mo'}`
-                    : `Upgrade to Starter — ${prices.starter?.amount != null ? `$${prices.starter.amount}/mo` : '$5/mo'}`}
+                    ? `Upgrade to Pro — ${prices.pro?.amount != null ? `$${prices.pro.amount}/mo` : '$49/mo'}`
+                    : `Upgrade to Starter — ${prices.starter?.amount != null ? `$${prices.starter.amount}/mo` : '$19/mo'}`}
                 </Text>
               </>
           }

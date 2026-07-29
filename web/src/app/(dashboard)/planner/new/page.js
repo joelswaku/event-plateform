@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ChevronLeft, Loader2, ClipboardList, Sparkles, Send, Bot, User, CheckCircle2, AlertCircle, Plus } from "lucide-react";
 import { usePlannerStore } from "@/store/planner.store";
 import { useEventStore } from "@/store/event.store";
+import { useSubscriptionStore } from "@/store/subscription.store";
+import UpgradeModal from "@/components/ui/UpgradeModal";
 import toast from "react-hot-toast";
 
 const QUESTIONS = [
@@ -66,11 +68,13 @@ function NewPlannerInner() {
 
   const { createProject, generateAITasks, projects, fetchProjects } = usePlannerStore();
   const { events, fetchEvents, loading: eventsLoading } = useEventStore();
+  const { isSubscribed, features } = useSubscriptionStore();
 
   const [phase, setPhase] = useState("form"); // "form" | "chat" | "creating"
   const [selectedEventId, setSelectedEventId] = useState(preEventId);
   const [title, setTitle] = useState("");
   const [formError, setFormError] = useState("");
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -81,10 +85,15 @@ function NewPlannerInner() {
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
+  // Check planner access - show upgrade modal if Free user
   useEffect(() => {
-    fetchEvents();
-    fetchProjects();
-  }, []);
+    if (!isSubscribed || !features?.planner) {
+      setShowUpgradeModal(true);
+    } else {
+      fetchEvents();
+      fetchProjects();
+    }
+  }, [isSubscribed, features]);
 
   // If a planner already exists for the pre-selected event, go straight to it
   useEffect(() => {
@@ -407,6 +416,17 @@ function NewPlannerInner() {
           )}
         </div>
       </div>
+
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => {
+          setShowUpgradeModal(false);
+          router.push("/planner");
+        }}
+        feature="planner"
+        title="Planner Requires Paid Plan"
+        description="Access the full event planner with tasks, timeline, vendors, and budget management."
+      />
     </div>
   );
 }

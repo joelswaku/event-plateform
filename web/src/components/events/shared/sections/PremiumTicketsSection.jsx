@@ -17,6 +17,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { createPaymentRequestKey } from "@/lib/payment-idempotency";
 
 /* ─── API ─────────────────────────────────────────────────── */
 const API = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -534,6 +535,7 @@ function CheckoutModal({ ticket, event, onClose }) {
   const [form,       setForm]       = useState({ name: "", email: "", phone: "" });
   const [submitting, setSubmitting] = useState(false);
   const [error,      setError]      = useState("");
+  const paymentRequestKey = useRef(createPaymentRequestKey("ticket"));
 
   const available = ticket.quantity_total != null
     ? ticket.quantity_total - (ticket.quantity_sold ?? 0)
@@ -559,6 +561,7 @@ function CheckoutModal({ ticket, event, onClose }) {
           buyer_email: form.email.trim(),
           buyer_phone: form.phone.trim() || undefined,
           items: [{ ticket_type_id: ticket.id, quantity: qty }],
+          idempotency_key: paymentRequestKey.current,
         }),
       });
       const data = await res.json();

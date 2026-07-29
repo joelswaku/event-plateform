@@ -465,7 +465,7 @@ function MobileGuestsPage({
                   <p className="text-[22px] font-black leading-tight" style={{ color: "#818cf8" }}>
                     {prices?.starter?.amount != null ? `$${prices.starter.amount}` : '$19'}<span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>/mo</span>
                   </p>
-                  <p className="text-[10px] mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>500 guests · 5 events</p>
+                  <p className="text-[10px] mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>500 guests/event · 1 event</p>
                 </div>
               )}
               <div className="relative rounded-[18px] p-4 overflow-hidden" style={{ background: "rgba(201,169,110,0.08)", border: "1px solid rgba(201,169,110,0.3)" }}>
@@ -474,7 +474,7 @@ function MobileGuestsPage({
                 <p className="text-[22px] font-black leading-tight" style={{ color: "#c9a96e" }}>
                   {prices?.pro?.amount != null ? `$${prices.pro.amount}` : '$49'}<span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>/mo</span>
                 </p>
-                <p className="text-[10px] mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>Unlimited guests &amp; events</p>
+                <p className="text-[10px] mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>Unlimited guests · 3 events</p>
               </div>
             </div>
             {/* CTA */}
@@ -1531,7 +1531,7 @@ export default function GuestsPage() {
                   <p className="text-[24px] font-black leading-tight" style={{ color: "#818cf8" }}>
                     {prices?.starter?.amount != null ? `$${prices.starter.amount}` : '$19'}<span className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>/mo</span>
                   </p>
-                  <p className="text-[11px] mt-1.5" style={{ color: "rgba(255,255,255,0.4)" }}>500 guests · 5 events</p>
+                  <p className="text-[11px] mt-1.5" style={{ color: "rgba(255,255,255,0.4)" }}>500 guests/event · 1 event</p>
                 </div>
               )}
               <div className="relative rounded-[18px] p-4 text-left overflow-hidden" style={{ background: "rgba(201,169,110,0.08)", border: "1px solid rgba(201,169,110,0.35)" }}>

@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   HelpCircle, Mail, MessageSquare, ChevronDown,
   ExternalLink, LifeBuoy, BookOpen, Zap, X, Minus,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import ChatWorkspace from "@/components/chat/ChatWorkspace";
+import { useChatStore } from "@/store/chat.store";
+import { useAuthStore } from "@/store/auth.store";
 
 /* ── FAQ data ──────────────────────────────────────────────────────────────── */
 const FAQS = [
@@ -28,7 +30,7 @@ const FAQS = [
   },
   {
     q: "Can I sell tickets on the free plan?",
-    a: "Ticket selling requires the Starter plan or above. Starter has a 2% platform fee; Pro reduces this to 1.5%. Stripe processes all payments securely.",
+    a: "Every plan can sell tickets. Free and Starter have a 2% platform fee; Pro reduces this to 1.5%. Stripe processes all payments securely.",
   },
   {
     q: "How do I export my guest list?",
@@ -95,6 +97,33 @@ function ContactCard({ href, icon: Icon, iconColor, iconBg, title, sub, external
 export default function SupportPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
+  const user = useAuthStore((s) => s.user);
+  const isSuperAdmin = !!user?.is_super_admin;
+  const unreadTotal = useChatStore((s) => s.unreadTotal);
+  const fetchUnreadCount = useChatStore((s) => s.fetchUnreadCount);
+  const openSupport = useChatStore((s) => s.openSupport);
+  const markRead = useChatStore((s) => s.markRead);
+
+  useEffect(() => {
+    if (!user || isSuperAdmin) return;
+    void fetchUnreadCount();
+    const interval = setInterval(() => void fetchUnreadCount(), 5000);
+    return () => clearInterval(interval);
+  }, [user, isSuperAdmin, fetchUnreadCount]);
+
+  async function openSupportChat() {
+    setChatOpen(true);
+    setMinimized(false);
+
+    // Opening the support thread is an intentional read action: clear the
+    // support notification after the API has recorded the read receipt.
+    if (isSuperAdmin) return;
+    const conversation = await openSupport();
+    if (conversation) {
+      await markRead(conversation.id);
+      await fetchUnreadCount();
+    }
+  }
 
   return (
     <>
@@ -132,7 +161,7 @@ export default function SupportPage() {
             bg: "rgba(167,139,250,0.12)",
             title: "Live chat",
             desc: "Mon–Fri, 9am–6pm UTC",
-            action: () => setChatOpen(true),
+            action: openSupportChat,
           },
         ].map(({ icon: Icon, color, bg, title, desc, href, action }) => {
           const Tag = href ? "a" : "button";
@@ -194,7 +223,7 @@ export default function SupportPage() {
             />
 
             <button
-              onClick={() => setChatOpen(true)}
+              onClick={openSupportChat}
               className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 transition hover:bg-gray-50 dark:hover:bg-white/4 text-left"
             >
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
@@ -333,7 +362,7 @@ export default function SupportPage() {
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.7 }}
           transition={{ duration: 0.2 }}
-          onClick={() => { setChatOpen(true); setMinimized(false); }}
+          onClick={openSupportChat}
           whileHover={{ scale: 1.08 }}
           whileTap={{ scale: 0.95 }}
           title="Open support chat"
@@ -346,6 +375,14 @@ export default function SupportPage() {
           }}
         >
           <MessageSquare size={22} />
+          {!isSuperAdmin && unreadTotal > 0 && (
+            <span
+              className="absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[10px] font-black text-white"
+              style={{ background: "#ef4444", border: "2px solid #0a0a12", boxShadow: "0 3px 10px rgba(239,68,68,0.55)" }}
+            >
+              {unreadTotal > 9 ? "9+" : unreadTotal}
+            </span>
+          )}
         </motion.button>
       )}
     </AnimatePresence>

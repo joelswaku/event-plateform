@@ -1,6 +1,7 @@
 import { db } from "../config/db.js";
 import { sendMail } from "../utils/sendEmail.js";
 import { generateReminderEmail, generateReminderTextEmail } from "../templates/reminder-email.js";
+import { getEventOwnerPlan, PLANS } from "./planLimits.service.js";
 
 /**
  * Process and send event reminders
@@ -69,6 +70,17 @@ async function findDueReminders(now) {
   const dueReminders = [];
 
   for (const row of result.rows) {
+    // Instant Confirmation remains available on Free. Scheduled reminder emails
+    // require an active paid plan at send time so a downgraded account cannot
+    // continue sending a reminder that was enabled while it was subscribed.
+    if (row.timing !== "instant") {
+      const ownerPlan = await getEventOwnerPlan(db, row.event_id);
+      if (!PLANS[ownerPlan]?.guestEmailReminders) {
+        console.log(`[Reminders] Skipping scheduled reminder for Free event ${row.event_id}`);
+        continue;
+      }
+    }
+
     const eventStartTime = new Date(row.starts_at);
     const shouldSend = shouldSendReminder(now, eventStartTime, row.timing);
 

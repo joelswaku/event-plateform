@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Heart, Clock, Lock, Loader2, ArrowRight, CheckCircle } from "lucide-react";
 import LegalModal from "@/components/legal/LegalModal";
+import { createPaymentRequestKey } from "@/lib/payment-idempotency";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 
@@ -51,6 +52,7 @@ function DonationCard({ event, donConfig }) {
   const [termsChecked, setTermsChecked] = useState(false);
   const [termsTouched, setTermsTouched] = useState(false);
   const [legalSlug,    setLegalSlug]    = useState(null);
+  const donationRequestKey = useRef(createPaymentRequestKey("donation"));
 
   const amount = preset === "custom" ? Number(custom) : (preset ?? 0);
 
@@ -63,7 +65,7 @@ function DonationCard({ event, donConfig }) {
     try {
       const res  = await fetch(`${API}/engagement/events/${event.id}/donations`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ donor_name: name.trim() || null, amount, currency: "USD", frequency: freq }),
+        body: JSON.stringify({ donor_name: name.trim() || null, amount, currency: "USD", frequency: freq, idempotency_key: donationRequestKey.current }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Donation failed");

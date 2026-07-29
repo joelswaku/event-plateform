@@ -788,7 +788,7 @@ export default function GuestsScreen() {
                     {prices.starter?.amount != null ? `$${prices.starter.amount}` : '$19'}
                     <Text style={lm.planPer}>/mo</Text>
                   </Text>
-                  <Text style={lm.planDetail}>500 guests · 5 events</Text>
+                  <Text style={lm.planDetail}>500 guests/event · 1 event</Text>
                 </View>
               )}
               {/* Pro */}
@@ -799,7 +799,7 @@ export default function GuestsScreen() {
                   {prices.pro?.amount != null ? `$${prices.pro.amount}` : '$49'}
                   <Text style={lm.planPer}>/mo</Text>
                 </Text>
-                <Text style={lm.planDetail}>Unlimited guests &amp; events</Text>
+                <Text style={lm.planDetail}>Unlimited guests · 3 events</Text>
               </View>
             </View>
 

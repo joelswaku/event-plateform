@@ -52,16 +52,16 @@ LiteEvent offers the following subscription plans. Features and limits are subje
 - RSVP collection and QR scanner included
 
 **Starter Plan — $19/month**
-- Up to 5 active events, up to 500 guests per event
-- Unlimited templates and styles, 2 team member seats
-- Ticket sales (with platform fee), event analytics
+- 1 active event, up to 500 guests per event
+- All templates and styles, 2 team member seats (owner + 1 additional)
+- Ticket sales (2% platform fee), event analytics, full planner access, 1 enabled email reminder config per event
 
 **Pro Plan — $49/month**
-- Unlimited events and guests, 4 team member seats
-- Custom domain, full analytics, unlimited email reminders
+- 3 active events, unlimited guests per event, 4 team member seats (owner + 3 additional)
+- Custom domain, full analytics, unlimited email reminders, ticket sales (1.5% platform fee), full planner access
 
 **Enterprise Plan — Custom pricing**
-- Unlimited events, guests, and team members
+- Custom event limits, unlimited guests, and team members
 - Custom domain, white-label, SSO, dedicated support
 
 ### 4.2 Subscription Billing

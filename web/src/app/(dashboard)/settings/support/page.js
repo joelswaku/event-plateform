@@ -27,7 +27,7 @@ const FAQS = [
   },
   {
     q: "Can I sell tickets on the free plan?",
-    a: "Ticket selling requires the Starter plan or above. Starter has a 2% platform fee; Pro reduces this to 1.5%. Stripe processes all payments securely.",
+    a: "Every plan can sell tickets. Free and Starter have a 2% platform fee; Pro reduces this to 1.5%. Stripe processes all payments securely.",
   },
   {
     q: "How do I export my guest list?",

@@ -112,8 +112,8 @@ function MobileSettings() {
 
   const planLimits = {
     free:       "1 event · 50 guests · Classic templates only",
-    starter:    "5 events · 500 guests · All themes",
-    pro:        "Unlimited events · Unlimited guests",
+    starter:    "1 active event · 500 guests/event · All templates",
+    pro:        "3 active events · Unlimited guests",
     enterprise: "Enterprise · Custom limits",
   }[plan] ?? "1 event · 50 guests · Classic templates only";
 
@@ -399,9 +399,9 @@ function MobileMenuItem({ Icon, label, href, soon, newTab = false, onPress, icon
 ───────────────────────────────────────────────────────────────────── */
 
 const PLAN_PERKS = {
-  free:    ["1 event", "50 guests / event", "Classic theme only", "QR check-in", "RSVP page builder", "Email support"],
-  starter: ["5 events", "500 guests / event", "All themes & styles", "Ticket selling (2% fee)", "1 reminder / guest", "Basic analytics", "Up to 3 team members", "QR check-in scanner"],
-  pro:     ["Unlimited events", "Unlimited guests", "All themes & styles", "Ticket selling (1.5% fee)", "Unlimited reminders", "Advanced analytics", "Custom domain", "Unlimited team members", "Priority support"],
+  free:    ["1 event", "50 guests", "Classic templates only", "Tickets (2% fee)", "Instant confirmation only", "No planner access"],
+  starter: ["1 active event", "500 guests/event", "All templates", "Full planner", "1 team invite", "1 reminder config", "Tickets (2% fee)"],
+  pro:     ["3 active events", "Unlimited guests", "All templates", "Full planner", "3 team invites", "Unlimited reminders", "Tickets (1.5% fee)"],
 };
 
 const PLAN_META = {
@@ -883,8 +883,8 @@ function DesktopSettings() {
                     </p>
                     <p className="mt-0.5 text-xs text-(--text-muted)">
                       {isStarter
-                        ? "Pro gives you unlimited events, guests, and every feature."
-                        : "Starter starts at $19/mo — or go unlimited with Pro at $49/mo."}
+                        ? "Pro gives you 3 events, unlimited guests, and full planner access."
+                        : "Starter starts at $19/mo — or go Pro at $49/mo for 3 events."}
                     </p>
                   </div>
                   <button

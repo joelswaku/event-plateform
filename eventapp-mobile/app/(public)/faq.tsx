@@ -52,7 +52,7 @@ const FAQ_DATA = [
       {
         question: 'Can I sell tickets through LiteEvent?',
         answer:
-          'Yes! Our Starter and Pro plans include integrated ticketing. Create multiple ticket types (Early Bird, VIP, General Admission), set prices, add discounts, and accept payments securely through Stripe. We charge a small platform fee (5% for Starter, 2% for Pro).',
+          'Yes! Every plan includes integrated ticketing. Create multiple ticket types (Early Bird, VIP, General Admission), set prices, add discounts, and accept payments securely through Stripe. The fee is 2% on Free and Starter, or 1.5% on Pro.',
       },
       {
         question: 'How do I set up different ticket types and pricing?',
@@ -104,7 +104,7 @@ const FAQ_DATA = [
       {
         question: 'How much does LiteEvent cost?',
         answer:
-          'Free plan: $0 forever for 1 event and 50 guests. Starter plan: $19/month for 5 events and 200 guests per event. Pro plan: $49/month for unlimited events and guests. Annual billing saves 20%. No hidden fees.',
+          'Free plan: $0 forever for 1 event and 50 guests. Starter plan: $19/month for 1 active event and 500 guests per event. Pro plan: $49/month for 3 active events and unlimited guests. Annual billing saves 20%. No hidden fees.',
       },
       {
         question: 'Can I upgrade or downgrade my plan?',

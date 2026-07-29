@@ -5,6 +5,7 @@ import { Toaster } from "react-hot-toast";
 import AuthProvider from "@/providers/AuthProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import UpgradeModal from "@/components/ui/UpgradeModal";
+import BillingModal from "@/components/layout/BillingModal";
 import ThemeInit from "@/components/ThemeInit"; // ✅ added
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 
@@ -128,6 +129,7 @@ export default function RootLayout({ children }) {
               {children}
 
               <UpgradeModal />
+              <BillingModal />
 
               <Toaster
                 position="top-right"

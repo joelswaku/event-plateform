@@ -36,14 +36,14 @@ const PLANS = {
     name: "Pro",
     tagline: "For professional organizers",
     features: [
-      "Unlimited events",
+      "3 active events",
       "Unlimited guests",
-      "All features included",
+      "Full planner access",
+      "All templates unlocked",
+      "Unlimited reminders",
+      "Ticket selling (1.5% fee)",
       "Custom domain",
-      "White-label option",
-      "API access",
-      "Dedicated support",
-      "Early access to features",
+      "Advanced analytics",
     ]
   }
 };

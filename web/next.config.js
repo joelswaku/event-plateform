@@ -3,6 +3,10 @@ const nextConfig = {
   output: 'standalone',
   reactStrictMode: true,
   allowedDevOrigins: ['192.168.0.63'],
+  async rewrites() {
+    const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace(/\/$/, '');
+    return [{ source: '/api/:path*', destination: `${apiUrl}/:path*` }];
+  },
   images: {
     unoptimized: process.env.NODE_ENV === 'development',
     remotePatterns: [

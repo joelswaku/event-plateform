@@ -14,29 +14,29 @@ const PRO_PRICE_ID     = process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID     || "";
 
 // ── Plan data ─────────────────────────────────────────────────────────────────
 const FREE_FEATURES = [
-  { icon: CalendarDays, text: "1 event"              },
-  { icon: Users,        text: "50 guests"            },
-  { icon: Palette,      text: "Classic theme only"   },
-  { icon: Ticket,       text: "No ticket selling"    },
+  { icon: CalendarDays, text: "1 event"                },
+  { icon: Users,        text: "50 guests"              },
+  { icon: Palette,      text: "Classic templates only" },
+  { icon: Ticket,       text: "Tickets (2% fee)"       },
 ];
 
 const STARTER_FEATURES = [
-  { icon: CalendarDays, text: "5 events"             },
-  { icon: Users,        text: "500 guests"           },
-  { icon: Palette,      text: "All themes & styles"  },
-  { icon: Ticket,       text: "Tickets (2% fee)"     },
-  { icon: QrCode,       text: "QR scanner"           },
-  { icon: Bell,         text: "1 reminder / guest"   },
-  { icon: BarChart2,    text: "Basic analytics"      },
+  { icon: CalendarDays, text: "1 active event"        },
+  { icon: Users,        text: "500 guests/event"      },
+  { icon: Palette,      text: "All templates"         },
+  { icon: Ticket,       text: "Tickets (2% fee)"      },
+  { icon: QrCode,       text: "QR scanner"            },
+  { icon: Bell,         text: "1 reminder config"     },
+  { icon: BarChart2,    text: "Analytics"             },
 ];
 
 const PRO_FEATURES = [
-  { icon: CalendarDays, text: "Unlimited events"     },
-  { icon: Users,        text: "Unlimited guests"     },
-  { icon: Ticket,       text: "Tickets (1.5% fee)"   },
-  { icon: Bell,         text: "∞ reminders"          },
-  { icon: Globe,        text: "Custom domain"        },
-  { icon: BarChart2,    text: "Adv. analytics"       },
+  { icon: CalendarDays, text: "3 active events"       },
+  { icon: Users,        text: "Unlimited guests"      },
+  { icon: Ticket,       text: "Tickets (1.5% fee)"    },
+  { icon: Bell,         text: "Unlimited reminders"   },
+  { icon: Globe,        text: "Custom domain"         },
+  { icon: BarChart2,    text: "Adv. analytics"        },
 ];
 
 // ── Context-aware copy (plan-aware) ──────────────────────────────────────────
@@ -45,22 +45,22 @@ function getTriggerCopy(feature, plan) {
 
   const COPY = {
     events: isStarter
-      ? { badge: "Starter Limit Reached", headline: "You've used all 5 Starter events.", sub: "Upgrade to Pro for unlimited events — no caps, ever." }
-      : { badge: "Event Limit Reached",   headline: "You've used your 1 free event.",    sub: "Upgrade to Starter for 5 events, or go Pro for unlimited." },
+      ? { badge: "Starter Limit Reached", headline: "You've used your 1 Starter event.", sub: "Upgrade to Pro for 3 active events." }
+      : { badge: "Event Limit Reached",   headline: "You've used your 1 free event.",    sub: "Upgrade to Starter for 1 event, or go Pro for 3 events." },
     guests: isStarter
       ? { badge: "Starter Limit Reached", headline: "500-guest Starter cap reached.",    sub: "Upgrade to Pro for unlimited guests per event." }
       : { badge: "Guest Limit Reached",   headline: "You've hit the free guest cap.",    sub: "Upgrade to Starter for 500 guests, or Pro for unlimited." },
-    templates: { badge: "Style Locked",      headline: "This style requires Starter or above.", sub: "Unlock all themes and every style with one upgrade." },
-    tickets:   { badge: "Ticketing Locked",  headline: "Ticket selling requires Starter.",      sub: "Sell tickets and collect payments — Starter gets you a 2% fee." },
+    templates: { badge: "Style Locked",      headline: "This style requires Starter or above.", sub: "Unlock all templates and styles with one upgrade." },
+    tickets:   { badge: "Lower Ticket Fee",  headline: "Reduce your ticket-selling fee.",       sub: "Free and Starter are 2%; Pro reduces it to 1.5%." },
     reminders: isStarter
-      ? { badge: "Reminder Limit Reached", headline: "You've sent your 1 Starter reminder.",  sub: "Upgrade to Pro for unlimited email reminders per guest." }
-      : { badge: "Reminders Locked",       headline: "Email reminders require Starter.",       sub: "Send guest reminders — Starter: 1 per guest, Pro: unlimited." },
+      ? { badge: "Reminder Limit Reached", headline: "You've used your 1 Starter reminder config.",  sub: "Upgrade to Pro for unlimited email reminder configurations." }
+      : { badge: "Reminders Locked",       headline: "Email reminders require Starter.",       sub: "Send guest reminders — Starter: 1 config/event, Pro: unlimited." },
     feature: isStarter
-      ? { badge: "Pro Feature",    headline: "This feature requires Pro.", sub: "Upgrade to Pro to unlock every feature without limits." }
+      ? { badge: "Pro Feature",    headline: "This feature requires Pro.", sub: "Upgrade to Pro to unlock every feature." }
       : { badge: "Feature Locked", headline: "This feature requires a paid plan.", sub: "Upgrade to Starter or Pro to unlock the full toolkit." },
     default: isStarter
-      ? { badge: "Upgrade to Pro",    headline: "Ready for no limits?",           sub: "Pro gives you unlimited events, guests, and every feature." }
-      : { badge: "Upgrade Your Plan", headline: "Build events without limits.",   sub: "Starter at $19/mo, or go unlimited with Pro at $49/mo." },
+      ? { badge: "Upgrade to Pro",    headline: "Ready for more events?",           sub: "Pro gives you 3 events, unlimited guests, and every feature." }
+      : { badge: "Upgrade Your Plan", headline: "Build events with more power.",   sub: "Starter at $19/mo, or go Pro at $49/mo for 3 events." },
   };
 
   if (!feature) return COPY.default;
@@ -167,7 +167,7 @@ function PlanCol({ label, price, period, features, highlight, badge, accentColor
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
 export default function UpgradeModal() {
-  const { upgradeModalOpen, upgradeModalFeature, closeUpgradeModal, createCheckoutSession, isLoading, plan } =
+  const { upgradeModalOpen, upgradeModalFeature, closeUpgradeModal, createCheckoutSession, isLoading, plan, isSubscribed, prices, fetchPrices } =
     useSubscriptionStore();
 
   const isStarter = plan === "starter";
@@ -177,15 +177,57 @@ export default function UpgradeModal() {
   // Re-derive the default selection each time the modal opens so stale
   // initial state (captured before the store hydrates from localStorage) doesn't persist.
   useEffect(() => {
-    if (upgradeModalOpen) setSelectedPlan(isStarter ? "pro" : "starter");
-  }, [upgradeModalOpen, isStarter]);
+    if (upgradeModalOpen) {
+      setSelectedPlan(isStarter ? "pro" : "starter");
+      void fetchPrices();
+    }
+  }, [upgradeModalOpen, isStarter, fetchPrices]);
 
   const copy = getTriggerCopy(upgradeModalFeature, plan);
+  // The API is the source of truth for price IDs. Environment values are only
+  // a backward-compatible fallback for older deployments.
+  const starterPriceId = prices?.starter?.id || STARTER_PRICE_ID;
+  const proPriceId = prices?.pro?.id || PRO_PRICE_ID;
 
+  /**
+   * CRITICAL FIX #2: Use correct endpoint based on subscription state.
+   * - If user has active subscription: use change-plan (immediate, no redirect)
+   * - If user has no subscription: use checkout (redirect to Stripe)
+   */
   const handleCheckout = async (priceId, tier) => {
     if (!priceId) return;
     setLoadingTier(tier);
-    await createCheckoutSession(priceId);
+
+    // Check if user already has a subscription
+    if (isSubscribed) {
+      // Use change-plan endpoint for existing subscribers
+      const result = await useSubscriptionStore.getState().changeSubscriptionPlan(priceId);
+      if (result.success) {
+        closeUpgradeModal();
+        // Show success message (you can add toast notification here)
+        console.log(`Successfully upgraded to ${result.plan}`);
+      } else {
+        // Handle errors
+        if (result.code === "SAME_PLAN") {
+          console.log("Already on this plan");
+        } else {
+          console.error("Plan change failed:", result.message);
+        }
+      }
+    } else {
+      // Use checkout endpoint for new subscriptions
+      const result = await createCheckoutSession(priceId);
+      if (result.code === "SUBSCRIPTION_EXISTS") {
+        // Race condition: subscription was created between check and now
+        // Re-fetch and try again as plan change
+        await useSubscriptionStore.getState().fetchSubscription();
+        const retryResult = await useSubscriptionStore.getState().changeSubscriptionPlan(priceId);
+        if (retryResult.success) {
+          closeUpgradeModal();
+        }
+      }
+    }
+
     setLoadingTier(null);
   };
 
@@ -301,7 +343,7 @@ export default function UpgradeModal() {
               {/* Starter — only shown for free users */}
               {!isStarter && (
                 <button
-                  onClick={() => handleCheckout(STARTER_PRICE_ID, "starter")}
+                  onClick={() => handleCheckout(starterPriceId, "starter")}
                   disabled={isLoading || loadingTier !== null}
                   className="group flex flex-1 items-center justify-center gap-2 rounded-2xl py-3.5 text-[13px] font-black uppercase tracking-[0.1em] transition-all duration-200 active:scale-[0.98] disabled:opacity-60"
                   style={{
@@ -322,7 +364,7 @@ export default function UpgradeModal() {
 
               {/* Pro — primary for starter users, secondary for free users */}
               <button
-                onClick={() => handleCheckout(PRO_PRICE_ID, "pro")}
+                onClick={() => handleCheckout(proPriceId, "pro")}
                 disabled={isLoading || loadingTier !== null}
                 className="group flex flex-1 items-center justify-center gap-2 rounded-2xl py-3.5 text-[13px] font-black uppercase tracking-[0.1em] transition-all duration-200 active:scale-[0.98] disabled:opacity-60"
                 style={isStarter ? {

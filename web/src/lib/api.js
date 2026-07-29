@@ -2,21 +2,23 @@ import axios from "axios";
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api",
-  withCredentials: true,
+  withCredentials: true, // Send httpOnly cookies automatically
   timeout: 10000,
 });
 
-// In-memory token store — set by auth.store on login/refresh, cleared on logout.
-// Never written to localStorage; httpOnly refresh cookie handles persistence.
-let _accessToken = null;
-export function setInMemoryToken(token) { _accessToken = token; }
-export function clearInMemoryToken() { _accessToken = null; }
+// Web uses httpOnly cookies - no token management needed
+// These are no-ops for backward compatibility
+export function setTokens() {}
+export function clearTokens() {}
+export function getTokens() {
+  return { accessToken: null, refreshToken: null };
+}
 
 let isRefreshing = false;
 let refreshSubscribers = [];
 
-function onRefreshed(token) {
-  refreshSubscribers.forEach((cb) => cb(token));
+function onRefreshed() {
+  refreshSubscribers.forEach((cb) => cb());
   refreshSubscribers = [];
 }
 
@@ -24,11 +26,9 @@ function addRefreshSubscriber(cb) {
   refreshSubscribers.push(cb);
 }
 
-// Attach Bearer token from memory (never from localStorage)
+// Web uses cookies - no Authorization header needed
 api.interceptors.request.use((config) => {
-  if (_accessToken) {
-    config.headers.Authorization = `Bearer ${_accessToken}`;
-  }
+  // Cookies sent automatically via withCredentials: true
   return config;
 });
 
@@ -62,9 +62,8 @@ api.interceptors.response.use(
     if (response.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
-          addRefreshSubscriber((token) => {
-            if (!token) { reject(error); return; }
-            originalRequest.headers.Authorization = `Bearer ${token}`;
+          addRefreshSubscriber(() => {
+            // Retry request - cookies are already refreshed
             resolve(api(originalRequest));
           });
         });
@@ -75,16 +74,14 @@ api.interceptors.response.use(
 
       try {
         const { useAuthStore } = await import("@/store/auth.store");
-        const newToken = await useAuthStore.getState().refreshToken();
+        await useAuthStore.getState().refreshToken();
 
-        if (!newToken) throw new Error("Refresh token expired");
-
-        onRefreshed(newToken);
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        // Cookies refreshed automatically - retry request
+        onRefreshed();
         return api(originalRequest);
       } catch (refreshError) {
         // Release the queue FIRST so any pending requests don't deadlock.
-        onRefreshed(null);
+        onRefreshed();
 
         // Only call logout if we're not already on an auth page or public page
         // This prevents double-logout and error toasts when user manually logs out

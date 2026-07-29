@@ -3,9 +3,30 @@ import rateLimit from "express-rate-limit";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { resolveOrganization } from "../middleware/organization.middleware.js";
 import * as ctrl from "../controllers/planner.controller.js";
+import { db } from "../config/db.js";
+import { assertCanUsePlanner } from "../services/planLimits.service.js";
 
 const router = express.Router();
-router.use(authenticate, resolveOrganization);
+
+// Planner access middleware: enforces that user has Starter or Pro plan
+async function requirePlannerAccess(req, res, next) {
+  const client = await db.connect();
+  try {
+    await assertCanUsePlanner(client, req.user.id);
+    next();
+  } catch (err) {
+    return res.status(err.statusCode || 403).json({
+      success: false,
+      error: err.message,
+      code: err.code,
+      details: err.details,
+    });
+  } finally {
+    client.release();
+  }
+}
+
+router.use(authenticate, resolveOrganization, requirePlannerAccess);
 
 const aiLimiter = rateLimit({
   windowMs: 60 * 1000, max: 60,

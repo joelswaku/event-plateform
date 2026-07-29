@@ -878,6 +878,12 @@ export async function googleLogin({
 
       user = result.rows[0];
 
+      // SECURITY FIX: Check account status - reject disabled accounts
+      if (user.status !== "ACTIVE") {
+        await client.query("ROLLBACK");
+        throw new Error("Account disabled");
+      }
+
     } else {
       /* =========================
          2. CHECK EMAIL EXIST
@@ -1058,59 +1064,66 @@ export async function rotateRefreshToken({
   res,
 }) {
   const payload = verifyRefreshToken(refreshToken);
-
   const tokenHash = hashToken(refreshToken);
 
-  const session = await db.query(
-    `
-    SELECT *
-    FROM auth_sessions
-    WHERE refresh_token_hash=$1
-    AND revoked_at IS NULL
-    AND expires_at > now()
-    `,
-    [tokenHash]
-  );
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
 
-  if (!session.rows.length)
-    throw new Error("Session invalid");
+    // SECURITY FIX: Lock the session row to prevent race condition
+    const session = await client.query(
+      `SELECT *
+       FROM auth_sessions
+       WHERE refresh_token_hash = $1
+         AND revoked_at IS NULL
+         AND expires_at > now()
+       FOR UPDATE`, // Prevents concurrent refresh with same token
+      [tokenHash]
+    );
 
-  /* revoke old */
+    if (!session.rows.length) {
+      await client.query("ROLLBACK");
+      throw new Error("Session invalid");
+    }
 
-  await db.query(
-    `
-    UPDATE auth_sessions
-    SET revoked_at=now()
-    WHERE id=$1
-    `,
-    [session.rows[0].id]
-  );
+    // Revoke old session
+    await client.query(
+      `UPDATE auth_sessions
+       SET revoked_at = now()
+       WHERE id = $1`,
+      [session.rows[0].id]
+    );
 
-  const { rows: uRows } = await db.query(
-    `SELECT is_super_admin FROM users WHERE id = $1 LIMIT 1`,
-    [payload.sub]
-  );
-  const tokens = generateTokens({
-    userId:       payload.sub,
-    organizationId: payload.org,
-    role:         payload.role,
-    isSuperAdmin: uRows[0]?.is_super_admin === true,
-  });
+    const { rows: uRows } = await client.query(
+      `SELECT is_super_admin FROM users WHERE id = $1 LIMIT 1`,
+      [payload.sub]
+    );
+    const tokens = generateTokens({
+      userId:       payload.sub,
+      organizationId: payload.org,
+      role:         payload.role,
+      isSuperAdmin: uRows[0]?.is_super_admin === true,
+    });
 
-  const newHash = hashToken(tokens.refreshToken);
+    const newHash = hashToken(tokens.refreshToken);
 
-  await db.query(
-    `
-    INSERT INTO auth_sessions
-    (user_id,refresh_token_hash,device_name,user_agent,ip_address,expires_at)
-    VALUES ($1,$2,$3,$4,$5, now() + interval '7 days')
-    `,
-    [payload.sub, newHash, deviceName, userAgent, ip]
-  );
+    await client.query(
+      `INSERT INTO auth_sessions
+       (user_id, refresh_token_hash, device_name, user_agent, ip_address, expires_at)
+       VALUES ($1, $2, $3, $4, $5, now() + interval '7 days')`,
+      [payload.sub, newHash, deviceName, userAgent, ip]
+    );
 
-  setAuthCookies(res, tokens);
+    await client.query("COMMIT");
 
-  return tokens;
+    setAuthCookies(res, tokens);
+    return tokens;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 /* ------------------------------------------------ */

@@ -212,7 +212,7 @@ export const PAGE_METADATA = {
   pricing: {
     title: 'Pricing - Plans & Features',
     description:
-      'Affordable event management pricing. Free plan with 1 event. Starter plan at $19/mo for 5 events. Pro plan at $49/mo for unlimited events. Cancel anytime.',
+      'Affordable event management pricing. Free plan with 1 event. Starter plan at $19/mo for 1 active event. Pro plan at $49/mo for 3 active events. Cancel anytime.',
     keywords: [
       'event management pricing',
       'ticketing platform cost',

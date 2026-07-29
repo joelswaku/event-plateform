@@ -28,6 +28,7 @@ import { useAIStore }         from "@/store/ai.store";
 import { usePlannerStore }    from "@/store/planner.store";
 import PostEventSummaryModal  from "@/components/ai/PostEventSummaryModal";
 import toast from "react-hot-toast";
+import { api } from "@/lib/api";
 
 // ── Cover image fallbacks ─────────────────────────────────────────────────────
 const EVENT_IMGS = {
@@ -1676,7 +1677,7 @@ export default function EventDetailPage() {
   const router      = useRouter();
   const { fetchEventDashboard, dashboard, loading } = useEventStore();
   const { isHydrated, isAuthenticated } = useAuthStore();
-  const { isSubscribed, openUpgradeModal } = useSubscriptionStore();
+  const { isSubscribed, features, openUpgradeModal } = useSubscriptionStore();
   const { projects, fetchProjects, loading: plannerLoading } = usePlannerStore();
   const { generatePostEventSummary, loading: aiLoading } = useAIStore();
   const [fetchError, setFetchError] = useState(false);
@@ -1690,9 +1691,12 @@ export default function EventDetailPage() {
     if (!isAuthenticated) { router.replace("/login?redirect=" + encodeURIComponent(`/events/${eventId}`)); return; }
     if (eventId) {
       fetchEventDashboard(eventId).catch(() => setFetchError(true));
-      fetchProjects();
+      // Only fetch planner projects if user has planner access
+      if (isSubscribed && features?.planner) {
+        fetchProjects();
+      }
     }
-  }, [eventId, isHydrated, isAuthenticated]);
+  }, [eventId, isHydrated, isAuthenticated, isSubscribed, features]);
 
   // Auto-open reminders modal if coming from settings
   useEffect(() => {
@@ -1910,41 +1914,35 @@ export default function EventDetailPage() {
 }
 
 // ── Event Reminders Modal ──────────────────────────────────────────────────────
-function EventRemindersModal({ open, onClose, eventId, eventTitle }) {
-  const defaultReminders = [
-    { id: 1, enabled: true, timing: 'instant', message: 'Thank you for registering! Event details inside.', locked: true },
-    { id: 2, enabled: true, timing: '7_days', message: 'Your event is 1 week away!', locked: false },
-    { id: 3, enabled: true, timing: '24_hours', message: 'Event starts tomorrow! See you soon.', locked: false },
-    { id: 4, enabled: true, timing: '2_hours', message: 'Event starts in 2 hours!', locked: false },
-  ];
+const DEFAULT_EVENT_REMINDERS = [
+  { id: 1, enabled: true, timing: 'instant', message: "Thank you for registering! We'll send you more details as the event approaches.", locked: true },
+  { id: 2, enabled: false, timing: '1_hour', message: 'Event starts in 1 hour!', locked: false },
+];
 
-  const [reminders, setReminders] = useState(defaultReminders);
+function EventRemindersModal({ open, onClose, eventId, eventTitle }) {
+  const router = useRouter();
+  const { plan, isSubscribed } = useSubscriptionStore();
+  const isPro = isSubscribed && ["pro", "premium", "enterprise"].includes(plan);
+  const isStarter = isSubscribed && plan === "starter";
+
+  const [reminders, setReminders] = useState(DEFAULT_EVENT_REMINDERS);
+  // Keep additional Pro reminders in the saved configuration when a user
+  // downgrades, without letting them run on a lower plan.
+  const [hiddenReminders, setHiddenReminders] = useState([]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editMessage, setEditMessage] = useState('');
+  const [upgradeTier, setUpgradeTier] = useState(null);
 
-  // Load existing reminders when modal opens
-  useEffect(() => {
-    if (open && eventId) {
-      loadReminders();
-    }
-  }, [open, eventId]);
-
-  async function loadReminders() {
+  const loadReminders = useCallback(async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/events/${eventId}/reminders`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        credentials: 'include',
-      });
+      // Use axios with httpOnly cookies instead of Bearer token
+      const response = await api.get(`/events/${eventId}/reminders`);
+      const data = response.data;
 
-      const data = await response.json();
-
-      if (response.ok && data.success && data.data.length > 0) {
+      if (data.success && data.data.length > 0) {
         // Map database reminders to include local IDs
         const loadedReminders = data.data.map((r, idx) => ({
           id: idx + 1,
@@ -1953,36 +1951,87 @@ function EventRemindersModal({ open, onClose, eventId, eventTitle }) {
           message: r.message,
           locked: r.locked || r.timing === 'instant',
         }));
-        setReminders(loadedReminders);
+        const instant = loadedReminders.find(r => r.timing === 'instant') || DEFAULT_EVENT_REMINDERS[0];
+        const scheduled = loadedReminders.filter(r => r.timing !== 'instant');
+        const primaryCustom = scheduled.find(r => r.timing === '1_hour') || scheduled[0] || DEFAULT_EVENT_REMINDERS[1];
+        const extraCustom = scheduled.filter(r => r.id !== primaryCustom.id);
+
+        setReminders([
+          { ...instant, id: 1, locked: true, enabled: true },
+          {
+            ...primaryCustom,
+            id: 2,
+            locked: false,
+            // A scheduled reminder cannot run on the Free plan.
+            enabled: (isStarter || isPro) ? primaryCustom.enabled : false,
+          },
+          ...(isPro ? extraCustom.map((r, index) => ({ ...r, id: index + 3, locked: false })) : []),
+        ]);
+        setHiddenReminders(isPro ? [] : extraCustom);
       } else {
         // Use defaults if no reminders exist
-        setReminders(defaultReminders);
+        setReminders(DEFAULT_EVENT_REMINDERS);
+        setHiddenReminders([]);
       }
     } catch (error) {
       console.error('Error loading reminders:', error);
-      setReminders(defaultReminders);
+      setReminders(DEFAULT_EVENT_REMINDERS);
+      setHiddenReminders([]);
     } finally {
       setLoading(false);
     }
-  }
+  }, [eventId, isStarter, isPro]);
+
+  // Load reminders when modal opens
+  useEffect(() => {
+    if (open && eventId) {
+      loadReminders();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, eventId]);
 
   if (!open) return null;
 
   const handleToggle = (id) => {
+    const reminder = reminders.find(r => r.id === id);
+    if (!reminder || reminder.locked) return;
+
+    if (!reminder.enabled && !isStarter && !isPro) {
+      setUpgradeTier('starter');
+      return;
+    }
+
     setReminders(prev => prev.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r));
   };
 
   const handleRemove = (id) => {
+    // The included one-hour reminder remains visible on every plan.
+    if (id === 2) return;
     setReminders(prev => prev.filter(r => r.id !== id || r.locked));
   };
 
   const handleAddReminder = () => {
+    if (!isStarter && !isPro) {
+      setUpgradeTier('starter');
+      return;
+    }
+    if (!isPro) {
+      setUpgradeTier('pro');
+      return;
+    }
+
+    const timingOptions = ['30_days', '14_days', '7_days', '3_days', '24_hours', '12_hours', '6_hours', '2_hours', '1_hour', '30_minutes', '15_minutes'];
+    const availableTiming = timingOptions.find(timing => !reminders.some(r => r.timing === timing));
+    if (!availableTiming) {
+      toast.error('All reminder times are already in use.');
+      return;
+    }
     const newId = Math.max(...reminders.map(r => r.id), 0) + 1;
     setReminders(prev => [...prev, {
       id: newId,
       enabled: false,
-      timing: '1_hour',
-      message: 'Event starts in 1 hour!',
+      timing: availableTiming,
+      message: getSuggestedMessage(availableTiming),
       locked: false
     }]);
 
@@ -2028,6 +2077,10 @@ function EventRemindersModal({ open, onClose, eventId, eventTitle }) {
   };
 
   const handleTimingChange = (id, newTiming) => {
+    if (reminders.some(r => r.id !== id && r.timing === newTiming)) {
+      toast.error('This reminder time is already in use.');
+      return;
+    }
     setReminders(prev => prev.map(r => {
       if (r.id === id) {
         // Auto-update message to match new timing
@@ -2041,40 +2094,32 @@ function EventRemindersModal({ open, onClose, eventId, eventTitle }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const token = localStorage.getItem('token');
-
       // Clean up reminders - only send necessary fields
-      const cleanReminders = reminders.map(r => ({
+      const remindersToSave = isPro
+        ? reminders
+        : [...reminders, ...hiddenReminders.map(r => ({ ...r, enabled: false, locked: false }))];
+      const cleanReminders = remindersToSave.map(r => ({
         timing: r.timing,
         message: r.message,
         enabled: r.enabled,
         locked: r.locked || false,
       }));
 
-      const url = `${process.env.NEXT_PUBLIC_API_URL}/events/${eventId}/reminders`;
-      console.log('Saving reminders to:', url);
-      console.log('Reminders data:', cleanReminders);
+      console.log('Saving reminders data:', cleanReminders);
 
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        credentials: 'include',
-        body: JSON.stringify({ reminders: cleanReminders }),
+      // Use axios with httpOnly cookies instead of Bearer token
+      const response = await api.post(`/events/${eventId}/reminders`, {
+        reminders: cleanReminders,
       });
 
-      console.log('Response status:', response.status);
-      const data = await response.json();
-      console.log('Save response:', data);
+      console.log('Save response:', response.data);
 
-      if (response.ok && data.success) {
+      if (response.data.success) {
         toast.success('Reminders saved successfully!');
         onClose();
       } else {
-        console.error('Save failed. Status:', response.status, 'Data:', data);
-        toast.error(data.error || data.message || 'Failed to save reminders');
+        console.error('Save failed:', response.data);
+        toast.error(response.data.error || response.data.message || 'Failed to save reminders');
       }
     } catch (error) {
       console.error('Error saving reminders:', error);
@@ -2174,6 +2219,11 @@ function EventRemindersModal({ open, onClose, eventId, eventTitle }) {
                         Required
                       </span>
                     )}
+                    {!reminder.locked && !isStarter && !isPro && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300">
+                        Starter
+                      </span>
+                    )}
                   </div>
 
                   {editingId === reminder.id ? (
@@ -2214,16 +2264,17 @@ function EventRemindersModal({ open, onClose, eventId, eventTitle }) {
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => handleToggle(reminder.id)}
+                    disabled={reminder.locked}
                     className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors ${
                       reminder.enabled ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-700'
-                    }`}
+                    } ${reminder.locked ? 'cursor-not-allowed opacity-70' : ''}`}
                   >
                     <span
                       className="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
                       style={{ transform: reminder.enabled ? 'translateX(20px)' : 'translateX(4px)' }}
                     />
                   </button>
-                  {!reminder.locked && (
+                  {!reminder.locked && reminder.id !== 2 && (
                     <button
                       onClick={() => handleRemove(reminder.id)}
                       className="p-1.5 rounded-lg text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition"
@@ -2241,7 +2292,7 @@ function EventRemindersModal({ open, onClose, eventId, eventTitle }) {
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all text-sm font-semibold"
               >
                 <Plus className="w-4 h-4" />
-                Add Custom Reminder
+                {!isStarter && !isPro ? 'Upgrade to Enable Reminder' : !isPro ? 'Upgrade to Add Reminders' : 'Add Custom Reminder'}
               </button>
 
               <div className="mt-4 p-4 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20">
@@ -2286,6 +2337,41 @@ function EventRemindersModal({ open, onClose, eventId, eventTitle }) {
           </button>
         </div>
       </div>
+
+      {upgradeTier && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/45 p-5">
+          <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-300">
+              <Crown className="h-5 w-5" />
+            </div>
+            <h3 className="text-base font-bold text-gray-900 dark:text-white">
+              {upgradeTier === 'starter' ? 'Enable email reminders' : 'More reminders need Pro'}
+            </h3>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+              {upgradeTier === 'starter'
+                ? 'Instant confirmation is free. Upgrade to Starter to turn on the included one-hour reminder.'
+                : 'Starter includes one scheduled reminder. Upgrade to Pro to create additional reminders.'}
+            </p>
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => setUpgradeTier(null)}
+                className="flex-1 rounded-xl border border-gray-300 px-3 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+              >
+                Not now
+              </button>
+              <button
+                onClick={() => {
+                  onClose();
+                  router.push(`/settings/billing?plan=${upgradeTier}`);
+                }}
+                className="flex-1 rounded-xl bg-indigo-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
+              >
+                View {upgradeTier === 'starter' ? 'Starter' : 'Pro'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

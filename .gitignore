@@ -209,3 +209,4 @@ pids/
 # MISC
 # ========================================
 storybook-static/
+secret.json

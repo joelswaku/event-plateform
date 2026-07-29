@@ -2,12 +2,11 @@
 import * as authService from "../../services/auth.service.js";
 
 export async function logout(req, res) {
-
-
   try {
-    const refreshToken = req.cookies?.refreshToken || null;
-      
-     
+    // Try cookie first (web), then body (mobile), then from middleware (expired access token)
+    const refreshToken = req.cookies?.refreshToken ||
+                        req.body?.refreshToken ||
+                        (req.usedRefreshToken ? req.cookies?.refreshToken : null);
 
     await authService.logoutUser({
       refreshToken,

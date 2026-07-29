@@ -213,6 +213,7 @@ function Thread({ conversation, meId, registerIncoming, onBack, typingUser, isAd
 
   const isSupport = conversation.type === "support";
   const userIsRequester = isSupport && !isAdmin;
+  const currentUser = useAuthStore((s) => s.user);
 
   const scrollToBottom = useCallback((smooth = false) => {
     const el = scrollRef.current;
@@ -338,11 +339,29 @@ function Thread({ conversation, meId, registerIncoming, onBack, typingUser, isAd
             </p>
             {userIsRequester && <p className="text-xs mt-1">Send a message and our team will get back to you.</p>}
           </div>
-        ) : messages.map((m) => {
+        ) : messages.map((m, index) => {
           const mine = m.sender_id === meId;
           const fromAdmin = userIsRequester && !mine; // support replies
+          const showAvatar = index === 0 || messages[index - 1].sender_id !== m.sender_id;
+          const senderName = mine
+            ? (currentUser?.full_name || "You")
+            : (m.sender_name || (isSupport ? "LiteEvent Support" : "Member"));
+          const senderAvatar = mine ? currentUser?.avatar_url : m.sender_avatar;
+          const useSupportAvatar = !mine && userIsRequester && isSupport;
           return (
             <div key={m.id} className={`flex items-end gap-2 ${mine ? "justify-end" : "justify-start"}`}>
+              {!mine && (
+                <div className="w-7 shrink-0">
+                  {showAvatar && (
+                    <Avatar
+                      name={senderName}
+                      url={senderAvatar}
+                      size={28}
+                      support={useSupportAvatar && !senderAvatar}
+                    />
+                  )}
+                </div>
+              )}
               <div className={`max-w-[75%] rounded-2xl px-3.5 py-2 ${mine ? "rounded-br-md" : "rounded-bl-md"}`}
                 style={{
                   background: mine ? `linear-gradient(135deg,${ACCENT},#7c3aed)` : "rgba(255,255,255,0.07)",
@@ -358,6 +377,11 @@ function Thread({ conversation, meId, registerIncoming, onBack, typingUser, isAd
                   {mine && !m.optimistic && <CheckCheck size={12} className="text-white/40" />}
                 </div>
               </div>
+              {mine && (
+                <div className="w-7 shrink-0">
+                  {showAvatar && <Avatar name={senderName} url={senderAvatar} size={28} />}
+                </div>
+              )}
             </div>
           );
         })}

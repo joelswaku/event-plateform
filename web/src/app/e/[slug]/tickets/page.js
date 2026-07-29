@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Zap, Clock, CheckCircle } from "lucide-react";
 import LegalModal from "@/components/legal/LegalModal";
+import { createPaymentRequestKey } from "@/lib/payment-idempotency";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 
@@ -57,6 +58,7 @@ function CheckoutModal({ ticket, event, onClose }) {
   const [termsChecked,  setTermsChecked]  = useState(false);
   const [termsTouched,  setTermsTouched]  = useState(false);
   const [legalSlug,     setLegalSlug]     = useState(null);
+  const paymentRequestKey = useRef(createPaymentRequestKey("ticket"));
 
   const available = ticket.quantity_total != null
     ? ticket.quantity_total - (ticket.quantity_sold ?? 0)
@@ -83,6 +85,7 @@ function CheckoutModal({ ticket, event, onClose }) {
           buyer_email: form.email.trim().toLowerCase(),
           buyer_phone: form.phone.trim() || undefined,
           items: [{ ticket_type_id: ticket.id, quantity: qty }],
+          idempotency_key: paymentRequestKey.current,
         }),
       });
       const data = await res.json();

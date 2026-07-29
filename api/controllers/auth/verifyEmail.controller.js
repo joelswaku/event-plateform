@@ -11,6 +11,9 @@ export async function verifyEmail(req, res) {
   }
 
   try {
+    const isMobile = req.headers["x-client-type"] === "mobile" ||
+                     req.headers.authorization?.startsWith("Bearer");
+
     const result = await authService.verifyEmailWithCode({
       token,
       code,
@@ -24,7 +27,19 @@ export async function verifyEmail(req, res) {
       return res.status(400).json(result);
     }
 
-    return res.status(200).json(result);
+    // Web clients: tokens in httpOnly cookies, don't send in JSON
+    // Mobile clients: send tokens in JSON response
+    const response = {
+      success: result.success,
+      message: result.message,
+      user: result.user,
+      ...(isMobile && {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      }),
+    };
+
+    return res.status(200).json(response);
   } catch (error) {
     console.error("VERIFY EMAIL ERROR:", error);
     res.status(500).json({

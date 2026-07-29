@@ -3,17 +3,16 @@ import { create } from 'zustand';
 const API = process.env.NEXT_PUBLIC_API_URL;
 
 async function apiCall(endpoint, options = {}) {
-  const token = localStorage.getItem('token');
+  // Web uses httpOnly cookies - no Authorization header needed
   const headers = {
     'Content-Type': 'application/json',
-    ...(token && { Authorization: `Bearer ${token}` }),
     ...options.headers,
   };
 
   const response = await fetch(`${API}${endpoint}`, {
     ...options,
     headers,
-    credentials: 'include',
+    credentials: 'include', // Send cookies
   });
 
   if (!response.ok) {

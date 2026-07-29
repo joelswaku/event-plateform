@@ -63,7 +63,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const res = await api.post<any>('/auth/login', { email, password });
-      console.log('AUTH STORE: Login API Response:', JSON.stringify(res.data, null, 2)); // DEBUG
+      // SECURITY FIX: Never log tokens - removed sensitive data logging
 
       // Check if email verification is required
       if (res.data?.requiresVerification) {
@@ -123,7 +123,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   googleLogin: async (idToken) => {
     set({ isLoading: true, error: null });
     try {
-      const res          = await api.post<{ data: { accessToken: string; refreshToken: string; user: User } }>('/auth/google', { id_token: idToken });
+      // SECURITY FIX: Backend expects access_token, not id_token
+      const res          = await api.post<{ data: { accessToken: string; refreshToken: string; user: User } }>('/auth/google', { access_token: idToken });
       const accessToken  = res.data?.data?.accessToken;
       const refreshToken = res.data?.data?.refreshToken;
       const user         = res.data?.data?.user;
@@ -146,9 +147,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   refreshToken: async (storedToken?) => {
     if (!storedToken) return null;
     try {
-      const res             = await api.post<{ accessToken: string; refreshToken: string }>('/auth/refresh-token', { refreshToken: storedToken });
-      const newAccessToken  = res.data?.accessToken;
-      const newRefreshToken = res.data?.refreshToken;
+      const res             = await api.post<{ data?: { accessToken: string; refreshToken: string }; accessToken?: string; refreshToken?: string }>('/auth/refresh-token', { refreshToken: storedToken });
+      // Backend returns { success: true, message: "...", accessToken: "...", refreshToken: "..." }
+      const newAccessToken  = res.data?.data?.accessToken || res.data?.accessToken;
+      const newRefreshToken = res.data?.data?.refreshToken || res.data?.refreshToken;
       if (!newAccessToken) throw new Error('No token');
 
       setToken(newAccessToken);

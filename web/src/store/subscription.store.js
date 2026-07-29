@@ -4,23 +4,12 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { api } from "@/lib/api";
 
-// Grace period: 5 min after payment before we trust the DB over the optimistic state
-const GRACE_MS = 5 * 60 * 1000;
-
 // Normalize legacy/alias plan names to the canonical three tiers
 function normalizePlan(plan) {
   if (plan === "pro" || plan === "premium" || plan === "enterprise") return "pro";
   if (plan === "starter") return "starter";
   return "free";
 }
-
-function getPaidAt() {
-  if (typeof window === "undefined") return null;
-  const v = sessionStorage.getItem("sp_paid_at");
-  return v ? parseInt(v, 10) : null;
-}
-function setPaidAt()   { if (typeof window !== "undefined") sessionStorage.setItem("sp_paid_at", String(Date.now())); }
-function clearPaidAt() { if (typeof window !== "undefined") sessionStorage.removeItem("sp_paid_at"); }
 
 // ── Plan limits mirror (kept in sync by fetchSubscription) ───────────────────
 const DEFAULT_LIMITS = {
@@ -38,9 +27,9 @@ const DEFAULT_FEATURES = {
   lockedTemplates:     true,
   lockedStyles:        true,
   freeTemplateStyle:   "CLASSIC",
-  stripeTicketing:     false,
+  stripeTicketing:     true,
   guestEmailReminders: 0,
-  platformFeePercent:  0,
+  platformFeePercent:  2,
 };
 
 export const useSubscriptionStore = create(
@@ -65,6 +54,9 @@ export const useSubscriptionStore = create(
       // ── Upgrade modal ────────────────────────────────────────────────────────
       upgradeModalOpen:    false,
       upgradeModalFeature: null,
+
+      // ── Billing modal ────────────────────────────────────────────────────────
+      billingModalOpen: false,
 
       // ── Stripe prices (fetched from API) ─────────────────────────────────────
       prices: { starter: null, pro: null },
@@ -108,7 +100,7 @@ export const useSubscriptionStore = create(
               : { allowed: true, reason: null };
           case "tickets":
             return !features?.stripeTicketing
-              ? { allowed: false, reason: "Ticket selling requires Starter or Pro plan." }
+              ? { allowed: false, reason: "Ticket selling is not available on your current plan." }
               : { allowed: true, reason: null };
           case "reminders": {
             const reminderLimit = features?.guestEmailReminders ?? 0;
@@ -124,6 +116,9 @@ export const useSubscriptionStore = create(
       // ── Modal helpers ────────────────────────────────────────────────────────
       openUpgradeModal:  (feature = null) => set({ upgradeModalOpen: true,  upgradeModalFeature: feature }),
       closeUpgradeModal: ()               => set({ upgradeModalOpen: false, upgradeModalFeature: null  }),
+
+      openBillingModal:  () => set({ billingModalOpen: true }),
+      closeBillingModal: () => set({ billingModalOpen: false }),
 
       /**
        * Gate helper: if the user can perform `feature`, calls onAllowed().
@@ -157,7 +152,6 @@ export const useSubscriptionStore = create(
           const dbSubscribed = data.is_subscribed ?? false;
 
           if (dbSubscribed) {
-            clearPaidAt();
             set({
               plan:               normalizePlan(data.plan),
               isSubscribed:       true,
@@ -169,57 +163,23 @@ export const useSubscriptionStore = create(
               isLoading: false,
             });
           } else {
-            const inGrace = (() => { const p = getPaidAt(); return p && Date.now() - p < GRACE_MS; })();
-            if (inGrace) {
-              // DB hasn't been updated by webhook yet. Try verify-session as a fallback
-              // so we can update the DB even if the Stripe webhook hasn't fired.
-              const sessionId = typeof window !== "undefined"
-                ? sessionStorage.getItem("stripe_session_id")
-                : null;
-              if (sessionId) {
-                try {
-                  const vRes = await api.get(`/subscription/verify-session?session_id=${sessionId}`);
-                  if (vRes.data?.data?.is_subscribed) {
-                    clearPaidAt();
-                    if (typeof window !== "undefined") sessionStorage.removeItem("stripe_session_id");
-                    // Re-fetch now that DB is updated
-                    const syncRes = await api.get("/subscription/status");
-                    const syncData = syncRes.data?.data ?? {};
-                    set({
-                      plan:               normalizePlan(syncData.plan),
-                      isSubscribed:       true,
-                      subscriptionStatus: syncData.subscription_status ?? "active",
-                      currentPeriodEnd:   syncData.current_period_end  ?? null,
-                      usage:              syncData.usage               ?? { events: 0 },
-                      limits:             syncData.limits              ?? DEFAULT_LIMITS,
-                      features:           syncData.features            ?? DEFAULT_FEATURES,
-                      isLoading: false,
-                    });
-                    return;
-                  }
-                } catch { /* ignore — webhook may still be in flight */ }
-              }
-              // Keep the optimistic plan/limits/features set by setSubscribed() — only sync usage
-              set({ usage: data.usage ?? { events: 0 }, isLoading: false });
-            } else {
-              set({
-                plan:               "free",
-                isSubscribed:       false,
-                subscriptionStatus: data.subscription_status ?? null,
-                currentPeriodEnd:   data.current_period_end  ?? null,
-                usage:              data.usage               ?? { events: 0 },
-                limits:             data.limits              ?? DEFAULT_LIMITS,
-                features:           data.features            ?? DEFAULT_FEATURES,
-                isLoading: false,
-              });
-            }
+            set({
+              plan:               "free",
+              isSubscribed:       false,
+              subscriptionStatus: data.subscription_status ?? null,
+              currentPeriodEnd:   data.current_period_end  ?? null,
+              usage:              data.usage               ?? { events: 0 },
+              limits:             data.limits              ?? DEFAULT_LIMITS,
+              features:           data.features            ?? DEFAULT_FEATURES,
+              isLoading: false,
+            });
           }
         } catch {
           set({ isLoading: false });
         }
       },
 
-      // ── Stripe checkout ───────────────────────────────────────────────────────
+      // ── Stripe checkout (for new subscriptions only) ─────────────────────────
       createCheckoutSession: async (priceId) => {
         try {
           set({ isLoading: true });
@@ -233,7 +193,54 @@ export const useSubscriptionStore = create(
           return { success: true };
         } catch (err) {
           set({ isLoading: false });
-          return { success: false, message: err?.response?.data?.message || "Checkout failed" };
+          const message = err?.response?.data?.message || "Checkout failed";
+          const code = err?.response?.data?.code;
+          return { success: false, message, code };
+        }
+      },
+
+      // Verify Stripe directly before updating local access after a hosted
+      // checkout redirect. The success URL itself is never proof of payment.
+      verifyAndActivate: async (sessionId) => {
+        try {
+          const res = await api.get(`/subscription/verify-session?session_id=${encodeURIComponent(sessionId)}`);
+          if (!res.data?.data?.is_subscribed) return false;
+          await get().fetchSubscription();
+          return true;
+        } catch {
+          return false;
+        }
+      },
+
+      /**
+       * CRITICAL FIX #2: Change existing subscription plan (upgrade/downgrade).
+       * Use this when user already has an active subscription.
+       * Returns immediately without redirect — plan changes take effect instantly.
+       */
+      changeSubscriptionPlan: async (priceId) => {
+        try {
+          set({ isLoading: true });
+          const res = await api.post("/subscription/change-plan", { priceId });
+          const data = res.data?.data ?? {};
+
+          // Update local state immediately with the new plan
+          if (data.plan) {
+            set({
+              plan: normalizePlan(data.plan),
+              subscriptionStatus: data.subscription_status ?? "active",
+              currentPeriodEnd: data.current_period_end ?? null,
+            });
+            // Re-fetch to get updated limits/features
+            await get().fetchSubscription();
+          }
+
+          set({ isLoading: false });
+          return { success: true, plan: data.plan };
+        } catch (err) {
+          set({ isLoading: false });
+          const message = err?.response?.data?.message || "Plan change failed";
+          const code = err?.response?.data?.code;
+          return { success: false, message, code };
         }
       },
 
@@ -249,36 +256,7 @@ export const useSubscriptionStore = create(
         }
       },
 
-      // Called on /billing/success redirect — optimistic unlock
-      setSubscribed: (plan = "starter") => {
-        const tier = normalizePlan(plan);
-        const isPro = tier === "pro";
-        setPaidAt();
-        set({
-          plan: tier,
-          isSubscribed:       true,
-          subscriptionStatus: "active",
-          limits: isPro
-            ? { events: null,  templates: null, guests: null }
-            : { events: 5,     templates: null, guests: 500  },
-          features: isPro
-            ? {
-                customDomain: true,  analytics: true,  advancedBuilder: true,
-                rsvp: true, pageBuilder: true, lockedTemplates: false,
-                lockedStyles: false, freeTemplateStyle: null,
-                stripeTicketing: true, guestEmailReminders: 999, platformFeePercent: 0,
-              }
-            : {
-                customDomain: false, analytics: false, advancedBuilder: false,
-                rsvp: true, pageBuilder: true, lockedTemplates: false,
-                lockedStyles: false, freeTemplateStyle: null,
-                stripeTicketing: true, guestEmailReminders: 1, platformFeePercent: 2,
-              },
-        });
-      },
-
       setUnsubscribed: () => {
-        clearPaidAt();
         set({ plan: "free", isSubscribed: false, subscriptionStatus: "canceled", features: DEFAULT_FEATURES, limits: DEFAULT_LIMITS });
       },
     }),
