@@ -1,9 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ClipboardList, Plus, Calendar, Users, Trash2, ArrowRight, Loader2, Sparkles, ExternalLink } from "lucide-react";
 import { usePlannerStore } from "@/store/planner.store";
 import { useEventStore } from "@/store/event.store";
+import { useSubscriptionStore } from "@/store/subscription.store";
+import UpgradeModal from "@/components/ui/UpgradeModal";
 import toast from "react-hot-toast";
 
 const EVENT_TYPE_EMOJI = {
@@ -36,13 +39,24 @@ function TaskRing({ done, total }) {
 }
 
 export default function PlannerPage() {
+  const router = useRouter();
   const { projects, loading, fetchProjects, deleteProject } = usePlannerStore();
   const { events: allEvents, fetchEvents, loading: eventsLoading } = useEventStore();
+  const { isSubscribed, features } = useSubscriptionStore();
   const events = allEvents.filter(e => !e.user_role || e.user_role === "OWNER");
   const [deleting, setDeleting] = useState(null);
   const [showNoEventsWarning, setShowNoEventsWarning] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
-  useEffect(() => { fetchProjects(); fetchEvents(); }, []);
+  // Check planner access - show upgrade modal if Free user
+  useEffect(() => {
+    if (!isSubscribed || !features?.planner) {
+      setShowUpgradeModal(true);
+    } else {
+      fetchProjects();
+      fetchEvents();
+    }
+  }, [isSubscribed, features]);
 
   async function handleDelete(e, id) {
     e.preventDefault();
@@ -99,7 +113,7 @@ export default function PlannerPage() {
                   <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
                 </div>
               </div>
-              <h3 className="text-lg sm:text-xl font-black text-white mb-2">No events yet</h3>
+              <h3 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white mb-2">No events yet</h3>
               <p className="text-gray-500 text-sm max-w-sm mb-6 sm:mb-8 leading-relaxed">
                 Create your first event, then attach a planner to manage every detail — tasks, vendors, timeline and budget.
               </p>
@@ -118,7 +132,7 @@ export default function PlannerPage() {
               <div className="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
                 <ClipboardList className="w-7 h-7 sm:w-8 sm:h-8 text-indigo-400" />
               </div>
-              <h3 className="text-white font-bold text-lg mb-1">No planner projects yet</h3>
+              <h3 className="text-gray-900 dark:text-white font-bold text-lg mb-1">No planner projects yet</h3>
               <p className="text-gray-500 text-sm mb-5 sm:mb-8">
                 Add a planner to one of your existing events to get started.
               </p>
@@ -129,11 +143,11 @@ export default function PlannerPage() {
                   <Link
                     key={ev.id}
                     href={`/planner/new?eventId=${ev.id}`}
-                    className="flex items-center gap-3 sm:gap-4 px-4 py-3.5 rounded-xl bg-white/3 border border-white/8 hover:border-indigo-500/30 hover:bg-indigo-500/5 active:scale-[0.98] active:bg-indigo-500/10 transition-all"
+                    className="flex items-center gap-3 sm:gap-4 px-4 py-3.5 rounded-xl bg-gray-100 dark:bg-white/3 border border-gray-200 dark:border-white/8 hover:border-indigo-500/30 hover:bg-indigo-500/5 active:scale-[0.98] active:bg-indigo-500/10 transition-all"
                   >
                     <span className="text-xl shrink-0">{getEmoji(ev.type || ev.event_type)}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white truncate">{ev.title || ev.name}</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{ev.title || ev.name}</p>
                       {(ev.start_date || ev.date) && (
                         <p className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5">
                           <Calendar className="w-3 h-3" />
@@ -256,6 +270,17 @@ export default function PlannerPage() {
           </div>
         )}
       </div>
+
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => {
+          setShowUpgradeModal(false);
+          router.push("/dashboard");
+        }}
+        feature="planner"
+        title="Planner Requires Paid Plan"
+        description="Access the full event planner with tasks, timeline, vendors, and budget management."
+      />
     </div>
   );
 }

@@ -2,11 +2,9 @@
 import { db } from "../config/db.js";
 
 export async function resolveOrganization(req, res, next) {
-  const headerOrg = req.headers["x-organization-id"];
-  const queryOrg  = req.query.organizationId;
-
-  if (headerOrg) { req.organizationId = headerOrg; return next(); }
-  if (queryOrg)  { req.organizationId = queryOrg;  return next(); }
+  // SECURITY: NEVER trust client-supplied organization IDs
+  // Client can send x-organization-id or organizationId but we MUST verify membership
+  const clientRequestedOrgId = req.headers["x-organization-id"] || req.query.organizationId;
 
   // Extract event ID from route params (populated by inline middleware) or URL regex
   const urlEventId = req.originalUrl.match(/\/events\/([^/?]+)/)?.[1];
@@ -28,7 +26,7 @@ export async function resolveOrganization(req, res, next) {
              )
              OR EXISTS (
                SELECT 1 FROM organization_members om
-               WHERE om.organization_id = e.organization_id AND om.user_id = $2
+               WHERE om.organization_id = e.organization_id AND om.user_id = $2 AND om.deleted_at IS NULL
              )
            )
          LIMIT 1`,
@@ -49,6 +47,27 @@ export async function resolveOrganization(req, res, next) {
   }
 
   // Non-event routes or event lookup found no access: use org from JWT
+  // If client requested specific org, verify user is a member
+  if (clientRequestedOrgId && req.user?.id) {
+    try {
+      const { rows } = await db.query(
+        `SELECT 1 FROM organization_members
+         WHERE organization_id = $1 AND user_id = $2 AND deleted_at IS NULL
+         LIMIT 1`,
+        [clientRequestedOrgId, req.user.id]
+      );
+      if (rows.length) {
+        req.organizationId = clientRequestedOrgId;
+        return next();
+      }
+      // User requested org they're not a member of - reject
+      return res.status(403).json({ success: false, message: "Access denied to this organization" });
+    } catch {
+      // DB error - fall through to personal org
+    }
+  }
+
+  // Default to user's personal org from JWT
   if (req.user?.organizationId) {
     req.organizationId = req.user.organizationId;
     return next();

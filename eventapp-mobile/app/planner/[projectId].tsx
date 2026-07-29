@@ -3036,17 +3036,22 @@ export default function PlannerProjectScreen() {
     fetchProject, generateAIBrief, generateAITasks, generateAITimeline, generateAIVendors, generateAIBudget,
   } = usePlannerStore();
 
+  const { isSubscribed, features } = useSubscriptionStore();
+
   const [activeSection, setActiveSection] = useState<SectionId>('overview');
   const [drawerOpen, setDrawerOpen]       = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
-  useEffect(() => { if (projectId) fetchProject(projectId); }, [projectId]);
+  // Check planner access
+  const hasPlanner = isSubscribed && features?.planner;
 
-  // TESTING: Always show upgrade modal
   useEffect(() => {
-    console.log('TESTING MODE: Always showing upgrade modal');
-    setShowUpgradeModal(true);
-  }, []);
+    if (!hasPlanner) {
+      setShowUpgradeModal(true);
+      return;
+    }
+    if (projectId) fetchProject(projectId);
+  }, [projectId, hasPlanner]);
 
   async function handleGenerate(type: string) {
     let res: any;

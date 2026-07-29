@@ -9,7 +9,9 @@ import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePlannerStore } from '@/store/planner.store';
 import { useEventStore }   from '@/store/event.store';
+import { useSubscriptionStore } from '@/store/subscription.store';
 import { Colors }          from '@/constants/colors';
+import { UpgradeNotificationModal } from '@/components/planner/UpgradeNotificationModal';
 
 /* ── Questions (identical to web) ─────────────────────────────────────── */
 const QUESTIONS = [
@@ -63,6 +65,7 @@ export default function NewPlannerScreen() {
   const { eventId: preEventId } = useLocalSearchParams<{ eventId?: string }>();
   const { createProject, generateAITasks, projects, fetchProjects } = usePlannerStore();
   const { events: allEvents, fetchEvents, loading: eventsLoading } = useEventStore();
+  const { isSubscribed, features } = useSubscriptionStore();
 
   // Only owned events — team-managed events should not get a planner here
   const events = (allEvents as any[]).filter(e => !e.user_role || e.user_role === 'OWNER');
@@ -76,8 +79,18 @@ export default function NewPlannerScreen() {
   const [qIdx,        setQIdx]        = useState(0);
   const [answers,     setAnswers]     = useState<Record<string, any>>({});
   const [typing,      setTyping]      = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
+
+  // Check planner access
+  const hasPlanner = isSubscribed && features?.planner;
+
+  useEffect(() => {
+    if (!hasPlanner) {
+      setShowUpgradeModal(true);
+    }
+  }, [hasPlanner]);
   const inputRef  = useRef<TextInput>(null);
 
   useEffect(() => { fetchEvents(); fetchProjects(); }, []);
@@ -413,6 +426,14 @@ export default function NewPlannerScreen() {
         )}
 
       </KeyboardAvoidingView>
+
+      <UpgradeNotificationModal
+        isOpen={showUpgradeModal}
+        onDismiss={() => {
+          setShowUpgradeModal(false);
+          router.push('/events');
+        }}
+      />
     </SafeAreaView>
   );
 }

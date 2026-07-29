@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator,
 } from 'react-native';
@@ -11,6 +11,7 @@ import { Colors }         from '@/constants/colors';
 import { getTierConfig }  from '@/lib/tier';
 import { fmtCurrency }    from '@/lib/format';
 import { useTicketStore } from '@/store/ticket.store';
+import api from '@/lib/api';
 import { openStripeCheckout, TICKET_SUCCESS_URL, TICKET_CANCEL_URL } from '@/lib/stripe';
 import { TicketType }     from '@/types';
 
@@ -23,6 +24,10 @@ interface PurchaseSheetProps {
 
 interface Form { name: string; email: string; phone: string; }
 
+function createPaymentRequestKey() {
+  return `ticket-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
 export function PurchaseSheet({ open, onClose, ticket, eventId }: PurchaseSheetProps) {
   const purchaseTicket = useTicketStore(s => s.purchaseTicket);
   const [qty,          setQty]          = useState(1);
@@ -33,6 +38,8 @@ export function PurchaseSheet({ open, onClose, ticket, eventId }: PurchaseSheetP
   const [termsChecked, setTermsChecked] = useState(false);
   const [termsTouched, setTermsTouched] = useState(false);
   const [legalSlug,    setLegalSlug]    = useState<string | null>(null);
+  const paymentRequestKey = useRef(createPaymentRequestKey());
+  const submittedFingerprint = useRef<string | null>(null);
 
   if (!ticket) return null;
 
@@ -44,6 +51,8 @@ export function PurchaseSheet({ open, onClose, ticket, eventId }: PurchaseSheetP
 
   const reset = () => {
     setQty(1); setForm({ name: '', email: '', phone: '' });
+    paymentRequestKey.current = createPaymentRequestKey();
+    submittedFingerprint.current = null;
     setError(''); setSuccess(false); onClose();
   };
 
@@ -55,6 +64,14 @@ export function PurchaseSheet({ open, onClose, ticket, eventId }: PurchaseSheetP
     setError('');
     setLoading(true);
 
+    const fingerprint = JSON.stringify({
+      name: form.name.trim(), email: form.email.trim().toLowerCase(), phone: form.phone.trim(), ticketId: ticket.id, qty,
+    });
+    if (submittedFingerprint.current !== fingerprint) {
+      paymentRequestKey.current = createPaymentRequestKey();
+      submittedFingerprint.current = fingerprint;
+    }
+
     const result = await purchaseTicket(eventId, {
       buyer_name:  form.name.trim(),
       buyer_email: form.email.trim().toLowerCase(),
@@ -63,6 +80,7 @@ export function PurchaseSheet({ open, onClose, ticket, eventId }: PurchaseSheetP
       // Mobile deep-link redirects — backend substitutes {ORDER_ID} with real ID
       success_url: TICKET_SUCCESS_URL,
       cancel_url:  TICKET_CANCEL_URL,
+      idempotency_key: paymentRequestKey.current,
     });
 
     setLoading(false);
@@ -76,7 +94,21 @@ export function PurchaseSheet({ open, onClose, ticket, eventId }: PurchaseSheetP
       // Open Stripe in an in-app browser (Safari View Controller / Chrome Custom Tab)
       const stripeResult = await openStripeCheckout(result.data.checkout_url);
       if (stripeResult.type === 'ticket_success') {
-        setSuccess(true);
+        try {
+          const confirmation = await api.post<{ success: boolean; data?: { status?: string } }>(
+            `/public/orders/${result.data.order_id}/confirm`
+          );
+          const status = confirmation.data?.data?.status;
+          if (status === 'not_paid') {
+            setError('Your payment is still being confirmed. Please check your email shortly.');
+          } else {
+            setSuccess(true);
+          }
+        } catch {
+          // Stripe's webhook remains the source of truth. Do not tell the buyer
+          // their ticket was issued until confirmation succeeds.
+          setError('Payment received. Your ticket is being issued and will arrive by email shortly.');
+        }
       } else if (stripeResult.type === 'error') {
         setError(stripeResult.message ?? 'Payment failed');
       }

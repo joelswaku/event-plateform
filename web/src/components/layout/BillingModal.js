@@ -31,15 +31,20 @@ const STATUS_LABELS = {
   canceled: { label: "Canceled", color: "#ef4444" },
 };
 
-const FREE_FEATURES    = ["1 event", "50 guests per event", "Classic theme only", "QR check-in scanner", "RSVP page builder", "Email support"];
-const STARTER_FEATURES = ["5 events", "500 guests per event", "All themes & styles", "QR check-in scanner", "Ticket selling (2% fee)", "1 email reminder / guest", "Basic analytics", "Up to 3 team members"];
-const PRO_FEATURES     = ["Unlimited events", "Unlimited guests", "All themes & styles", "Ticket selling (1.5% fee)", "Unlimited email reminders", "Advanced analytics", "Custom domain", "Unlimited team members", "Priority support"];
+const FREE_FEATURES    = ["1 event", "50 guests", "Classic theme only", "Tickets (2% fee)", "Instant confirmation only", "No planner access"];
+const STARTER_FEATURES = ["1 active event", "500 guests/event", "All templates", "Full planner", "1 team invite", "1 reminder config", "Tickets (2% fee)"];
+const PRO_FEATURES     = ["3 active events", "Unlimited guests", "All templates", "Full planner", "3 team invites", "Unlimited reminders", "Tickets (1.5% fee)"];
 
-export default function BillingModal({ open, onClose }) {
+export default function BillingModal({ open: propOpen, onClose: propOnClose } = {}) {
   const {
     plan, isSubscribed, subscriptionStatus, currentPeriodEnd,
     fetchSubscription, openCustomerPortal, isLoading,
+    billingModalOpen, closeBillingModal,
   } = useSubscriptionStore();
+
+  // Support both prop-based and store-based control
+  const open = propOpen !== undefined ? propOpen : billingModalOpen;
+  const onClose = propOnClose !== undefined ? propOnClose : closeBillingModal;
 
   const [checkoutLoading, setCheckoutLoading] = useState(null);
   const [portalLoading,   setPortalLoading]   = useState(false);
@@ -59,23 +64,69 @@ export default function BillingModal({ open, onClose }) {
     return () => { document.body.style.overflow = ""; };
   }, [open, fetchSubscription]);
 
+  /**
+   * CRITICAL FIX #2: Handle both new subscriptions and plan changes correctly.
+   * - If user has active subscription: use change-plan endpoint
+   * - If user has no subscription: use checkout endpoint
+   */
   const handleCheckout = async (priceId, tier) => {
     if (!priceId) { setError("Price not configured. Contact support."); return; }
     setCheckoutLoading(tier);
     setError(null);
+
     try {
-      if (typeof window !== "undefined") sessionStorage.setItem("checkout_tier", tier);
-      const res = await api.post("/subscription/checkout", {
-        priceId,
-        successUrl: `${window.location.origin}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancelUrl:  `${window.location.origin}/settings/billing`,
-      });
-      const { url } = res.data?.data ?? {};
-      if (url) window.location.href = url;
-      else throw new Error("No checkout URL returned");
+      // Check if user already has a subscription
+      if (isSubscribed) {
+        // Use change-plan endpoint for existing subscribers
+        const res = await api.post("/subscription/change-plan", { priceId });
+        const data = res.data?.data ?? {};
+
+        if (data.success) {
+          // Plan changed successfully - refresh subscription data
+          await fetchSubscription();
+          setCheckoutLoading(null);
+          // Optionally show success message
+          console.log(`Successfully changed to ${tier} plan`);
+        } else {
+          throw new Error(res.data?.message || "Plan change failed");
+        }
+      } else {
+        // Use checkout endpoint for new subscriptions
+        if (typeof window !== "undefined") sessionStorage.setItem("checkout_tier", tier);
+        const res = await api.post("/subscription/checkout", {
+          priceId,
+          successUrl: `${window.location.origin}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancelUrl:  `${window.location.origin}/settings/billing`,
+        });
+        const { url } = res.data?.data ?? {};
+        if (url) window.location.href = url;
+        else throw new Error("No checkout URL returned");
+      }
     } catch (err) {
       if (typeof window !== "undefined") sessionStorage.removeItem("checkout_tier");
-      setError(err?.response?.data?.message || "Failed to start checkout. Please try again.");
+
+      const code = err?.response?.data?.code;
+      const message = err?.response?.data?.message;
+
+      // Handle specific error codes
+      if (code === "SUBSCRIPTION_EXISTS") {
+        // Race condition: subscription created between check and now
+        await fetchSubscription();
+        // Retry as plan change
+        try {
+          const retryRes = await api.post("/subscription/change-plan", { priceId });
+          await fetchSubscription();
+          setCheckoutLoading(null);
+          return;
+        } catch (retryErr) {
+          setError("Failed to update plan. Please try again.");
+        }
+      } else if (code === "SAME_PLAN") {
+        setError("You are already subscribed to this plan.");
+      } else {
+        setError(message || "Failed to start checkout. Please try again.");
+      }
+
       setCheckoutLoading(null);
     }
   };
@@ -182,7 +233,7 @@ export default function BillingModal({ open, onClose }) {
                     ? `Renews on ${renewDate}`
                     : isSubscribed
                     ? "Active subscription"
-                    : "Upgrade for unlimited events, templates & more"}
+                    : "Upgrade for planner, reminders & more"}
                 </p>
               </div>
             </div>

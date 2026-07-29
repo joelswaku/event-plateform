@@ -1,7 +1,7 @@
 
 import { Router } from "express";
 
-import { authenticate } from "../middleware/auth.middleware.js";
+import { authenticate, authenticateForLogout } from "../middleware/auth.middleware.js";
 
 import { register } from "../controllers/auth/register.controller.js";
 import { login } from "../controllers/auth/login.controller.js";
@@ -52,8 +52,8 @@ router.post("/reset-password", resetPassword);
    PROTECTED ROUTES (AUTH REQUIRED)
 ========================= */
 
-// Logout user
-router.post("/logout", authenticate, logout);
+// Logout user - use special middleware that accepts refresh token if access token expired
+router.post("/logout", authenticateForLogout, logout);
 
 // Get current user
 router.get("/me", authenticate, me);

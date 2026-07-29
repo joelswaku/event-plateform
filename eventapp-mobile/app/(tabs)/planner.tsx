@@ -6,8 +6,10 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { usePlannerStore } from '@/store/planner.store';
 import { useEventStore } from '@/store/event.store';
+import { useSubscriptionStore } from '@/store/subscription.store';
 import { Colors } from '@/constants/colors';
-import { notify } from '@/lib/toast';
+import { toast } from '@/lib/toast';
+import { UpgradeNotificationModal } from '@/components/planner/UpgradeNotificationModal';
 
 const EVENT_TYPE_EMOJI: Record<string, string> = {
   wedding: '💍', conference: '🎤', concert: '🎵', birthday: '🎂',
@@ -32,11 +34,23 @@ export default function PlannerTab() {
   const router = useRouter();
   const { projects, loading, fetchProjects, deleteProject } = usePlannerStore();
   const { events: allEvents, loading: eventsLoading, fetchEvents } = useEventStore();
+  const { isSubscribed, features } = useSubscriptionStore();
   const events = allEvents.filter((e: any) => !e.user_role || e.user_role === 'OWNER');
   const [deleting, setDeleting] = useState<string | null>(null);
   const [showEventModal, setShowEventModal] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
-  useEffect(() => { fetchProjects(); fetchEvents(); }, []);
+  // Check planner access
+  const hasPlanner = isSubscribed && features?.planner;
+
+  useEffect(() => {
+    if (!hasPlanner) {
+      setShowUpgradeModal(true);
+      return;
+    }
+    fetchProjects();
+    fetchEvents();
+  }, [hasPlanner]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -44,13 +58,13 @@ export default function PlannerTab() {
       const res = await deleteProject(id);
       setDeleting(null);
       if (res.success) {
-        notify.success('Project deleted');
+        toast.success('Project deleted');
       } else {
-        notify.error(res.error || 'Failed to delete');
+        toast.error(res.error || 'Failed to delete');
       }
     } catch (error) {
       setDeleting(null);
-      notify.error('Failed to delete project');
+      toast.error('Failed to delete project');
       console.error('Delete error:', error);
     }
   };
@@ -108,6 +122,21 @@ export default function PlannerTab() {
   const busy = loading || eventsLoading;
   const noEvents = !busy && events.length === 0 && projects.length === 0;
   const hasEventsNoProjects = !busy && events.length > 0 && projects.length === 0;
+
+  // Show nothing if no planner access - modal will handle it
+  if (!hasPlanner) {
+    return (
+      <View style={s.screen}>
+        <UpgradeNotificationModal
+          isOpen={showUpgradeModal}
+          onDismiss={() => {
+            setShowUpgradeModal(false);
+            router.push('/events');
+          }}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={s.screen}>
@@ -209,6 +238,15 @@ export default function PlannerTab() {
           <Feather name="plus" size={24} color="#fff" />
         </TouchableOpacity>
       )}
+
+      {/* Upgrade Modal */}
+      <UpgradeNotificationModal
+        isOpen={showUpgradeModal}
+        onDismiss={() => {
+          setShowUpgradeModal(false);
+          router.push('/events');
+        }}
+      />
 
       {/* Event Selection Modal */}
       <Modal

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Zap, QrCode, Ticket, CheckCircle, CreditCard, Shield, Timer, Heart, ArrowRight, Loader2 } from "lucide-react";
+import { createPaymentRequestKey } from "@/lib/payment-idempotency";
 
 const EASE = [0.22, 1, 0.36, 1];
 const API  = process.env.NEXT_PUBLIC_API_URL;
@@ -1014,6 +1015,7 @@ function HeroDonationCard({ event, isEditor, delay, centered, fullWidth }) {
   const [done,       setDone]       = useState(false);
   const [error,      setError]      = useState("");
   const [donConfig,  setDonConfig]  = useState({ amounts: [], message: "" });
+  const donationRequestKey = useRef(createPaymentRequestKey("donation"));
   const [quoteIdx,   setQuoteIdx]   = useState(0);
   const [quoteVis,   setQuoteVis]   = useState(true);
   const [isMobile,   setIsMobile]   = useState(false);
@@ -1063,7 +1065,7 @@ function HeroDonationCard({ event, isEditor, delay, centered, fullWidth }) {
     try {
       const res = await fetch(`${API}/engagement/events/${event?.id}/donations`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ donor_name: name.trim() || null, amount, currency: "USD", frequency: freq }),
+        body: JSON.stringify({ donor_name: name.trim() || null, amount, currency: "USD", frequency: freq, idempotency_key: donationRequestKey.current }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Donation failed");

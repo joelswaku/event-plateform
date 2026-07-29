@@ -39,19 +39,19 @@ export function UpgradeNotificationModal({ isOpen, onDismiss }: UpgradeNotificat
           </View>
 
           {/* Title */}
-          <Text style={s.title}>Upgrade to Pro for Full Planner Access</Text>
+          <Text style={s.title}>Planner Requires Paid Plan</Text>
 
           {/* Description */}
           <Text style={s.description}>
-            You're currently testing our planner features. Upgrade to Pro to unlock unlimited planner projects, team members, and advanced AI features.
+            The planner feature requires Starter or Pro plan. Upgrade to unlock full planner access with task management, budget tracking, timeline, and vendor management.
           </Text>
 
           {/* Benefits */}
           <View style={s.benefits}>
             {[
-              { icon: 'zap', text: 'Unlimited planner projects' },
-              { icon: 'trending-up', text: 'Advanced AI task generation' },
-              { icon: 'users', text: 'Unlimited team collaboration' },
+              { icon: 'clipboard', text: 'Full planner access' },
+              { icon: 'trending-up', text: 'AI task generation' },
+              { icon: 'users', text: 'Team collaboration' },
             ].map((item, index) => (
               <View key={index} style={s.benefitRow}>
                 <View style={s.benefitIcon}>
@@ -66,7 +66,7 @@ export function UpgradeNotificationModal({ isOpen, onDismiss }: UpgradeNotificat
           <View style={s.actions}>
             <Pressable onPress={handleUpgrade} style={s.upgradeBtn}>
               <Feather name="award" size={16} color="#fff" />
-              <Text style={s.upgradeBtnText}>Upgrade to Pro</Text>
+              <Text style={s.upgradeBtnText}>Choose a Plan</Text>
             </Pressable>
 
             <Pressable onPress={onDismiss} style={s.continueBtn}>

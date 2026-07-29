@@ -74,6 +74,7 @@ export default function SupportScreen() {
   const router      = useRouter();
   const isSuperAdmin = useAuthStore(s => !!s.user?.is_super_admin);
   const openSupport  = useChatStore(s => s.openSupport);
+  const markRead     = useChatStore(s => s.markRead);
   const unreadTotal  = useChatStore(s => s.unreadTotal);
   const fetchUnreadCount = useChatStore(s => s.fetchUnreadCount);
   const [opening, setOpening] = useState(false);
@@ -100,7 +101,12 @@ export default function SupportScreen() {
     setOpening(true);
     try {
       const conv = await openSupport();
-      if (conv) router.push(`/chat/${conv.id}` as never);
+      if (conv) {
+        // Clear the support notification as soon as the user opens its thread.
+        await markRead(conv.id);
+        await fetchUnreadCount();
+        router.push(`/chat/${conv.id}` as never);
+      }
       else Alert.alert('Unavailable', 'Could not open support chat. Try again later.');
     } finally { setOpening(false); }
   }

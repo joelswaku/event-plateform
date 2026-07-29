@@ -16,6 +16,9 @@ export async function refreshToken(req, res) {
   }
 
   try {
+    const isMobile = req.headers["x-client-type"] === "mobile" ||
+                     req.headers.authorization?.startsWith("Bearer");
+
     const result = await authService.rotateRefreshToken({
       refreshToken: parsed.data.refresh_token,
       ip: req.ip,
@@ -24,11 +27,18 @@ export async function refreshToken(req, res) {
       res,
     });
 
-    return res.status(200).json({
+    // Web clients: tokens in httpOnly cookies, don't send in JSON
+    // Mobile clients: send tokens in JSON response
+    const response = {
       success: true,
       message: "Token refreshed successfully",
-      ...result,
-    });
+      ...(isMobile && {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      }),
+    };
+
+    return res.status(200).json(response);
   } catch (error) {
     const status = error.statusCode || 401;
 

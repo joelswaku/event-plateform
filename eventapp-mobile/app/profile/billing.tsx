@@ -16,31 +16,36 @@ type FeatureItem = string | { text: string; dim: true };
 
 const FREE_FEATURES: FeatureItem[] = [
   '1 event',
-  '50 guests per event',
-  'Classic theme only',
-  'QR check-in scanner',
-  'RSVP page builder',
-  { text: '"Powered by [Platform]" branding', dim: true },
+  '50 guests',
+  'Classic templates only',
+  'Tickets (2% fee)',
+  { text: 'Instant confirmation only', dim: true },
+  { text: 'No planner access', dim: true },
 ];
 
 const STARTER_FEATURES: FeatureItem[] = [
-  '5 events',
-  '500 guests per event',
-  'All themes & styles',
-  'Ticket selling (2% fee)',
-  '1 email reminder per guest',
-  'Basic analytics',
-  'Up to 3 team members',
+  '1 active event',
+  '500 guests/event',
+  'All templates',
+  'Full planner',
+  '1 team invite',
+  '1 reminder config',
+  'Tickets (2% fee)',
+  'QR scanner',
+  'Analytics',
 ];
 
 const PRO_FEATURES: FeatureItem[] = [
-  'Unlimited events & guests',
-  'All themes & styles',
-  'Ticket selling (1.5% fee)',
-  'Unlimited email reminders',
+  '3 active events',
+  'Unlimited guests',
+  'All templates',
+  'Full planner',
+  '3 team invites',
+  'Unlimited reminders',
+  'Tickets (1.5% fee)',
+  'QR scanner',
   'Advanced analytics',
   'Custom domain',
-  'Unlimited team members',
 ];
 
 const TIER_ORDER: Record<string, number> = { free: 0, starter: 1, pro: 2, premium: 2, enterprise: 3 };
@@ -59,7 +64,7 @@ export default function BillingScreen() {
   const {
     plan, isSubscribed, subscriptionStatus, currentPeriodEnd,
     usage, limits, isPremium,
-    fetchSubscription, createCheckoutSession, openCustomerPortal, isLoading,
+    fetchSubscription, createCheckoutSession, changeSubscriptionPlan, openCustomerPortal, isLoading, prices,
   } = useSubscriptionStore();
 
   const [checkoutLoading, setCheckoutLoading] = useState<'starter' | 'pro' | null>(null);
@@ -96,15 +101,24 @@ export default function BillingScreen() {
 
   const handleUpgrade = async (tier: 'starter' | 'pro') => {
     const priceId = tier === 'starter'
-      ? Config.STRIPE.STARTER_PRICE_ID
-      : Config.STRIPE.PRO_PRICE_ID;
+      ? (prices.starter?.id ?? Config.STRIPE.STARTER_PRICE_ID)
+      : (prices.pro?.id ?? Config.STRIPE.PRO_PRICE_ID);
+    if (!priceId) {
+      toast.error('Pricing unavailable', 'Please try again in a moment.');
+      return;
+    }
     setCheckoutLoading(tier);
-    const result = await createCheckoutSession(priceId, tier);
+    const result = isSubscribed
+      ? await changeSubscriptionPlan(priceId)
+      : await createCheckoutSession(priceId, tier);
     setCheckoutLoading(null);
     if (result.success) {
-      toast.success(`Welcome to ${tier === 'starter' ? 'Starter' : 'Pro'}!`, 'All features are now unlocked.');
-      router.back();
-    } else if (!result.canceled) {
+      toast.success(
+        isSubscribed ? `Switched to ${tier === 'starter' ? 'Starter' : 'Pro'}!` : `Welcome to ${tier === 'starter' ? 'Starter' : 'Pro'}!`,
+        'Your plan is active.',
+      );
+      if (!isSubscribed) router.back();
+    } else if (!("canceled" in result && result.canceled)) {
       toast.error('Payment failed', result.message ?? 'Something went wrong. Please try again.');
     }
   };
@@ -168,7 +182,7 @@ export default function BillingScreen() {
                   ? `Renews ${renewDate}`
                   : isSubscribed
                   ? 'Active subscription'
-                  : 'Upgrade for unlimited events & more'}
+                  : 'Upgrade for 3 events & unlimited guests'}
               </Text>
             </View>
           </View>

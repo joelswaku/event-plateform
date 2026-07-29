@@ -132,7 +132,7 @@ function MobileUpgradeBanner({ plan, onUpgrade }) {
   const isStarter = plan === "starter";
   const title    = isStarter ? "Upgrade to Pro" : "Unlock Your Plan";
   const subtitle = isStarter
-    ? "Unlimited events, guests & custom domain"
+    ? "3 events, unlimited guests & planner"
     : "Start with Starter ($19) or go Pro ($49)";
   return (
     <div
@@ -173,8 +173,8 @@ function MobilePremiumBadge({ plan }) {
   const badgeBg    = isPro ? "rgba(201,169,110,0.30)" : "rgba(99,102,241,0.30)";
   const badgeColor = isPro ? "#f59e0b" : "#a78bfa";
   const subtitle   = isPro
-    ? "All features unlocked — unlimited events & more"
-    : "5 events · 500 guests · All themes & ticket selling";
+    ? "All features unlocked — 3 events & unlimited guests"
+    : "1 event · 500 guests/event · All templates & planner";
 
   return (
     <div
@@ -1122,7 +1122,7 @@ const UPGRADE_CFG = {
         shadowHex:  "rgba(99,102,241,0.35)",
         ctaText:    "#fff",
         ctaLabel:   "Upgrade to Starter",
-        perks:      ["5 events", "500 guests / event", "All themes", "Ticket selling", "QR scanner", "3 team members"],
+        perks:      ["1 active event", "500 guests/event", "All templates", "Full planner", "1 team invite", "Tickets (2% fee)"],
       },
       {
         key:        "pro",
@@ -1134,7 +1134,7 @@ const UPGRADE_CFG = {
         shadowHex:  "rgba(201,169,110,0.35)",
         ctaText:    "#000",
         ctaLabel:   "Go Pro",
-        perks:      ["Unlimited events", "Unlimited guests", "Custom domain", "Advanced analytics", "Priority support", "Unlimited team"],
+        perks:      ["3 active events", "Unlimited guests", "Full planner", "3 team invites", "Unlimited reminders", "Tickets (1.5% fee)"],
       },
     ],
   },
@@ -1153,7 +1153,7 @@ const UPGRADE_CFG = {
         shadowHex:  "rgba(201,169,110,0.35)",
         ctaText:    "#000",
         ctaLabel:   "Upgrade to Pro",
-        perks:      ["Unlimited events", "Unlimited guests", "Custom domain", "Advanced analytics", "Priority support", "Unlimited team members"],
+        perks:      ["3 active events", "Unlimited guests", "Full planner", "3 team invites", "Unlimited reminders", "Tickets (1.5% fee)"],
       },
     ],
   },

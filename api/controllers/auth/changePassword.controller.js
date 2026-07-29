@@ -22,7 +22,17 @@ export async function changePassword(req, res) {
     const hash = await bcrypt.hash(newPassword, 12);
     await db.query("UPDATE users SET password_hash=$1 WHERE id=$2", [hash, userId]);
 
-    return res.status(200).json({ success: true, message: "Password updated successfully" });
+    // SECURITY: Revoke all existing sessions after password change
+    await db.query(
+      `UPDATE auth_sessions SET revoked_at = NOW()
+       WHERE user_id = $1 AND revoked_at IS NULL`,
+      [userId]
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Password updated successfully. Please log in again with your new password."
+    });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message || "Failed to change password" });
   }

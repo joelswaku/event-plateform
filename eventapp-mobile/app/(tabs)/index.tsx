@@ -237,7 +237,7 @@ const PLAN_TILES = {
     gradTo:   '#818cf8',
     shadow:   'rgba(99,102,241,0.40)',
     ctaColor: '#fff',
-    perks:    ['5 events', '500 guests / event', 'All themes', 'Ticket selling'],
+    perks:    ['1 active event', '500 guests/event', 'All templates', 'Full planner', '1 team invite', 'Tickets (2% fee)'],
   },
   pro: {
     label:    'Pro',
@@ -246,7 +246,7 @@ const PLAN_TILES = {
     gradTo:   '#f59e0b',
     shadow:   'rgba(201,169,110,0.40)',
     ctaColor: '#000',
-    perks:    ['Unlimited events', 'Unlimited guests', 'Custom domain', 'Priority support'],
+    perks:    ['3 active events', 'Unlimited guests', 'Full planner', '3 team invites', 'Unlimited reminders', 'Tickets (1.5% fee)'],
   },
 } as const;
 
@@ -278,7 +278,7 @@ function UpgradePlanModal({
   const planLabel = isFree ? 'Free Plan' : 'Starter Plan';
   const tagline   = isFree
     ? 'Limited to 1 event & 50 guests. Unlock the full platform.'
-    : 'Ready for unlimited? Pro removes all limits.';
+    : 'Ready for more? Pro gives you 3 events & unlimited guests.';
 
   return (
     <Modal
@@ -1042,7 +1042,7 @@ export default function HomeScreen() {
               <Text style={s.upgradeEmoji}>⚡</Text>
               <View>
                 <Text style={s.upgradeTitle}>Unlock Pro Features</Text>
-                <Text style={s.upgradeSub}>Unlimited events, custom domains & more</Text>
+                <Text style={s.upgradeSub}>3 events, unlimited guests, planner & more</Text>
               </View>
             </View>
             <Pressable style={s.upgradeCta} onPress={() => setPlanModalOpen(true)}>

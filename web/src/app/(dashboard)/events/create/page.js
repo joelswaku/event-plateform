@@ -32,10 +32,10 @@ const STEPS = ["Category", "Type", "Details", "Settings"];
 function EventLimitCard({ onUpgrade, plan }) {
   const isStarter = plan === "starter";
   const badge     = isStarter ? "Starter limit reached"          : "Free plan limit reached";
-  const heading   = isStarter ? "You've used all 5 Starter events" : "You've used your 1 free event";
+  const heading   = isStarter ? "You've used your 1 Starter event" : "You've used your 1 free event";
   const sub       = isStarter
-    ? "Upgrade to Pro for unlimited events, all themes, and every feature — no caps, ever."
-    : "Upgrade to Starter or Pro for unlimited events, all 18 templates, and every feature — no caps, ever.";
+    ? "Upgrade to Pro for 3 active events, unlimited guests, and full planner access."
+    : "Upgrade to Starter for 1 event, or Pro for 3 events with unlimited guests.";
   const btnLabel  = isStarter ? "Upgrade to Pro" : "Upgrade now";
 
   return (
@@ -95,10 +95,10 @@ function MobileUpgradeGate({ onBack, plan }) {
   const isStarter = plan === "starter";
 
   const bannerLabel = isStarter ? "Starter Limit Reached"      : "Event Limit Reached";
-  const bannerTitle = isStarter ? "You've used all 5 Starter events" : "You've used your free event";
+  const bannerTitle = isStarter ? "You've used your 1 Starter event" : "You've used your free event";
   const bannerSub   = isStarter
-    ? "Upgrade to Pro for unlimited events, all themes, and every feature."
-    : "Upgrade to create unlimited events, access all templates, and unlock every feature.";
+    ? "Upgrade to Pro for 3 active events, unlimited guests, and full planner."
+    : "Upgrade to Starter for 1 event, or Pro for 3 events with unlimited guests.";
   const ctaLabel    = isStarter ? "Upgrade to Pro"  : "Upgrade Now";
   const ctaStyle    = isStarter
     ? { background: "linear-gradient(135deg,#c9a96e,#f59e0b)", boxShadow: "0 8px 24px rgba(201,169,110,0.4)", color: "#000" }
@@ -145,7 +145,7 @@ function MobileUpgradeGate({ onBack, plan }) {
             <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="text-base font-black text-white">Starter</p>
-                <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>5 events · 500 guests · All themes</p>
+                <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>1 event · 500 guests/event · All templates</p>
               </div>
               <div className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest" style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8" }}>
                 Most Popular
@@ -165,7 +165,7 @@ function MobileUpgradeGate({ onBack, plan }) {
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-base font-black text-white">Pro</p>
-              <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>Unlimited events · Unlimited guests</p>
+              <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>3 events · Unlimited guests</p>
             </div>
             {isStarter && (
               <div className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest" style={{ background: "rgba(201,169,110,0.2)", color: "#c9a96e" }}>

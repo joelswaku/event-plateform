@@ -297,8 +297,19 @@ function validateDonationPayload(payload = {}) {
   };
 }
 
+function normalizeDonationIdempotencyKey(value) {
+  if (value === undefined || value === null || value === "") return null;
+
+  const key = String(value).trim();
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/.test(key)) {
+    throw new AppError("Invalid idempotency key", 400);
+  }
+  return key;
+}
+
 export async function createDonationIntentService({ eventId, payload }) {
   const normalized = validateDonationPayload(payload);
+  const idempotencyKey = normalizeDonationIdempotencyKey(payload.idempotency_key);
   const isMonthly  = normalized.frequency === "monthly";
 
   if (!stripe) throw new AppError("Payment processing is not configured. Please contact the event organizer.", 503);
@@ -307,7 +318,7 @@ export async function createDonationIntentService({ eventId, payload }) {
   try {
     await client.query("BEGIN");
 
-    // Auto-add columns if missing
+    // Legacy installations may not yet have these optional donation fields.
     await client.query(`ALTER TABLE event_donations ADD COLUMN IF NOT EXISTS frequency     VARCHAR(10) DEFAULT 'once'`).catch(() => {});
     await client.query(`ALTER TABLE event_donations ADD COLUMN IF NOT EXISTS subscription_id TEXT`).catch(() => {});
 
@@ -322,17 +333,46 @@ export async function createDonationIntentService({ eventId, payload }) {
     const insertResult = await client.query(
       `INSERT INTO event_donations
         (event_id, donor_name, donor_email, donor_phone, amount, currency,
-         payment_status, message, is_anonymous, frequency, provider, created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,'PENDING',$7,$8,$9,'STRIPE',NOW(),NOW())
+         payment_status, message, is_anonymous, frequency, provider, client_request_id, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,'PENDING',$7,$8,$9,'STRIPE',$10,NOW(),NOW())
+       ON CONFLICT (event_id, client_request_id)
+         WHERE client_request_id IS NOT NULL
+         DO NOTHING
        RETURNING *`,
       [
         eventId,
         normalized.donor_name, normalized.donor_email, normalized.donor_phone,
         normalized.amount, normalized.currency,
-        normalized.message, normalized.is_anonymous, normalized.frequency,
+        normalized.message, normalized.is_anonymous, normalized.frequency, idempotencyKey,
       ]
     );
-    const donation = insertResult.rows[0];
+    let donation = insertResult.rows[0];
+
+    // A repeat tap/retry returns the already-created Checkout session. This is
+    // intentionally done before any second Stripe session can be created.
+    if (!donation && idempotencyKey) {
+      const existingRes = await client.query(
+        `SELECT * FROM event_donations
+         WHERE event_id = $1 AND client_request_id = $2
+         LIMIT 1`,
+        [eventId, idempotencyKey]
+      );
+      donation = existingRes.rows[0];
+      if (!donation) throw new AppError("Could not resume the existing donation", 409);
+
+      await client.query("COMMIT");
+      const existingSession = donation.provider_transaction_id
+        ? await stripe.checkout.sessions.retrieve(donation.provider_transaction_id)
+        : null;
+
+      return {
+        donation_id: donation.id,
+        checkout_url: existingSession?.url || null,
+        amount: Number(donation.amount),
+        currency: donation.currency,
+        frequency: donation.frequency,
+      };
+    }
 
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
     const donationMeta = { donation_id: donation.id, event_id: eventId, kind: "event_donation" };
@@ -358,7 +398,7 @@ export async function createDonationIntentService({ eventId, payload }) {
           subscription_data: { metadata: donationMeta },
           success_url: `${frontendUrl}/e/${event.slug}?donation=success`,
           cancel_url:  `${frontendUrl}/e/${event.slug}?donation=cancelled`,
-        });
+        }, { idempotencyKey: `donation-checkout-${donation.id}` });
       } else {
         // ── One-time payment ───────────────────────────────────────────────────
         session = await stripe.checkout.sessions.create({
@@ -380,7 +420,7 @@ export async function createDonationIntentService({ eventId, payload }) {
           },
           success_url: `${frontendUrl}/e/${event.slug}?donation=success`,
           cancel_url:  `${frontendUrl}/e/${event.slug}?donation=cancelled`,
-        });
+        }, { idempotencyKey: `donation-checkout-${donation.id}` });
       }
     } catch (stripeErr) {
       console.error("STRIPE ERROR:", stripeErr.message);

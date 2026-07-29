@@ -138,7 +138,7 @@ export function SideDrawer() {
                 <Text style={styles.upgradeIcon}>✨</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.upgradeTitle}>Upgrade to Premium</Text>
-                  <Text style={styles.upgradeSub}>Unlimited events, guests & templates</Text>
+                  <Text style={styles.upgradeSub}>3 events, unlimited guests, planner & more</Text>
                 </View>
                 <Feather name="chevron-right" size={16} color={Colors.accent.amber} />
               </View>

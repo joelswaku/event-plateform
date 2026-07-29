@@ -14,6 +14,24 @@ import {
   updateSubscriptionStatusService,
 } from "../services/subscription.service.js";
 
+async function markWebhookProcessed(webhookRecordId) {
+  if (!webhookRecordId) return;
+  await db.query(
+    `UPDATE webhook_events
+     SET processed = true, processed_at = NOW(), error_message = NULL
+     WHERE id = $1`,
+    [webhookRecordId]
+  );
+}
+
+async function markWebhookFailed(webhookRecordId, error) {
+  if (!webhookRecordId) return;
+  await db.query(
+    `UPDATE webhook_events SET error_message = $1 WHERE id = $2`,
+    [error?.message ?? String(error), webhookRecordId]
+  ).catch(() => {});
+}
+
 export async function stripeWebhook(req, res) {
   const sig = req.headers["stripe-signature"];
 
@@ -32,8 +50,11 @@ export async function stripeWebhook(req, res) {
 
   console.log("🔥 STRIPE EVENT:", event.type);
 
-  /* ── Idempotency: skip already-processed events ── */
+  /* ── CRITICAL FIX #3: Idempotency — skip already-processed events, but allow retries on failures ── */
+  let webhookRecordId = null;
   try {
+    // Insert first so simultaneous Stripe deliveries cannot race past a
+    // separate SELECT. A retry of an unprocessed event is deliberately allowed.
     const insert = await db.query(
       `INSERT INTO webhook_events (provider, event_type, external_event_id, payload, processed)
        VALUES ('stripe', $1, $2, $3, false)
@@ -41,42 +62,73 @@ export async function stripeWebhook(req, res) {
        RETURNING id`,
       [event.type, event.id, JSON.stringify(event.data.object)]
     );
-    if (insert.rows.length === 0) {
-      console.log("⚠️  Duplicate webhook skipped:", event.id);
-      return res.status(200).json({ received: true });
+
+    if (insert.rows.length > 0) {
+      webhookRecordId = insert.rows[0].id;
+    } else {
+      const existing = await db.query(
+        `SELECT id, processed FROM webhook_events WHERE external_event_id = $1`,
+        [event.id]
+      );
+      const record = existing.rows[0];
+      if (!record) throw new Error("Webhook idempotency record was not found");
+      if (record.processed) {
+        console.log("⚠️  Duplicate webhook skipped (already processed):", event.id);
+        return res.status(200).json({ received: true });
+      }
+
+      webhookRecordId = record.id;
+      await db.query(
+        `UPDATE webhook_events SET payload = $1 WHERE id = $2`,
+        [JSON.stringify(event.data.object), webhookRecordId]
+      );
     }
   } catch (err) {
-    // 23505 = unique_violation (expected on retries) — anything else is a real DB issue
-    if (err.code !== "23505") console.error("❌ Webhook idempotency check failed:", err.message);
+    console.error("❌ Webhook idempotency check failed:", err.message);
+    // Return 500 to trigger Stripe retry
+    return res.status(500).json({ success: false, message: "Database error" });
   }
 
   /* ── Failed payment events — mark orders/donations as failed ── */
   if (event.type === "checkout.session.expired") {
-    const session = event.data.object;
-    await db.query(
-      `UPDATE ticket_orders SET order_status='EXPIRED', updated_at=NOW()
-       WHERE provider_session_id=$1 AND order_status='PENDING'`,
-      [session.id]
-    ).catch(() => {});
-    return res.status(200).json({ received: true });
+    try {
+      const session = event.data.object;
+      await db.query(
+        `UPDATE ticket_orders SET order_status='EXPIRED', updated_at=NOW()
+         WHERE provider_payment_intent_id=$1 AND order_status='PENDING'`,
+        [session.id]
+      );
+      await markWebhookProcessed(webhookRecordId);
+      return res.status(200).json({ received: true });
+    } catch (err) {
+      await markWebhookFailed(webhookRecordId, err);
+      return res.status(500).json({ success: false, message: "Webhook processing failed" });
+    }
   }
 
   if (event.type === "payment_intent.payment_failed") {
-    const pi = event.data.object;
-    const orderId = pi?.metadata?.order_id;
-    if (orderId) {
-      await db.query(
-        `UPDATE ticket_orders SET order_status='PAYMENT_FAILED', updated_at=NOW() WHERE id=$1`,
-        [orderId]
-      ).catch(() => {});
+    try {
+      const pi = event.data.object;
+      const orderId = pi?.metadata?.order_id;
+      if (orderId) {
+        await db.query(
+          `UPDATE ticket_orders SET order_status='PAYMENT_FAILED', updated_at=NOW() WHERE id=$1`,
+          [orderId]
+        );
+      }
+      await markWebhookProcessed(webhookRecordId);
+      return res.status(200).json({ received: true });
+    } catch (err) {
+      await markWebhookFailed(webhookRecordId, err);
+      return res.status(500).json({ success: false, message: "Webhook processing failed" });
     }
-    return res.status(200).json({ received: true });
   }
 
   if (event.type === "invoice.payment_failed") {
     const invoice = event.data.object;
     console.warn("⚠️ Invoice payment failed for subscription:", invoice.subscription);
     // Could notify the user here via notifications service
+    await markWebhookProcessed(webhookRecordId);
     return res.status(200).json({ received: true });
   }
 
@@ -91,7 +143,8 @@ export async function stripeWebhook(req, res) {
         // Platform subscription activated
         await activateSubscriptionService(session);
       }
-      await db.query(`UPDATE webhook_events SET processed=true, processed_at=now() WHERE external_event_id=$1`, [event.id]);
+      // CRITICAL FIX #3: Mark as processed ONLY after successful processing
+      await markWebhookProcessed(webhookRecordId);
       return res.status(200).json({ received: true });
     }
 
@@ -105,28 +158,33 @@ export async function stripeWebhook(req, res) {
       } else {
         await renewSubscriptionService(invoice);
       }
-      await db.query(`UPDATE webhook_events SET processed=true, processed_at=now() WHERE external_event_id=$1`, [event.id]);
+      // CRITICAL FIX #3: Mark as processed ONLY after successful processing
+      await markWebhookProcessed(webhookRecordId);
       return res.status(200).json({ received: true });
     }
 
     if (event.type === "customer.subscription.updated") {
       await updateSubscriptionStatusService(event.data.object);
-      await db.query(`UPDATE webhook_events SET processed=true, processed_at=now() WHERE external_event_id=$1`, [event.id]);
+      // CRITICAL FIX #3: Mark as processed ONLY after successful processing
+      await markWebhookProcessed(webhookRecordId);
       return res.status(200).json({ received: true });
     }
     if (event.type === "customer.subscription.deleted") {
       await cancelSubscriptionService(event.data.object);
-      await db.query(`UPDATE webhook_events SET processed=true, processed_at=now() WHERE external_event_id=$1`, [event.id]);
+      // CRITICAL FIX #3: Mark as processed ONLY after successful processing
+      await markWebhookProcessed(webhookRecordId);
       return res.status(200).json({ received: true });
     }
   } catch (err) {
     console.error("❌ Subscription webhook error:", err.message);
-    await db.query(`UPDATE webhook_events SET error_message=$1 WHERE external_event_id=$2`, [err.message, event.id]);
-    return res.status(200).json({ received: true });
+    // CRITICAL FIX #3: Record error but return 500 to trigger Stripe retry
+    await markWebhookFailed(webhookRecordId, err);
+    return res.status(500).json({ success: false, message: "Webhook processing failed" });
   }
 
   // Only ticket payments below
   if (event.type !== "payment_intent.succeeded") {
+    await markWebhookProcessed(webhookRecordId);
     return res.status(200).json({ received: true });
   }
 
@@ -137,15 +195,14 @@ export async function stripeWebhook(req, res) {
     try {
       console.log("💰 Donation detected");
       await completeDonationFromWebhookService(paymentIntent);
+      await markWebhookProcessed(webhookRecordId);
+      return res.status(200).json({ received: true });
     } catch (err) {
       console.error("❌ Donation webhook error:", err);
-      await db.query(
-        `UPDATE webhook_events SET error_message=$1 WHERE external_event_id=$2`,
-        [err.message, event.id]
-      ).catch(() => {});
+      await markWebhookFailed(webhookRecordId, err);
+      // Return 500 to trigger Stripe retry - donation must complete
+      return res.status(500).json({ success: false, message: "Donation processing failed" });
     }
-    // Always 200 — Stripe should not retry donation webhooks (they're idempotent)
-    return res.status(200).json({ received: true });
   }
 
   /* ── Ticket orders ── */
@@ -153,6 +210,7 @@ export async function stripeWebhook(req, res) {
 
   if (!orderId) {
     console.warn("⚠️ payment_intent.succeeded has no order_id in metadata — ignoring");
+    await markWebhookProcessed(webhookRecordId);
     return res.status(200).json({ received: true });
   }
 
@@ -171,33 +229,55 @@ export async function stripeWebhook(req, res) {
     const order = orderRes.rows[0];
     if (!order) throw new Error("Order not found");
 
-    if (order.payment_status === "PAID") {
-      console.log("⚠️ Order already processed:", orderId);
-      await client.query("COMMIT");
-      return res.status(200).json({ received: true });
-    }
+    // Check if order already paid
+    const alreadyPaid = order.payment_status === "PAID";
 
-    await client.query(
-      `UPDATE ticket_orders
-       SET payment_status = 'PAID', order_status = 'COMPLETED',
-           paid_at = NOW(), provider_payment_intent_id = $2, updated_at = NOW()
-       WHERE id = $1`,
-      [orderId, paymentIntent.id]
-    );
+    if (alreadyPaid) {
+      console.log("⚠️ Order already marked PAID:", orderId);
+      // CRITICAL: Check if tickets were actually issued
+      const ticketsIssued = await client.query(
+        `SELECT 1 FROM issued_tickets WHERE order_id = $1 LIMIT 1`,
+        [orderId]
+      );
+
+        if (ticketsIssued.rows.length > 0) {
+          console.log("✅ Tickets already issued, safe to acknowledge");
+          await client.query("COMMIT");
+          await markWebhookProcessed(webhookRecordId);
+          return res.status(200).json({ received: true });
+      }
+
+      console.log("❌ Payment marked PAID but no tickets issued - retrying issuance");
+      // Fall through to ticket issuance - don't return yet
+    } else {
+      // First time processing - mark as paid
+      await client.query(
+        `UPDATE ticket_orders
+         SET payment_status = 'PAID', order_status = 'COMPLETED',
+             paid_at = NOW(), provider_payment_intent_id = $2, updated_at = NOW()
+         WHERE id = $1`,
+        [orderId, paymentIntent.id]
+      );
+    }
 
     await client.query("COMMIT");
 
+    // CRITICAL: Ticket issuance must succeed - return 500 to retry if it fails
     try {
       await issueTicketsForOrderService(orderId);
       console.log("🎟 Tickets issued for order:", orderId);
+        await markWebhookProcessed(webhookRecordId);
+      return res.status(200).json({ received: true });
     } catch (err) {
-      console.error("⚠️ Ticket issuance failed:", err.message);
+      console.error("❌ Ticket issuance failed:", err.message);
+        await markWebhookFailed(webhookRecordId, err);
+      // Return 500 to trigger Stripe retry - customer paid but got no tickets
+      return res.status(500).json({ success: false, message: "Ticket issuance failed" });
     }
-
-    return res.status(200).json({ received: true });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("❌ Webhook error:", err);
+    await markWebhookFailed(webhookRecordId, err);
     return res.status(500).json({ success: false, message: "Webhook failed" });
   } finally {
     client.release();

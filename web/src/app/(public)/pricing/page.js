@@ -15,15 +15,15 @@ const PRICING_PLANS = [
     yearlyPrice: 0,
     features: [
       "1 event",
-      "50 guests per event",
-      "Basic event page",
-      "RSVP management",
+      "50 guests",
+      "Classic templates only",
+      "Basic RSVP page",
+      "Ticket selling (2% fee)",
       "Email support",
     ],
     limitations: [
-      "Limited customization",
-      "LiteEvent branding",
-      "No analytics",
+      "Instant confirmation only",
+      "No planner access",
     ]
   },
   {
@@ -33,12 +33,14 @@ const PRICING_PLANS = [
     monthlyPrice: 19,
     yearlyPrice: 15.2, // 20% off
     features: [
-      "5 events",
-      "200 guests per event",
-      "All Free features",
-      "Custom branding",
-      "Ticketing (5% fee)",
-      "QR check-in",
+      "1 active event",
+      "500 guests/event",
+      "All templates & styles",
+      "Full planner access",
+      "1 team invite",
+      "1 email reminder config",
+      "Ticket selling (2% fee)",
+      "QR scanner",
       "Analytics",
       "Priority support",
     ],
@@ -52,14 +54,16 @@ const PRICING_PLANS = [
     monthlyPrice: 49,
     yearlyPrice: 39.2, // 20% off
     features: [
-      "Unlimited events",
+      "3 active events",
       "Unlimited guests",
-      "All Starter features",
+      "All templates & styles",
+      "Full planner access",
+      "3 team invites",
+      "Unlimited email reminders",
+      "Ticket selling (1.5% fee)",
+      "QR scanner",
       "Advanced analytics",
-      "Team collaboration",
-      "API access",
-      "White-label",
-      "Ticketing (2% fee)",
+      "Custom domain",
       "Dedicated support",
     ],
     limitations: []
@@ -103,31 +107,31 @@ const FAQS = [
 
 const COMPARISON_FEATURES = [
   { category: "Events & Guests", features: [
-    { name: "Active Events", free: "1", starter: "5", pro: "Unlimited" },
-    { name: "Guests per Event", free: "50", starter: "200", pro: "Unlimited" },
-    { name: "Event Templates", free: "Basic", starter: "All", pro: "All + Custom" },
+    { name: "Active Events", free: "1", starter: "1", pro: "3" },
+    { name: "Guests per Event", free: "50", starter: "500", pro: "Unlimited" },
+    { name: "Event Templates", free: "Classic only", starter: "All", pro: "All" },
+    { name: "Template Styles", free: "Classic only", starter: "All", pro: "All" },
   ]},
   { category: "Features", features: [
     { name: "RSVP Management", free: true, starter: true, pro: true },
-    { name: "Custom Branding", free: false, starter: true, pro: true },
-    { name: "White Label", free: false, starter: false, pro: true },
-    { name: "QR Check-in", free: false, starter: true, pro: true },
-    { name: "Mobile App Access", free: true, starter: true, pro: true },
-    { name: "Basic Analytics", free: false, starter: true, pro: true },
-    { name: "Advanced Analytics", free: false, starter: false, pro: true },
-    { name: "Team Collaboration", free: false, starter: false, pro: true },
-    { name: "API Access", free: false, starter: false, pro: true },
+    { name: "QR Scanner", free: false, starter: true, pro: true },
+    { name: "Full Planner Access", free: false, starter: true, pro: true },
+      { name: "Email Reminders", free: "Instant only", starter: "1 scheduled per event", pro: "Unlimited" },
+    { name: "Analytics", free: false, starter: true, pro: true },
+    { name: "Advanced Analytics", free: false, starter: true, pro: true },
+    { name: "Custom Domain", free: false, starter: false, pro: true },
+  ]},
+  { category: "Team & Collaboration", features: [
+    { name: "Team Members", free: "Owner only", starter: "Owner + 1", pro: "Owner + 3" },
   ]},
   { category: "Ticketing", features: [
     { name: "Ticket Sales", free: false, starter: true, pro: true },
-    { name: "Platform Fee", free: "—", starter: "5%", pro: "2%" },
-    { name: "Custom Ticket Types", free: false, starter: true, pro: true },
+    { name: "Platform Fee", free: "—", starter: "2%", pro: "1.5%" },
   ]},
   { category: "Support", features: [
     { name: "Email Support", free: true, starter: true, pro: true },
     { name: "Priority Support", free: false, starter: true, pro: true },
     { name: "Dedicated Support", free: false, starter: false, pro: true },
-    { name: "Onboarding Call", free: false, starter: false, pro: true },
   ]},
 ];
 

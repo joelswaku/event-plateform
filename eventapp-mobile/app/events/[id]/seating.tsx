@@ -110,20 +110,31 @@ function RNTableShape({ shape, w, h, cx, cy }: {
 
 // ── SVG seat element ──────────────────────────────────────────────────────────────
 
-function RNSeatEl({ pos, idx, guest, onRemove }: {
+function RNSeatEl({ pos, idx, guest, selectedGuest, onRemove, onTapEmpty }: {
   pos: { x: number; y: number };
   idx: number;
   guest: { full_name: string; is_vip?: boolean } | null;
+  selectedGuest: Guest | null;
   onRemove: () => void;
+  onTapEmpty: (idx: number) => void;
 }) {
   const bg = guest ? avatarBg(guest.full_name) : undefined;
+  const displayName = guest ? (guest.full_name.length > 12 ? guest.full_name.slice(0, 10) + '…' : guest.full_name) : '';
+  const isSelected = selectedGuest && !guest;
+
   return (
-    <SvgG x={pos.x} y={pos.y} onPress={guest ? onRemove : undefined}>
+    <SvgG x={pos.x} y={pos.y} onPress={() => {
+      if (guest) {
+        onRemove();
+      } else if (selectedGuest) {
+        onTapEmpty(idx);
+      }
+    }}>
       <SvgCircle
         r={24}
-        fill={guest ? bg : 'rgba(255,255,255,0.06)'}
-        stroke={guest ? bg : 'rgba(255,255,255,0.14)'}
-        strokeWidth={1.5}
+        fill={guest ? bg : isSelected ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.06)'}
+        stroke={guest ? bg : isSelected ? '#10b981' : 'rgba(255,255,255,0.14)'}
+        strokeWidth={isSelected ? 2 : 1.5}
       />
       {guest ? (
         <>
@@ -136,11 +147,18 @@ function RNSeatEl({ pos, idx, guest, onRemove }: {
           <SvgText x={0} y={34} textAnchor="middle" fontSize={8} fill="rgba(255,255,255,0.35)">
             #{idx + 1}
           </SvgText>
+          {/* Full name below seat */}
+          <SvgText x={0} y={48} textAnchor="middle" fontSize={9} fontWeight="600" fill="rgba(255,255,255,0.55)">
+            {displayName}
+          </SvgText>
+          {/* X button - red circle with white X to indicate removable */}
+          <SvgCircle r={8} cx={18} cy={-18} fill="#ef4444" stroke={Colors.bg.card} strokeWidth={1.5} />
+          <SvgText x={18} y={-14} textAnchor="middle" fontSize={11} fontWeight="700" fill="white">×</SvgText>
         </>
       ) : (
         <>
-          <SvgText x={0} y={6} textAnchor="middle" fontSize={16} fill="rgba(255,255,255,0.18)">+</SvgText>
-          <SvgText x={0} y={34} textAnchor="middle" fontSize={8} fill="rgba(255,255,255,0.18)">#{idx + 1}</SvgText>
+          <SvgText x={0} y={6} textAnchor="middle" fontSize={16} fill={isSelected ? '#10b981' : 'rgba(255,255,255,0.18)'}>+</SvgText>
+          <SvgText x={0} y={34} textAnchor="middle" fontSize={8} fill={isSelected ? '#10b981' : 'rgba(255,255,255,0.18)'}>#{idx + 1}</SvgText>
         </>
       )}
     </SvgG>
@@ -164,10 +182,13 @@ function TableDetailSheet({
   // (loading, saving, locations, assignments…), causing a flood of expensive
   // SVG re-renders that freezes the screen.
   const removeAssignment = useSeatingStore(s => s.removeAssignment);
+  const assignGuest      = useSeatingStore(s => s.assignGuest);
   const allAssignments   = useSeatingStore(s => s.assignments);
 
   const { width: W } = useWindowDimensions();
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
+  const [seatedExpanded, setSeatedExpanded] = useState(true);
 
   // Keep last valid loc alive so content persists through the slide-out animation.
   const cachedLoc = useRef<SeatingLocation | null>(null);
@@ -182,10 +203,9 @@ function TableDetailSheet({
     [allAssignments, activeLoc?.id],
   );
 
-  if (!activeLoc) return null;
-
-  const capacity = activeLoc.capacity || 8;
-  const shape    = activeLoc.shape || 'round';
+  // Compute values with safe fallbacks (activeLoc might be null)
+  const capacity = activeLoc?.capacity || 8;
+  const shape    = activeLoc?.shape || 'round';
   const filled   = assigns.length;
   const pct      = capacity > 0 ? Math.round((filled / capacity) * 100) : 0;
   const accent   = fillAccent(pct);
@@ -224,6 +244,40 @@ function TableDetailSheet({
     await removeAssignment(eventId, entry.assignment.id);
     setRemovingId(null);
   }, [seatMap, removeAssignment, eventId]);
+
+  const handleTapEmpty = useCallback(async (seatIdx: number) => {
+    if (!selectedGuest || !activeLoc) return;
+    if (seatMap[seatIdx]) {
+      alert('Seat already taken');
+      return;
+    }
+    if (filled >= capacity) {
+      alert('Table is full');
+      return;
+    }
+
+    const result = await assignGuest(eventId, {
+      guest_id: selectedGuest.id,
+      seating_table_id: activeLoc.id,
+      seat_number: String(seatIdx + 1),
+    });
+
+    if (result.success) {
+      setSelectedGuest(null);
+    }
+  }, [selectedGuest, activeLoc, seatMap, filled, capacity, assignGuest, eventId]);
+
+  // Return null AFTER all hooks (Rules of Hooks: hooks must be called in the same order every render)
+  if (!activeLoc) return null;
+
+  const assignedIds = new Set(allAssignments.map(a => a.guest_id));
+  const unassignedGuests = guests
+    .filter(g => !assignedIds.has(g.id))
+    .sort((a, b) => {
+      if (a.is_vip && !b.is_vip) return -1;
+      if (!a.is_vip && b.is_vip) return 1;
+      return (a.full_name || '').localeCompare(b.full_name || '');
+    });
 
   return (
     <Modal visible={open} animationType="slide" transparent statusBarTranslucent onRequestClose={onClose}>
@@ -284,7 +338,9 @@ function TableDetailSheet({
                     pos={pos}
                     idx={idx}
                     guest={seatMap[idx]?.guest ?? null}
+                    selectedGuest={selectedGuest}
                     onRemove={() => removeSeat(idx)}
+                    onTapEmpty={handleTapEmpty}
                   />
                 ))}
               </Svg>
@@ -293,7 +349,7 @@ function TableDetailSheet({
               <View style={dts.legend}>
                 {[
                   { color: 'rgba(255,255,255,0.14)', label: 'Empty seat' },
-                  { color: '#10b981',                label: 'Occupied · tap to remove' },
+                  { color: '#10b981',                label: selectedGuest ? 'Tap to assign' : 'Occupied · tap to remove' },
                 ].map(({ color, label }) => (
                   <View key={label} style={dts.legendItem}>
                     <View style={[dts.legendDot, { backgroundColor: color }]} />
@@ -306,10 +362,17 @@ function TableDetailSheet({
             {/* Seated guests list */}
             {assigns.length > 0 && (
               <View style={dts.seatedSection}>
-                <View style={dts.sectionHeaderRow}>
+                <Pressable
+                  onPress={() => setSeatedExpanded(!seatedExpanded)}
+                  style={dts.sectionHeaderRow}>
                   <Text style={dts.sectionHeaderTxt}>Seated Here</Text>
-                  <View style={dts.pill}><Text style={dts.pillTxt}>{assigns.length}</Text></View>
-                </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={dts.pill}><Text style={dts.pillTxt}>{assigns.length}</Text></View>
+                    <Feather name="chevron-down" size={14} color="rgba(255,255,255,0.3)" style={{ transform: [{ rotate: seatedExpanded ? '0deg' : '-90deg' }] }} />
+                  </View>
+                </Pressable>
+                {seatedExpanded && (
+                  <View style={{ gap: 4 }}>
                 {assigns.map(a => {
                   const g = guests.find(x => x.id === a.guest_id);
                   return (
@@ -333,8 +396,57 @@ function TableDetailSheet({
                     </View>
                   );
                 })}
+                  </View>
+                )}
               </View>
             )}
+
+            {/* Unassigned guests - tap to select */}
+            <View style={dts.seatedSection}>
+              <View style={dts.sectionHeaderRow}>
+                <View>
+                  <Text style={dts.sectionHeaderTxt}>Tap to Select Guest</Text>
+                  <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', marginTop: 2 }}>
+                    Select guest, then tap empty seat
+                  </Text>
+                </View>
+                <View style={dts.pill}><Text style={dts.pillTxt}>{unassignedGuests.length}</Text></View>
+              </View>
+              <View style={{ maxHeight: 200 }}>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {unassignedGuests.length === 0 ? (
+                    <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                      <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>All guests assigned</Text>
+                    </View>
+                  ) : (
+                    unassignedGuests.map(g => (
+                      <Pressable
+                        key={g.id}
+                        onPress={() => setSelectedGuest(selectedGuest?.id === g.id ? null : g)}
+                        style={[
+                          dts.guestRow,
+                          selectedGuest?.id === g.id && {
+                            backgroundColor: 'rgba(16,185,129,0.15)',
+                            borderWidth: 1,
+                            borderColor: 'rgba(16,185,129,0.4)',
+                            borderRadius: 10,
+                          }
+                        ]}
+                      >
+                        <GuestAvatar name={g.full_name} vip={g.is_vip} size={30} />
+                        <View style={dts.guestInfo}>
+                          <Text style={dts.guestName} numberOfLines={1}>{g.full_name}{g.is_vip ? ' 👑' : ''}</Text>
+                          {g.email && <Text style={dts.guestSeat} numberOfLines={1}>{g.email}</Text>}
+                        </View>
+                        {selectedGuest?.id === g.id && (
+                          <Feather name="check" size={14} color="#10b981" />
+                        )}
+                      </Pressable>
+                    ))
+                  )}
+                </ScrollView>
+              </View>
+            </View>
 
             {assigns.length === 0 && (
               <View style={dts.seatedSection}>
@@ -349,6 +461,19 @@ function TableDetailSheet({
             )}
           </ScrollView>
         </View>
+
+        {/* Selected guest indicator */}
+        {selectedGuest && (
+          <View style={dts.selectedIndicator}>
+            <GuestAvatar name={selectedGuest.full_name} vip={selectedGuest.is_vip} size={24} />
+            <Text style={dts.selectedText}>
+              <Text style={{ fontWeight: '700' }}>{selectedGuest.full_name}</Text> selected — tap empty seat
+            </Text>
+            <Pressable onPress={() => setSelectedGuest(null)} hitSlop={8}>
+              <Feather name="x" size={16} color="rgba(255,255,255,0.4)" />
+            </Pressable>
+          </View>
+        )}
       </View>
     </Modal>
   );
@@ -385,6 +510,27 @@ const dts = StyleSheet.create({
   guestName:    { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.8)' },
   guestSeat:    { fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 1 },
   removeBtn:    { padding: 7, borderRadius: 8, backgroundColor: 'rgba(239,68,68,0.08)' },
+  selectedIndicator: {
+    position: 'absolute',
+    bottom: 20,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(9,9,15,0.97)',
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.3)',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  selectedText: { flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.7)' },
 });
 
 // ── GuestAvatar ──────────────────────────────────────────────────────────────────

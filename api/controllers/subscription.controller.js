@@ -4,6 +4,7 @@ import {
   createPortalSessionService,
   verifyCheckoutSessionService,
   getStripePricesService,
+  changeSubscriptionPlanService,
 } from "../services/subscription.service.js";
 
 // Stripe errors expose .statusCode; app errors use .statusCode; DB errors fall back to 500.
@@ -58,6 +59,21 @@ export async function getStripePrices(req, res) {
     return res.status(200).json({ success: true, data });
   } catch (err) {
     console.error("[subscription] getStripePrices error:", err.message);
-    return res.status(500).json({ success: false, message: err.message });
+    return res.status(httpStatus(err)).json({ success: false, message: err.message });
+  }
+}
+
+/**
+ * CRITICAL FIX #2: Change subscription plan (upgrade/downgrade).
+ * This endpoint properly updates an existing subscription instead of creating a duplicate.
+ */
+export async function changeSubscriptionPlan(req, res) {
+  try {
+    const { priceId } = req.body;
+    const data = await changeSubscriptionPlanService(req.user.id, priceId);
+    return res.status(200).json({ success: true, data });
+  } catch (err) {
+    console.error("[subscription] changePlan error:", err.message);
+    return res.status(httpStatus(err)).json({ success: false, message: err.message, code: err.code });
   }
 }

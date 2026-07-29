@@ -17,6 +17,7 @@ export function FloatingChatButton({ onPress }: FloatingChatButtonProps) {
   const fetchUnreadCount = useChatStore(s => s.fetchUnreadCount);
   const fetchConversations = useChatStore(s => s.fetchConversations);
   const openSupport = useChatStore(s => s.openSupport);
+  const markRead = useChatStore(s => s.markRead);
 
   const [opening, setOpening] = useState(false);
   const [scaleAnim] = useState(new Animated.Value(1));
@@ -88,6 +89,9 @@ export function FloatingChatButton({ onPress }: FloatingChatButtonProps) {
       } else {
         const conv = await openSupport();
         if (conv) {
+          // Opening the support thread counts as reading its notifications.
+          await markRead(conv.id);
+          await fetchUnreadCount();
           router.push(`/chat/${conv.id}` as never);
         }
       }

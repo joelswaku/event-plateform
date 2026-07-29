@@ -68,11 +68,11 @@ function EventLimitBanner({ used, limit, plan, onUpgrade }) {
 
   const subText = atLimit
     ? isStarter
-      ? "Upgrade to Pro for unlimited events — no caps, ever."
-      : "Upgrade to Starter for 5 events, or go Pro for unlimited."
+      ? "Upgrade to Pro for 3 active events & unlimited guests."
+      : "Upgrade to Starter for 1 event, or go Pro for 3 events."
     : isStarter
-      ? `Starter plan includes ${limit} events. Upgrade to Pro for unlimited.`
-      : `Free plan includes ${limit} event. Upgrade for unlimited.`;
+      ? `Starter plan includes ${limit} event. Upgrade to Pro for 3 events.`
+      : `Free plan includes ${limit} event. Upgrade for more.`;
 
   return (
     <motion.div
@@ -137,8 +137,8 @@ function LockedCreateCard({ onUpgrade, plan }) {
   const isStarter    = plan === "starter";
   const upgradeTarget = isStarter ? "Pro" : "Starter";
   const subText       = isStarter
-    ? "Upgrade to Pro for unlimited events — no caps, ever."
-    : "Upgrade to Starter for 5 events, or go Pro for unlimited.";
+    ? "Upgrade to Pro for 3 active events & unlimited guests."
+    : "Upgrade to Starter for 1 event, or go Pro for 3 events.";
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.97 }}
@@ -567,7 +567,7 @@ function MobileEventsPage({
                 <span className="text-[16px] leading-none">⚡</span>
                 <div className="text-left">
                   <p className="text-[12px] font-extrabold text-white">{eventUsage}/{eventLimit} free events used</p>
-                  <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.38)" }}>Upgrade for unlimited events</p>
+                  <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.38)" }}>Upgrade for 3 events & planner</p>
                 </div>
               </div>
               <span

@@ -1,205 +1,355 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable, Switch,
-  ActivityIndicator, Modal, TouchableOpacity,
+  ActivityIndicator, Modal, TextInput, Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { notify } from '@/lib/toast';
 import { useEventStore } from '@/store/event.store';
 import { Colors } from '@/constants/colors';
 
-/* ─── Types ──────────────────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────────────────────────
+   TYPES & CONSTANTS
+────────────────────────────────────────────────────────────────────────────── */
+
 type ModuleKey = 'allow_rsvp' | 'open_rsvp' | 'allow_ticketing' | 'allow_qr_checkin' | 'allow_donations';
 type SettingKey = ModuleKey | 'visibility';
 
-/* ─── Confirmation copy ──────────────────────────────────────── */
-interface ActionInfo {
+const TIMEZONES = [
+  'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+  'America/Toronto', 'Europe/London', 'Europe/Paris', 'Europe/Berlin',
+  'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Dubai', 'Australia/Sydney',
+  'Pacific/Auckland', 'America/Sao_Paulo', 'Africa/Johannesburg',
+];
+
+const COUNTRIES = [
+  'United States', 'Canada', 'United Kingdom', 'Germany', 'France',
+  'Spain', 'Italy', 'Australia', 'Japan', 'China', 'India', 'Brazil',
+  'Mexico', 'South Africa', 'Nigeria', 'Kenya', 'Other',
+];
+
+/* ──────────────────────────────────────────────────────────────────────────────
+   REUSABLE UI COMPONENTS
+────────────────────────────────────────────────────────────────────────────── */
+
+function GlassCard({ children, style }: { children: React.ReactNode; style?: any }) {
+  return (
+    <View style={[s.glassCard, style]}>
+      {children}
+    </View>
+  );
+}
+
+function SectionHeader({ icon, label, description, color }: {
+  icon: keyof typeof Feather.glyphMap;
+  label: string;
+  description?: string;
+  color: string;
+}) {
+  return (
+    <View style={s.sectionHeader}>
+      <View style={[s.sectionIcon, { backgroundColor: `${color}15` }]}>
+        <Feather name={icon} size={20} color={color} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={s.sectionLabel}>{label}</Text>
+        {description && <Text style={s.sectionDesc}>{description}</Text>}
+      </View>
+    </View>
+  );
+}
+
+function Field({ label, hint, error, children }: {
+  label: string;
+  hint?: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={s.field}>
+      <View style={s.fieldHeader}>
+        <Text style={s.fieldLabel}>{label.toUpperCase()}</Text>
+        {hint && !error && <Text style={s.fieldHint}>{hint}</Text>}
+      </View>
+      {children}
+      {error && (
+        <View style={s.errorRow}>
+          <Feather name="alert-triangle" size={12} color="#ef4444" />
+          <Text style={s.errorText}>{error}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function Input({ value, onChangeText, placeholder, multiline }: {
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder?: string;
+  multiline?: boolean;
+}) {
+  return (
+    <TextInput
+      style={[s.input, multiline && s.inputMulti]}
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      placeholderTextColor="rgba(255,255,255,0.25)"
+      multiline={multiline}
+      numberOfLines={multiline ? 4 : 1}
+      textAlignVertical={multiline ? 'top' : 'center'}
+    />
+  );
+}
+
+function Toggle({ icon, label, description, checked, onChange, color, saving }: {
+  icon: keyof typeof Feather.glyphMap;
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: () => void;
+  color: string;
+  saving?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onChange}
+      disabled={saving}
+      style={[s.toggleRow, checked && { backgroundColor: `${color}08`, borderColor: `${color}30` }]}
+    >
+      <View style={[s.toggleIcon, { backgroundColor: `${color}15` }]}>
+        <Feather name={icon} size={18} color={color} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={s.toggleLabel}>{label}</Text>
+        <Text style={s.toggleDesc}>{description}</Text>
+      </View>
+      {saving ? (
+        <ActivityIndicator size="small" color={color} />
+      ) : (
+        <Switch
+          value={checked}
+          onValueChange={onChange}
+          trackColor={{ false: 'rgba(255,255,255,0.1)', true: color }}
+          thumbColor="#fff"
+          ios_backgroundColor="rgba(255,255,255,0.1)"
+        />
+      )}
+    </Pressable>
+  );
+}
+
+function DangerButton({ icon, label, description, onPress }: {
+  icon: keyof typeof Feather.glyphMap;
+  label: string;
+  description: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} style={s.dangerRow}>
+      <View style={s.dangerIcon}>
+        <Feather name={icon} size={18} color="#ef4444" />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={s.dangerLabel}>{label}</Text>
+        <Text style={s.dangerDesc}>{description}</Text>
+      </View>
+      <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.3)" />
+    </Pressable>
+  );
+}
+
+function SelectField({ value, onPress, placeholder }: {
+  value: string;
+  onPress: () => void;
+  placeholder?: string;
+}) {
+  return (
+    <Pressable onPress={onPress} style={s.selectField}>
+      <Text style={[s.selectText, !value && { color: 'rgba(255,255,255,0.25)' }]}>
+        {value || placeholder}
+      </Text>
+      <Feather name="chevron-down" size={16} color="rgba(255,255,255,0.3)" />
+    </Pressable>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────────
+   SELECT PICKER MODAL
+────────────────────────────────────────────────────────────────────────────── */
+
+function SelectModal({ visible, onClose, title, options, value, onSelect }: {
+  visible: boolean;
+  onClose: () => void;
+  title: string;
+  options: string[];
+  value: string;
+  onSelect: (val: string) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const filtered = options.filter(o => o.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={s.modalOverlay}>
+        <View style={s.modalSheet}>
+          <View style={s.modalHandle} />
+          <View style={s.modalHeader}>
+            <Text style={s.modalTitle}>{title}</Text>
+            <Pressable onPress={onClose} hitSlop={8}>
+              <Feather name="x" size={20} color="rgba(255,255,255,0.5)" />
+            </Pressable>
+          </View>
+
+          <View style={s.searchWrap}>
+            <Feather name="search" size={14} color="rgba(255,255,255,0.3)" />
+            <TextInput
+              style={s.searchInput}
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search..."
+              placeholderTextColor="rgba(255,255,255,0.25)"
+            />
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {filtered.map(option => (
+              <Pressable
+                key={option}
+                onPress={() => { onSelect(option); onClose(); }}
+                style={[s.modalOption, value === option && s.modalOptionActive]}
+              >
+                <Text style={[s.modalOptionText, value === option && s.modalOptionTextActive]}>
+                  {option}
+                </Text>
+                {value === option && <Feather name="check" size={16} color="#6366f1" />}
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────────
+   CONFIRM MODAL
+────────────────────────────────────────────────────────────────────────────── */
+
+function ConfirmModal({ visible, onClose, onConfirm, icon, color, title, message, confirmLabel, loading }: {
+  visible: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
   icon: keyof typeof Feather.glyphMap;
   color: string;
   title: string;
   message: string;
   confirmLabel: string;
+  loading?: boolean;
+}) {
+  return (
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+      <View style={s.confirmOverlay}>
+        <View style={s.confirmBox}>
+          <View style={[s.confirmIcon, { backgroundColor: `${color}15` }]}>
+            <Feather name={icon} size={32} color={color} />
+          </View>
+          <Text style={s.confirmTitle}>{title}</Text>
+          <Text style={s.confirmMessage}>{message}</Text>
+          <View style={s.confirmButtons}>
+            <Pressable onPress={onClose} disabled={loading} style={[s.confirmBtn, s.confirmBtnCancel]}>
+              <Text style={s.confirmBtnTextCancel}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              onPress={onConfirm}
+              disabled={loading}
+              style={[s.confirmBtn, s.confirmBtnAction, { backgroundColor: color }]}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={s.confirmBtnTextAction}>{confirmLabel}</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
 }
 
-function getActionInfo(key: SettingKey, nextValue: boolean): ActionInfo {
-  switch (key) {
-    case 'visibility':
-      return nextValue
-        ? {
-            icon: 'globe',
-            color: Colors.accent.indigo,
-            title: 'Make event public?',
-            message:
-              'Your event page will be visible to everyone. Anyone with the link can view details, RSVP, or buy tickets (if enabled).',
-            confirmLabel: 'Make Public',
-          }
-        : {
-            icon: 'lock',
-            color: Colors.accent.amber,
-            title: 'Make event private?',
-            message:
-              'The public event page will be hidden. Only guests you invite directly will be able to access it.',
-            confirmLabel: 'Make Private',
-          };
+/* ──────────────────────────────────────────────────────────────────────────────
+   MAIN COMPONENT
+────────────────────────────────────────────────────────────────────────────── */
 
-    case 'allow_rsvp':
-      return nextValue
-        ? {
-            icon: 'users',
-            color: Colors.accent.emerald,
-            title: 'Enable RSVP?',
-            message:
-              'Guests will be able to RSVP to your event. By default, only invited guests with a personal link can RSVP — you can open it to everyone with the "Open RSVP" sub-toggle.',
-            confirmLabel: 'Enable RSVP',
-          }
-        : {
-            icon: 'users',
-            color: Colors.accent.emerald,
-            title: 'Disable RSVP?',
-            message:
-              'The RSVP button will be removed from your event page. Existing RSVPs are kept but no new ones will be accepted.',
-            confirmLabel: 'Disable RSVP',
-          };
-
-    case 'open_rsvp':
-      return nextValue
-        ? {
-            icon: 'unlock',
-            color: Colors.accent.emerald,
-            title: 'Open RSVP to everyone?',
-            message:
-              'Anyone who visits your event page can RSVP — no invitation needed. Great for public community events or when you want maximum reach.',
-            confirmLabel: 'Open to Everyone',
-          }
-        : {
-            icon: 'mail',
-            color: Colors.accent.amber,
-            title: 'Switch to invitation-only RSVP?',
-            message:
-              'Only guests who receive a personal invitation email with their unique link can RSVP. Others can still view the event page but the RSVP button will be locked for them.',
-            confirmLabel: 'Invitation Only',
-          };
-
-    case 'allow_ticketing':
-      return nextValue
-        ? {
-            icon: 'credit-card',
-            color: Colors.accent.amber,
-            title: 'Enable ticketing?',
-            message:
-              'You can create free or paid ticket types for this event. Guests will be able to purchase or claim tickets from the event page.',
-            confirmLabel: 'Enable Ticketing',
-          }
-        : {
-            icon: 'credit-card',
-            color: Colors.accent.amber,
-            title: 'Disable ticketing?',
-            message:
-              'Ticket sales will be turned off. Existing ticket types and issued tickets are not deleted, but no new purchases will be accepted.',
-            confirmLabel: 'Disable Ticketing',
-          };
-
-    case 'allow_qr_checkin':
-      return nextValue
-        ? {
-            icon: 'camera',
-            color: Colors.accent.indigo,
-            title: 'Enable QR check-in?',
-            message:
-              'You and your team will be able to scan guest QR codes at the door using the Scanner tab to mark attendance in real time.',
-            confirmLabel: 'Enable QR Check-in',
-          }
-        : {
-            icon: 'camera',
-            color: Colors.accent.indigo,
-            title: 'Disable QR check-in?',
-            message:
-              'The scanner will no longer accept QR codes for this event. You can still mark attendance manually from the Guests tab.',
-            confirmLabel: 'Disable QR Check-in',
-          };
-
-    case 'allow_donations':
-      return nextValue
-        ? {
-            icon: 'heart',
-            color: '#f43f5e',
-            title: 'Enable donations?',
-            message:
-              'A donation option will appear on your event page. Guests can contribute any amount they choose to support your event.',
-            confirmLabel: 'Enable Donations',
-          }
-        : {
-            icon: 'heart',
-            color: '#f43f5e',
-            title: 'Disable donations?',
-            message:
-              'The donation option will be removed from your event page. Past donations are not affected.',
-            confirmLabel: 'Disable Donations',
-          };
-
-    default:
-      return {
-        icon: 'settings',
-        color: Colors.accent.indigo,
-        title: 'Confirm change',
-        message: 'Are you sure you want to change this setting?',
-        confirmLabel: 'Confirm',
-      };
-  }
-}
-
-/* ─── Module config ──────────────────────────────────────────── */
-const MODULES: {
-  key: ModuleKey;
-  icon: keyof typeof Feather.glyphMap;
-  label: string;
-  sub: string;
-  color: string;
-}[] = [
-  {
-    key: 'allow_rsvp',
-    icon: 'users',
-    label: 'RSVP',
-    sub: 'Allow guests to RSVP to this event',
-    color: Colors.accent.emerald,
-  },
-  {
-    key: 'allow_ticketing',
-    icon: 'credit-card',
-    label: 'Ticketing',
-    sub: 'Sell free or paid tickets',
-    color: Colors.accent.amber,
-  },
-  {
-    key: 'allow_donations',
-    icon: 'heart',
-    label: 'Donations',
-    sub: 'Accept optional donations at this event',
-    color: '#f43f5e',
-  },
-];
-
-/* ─── Screen ──────────────────────────────────────────────────── */
 export default function EventSettingsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { currentEvent, fetchEventById, updateEvent } = useEventStore();
+  const { currentEvent, fetchEventById, updateEvent, deleteEvent } = useEventStore();
 
-  const [saving, setSaving] = useState<SettingKey | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    short_description: '',
+    event_type: '',
+    country: '',
+    venue_name: '',
+    venue_address: '',
+    city: '',
+    state: '',
+    zip_code: '',
+    timezone: '',
+  });
 
-  // Pending action waiting for confirmation
-  const [pending, setPending] = useState<{
-    key: SettingKey;
-    nextValue: boolean;
-    info: ActionInfo;
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [showTimezonePicker, setShowTimezonePicker] = useState(false);
+  const [showStartDate, setShowStartDate] = useState(false);
+  const [showEndDate, setShowEndDate] = useState(false);
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
+
+  const [confirmAction, setConfirmAction] = useState<{
+    type: 'visibility' | 'module' | 'delete';
+    icon: keyof typeof Feather.glyphMap;
+    color: string;
+    title: string;
+    message: string;
+    confirmLabel: string;
+    action: () => void;
   } | null>(null);
 
   useEffect(() => {
     if (id) fetchEventById(id);
   }, [id]);
+
+  useEffect(() => {
+    if (currentEvent && currentEvent.id === id) {
+      setForm({
+        title: currentEvent.title || '',
+        description: currentEvent.description || '',
+        short_description: currentEvent.short_description || '',
+        event_type: currentEvent.event_type || '',
+        country: currentEvent.country || '',
+        venue_name: currentEvent.venue_name || '',
+        venue_address: currentEvent.venue_address || '',
+        city: currentEvent.city || '',
+        state: currentEvent.state || '',
+        zip_code: currentEvent.zip_code || '',
+        timezone: currentEvent.timezone || 'America/New_York',
+      });
+      if (currentEvent.starts_at_utc) {
+        setStartDate(new Date(currentEvent.starts_at_utc));
+      }
+      if (currentEvent.ends_at_utc) {
+        setEndDate(new Date(currentEvent.ends_at_utc));
+      }
+    }
+  }, [currentEvent, id]);
 
   if (!currentEvent || currentEvent.id !== id) {
     return (
@@ -211,48 +361,86 @@ export default function EventSettingsScreen() {
     );
   }
 
-  /* ── Request a toggle — shows confirmation sheet ── */
-  const requestToggle = (key: SettingKey, nextValue: boolean) => {
-    setPending({ key, nextValue, info: getActionInfo(key, nextValue) });
-  };
+  const isPublic = currentEvent.visibility === 'PUBLIC';
 
-  /* ── User confirmed — apply the change ── */
-  const confirmToggle = async () => {
-    if (!pending) return;
-    const { key, nextValue } = pending;
-    setPending(null);
-    setSaving(key);
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let payload: any;
-    if (key === 'visibility') {
-      payload = { visibility: nextValue ? 'PUBLIC' : 'PRIVATE' };
-    } else if (nextValue && key === 'allow_rsvp') {
-      payload = { allow_rsvp: true, allow_ticketing: false, allow_donations: false, open_rsvp: false };
-    } else if (nextValue && key === 'allow_ticketing') {
-      payload = { allow_ticketing: true, allow_rsvp: false, allow_donations: false, open_rsvp: false };
-    } else if (nextValue && key === 'allow_donations') {
-      payload = { allow_donations: true, allow_rsvp: false, allow_ticketing: false, open_rsvp: false };
-    } else if (!nextValue && key === 'allow_rsvp') {
-      payload = { allow_rsvp: false, open_rsvp: false };
-    } else {
-      payload = { [key]: nextValue };
-    }
-
+  async function saveChanges() {
+    if (!id) return;
+    setSaving(true);
+    const payload = {
+      ...form,
+      starts_at: startDate.toISOString(),
+      ends_at: endDate.toISOString(),
+    };
     const result = await updateEvent(id, payload);
-    setSaving(null);
-
-    if (!result?.success) {
-      notify.settingsFailed(result?.message);
-    } else {
+    setSaving(false);
+    if (result?.success) {
       notify.settingsSaved();
+      fetchEventById(id);
+    } else {
+      notify.settingsFailed(result?.message);
     }
-    fetchEventById(id);
-  };
+  }
 
-  const isPublic  = currentEvent.visibility === 'PUBLIC';
-  const rsvpOn    = !!currentEvent.allow_rsvp;
-  const openRsvp  = !!currentEvent.open_rsvp;
+  function requestToggleVisibility() {
+    const nextValue = !isPublic;
+    setConfirmAction({
+      type: 'visibility',
+      icon: nextValue ? 'globe' : 'lock',
+      color: nextValue ? Colors.accent.indigo : Colors.accent.amber,
+      title: nextValue ? 'Make event public?' : 'Make event private?',
+      message: nextValue
+        ? 'Your event page will be visible to everyone. Anyone with the link can view details.'
+        : 'The public event page will be hidden. Only invited guests can access it.',
+      confirmLabel: nextValue ? 'Make Public' : 'Make Private',
+      action: async () => {
+        setSaving(true);
+        await updateEvent(id!, { visibility: nextValue ? 'PUBLIC' : 'PRIVATE' });
+        setSaving(false);
+        setConfirmAction(null);
+        notify.settingsSaved();
+        fetchEventById(id!);
+      },
+    });
+  }
+
+  function requestToggleModule(key: ModuleKey, nextValue: boolean, icon: keyof typeof Feather.glyphMap, color: string, title: string, message: string, label: string) {
+    setConfirmAction({
+      type: 'module',
+      icon,
+      color,
+      title,
+      message,
+      confirmLabel: label,
+      action: async () => {
+        setSaving(true);
+        await updateEvent(id!, { [key]: nextValue });
+        setSaving(false);
+        setConfirmAction(null);
+        notify.settingsSaved();
+        fetchEventById(id!);
+      },
+    });
+  }
+
+  function requestDelete() {
+    setConfirmAction({
+      type: 'delete',
+      icon: 'trash-2',
+      color: '#ef4444',
+      title: 'Delete event permanently?',
+      message: 'This action cannot be undone. All guests, tickets, and data will be permanently deleted.',
+      confirmLabel: 'Delete Forever',
+      action: async () => {
+        setSaving(true);
+        const result = await deleteEvent(id!);
+        setSaving(false);
+        setConfirmAction(null);
+        if (result?.success) {
+          router.replace('/events');
+        }
+      },
+    });
+  }
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -265,322 +453,605 @@ export default function EventSettingsScreen() {
           <Text style={s.headerTitle}>Settings</Text>
           <Text style={s.headerSub} numberOfLines={1}>{currentEvent.title}</Text>
         </View>
+        <Pressable
+          onPress={saveChanges}
+          disabled={saving}
+          style={[s.saveBtn, saving && { opacity: 0.5 }]}
+        >
+          {saving ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <Feather name="save" size={14} color="#fff" />
+              <Text style={s.saveBtnText}>Save</Text>
+            </>
+          )}
+        </Pressable>
       </View>
 
       <ScrollView
-        contentContainerStyle={s.content}
+        contentContainerStyle={[s.content, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* ── Visibility section ──────────────────────────────── */}
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>Visibility</Text>
-          <Text style={s.sectionHint}>Control who can see your event</Text>
+        {/* ──────────────────────────────────────────────────────────────────────
+            SECTION 1: BRANDING & IDENTITY
+        ────────────────────────────────────────────────────────────────────── */}
+        <GlassCard>
+          <SectionHeader
+            icon="info"
+            label="Branding & Identity"
+            description="Define how your event appears"
+            color={Colors.accent.indigo}
+          />
 
-          <Pressable
-            style={[
-              s.visibilityCard,
-              isPublic
-                ? { borderColor: `${Colors.accent.indigo}40`, backgroundColor: `${Colors.accent.indigo}08` }
-                : { borderColor: `${Colors.accent.amber}40`, backgroundColor: `${Colors.accent.amber}08` },
-            ]}
-            onPress={() => !saving && requestToggle('visibility', !isPublic)}
-          >
-            {/* Icon + badge */}
-            <View style={[
-              s.visIcon,
-              { backgroundColor: isPublic ? `${Colors.accent.indigo}18` : `${Colors.accent.amber}18` },
-            ]}>
-              <Feather
-                name={isPublic ? 'globe' : 'lock'}
-                size={20}
-                color={isPublic ? Colors.accent.indigo : Colors.accent.amber}
-              />
-            </View>
+          <Field label="Event Title" hint="Required">
+            <Input
+              value={form.title}
+              onChangeText={t => setForm({ ...form, title: t })}
+              placeholder="e.g. Summer Music Festival 2026"
+            />
+          </Field>
 
+          <Field label="Short Description" hint="One-liner for previews">
+            <Input
+              value={form.short_description}
+              onChangeText={t => setForm({ ...form, short_description: t })}
+              placeholder="A brief tagline..."
+            />
+          </Field>
+
+          <Field label="Full Description">
+            <Input
+              value={form.description}
+              onChangeText={t => setForm({ ...form, description: t })}
+              placeholder="Full event details..."
+              multiline
+            />
+          </Field>
+
+          <Field label="Event Type">
+            <Input
+              value={form.event_type}
+              onChangeText={t => setForm({ ...form, event_type: t })}
+              placeholder="e.g. Conference, Wedding, Concert"
+            />
+          </Field>
+
+          <Field label="Country">
+            <SelectField
+              value={form.country}
+              onPress={() => setShowCountryPicker(true)}
+              placeholder="Select country"
+            />
+          </Field>
+        </GlassCard>
+
+        {/* ──────────────────────────────────────────────────────────────────────
+            SECTION 2: DATE & LOCATION
+        ────────────────────────────────────────────────────────────────────── */}
+        <GlassCard style={{ marginTop: 20 }}>
+          <SectionHeader
+            icon="calendar"
+            label="Date & Location"
+            description="Logistics for venue and scheduling"
+            color={Colors.accent.amber}
+          />
+
+          <Field label="Start Date & Time">
+            <Pressable onPress={() => setShowStartDate(true)} style={s.dateBtn}>
+              <Feather name="calendar" size={14} color="rgba(255,255,255,0.5)" />
+              <Text style={s.dateBtnText}>{startDate.toLocaleString()}</Text>
+            </Pressable>
+          </Field>
+
+          {showStartDate && (
+            <DateTimePicker
+              value={startDate}
+              mode="datetime"
+              onChange={(e, date) => {
+                setShowStartDate(false);
+                if (date) setStartDate(date);
+              }}
+            />
+          )}
+
+          <Field label="End Date & Time">
+            <Pressable onPress={() => setShowEndDate(true)} style={s.dateBtn}>
+              <Feather name="calendar" size={14} color="rgba(255,255,255,0.5)" />
+              <Text style={s.dateBtnText}>{endDate.toLocaleString()}</Text>
+            </Pressable>
+          </Field>
+
+          {showEndDate && (
+            <DateTimePicker
+              value={endDate}
+              mode="datetime"
+              onChange={(e, date) => {
+                setShowEndDate(false);
+                if (date) setEndDate(date);
+              }}
+            />
+          )}
+
+          <Field label="Timezone">
+            <SelectField
+              value={form.timezone}
+              onPress={() => setShowTimezonePicker(true)}
+              placeholder="Select timezone"
+            />
+          </Field>
+
+          <Field label="Venue Name">
+            <Input
+              value={form.venue_name}
+              onChangeText={t => setForm({ ...form, venue_name: t })}
+              placeholder="e.g. Central Park"
+            />
+          </Field>
+
+          <Field label="Venue Address">
+            <Input
+              value={form.venue_address}
+              onChangeText={t => setForm({ ...form, venue_address: t })}
+              placeholder="Street address"
+            />
+          </Field>
+
+          <View style={{ flexDirection: 'row', gap: 10 }}>
             <View style={{ flex: 1 }}>
-              <View style={s.visRow}>
-                <Text style={s.visTitle}>{isPublic ? 'Public' : 'Private'}</Text>
-                <View style={[
-                  s.visBadge,
-                  { backgroundColor: isPublic ? `${Colors.accent.indigo}25` : `${Colors.accent.amber}25` },
-                ]}>
-                  <Text style={[
-                    s.visBadgeText,
-                    { color: isPublic ? Colors.accent.indigo : Colors.accent.amber },
-                  ]}>
-                    {isPublic ? 'LIVE' : 'HIDDEN'}
-                  </Text>
-                </View>
-              </View>
-              <Text style={s.visSub}>
-                {isPublic
-                  ? 'Anyone with the link can view this event page.'
-                  : 'Only invited guests with a direct link can access this event.'}
-              </Text>
-            </View>
-
-            {saving === 'visibility'
-              ? <ActivityIndicator size="small" color={Colors.accent.indigo} />
-              : (
-                <Switch
-                  value={isPublic}
-                  onValueChange={(v) => requestToggle('visibility', v)}
-                  trackColor={{ false: Colors.border.DEFAULT, true: `${Colors.accent.indigo}70` }}
-                  thumbColor={isPublic ? Colors.accent.indigo : Colors.text.subtle}
+              <Field label="City">
+                <Input
+                  value={form.city}
+                  onChangeText={t => setForm({ ...form, city: t })}
+                  placeholder="City"
                 />
-              )
-            }
-          </Pressable>
-        </View>
-
-        {/* ── Modules section ─────────────────────────────────── */}
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>Active Modules</Text>
-          <Text style={s.sectionHint}>Enable or disable features for this event</Text>
-          <View style={s.toggleList}>
-            {MODULES.map((mod) => {
-              const isOn    = !!currentEvent[mod.key as keyof typeof currentEvent];
-              const isSaving = saving === mod.key;
-              return (
-                <React.Fragment key={mod.key}>
-                  <ToggleRow
-                    icon={mod.icon}
-                    label={mod.label}
-                    sub={mod.sub}
-                    value={isOn}
-                    color={mod.color}
-                    disabled={isSaving}
-                    onChange={(v) => requestToggle(mod.key, v)}
-                  />
-
-                  {/* Open RSVP sub-row — only shown when RSVP is enabled */}
-                  {mod.key === 'allow_rsvp' && rsvpOn && (
-                    <View style={s.subRow}>
-                      <View style={s.subRowLine} />
-                      <View style={{ flex: 1 }}>
-                        <ToggleRow
-                          icon={openRsvp ? 'unlock' : 'mail'}
-                          label={openRsvp ? 'Open to everyone' : 'Invitation only'}
-                          sub={
-                            openRsvp
-                              ? 'Anyone on the event page can RSVP'
-                              : 'Only guests with a personal email link can RSVP'
-                          }
-                          value={openRsvp}
-                          color={openRsvp ? Colors.accent.emerald : Colors.accent.amber}
-                          disabled={saving === 'open_rsvp'}
-                          onChange={(v) => requestToggle('open_rsvp', v)}
-                        />
-                      </View>
-                    </View>
-                  )}
-                </React.Fragment>
-              );
-            })}
+              </Field>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Field label="State">
+                <Input
+                  value={form.state}
+                  onChangeText={t => setForm({ ...form, state: t })}
+                  placeholder="State"
+                />
+              </Field>
+            </View>
           </View>
-        </View>
+
+          <Field label="Zip Code">
+            <Input
+              value={form.zip_code}
+              onChangeText={t => setForm({ ...form, zip_code: t })}
+              placeholder="10001"
+            />
+          </Field>
+        </GlassCard>
+
+        {/* ──────────────────────────────────────────────────────────────────────
+            SECTION 3: MODULES & FEATURES
+        ────────────────────────────────────────────────────────────────────── */}
+        <GlassCard style={{ marginTop: 20 }}>
+          <SectionHeader
+            icon="zap"
+            label="Modules & Features"
+            description="Extend your event functionality"
+            color={Colors.accent.emerald}
+          />
+
+          {/* Visibility */}
+          <Toggle
+            icon={isPublic ? 'globe' : 'lock'}
+            label={isPublic ? 'Public Event' : 'Private Event'}
+            description={isPublic ? 'Visible to everyone' : 'Invitation only'}
+            checked={isPublic}
+            onChange={requestToggleVisibility}
+            color={isPublic ? Colors.accent.indigo : Colors.accent.amber}
+            saving={saving}
+          />
+
+          <View style={s.divider} />
+
+          {/* RSVP */}
+          <Toggle
+            icon="users"
+            label="RSVP"
+            description="Allow guests to RSVP"
+            checked={!!currentEvent.allow_rsvp}
+            onChange={() => requestToggleModule(
+              'allow_rsvp',
+              !currentEvent.allow_rsvp,
+              'users',
+              Colors.accent.emerald,
+              currentEvent.allow_rsvp ? 'Disable RSVP?' : 'Enable RSVP?',
+              currentEvent.allow_rsvp
+                ? 'RSVP button will be removed from your event page.'
+                : 'Guests will be able to RSVP to your event.',
+              currentEvent.allow_rsvp ? 'Disable RSVP' : 'Enable RSVP'
+            )}
+            color={Colors.accent.emerald}
+            saving={saving}
+          />
+
+          {currentEvent.allow_rsvp && (
+            <>
+              <View style={s.divider} />
+              <Toggle
+                icon="unlock"
+                label="Open RSVP"
+                description="Anyone can RSVP (no invitation needed)"
+                checked={!!currentEvent.open_rsvp}
+                onChange={() => requestToggleModule(
+                  'open_rsvp',
+                  !currentEvent.open_rsvp,
+                  'unlock',
+                  Colors.accent.emerald,
+                  currentEvent.open_rsvp ? 'Switch to invitation-only?' : 'Open RSVP to everyone?',
+                  currentEvent.open_rsvp
+                    ? 'Only invited guests can RSVP.'
+                    : 'Anyone who visits can RSVP.',
+                  currentEvent.open_rsvp ? 'Invitation Only' : 'Open to Everyone'
+                )}
+                color={Colors.accent.emerald}
+                saving={saving}
+              />
+            </>
+          )}
+
+          <View style={s.divider} />
+
+          {/* Ticketing */}
+          <Toggle
+            icon="credit-card"
+            label="Ticketing"
+            description="Sell or distribute tickets"
+            checked={!!currentEvent.allow_ticketing}
+            onChange={() => requestToggleModule(
+              'allow_ticketing',
+              !currentEvent.allow_ticketing,
+              'credit-card',
+              Colors.accent.amber,
+              currentEvent.allow_ticketing ? 'Disable ticketing?' : 'Enable ticketing?',
+              currentEvent.allow_ticketing
+                ? 'Ticket sales will be turned off.'
+                : 'Create free or paid ticket types.',
+              currentEvent.allow_ticketing ? 'Disable Ticketing' : 'Enable Ticketing'
+            )}
+            color={Colors.accent.amber}
+            saving={saving}
+          />
+
+          <View style={s.divider} />
+
+          {/* QR Check-in */}
+          <Toggle
+            icon="camera"
+            label="QR Check-in"
+            description="Scan QR codes at the door"
+            checked={!!currentEvent.allow_qr_checkin}
+            onChange={() => requestToggleModule(
+              'allow_qr_checkin',
+              !currentEvent.allow_qr_checkin,
+              'camera',
+              Colors.accent.indigo,
+              currentEvent.allow_qr_checkin ? 'Disable QR check-in?' : 'Enable QR check-in?',
+              currentEvent.allow_qr_checkin
+                ? 'Scanner will no longer accept QR codes.'
+                : 'Scan guest QR codes to mark attendance.',
+              currentEvent.allow_qr_checkin ? 'Disable QR' : 'Enable QR'
+            )}
+            color={Colors.accent.indigo}
+            saving={saving}
+          />
+
+          <View style={s.divider} />
+
+          {/* Donations */}
+          <Toggle
+            icon="heart"
+            label="Donations"
+            description="Accept contributions from guests"
+            checked={!!currentEvent.allow_donations}
+            onChange={() => requestToggleModule(
+              'allow_donations',
+              !currentEvent.allow_donations,
+              'heart',
+              '#f43f5e',
+              currentEvent.allow_donations ? 'Disable donations?' : 'Enable donations?',
+              currentEvent.allow_donations
+                ? 'Donation option will be removed.'
+                : 'Guests can contribute any amount.',
+              currentEvent.allow_donations ? 'Disable Donations' : 'Enable Donations'
+            )}
+            color="#f43f5e"
+            saving={saving}
+          />
+        </GlassCard>
+
+        {/* ──────────────────────────────────────────────────────────────────────
+            SECTION 4: SENSITIVE ACTIONS
+        ────────────────────────────────────────────────────────────────────── */}
+        <GlassCard style={{ marginTop: 20 }}>
+          <SectionHeader
+            icon="shield-alert"
+            label="Sensitive Actions"
+            description="Lifecycle management and safety tools"
+            color="#ef4444"
+          />
+
+          <DangerButton
+            icon="trash-2"
+            label="Delete Event"
+            description="Permanently delete this event and all data"
+            onPress={requestDelete}
+          />
+        </GlassCard>
       </ScrollView>
 
-      {/* ── Confirmation bottom sheet ──────────────────────────── */}
-      <ConfirmSheet
-        visible={!!pending}
-        info={pending?.info ?? null}
-        onCancel={() => setPending(null)}
-        onConfirm={confirmToggle}
-        insetBottom={insets.bottom}
+      {/* Select Modals */}
+      <SelectModal
+        visible={showCountryPicker}
+        onClose={() => setShowCountryPicker(false)}
+        title="Select Country"
+        options={COUNTRIES}
+        value={form.country}
+        onSelect={v => setForm({ ...form, country: v })}
       />
+
+      <SelectModal
+        visible={showTimezonePicker}
+        onClose={() => setShowTimezonePicker(false)}
+        title="Select Timezone"
+        options={TIMEZONES}
+        value={form.timezone}
+        onSelect={v => setForm({ ...form, timezone: v })}
+      />
+
+      {/* Confirm Modal */}
+      {confirmAction && (
+        <ConfirmModal
+          visible
+          onClose={() => setConfirmAction(null)}
+          onConfirm={confirmAction.action}
+          icon={confirmAction.icon}
+          color={confirmAction.color}
+          title={confirmAction.title}
+          message={confirmAction.message}
+          confirmLabel={confirmAction.confirmLabel}
+          loading={saving}
+        />
+      )}
     </SafeAreaView>
   );
 }
 
-/* ─── Confirmation bottom sheet ───────────────────────────────── */
-function ConfirmSheet({
-  visible, info, onCancel, onConfirm, insetBottom,
-}: {
-  visible: boolean;
-  info: ActionInfo | null;
-  onCancel: () => void;
-  onConfirm: () => void;
-  insetBottom: number;
-}) {
-  if (!info) return null;
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      statusBarTranslucent
-      onRequestClose={onCancel}
-    >
-      <Pressable style={cs.backdrop} onPress={onCancel} />
-      <View style={[cs.sheet, { paddingBottom: insetBottom + 16 }]}>
-        {/* Drag handle */}
-        <View style={cs.handle} />
+/* ──────────────────────────────────────────────────────────────────────────────
+   STYLES
+────────────────────────────────────────────────────────────────────────────── */
 
-        {/* Icon */}
-        <View style={[cs.iconBubble, { backgroundColor: `${info.color}18` }]}>
-          <Feather name={info.icon} size={26} color={info.color} />
-        </View>
-
-        {/* Text */}
-        <Text style={cs.title}>{info.title}</Text>
-        <Text style={cs.message}>{info.message}</Text>
-
-        {/* Buttons */}
-        <TouchableOpacity
-          style={[cs.confirmBtn, { backgroundColor: info.color }]}
-          onPress={onConfirm}
-          activeOpacity={0.85}
-        >
-          <Text style={cs.confirmText}>{info.confirmLabel}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={cs.cancelBtn} onPress={onCancel} activeOpacity={0.7}>
-          <Text style={cs.cancelText}>Cancel</Text>
-        </TouchableOpacity>
-      </View>
-    </Modal>
-  );
-}
-
-/* ─── Toggle row ──────────────────────────────────────────────── */
-function ToggleRow({
-  icon, label, sub, value, color, disabled, onChange,
-}: {
-  icon: keyof typeof Feather.glyphMap;
-  label: string;
-  sub: string;
-  value: boolean;
-  color: string;
-  disabled?: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <Pressable
-      style={[s.toggleRow, value && { borderColor: `${color}30`, backgroundColor: `${color}06` }]}
-      onPress={() => !disabled && onChange(!value)}
-    >
-      <View style={[s.toggleIcon, { backgroundColor: `${color}15` }]}>
-        {disabled
-          ? <ActivityIndicator size="small" color={color} />
-          : <Feather name={icon} size={16} color={color} />
-        }
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={s.toggleLabel}>{label}</Text>
-        <Text style={s.toggleSub}>{sub}</Text>
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onChange}
-        disabled={disabled}
-        trackColor={{ false: Colors.border.DEFAULT, true: `${color}70` }}
-        thumbColor={value ? color : Colors.text.subtle}
-      />
-    </Pressable>
-  );
-}
-
-/* ─── Styles ──────────────────────────────────────────────────── */
 const s = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: Colors.bg.primary },
+  safe: { flex: 1, backgroundColor: Colors.bg.primary },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   header: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: Colors.border.subtle,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
   },
   backBtn: {
-    width: 40, height: 40, borderRadius: 12,
-    backgroundColor: Colors.bg.elevated,
-    borderWidth: 1, borderColor: Colors.border.DEFAULT,
-    alignItems: 'center', justifyContent: 'center',
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  headerTitle: { fontSize: 17, fontWeight: '900', color: '#fff' },
-  headerSub:   { fontSize: 11, color: Colors.text.muted, marginTop: 1 },
-
-  content: { padding: 16, gap: 24, paddingBottom: 48 },
-
-  section: { gap: 12 },
-  sectionLabel: {
-    fontSize: 13, fontWeight: '800', color: Colors.text.subtle,
-    textTransform: 'uppercase', letterSpacing: 0.8,
+  headerTitle: { fontSize: 18, fontWeight: '800', color: '#fff', letterSpacing: -0.4 },
+  headerSub: { fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
+  saveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.accent.indigo,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
-  sectionHint: { fontSize: 12, color: Colors.text.muted, marginTop: -6 },
+  saveBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
 
-  // Visibility card
-  visibilityCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderRadius: 16, borderWidth: 1,
-    borderColor: Colors.border.DEFAULT,
-    padding: 16,
+  content: { padding: 16 },
+
+  glassCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    padding: 20,
+    gap: 18,
   },
-  visIcon: { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  visRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 },
-  visTitle: { fontSize: 15, fontWeight: '800', color: '#fff' },
-  visBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
-  visBadgeText: { fontSize: 9, fontWeight: '800', letterSpacing: 1 },
-  visSub: { fontSize: 11, color: Colors.text.muted, lineHeight: 15 },
 
-  // Module toggles
-  toggleList: { gap: 8 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, marginBottom: 6 },
+  sectionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  sectionLabel: { fontSize: 18, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
+  sectionDesc: { fontSize: 13, color: 'rgba(255,255,255,0.4)', marginTop: 3, fontWeight: '500' },
+
+  field: { gap: 8 },
+  fieldHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingHorizontal: 2 },
+  fieldLabel: { fontSize: 10, fontWeight: '800', color: 'rgba(255,255,255,0.4)', letterSpacing: 1 },
+  fieldHint: { fontSize: 9, color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' },
+
+  input: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '500',
+  },
+  inputMulti: { minHeight: 100, paddingTop: 12, textAlignVertical: 'top' },
+
+  selectField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  selectText: { fontSize: 14, color: '#fff', fontWeight: '500' },
+
+  dateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  dateBtnText: { fontSize: 14, color: '#fff', fontWeight: '500', flex: 1 },
+
   toggleRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#2a1d00',
-    borderRadius: 14, borderWidth: 1,
-    borderColor: 'rgba(251,191,36,0.20)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.02)',
     padding: 14,
   },
-  toggleIcon:  { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  toggleLabel: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  toggleSub:   { fontSize: 11, color: Colors.text.muted, marginTop: 1 },
+  toggleIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  toggleLabel: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  toggleDesc: { fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
 
-  subRow: {
-    flexDirection: 'row', alignItems: 'stretch',
-    paddingLeft: 14,
-  },
-  subRowLine: {
-    width: 2, borderRadius: 2, marginRight: 12, marginTop: 6, marginBottom: 6,
-    backgroundColor: `${Colors.accent.emerald}40`,
-  },
-});
+  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.04)', marginVertical: 4 },
 
-const cs = StyleSheet.create({
-  backdrop: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-  },
-  sheet: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: '#0e0e16',
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
-    paddingHorizontal: 24, paddingTop: 12,
-    alignItems: 'center', gap: 12,
-  },
-  handle: {
-    width: 36, height: 4, borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    marginBottom: 4,
-  },
-  iconBubble: {
-    width: 60, height: 60, borderRadius: 18,
-    alignItems: 'center', justifyContent: 'center',
-    marginTop: 4,
-  },
-  title:   { fontSize: 18, fontWeight: '800', color: '#fff', textAlign: 'center' },
-  message: {
-    fontSize: 13, color: 'rgba(255,255,255,0.55)',
-    textAlign: 'center', lineHeight: 19,
-    paddingHorizontal: 4, marginBottom: 4,
-  },
-  confirmBtn: {
-    width: '100%', paddingVertical: 14, borderRadius: 14,
+  dangerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.2)',
+    backgroundColor: 'rgba(239,68,68,0.05)',
+    padding: 14,
   },
-  confirmText: { fontSize: 15, fontWeight: '800', color: '#fff' },
-  cancelBtn:   { width: '100%', paddingVertical: 12, alignItems: 'center' },
-  cancelText:  { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.4)' },
+  dangerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(239,68,68,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  dangerLabel: { fontSize: 15, fontWeight: '700', color: '#ef4444' },
+  dangerDesc: { fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
+
+  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 2 },
+  errorText: { fontSize: 12, color: '#ef4444', fontWeight: '600' },
+
+  // Select Modal
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.7)' },
+  modalSheet: {
+    backgroundColor: '#09090f',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    maxHeight: '80%',
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: '#fff' },
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    margin: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  searchInput: { flex: 1, fontSize: 14, color: '#fff' },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.04)',
+  },
+  modalOptionActive: { backgroundColor: 'rgba(99,102,241,0.1)' },
+  modalOptionText: { fontSize: 14, color: 'rgba(255,255,255,0.7)', fontWeight: '500' },
+  modalOptionTextActive: { color: '#6366f1', fontWeight: '700' },
+
+  // Confirm Modal
+  confirmOverlay: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    paddingHorizontal: 24,
+  },
+  confirmBox: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#09090f',
+    padding: 24,
+    alignItems: 'center',
+    gap: 16,
+  },
+  confirmIcon: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  confirmTitle: { fontSize: 20, fontWeight: '800', color: '#fff', textAlign: 'center' },
+  confirmMessage: { fontSize: 14, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 20 },
+  confirmButtons: { flexDirection: 'row', gap: 10, width: '100%', marginTop: 8 },
+  confirmBtn: { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
+  confirmBtnCancel: { backgroundColor: 'rgba(255,255,255,0.06)' },
+  confirmBtnAction: { backgroundColor: Colors.accent.indigo },
+  confirmBtnTextCancel: { fontSize: 14, fontWeight: '700', color: 'rgba(255,255,255,0.6)' },
+  confirmBtnTextAction: { fontSize: 14, fontWeight: '700', color: '#fff' },
 });

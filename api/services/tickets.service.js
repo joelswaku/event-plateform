@@ -5,6 +5,7 @@ import { stripe } from "../config/stripe.js";
 import { issueTicketsForOrderService } from "./ticket-issuance.service.js";
 import { createNotificationService, getEventOwnerIdService } from "./notifications.service.js";
 import { audit } from "./audit.service.js";
+import { getEventOwnerPlan, PLANS } from "./planLimits.service.js";
 
 class AppError extends Error {
   constructor(message, statusCode = 400, details = null) {
@@ -35,6 +36,16 @@ function toMoneyNumber(value) {
   return Number(value || 0);
 }
 
+function normalizeIdempotencyKey(value) {
+  if (value === undefined || value === null || value === "") return null;
+
+  const key = String(value).trim();
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/.test(key)) {
+    throw new AppError("Invalid idempotency key", 400);
+  }
+  return key;
+}
+
 export async function confirmOrderPaymentService(orderId) {
   const orderRes = await db.query(
     `SELECT o.* FROM ticket_orders o WHERE o.id = $1 AND o.deleted_at IS NULL LIMIT 1`,
@@ -44,7 +55,16 @@ export async function confirmOrderPaymentService(orderId) {
   if (!order) throw new AppError("Order not found", 404);
 
   if (order.payment_status === "PAID") {
-    return { status: "already_issued" };
+    const issuedRes = await db.query(
+      `SELECT 1 FROM issued_tickets WHERE order_id = $1 LIMIT 1`,
+      [orderId]
+    );
+    if (issuedRes.rows.length > 0) return { status: "already_issued" };
+
+    // Recover a paid order if a previous webhook was interrupted after it
+    // marked the order paid but before tickets were issued.
+    await issueTicketsForOrderService(orderId);
+    return { status: "issued" };
   }
 
   if (order.provider !== "STRIPE" || !order.provider_payment_intent_id) {
@@ -53,6 +73,10 @@ export async function confirmOrderPaymentService(orderId) {
 
   // provider_payment_intent_id is the Stripe Checkout Session ID (cs_...)
   const session = await stripe.checkout.sessions.retrieve(order.provider_payment_intent_id);
+
+  if (session.metadata?.order_id !== order.id) {
+    throw new AppError("Payment session does not match this order", 403);
+  }
 
   if (session.payment_status !== "paid") {
     return { status: "not_paid" };
@@ -81,6 +105,7 @@ export async function createTicketOrderService({
     await client.query("BEGIN");
 
     const items = normalizeItems(payload.items);
+    const idempotencyKey = normalizeIdempotencyKey(payload.idempotency_key);
 
     if (!payload.buyer_email || !String(payload.buyer_email).trim()) {
       throw new AppError("buyer_email is required", 400);
@@ -179,15 +204,15 @@ export async function createTicketOrderService({
 
     // ── Platform commission ────────────────────────────────────────────────────
     // Fee is added ON TOP of the ticket price so organizers receive their full amount.
-    // Rate: 3.5% of subtotal + $0.49 per ticket (paid tickets only).
+    // Fee rate is determined by the event organizer's plan (not the buyer's plan).
+    // Starter: 2% of paid-ticket subtotal
+    // Pro: 1.5% of paid-ticket subtotal
     // Free tickets carry no platform fee.
-    const PLATFORM_RATE        = 0.035; // 3.5%
-    const PLATFORM_PER_TICKET  = 0.49;  // $0.49 per paid ticket
-    const paidTicketCount = preparedItems
-      .filter(i => i.kind !== "FREE" && i.unit_price > 0)
-      .reduce((s, i) => s + i.quantity, 0);
+    const organizerPlan = await getEventOwnerPlan(client, eventId);
+    const platformFeePercent = PLANS[organizerPlan]?.platformFeePercent ?? 2;
+
     const platformFee = subtotal > 0
-      ? Math.round((subtotal * PLATFORM_RATE + paidTicketCount * PLATFORM_PER_TICKET) * 100) / 100
+      ? Math.round((subtotal * platformFeePercent / 100) * 100) / 100
       : 0;
 
     const fees  = platformFee;
@@ -213,10 +238,14 @@ export async function createTicketOrderService({
         currency,
         provider,
         payment_status,
-        paid_at
+        paid_at,
+        client_request_id
       )
       VALUES
-      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'STRIPE',$12,$13)
+      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'STRIPE',$12,$13,$14)
+      ON CONFLICT (event_id, client_request_id)
+        WHERE client_request_id IS NOT NULL
+        DO NOTHING
       RETURNING *
       `,
       [
@@ -233,10 +262,50 @@ export async function createTicketOrderService({
         "USD",
         paymentStatus,
         total === 0 ? now : null,
+        idempotencyKey,
       ]
     );
 
-    const order = orderRes.rows[0];
+    let order = orderRes.rows[0];
+
+    // A browser or mobile retry with the same request key must resume the
+    // original order and Checkout session instead of charging the buyer twice.
+    if (!order && idempotencyKey) {
+      const existingRes = await client.query(
+        `SELECT * FROM ticket_orders
+         WHERE event_id = $1 AND client_request_id = $2
+         LIMIT 1`,
+        [eventId, idempotencyKey]
+      );
+      order = existingRes.rows[0];
+      if (!order) throw new AppError("Could not resume the existing order", 409);
+
+      await client.query("COMMIT");
+
+      let checkoutUrl = null;
+      if (order.payment_status === "PENDING" && order.provider_payment_intent_id && stripe) {
+        const existingSession = await stripe.checkout.sessions.retrieve(order.provider_payment_intent_id);
+        checkoutUrl = existingSession.url || null;
+      }
+
+      return {
+        order_id: order.id,
+        event_id: order.event_id,
+        order_status: order.order_status,
+        payment_status: order.payment_status,
+        subtotal: Number(order.subtotal),
+        discount_amount: Number(order.discount_amount),
+        fees: Number(order.fees),
+        total: Number(order.total),
+        currency: order.currency,
+        provider: order.provider,
+        provider_payment_intent_id: order.provider_payment_intent_id,
+        payment_required: Number(order.total) > 0,
+        checkout_url: checkoutUrl,
+        items: [],
+        issued_tickets: null,
+      };
+    }
 
     // ── Audit: log every transaction immediately after order creation ──────────
     audit({
@@ -341,6 +410,8 @@ export async function createTicketOrderService({
         success_url: (payload.success_url || `${frontendUrl}/e/${eventSlug}/tickets?payment=success&order_id=${order.id}`)
           .replace('{ORDER_ID}', order.id),
         cancel_url: payload.cancel_url || `${frontendUrl}/e/${eventSlug}/tickets?payment=cancelled`,
+      }, {
+        idempotencyKey: `ticket-checkout-${order.id}`,
       });
 
       providerPaymentIntentId = session.id;

@@ -21,21 +21,21 @@ router.get("/", async (req, res) => {
     );
     const guestsCount = parseInt(guestsResult.rows[0].count) || 0;
 
-    // Get total tickets sold
+    // Get total tickets sold (using issued_tickets table)
     const ticketsResult = await db.query(
-      "SELECT COUNT(*) FROM tickets WHERE status = 'CONFIRMED'"
+      "SELECT COUNT(*) FROM issued_tickets WHERE status = 'ISSUED'"
     );
     const ticketsCount = parseInt(ticketsResult.rows[0].count) || 0;
 
     // Get total organizers (organizations)
     const organizersResult = await db.query(
-      "SELECT COUNT(*) FROM organizations WHERE is_personal = false"
+      "SELECT COUNT(*) FROM organizations WHERE is_personal = false AND deleted_at IS NULL"
     );
     const organizersCount = parseInt(organizersResult.rows[0].count) || 0;
 
-    // Get revenue (sum of all confirmed tickets)
+    // Get revenue (sum of all paid ticket orders)
     const revenueResult = await db.query(
-      "SELECT COALESCE(SUM(price), 0) as total_revenue FROM tickets WHERE status = 'CONFIRMED'"
+      "SELECT COALESCE(SUM(total), 0)::numeric as total_revenue FROM ticket_orders WHERE payment_status = 'PAID'"
     );
     const totalRevenue = parseFloat(revenueResult.rows[0].total_revenue) || 0;
 

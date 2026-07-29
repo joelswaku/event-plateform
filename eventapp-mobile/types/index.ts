@@ -230,6 +230,9 @@ export interface PurchaseOrderPayload {
   buyer_email: string;
   buyer_phone?: string;
   items: Array<{ ticket_type_id: string; quantity: number }>;
+  idempotency_key?: string;
+  success_url?: string;
+  cancel_url?: string;
 }
 
 export interface PurchaseOrderResult {

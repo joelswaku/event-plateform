@@ -38,9 +38,9 @@ const STATUS_LABELS = {
   canceled: { label: "Canceled", color: "#ef4444" },
 };
 
-const FREE_FEATURES    = ["1 event", "50 guests per event", "Classic theme only", "QR check-in scanner", "RSVP page builder", "Email support"];
-const STARTER_FEATURES = ["5 events", "500 guests per event", "All themes & styles", "QR check-in scanner", "Ticket selling (2% platform fee)", "1 email reminder per guest", "Basic analytics", "Up to 3 team members"];
-const PRO_FEATURES     = ["Unlimited events", "Unlimited guests", "All themes & styles", "Ticket selling (1.5% platform fee)", "Unlimited email reminders", "Advanced analytics", "Custom domain", "Unlimited team members", "Priority support"];
+const FREE_FEATURES    = ["1 event", "50 guests", "Classic templates only", "Tickets (2% fee)", "Instant confirmation only", "No planner access"];
+const STARTER_FEATURES = ["1 active event", "500 guests/event", "All templates", "Full planner", "1 team invite", "1 reminder config", "Tickets (2% fee)"];
+const PRO_FEATURES     = ["3 active events", "Unlimited guests", "All templates", "Full planner", "3 team invites", "Unlimited reminders", "Tickets (1.5% fee)"];
 
 /* ─────────────────────────────────────────────────────────────────────
    MOBILE  (< sm)
@@ -143,7 +143,7 @@ function MobileBillingPage({
                     ? `Renews ${renewDate}`
                     : isSubscribed
                     ? "Active subscription"
-                    : "Upgrade for unlimited events & more"}
+                    : "Upgrade for 3 events & unlimited guests"}
                 </p>
               </div>
             </div>
@@ -438,7 +438,19 @@ export default function BillingPage() {
     setCheckoutLoading(tier);
     setError(null);
     try {
-      // Store tier so /billing/success knows which plan to activate optimistically
+      // If user already has active subscription, use plan-change route instead
+      if (isSubscribed && subscriptionStatus === "active") {
+        const res = await api.post("/subscription/change-plan", { priceId });
+        if (res.data?.success) {
+          await fetchSubscription(); // Refresh subscription data
+          setError(null);
+          setCheckoutLoading(null);
+          return;
+        }
+        throw new Error(res.data?.message || "Failed to change plan");
+      }
+
+      // New subscription - use checkout
       if (typeof window !== "undefined") sessionStorage.setItem("checkout_tier", tier);
       const res = await api.post("/subscription/checkout", {
         priceId,
@@ -558,7 +570,7 @@ export default function BillingPage() {
                   ? `Renews on ${renewDate}`
                   : isSubscribed
                   ? "Active subscription"
-                  : "Upgrade for unlimited events, templates & more"}
+                  : "Upgrade for 3 events, unlimited guests & planner"}
               </p>
             </div>
           </div>

@@ -9,6 +9,7 @@ import {
   ExternalLink, ChevronDown, Heart,
   ChevronLeft, ChevronRight, X, Download, ZoomIn,
 } from "lucide-react";
+import { createPaymentRequestKey } from "@/lib/payment-idempotency";
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
@@ -2079,6 +2080,7 @@ export function DonationsSection({ section, event, isEditor = false, onEdit }) {
   const [submitting, setSubmitting] = useState(false);
   const [error,      setError]      = useState("");
   const [donConfig,  setDonConfig]  = useState({ amounts: [], message: "" });
+  const donationRequestKey = useRef(createPaymentRequestKey("donation"));
   const [donated,    setDonated]    = useState(() => {
     if (typeof window === "undefined") return false;
     return new URLSearchParams(window.location.search).get("donation") === "success";
@@ -2112,6 +2114,7 @@ export function DonationsSection({ section, event, isEditor = false, onEdit }) {
           donor_name: name.trim() || null,
           amount, currency: "USD",
           frequency: freq,
+          idempotency_key: donationRequestKey.current,
         }),
       });
       const data = await res.json();
@@ -2501,6 +2504,7 @@ function DonationCheckoutCard({ event, isEditor }) {
   const [done,       setDone]       = useState(false);
   const [error,      setError]      = useState("");
   const [donConfig,  setDonConfig]  = useState({ amounts: [], message: "" });
+  const donationRequestKey = useRef(createPaymentRequestKey("donation"));
 
   useEffect(() => {
     if (!event?.id) return;
@@ -2527,7 +2531,7 @@ function DonationCheckoutCard({ event, isEditor }) {
       const res = await fetch(`${API}/engagement/events/${event?.id}/donations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ donor_name: name.trim() || null, amount, currency: "USD", frequency: freq }),
+        body: JSON.stringify({ donor_name: name.trim() || null, amount, currency: "USD", frequency: freq, idempotency_key: donationRequestKey.current }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Donation failed");

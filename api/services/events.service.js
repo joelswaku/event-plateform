@@ -1392,13 +1392,24 @@ export async function getEventDashboardService({ eventId, organizationId, userId
     if (!event) throw new AppError("Event not found", 404);
 
     // Resolve the user's role in this event and derive permissions
+    // SECURITY: NEVER default to OWNER - require explicit event_members row
     const roleRow = userId ? await client.query(
-      `SELECT role FROM event_members WHERE event_id = $1 AND user_id = $2 AND deleted_at IS NULL LIMIT 1`,
+      `SELECT COALESCE(em.role::text, om.role::text) as role
+       FROM events e
+       LEFT JOIN event_members em ON em.event_id = e.id AND em.user_id = $2 AND em.deleted_at IS NULL
+       LEFT JOIN organization_members om ON om.organization_id = e.organization_id AND om.user_id = $2
+       WHERE e.id = $1
+       LIMIT 1`,
       [eventId, userId]
     ) : { rows: [] };
-    const userRole    = roleRow.rows[0]?.role ?? 'OWNER';
+
+    const userRole = roleRow.rows[0]?.role;
+    if (!userRole) {
+      throw new AppError("You do not have access to this event", 403);
+    }
+
     const isTeamMember = userRole !== 'OWNER';
-    const permissions  = DASHBOARD_ROLE_PERMISSIONS[userRole] ?? DASHBOARD_ROLE_PERMISSIONS.OWNER;
+    const permissions  = DASHBOARD_ROLE_PERMISSIONS[userRole] ?? DASHBOARD_ROLE_PERMISSIONS.ADMIN;
 
     const [
       guestCountResult,

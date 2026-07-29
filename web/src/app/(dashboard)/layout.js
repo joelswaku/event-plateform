@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppShell  from "@/components/layout/app-shell";
 import TermsGate from "@/components/legal/TermsGate";
@@ -10,8 +10,10 @@ export default function DashboardLayout({ children }) {
   const router = useRouter();
   const { isAuthenticated, isHydrated } = useAuthStore();
 
+  // Web uses httpOnly cookies - no token initialization needed
+  // The axios interceptor handles refresh automatically on 401
+
   // Redirect to login if not authenticated
-  // This prevents cached pages from being accessible after logout
   useEffect(() => {
     if (isHydrated && !isAuthenticated) {
       router.replace("/login");

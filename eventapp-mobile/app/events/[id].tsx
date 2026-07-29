@@ -36,7 +36,7 @@ import React, {
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, StyleSheet, Pressable, ScrollView,
-  ActivityIndicator, Dimensions, Animated, Easing, Modal, Share,
+  ActivityIndicator, Dimensions, Animated, Easing, Modal, Share, Switch, TextInput,
 } from 'react-native';
 import { Image }          from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -48,15 +48,744 @@ import * as WebBrowser   from 'expo-web-browser';
 
 import { useEventStore }  from '@/store/event.store';
 import { usePlannerStore } from '@/store/planner.store';
+import { useSubscriptionStore } from '@/store/subscription.store';
 import { Colors }         from '@/constants/colors';
 import { Config }         from '@/constants/config';
 import { getToken }       from '@/lib/api';
 import { ConfirmModal }   from '@/components/ui/ConfirmModal';
 import { fmtDateTime }    from '@/lib/format';
 import { DashboardPermissions } from '@/types';
-import { notify }         from '@/lib/toast';
+import { notify, toast }  from '@/lib/toast';
 
 const { width: SW } = Dimensions.get('window');
+
+/* ──────────────────────────────────────────────────────────────────────────────
+   EVENT REMINDERS MODAL COMPONENT
+────────────────────────────────────────────────────────────────────────────── */
+
+interface Reminder {
+  id: number;
+  enabled: boolean;
+  timing: string;
+  message: string;
+  locked: boolean;
+}
+
+const TIMING_LABELS: Record<string, string> = {
+  instant: 'Instant Confirmation',
+  '7_days': '7 days before',
+  '3_days': '3 days before',
+  '24_hours': '24 hours before',
+  '12_hours': '12 hours before',
+  '6_hours': '6 hours before',
+  '2_hours': '2 hours before',
+  '1_hour': '1 hour before',
+  '30_minutes': '30 minutes before',
+  '15_minutes': '15 minutes before',
+};
+
+const SUGGESTED_MESSAGES: Record<string, string> = {
+  instant: "Thank you for registering! We'll send you more details as the event approaches.",
+  '7_days': 'Your event is 1 week away!',
+  '3_days': 'Only 3 days until the event!',
+  '24_hours': 'Event starts tomorrow! See you soon.',
+  '12_hours': 'Event starts in 12 hours!',
+  '6_hours': 'Event starts in 6 hours! Get ready.',
+  '2_hours': 'Event starts in 2 hours!',
+  '1_hour': 'Event starts in 1 hour!',
+  '30_minutes': 'Event starts in 30 minutes!',
+  '15_minutes': 'Event starts in 15 minutes!',
+};
+
+function EventRemindersModal({ visible, onClose, eventId, eventTitle }: {
+  visible: boolean;
+  onClose: () => void;
+  eventId: string;
+  eventTitle: string;
+}) {
+  const router = useRouter();
+  const { plan, isSubscribed, fetchSubscription } = useSubscriptionStore();
+  const isPro = isSubscribed && (plan === 'pro' || plan === 'enterprise');
+  const isStarter = isSubscribed && plan === 'starter';
+
+  const defaultReminders: Reminder[] = [
+    { id: 1, enabled: true, timing: 'instant', message: "Thank you for registering! We'll send you more details as the event approaches.", locked: true },
+    { id: 2, enabled: false, timing: '1_hour', message: 'Event starts in 1 hour!', locked: false },
+  ];
+
+  // Free and Starter start with the two plan-included cards. Pro keeps any
+  // additional saved custom reminders, while retaining the two base cards.
+  const getRemindersForPlan = (saved: any[] = []): { visible: Reminder[]; hidden: Reminder[] } => {
+    const toReminder = (reminder: any, id: number, fallback: Reminder): Reminder => ({
+      id,
+      enabled: reminder?.enabled ?? fallback.enabled,
+      timing: reminder?.timing ?? fallback.timing,
+      message: reminder?.message ?? fallback.message,
+      locked: fallback.locked,
+    });
+
+    const instant = saved.find((reminder) => reminder.timing === 'instant');
+    // The first scheduled reminder remains the included Starter reminder even
+    // after the owner changes it from the default one-hour timing.
+    const primaryCustom = saved.find((reminder) => reminder.timing === '1_hour')
+      ?? saved.find((reminder) => reminder.timing !== 'instant');
+
+    const baseReminders = [
+      { ...toReminder(instant, 1, defaultReminders[0]), enabled: true, locked: true },
+      {
+        ...toReminder(primaryCustom, 2, defaultReminders[1]),
+        // A downgraded Free account must never display a scheduled reminder as active.
+        enabled: isStarter || isPro ? (primaryCustom?.enabled ?? defaultReminders[1].enabled) : false,
+      },
+    ];
+
+    const extraReminders = saved
+      .filter((reminder) => reminder.timing !== 'instant' && reminder !== primaryCustom)
+      .map((reminder, index) => toReminder(reminder, index + 3, defaultReminders[1]));
+
+    return isPro
+      ? { visible: [...baseReminders, ...extraReminders], hidden: [] }
+      : { visible: baseReminders, hidden: extraReminders };
+  };
+
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [reminders, setReminders] = useState<Reminder[]>(defaultReminders);
+  const [hiddenReminders, setHiddenReminders] = useState<Reminder[]>([]);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editMessage, setEditMessage] = useState('');
+  const [showTimingPicker, setShowTimingPicker] = useState<number | null>(null);
+  const [upgradeTier, setUpgradeTier] = useState<'starter' | 'pro' | null>(null);
+
+  useEffect(() => {
+    if (visible && eventId) {
+      void fetchSubscription();
+      fetchReminders();
+    }
+  }, [visible, eventId, isStarter, isPro, fetchSubscription]);
+
+  async function fetchReminders() {
+    if (!eventId) return;
+    setLoading(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${Config.API_URL}/events/${eventId}/reminders`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      const planReminders = getRemindersForPlan(data.success && Array.isArray(data.data) ? data.data : []);
+      setReminders(planReminders.visible);
+      setHiddenReminders(planReminders.hidden);
+    } catch (error) {
+      console.error('Failed to fetch reminders:', error);
+      const planReminders = getRemindersForPlan();
+      setReminders(planReminders.visible);
+      setHiddenReminders(planReminders.hidden);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function saveReminders() {
+    if (!eventId) return;
+    setSaving(true);
+    try {
+      const token = await getToken();
+      // Preserve older Pro reminders as disabled when a user has downgraded.
+      // The API replaces the reminder list on save, so omitting them would
+      // permanently delete their configuration.
+      const remindersToSave = isPro
+        ? reminders
+        : [...reminders, ...hiddenReminders.map(reminder => ({ ...reminder, enabled: false, locked: false }))];
+      const cleanReminders = remindersToSave.map(r => ({
+        timing: r.timing,
+        message: r.message,
+        enabled: r.enabled,
+        locked: r.locked || false,
+      }));
+
+      const res = await fetch(`${Config.API_URL}/events/${eventId}/reminders`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ reminders: cleanReminders }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success('Reminders saved successfully!');
+        onClose();
+      } else {
+        toast.error(data.error || data.message || 'Failed to save reminders');
+      }
+    } catch (error) {
+      console.error('Failed to save reminders:', error);
+      toast.error('Failed to save reminders');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleToggle(reminder: Reminder) {
+    if (reminder.locked) return;
+    if (!reminder.enabled && !isStarter && !isPro) {
+      setUpgradeTier('starter');
+      return;
+    }
+    setReminders(prev => prev.map(r => r.id === reminder.id ? { ...r, enabled: !r.enabled } : r));
+  }
+
+  function handleRemove(id: number) {
+    // Keep the included scheduled-reminder card visible for every plan.
+    if (id === 2) return;
+    setReminders(prev => prev.filter(r => r.id !== id || r.locked));
+  }
+
+  function handleAddReminder() {
+    if (!isPro) {
+      setUpgradeTier(isStarter ? 'pro' : 'starter');
+      return;
+    }
+    const newId = Math.max(...reminders.map(r => r.id), 0) + 1;
+    const timing = Object.keys(TIMING_LABELS).find(
+      option => !reminders.some(reminder => reminder.timing === option),
+    ) ?? '1_hour';
+    setReminders(prev => [...prev, {
+      id: newId,
+      enabled: false,
+      timing,
+      message: SUGGESTED_MESSAGES[timing] || 'Reminder about your upcoming event.',
+      locked: false,
+    }]);
+    toast.success('Custom reminder added!');
+  }
+
+  function handleEditStart(reminder: Reminder) {
+    setEditingId(reminder.id);
+    setEditMessage(reminder.message);
+  }
+
+  function handleEditSave(id: number) {
+    setReminders(prev => prev.map(r => r.id === id ? { ...r, message: editMessage } : r));
+    setEditingId(null);
+    setEditMessage('');
+  }
+
+  function handleEditCancel() {
+    setEditingId(null);
+    setEditMessage('');
+  }
+
+  function handleTimingChange(id: number, newTiming: string) {
+    if (reminders.some(reminder => reminder.id !== id && reminder.timing === newTiming)) {
+      toast.error('A reminder already uses this timing. Choose another time.');
+      return;
+    }
+    setReminders(prev => prev.map(r => {
+      if (r.id === id) {
+        const suggestedMessage = SUGGESTED_MESSAGES[newTiming] || 'Reminder about your upcoming event.';
+        return { ...r, timing: newTiming, message: suggestedMessage };
+      }
+      return r;
+    }));
+    setShowTimingPicker(null);
+  }
+
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
+      <View style={rms.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={rms.sheet}>
+          <View style={rms.handle} />
+
+          {/* Header */}
+          <View style={rms.header}>
+            <View style={rms.headerIcon}>
+              <Feather name="bell" size={20} color="#6366f1" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={rms.title}>Event Reminders</Text>
+              {!!eventTitle && <Text style={rms.eventTitle}>{eventTitle}</Text>}
+            </View>
+            <Pressable onPress={onClose} hitSlop={10}>
+              <Feather name="x" size={22} color="rgba(255,255,255,0.5)" />
+            </Pressable>
+          </View>
+
+          {loading ? (
+            <View style={{ padding: 40, alignItems: 'center' }}>
+              <ActivityIndicator size="large" color="#6366f1" />
+            </View>
+          ) : (
+            <>
+              <ScrollView style={rms.scrollView} showsVerticalScrollIndicator={false}>
+                <View style={rms.content}>
+                  <Text style={rms.introText}>
+                    Automatically send email reminders to your guests. Customize timing and messages below.
+                  </Text>
+
+                  {/* Reminder Cards */}
+                  {reminders.map((reminder) => (
+                    <View key={reminder.id} style={rms.reminderCard}>
+                      {/* Header with timing and toggle */}
+                      <View style={rms.cardHeader}>
+                        <View style={{ flex: 1 }}>
+                          {/* Timing - clickable if not locked */}
+                          {reminder.locked ? (
+                            <Text style={rms.cardTitle}>{TIMING_LABELS[reminder.timing]}</Text>
+                          ) : (
+                            <Pressable style={rms.timingTrigger} onPress={() => setShowTimingPicker(reminder.id)}>
+                              <Text style={rms.cardTitle}>
+                                {TIMING_LABELS[reminder.timing]}
+                              </Text>
+                              <Feather name="chevron-down" size={16} color="#a5b4fc" />
+                            </Pressable>
+                          )}
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                            <View style={[rms.badge, reminder.enabled ? rms.badgeActive : rms.badgeInactive]}>
+                              <Text style={[rms.badgeText, reminder.enabled && rms.badgeTextActive]}>
+                                {reminder.enabled ? 'Active' : 'Inactive'}
+                              </Text>
+                            </View>
+                            {reminder.locked && (
+                              <View style={[rms.badge, { backgroundColor: 'rgba(245,158,11,0.15)', borderColor: 'rgba(245,158,11,0.3)' }]}>
+                                <Text style={[rms.badgeText, { color: '#f59e0b' }]}>Required</Text>
+                              </View>
+                            )}
+                            {!reminder.locked && !isStarter && !isPro && (
+                              <View style={[rms.badge, rms.badgeLocked]}>
+                                <Feather name="lock" size={10} color="#f59e0b" />
+                                <Text style={[rms.badgeText, rms.badgeTextLocked]}>Starter</Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                        <Switch
+                          value={reminder.enabled}
+                          onValueChange={() => handleToggle(reminder)}
+                          disabled={reminder.locked}
+                          trackColor={{ false: 'rgba(255,255,255,0.1)', true: '#6366f1' }}
+                          thumbColor="#fff"
+                          ios_backgroundColor="rgba(255,255,255,0.1)"
+                        />
+                      </View>
+
+                      {/* Message */}
+                      <Text style={rms.cardMessage}>{reminder.message}</Text>
+
+                      {/* Actions - only show edit inline if not in edit mode */}
+                      {editingId === reminder.id ? (
+                        <View style={{ gap: 8 }}>
+                          <TextInput
+                            style={[rms.editInput, { minHeight: 60 }]}
+                            value={editMessage}
+                            onChangeText={setEditMessage}
+                            placeholder="Enter reminder message..."
+                            placeholderTextColor="rgba(255,255,255,0.25)"
+                            multiline
+                          />
+                          <View style={{ flexDirection: 'row', gap: 8 }}>
+                            <Pressable
+                              style={[rms.editBtn, { flex: 1, backgroundColor: '#6366f1' }]}
+                              onPress={() => handleEditSave(reminder.id)}
+                            >
+                              <Feather name="check" size={14} color="#fff" />
+                              <Text style={[rms.editBtnText, { color: '#fff' }]}>Save</Text>
+                            </Pressable>
+                            <Pressable
+                              style={[rms.editBtn, { flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderColor: 'rgba(255,255,255,0.15)' }]}
+                              onPress={handleEditCancel}
+                            >
+                              <Feather name="x" size={14} color="rgba(255,255,255,0.6)" />
+                              <Text style={[rms.editBtnText, { color: 'rgba(255,255,255,0.6)' }]}>Cancel</Text>
+                            </Pressable>
+                          </View>
+                        </View>
+                      ) : (
+                        <View style={rms.cardActions}>
+                          <Pressable
+                            style={rms.editBtn}
+                            onPress={() => handleEditStart(reminder)}
+                          >
+                            <Feather name="edit-2" size={12} color="#6366f1" />
+                            <Text style={rms.editBtnText}>Edit</Text>
+                          </Pressable>
+                          {!reminder.locked && reminder.id !== 2 && (
+                            <Pressable
+                              style={rms.deleteBtn}
+                              onPress={() => handleRemove(reminder.id)}
+                            >
+                              <Feather name="trash-2" size={12} color="#ef4444" />
+                            </Pressable>
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  ))}
+
+                  {/* Add Custom Reminder */}
+                  <Pressable style={rms.addBtn} onPress={handleAddReminder}>
+                    <Feather name={isPro ? 'plus' : 'lock'} size={16} color="#6366f1" />
+                    <Text style={rms.addBtnText}>{isPro ? 'Add Custom Reminder' : isStarter ? 'Upgrade to Pro for More Reminders' : 'Upgrade to Add Custom Reminders'}</Text>
+                  </Pressable>
+
+                  {/* Info Box */}
+                  <View style={rms.infoBox}>
+                    <Feather name="info" size={14} color="#6366f1" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={rms.infoTitle}>Automatic Reminders</Text>
+                      <Text style={rms.infoText}>
+                        Reminders are sent automatically via email to all confirmed guests based on your schedule.
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </ScrollView>
+
+              {/* Actions */}
+              <View style={rms.actions}>
+                <Pressable style={rms.cancelBtn} onPress={onClose} disabled={saving}>
+                  <Text style={rms.cancelText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={[rms.saveBtn, saving && { opacity: 0.5 }]}
+                  onPress={saveReminders}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Feather name="save" size={14} color="#fff" />
+                      <Text style={rms.saveText}>Save Reminders</Text>
+                    </>
+                  )}
+                </Pressable>
+              </View>
+            </>
+          )}
+        </View>
+      </View>
+
+      {/* In-sheet timing picker — visible above the reminder sheet. */}
+      {showTimingPicker !== null && (
+        <View style={rms.timingOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowTimingPicker(null)} />
+          <View style={rms.timingSheet}>
+            <View style={rms.timingSheetHeader}>
+              <Text style={rms.editTitle}>Select reminder time</Text>
+              <Pressable onPress={() => setShowTimingPicker(null)} hitSlop={10}>
+                <Feather name="x" size={20} color="rgba(255,255,255,0.6)" />
+              </Pressable>
+            </View>
+            <ScrollView style={rms.timingList} showsVerticalScrollIndicator={false}>
+              {Object.entries(TIMING_LABELS).map(([key, label]) => {
+                const selected = reminders.find(reminder => reminder.id === showTimingPicker)?.timing === key;
+                const inUse = reminders.some(reminder => reminder.id !== showTimingPicker && reminder.timing === key);
+                return (
+                  <Pressable
+                    key={key}
+                    style={[rms.timingOption, selected && rms.timingOptionSelected, inUse && rms.timingOptionDisabled]}
+                    onPress={() => !inUse && handleTimingChange(showTimingPicker, key)}
+                    disabled={inUse}
+                  >
+                    <Text style={[rms.timingOptionText, inUse && rms.timingOptionTextDisabled]}>{label}</Text>
+                    {selected && <Feather name="check" size={16} color="#a5b4fc" />}
+                    {inUse && <Text style={rms.timingUsedText}>In use</Text>}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
+      {upgradeTier !== null && (
+        <View style={rms.upgradeOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setUpgradeTier(null)} />
+          <View style={rms.upgradeCard}>
+            <View style={rms.upgradeIcon}>
+              <Feather name={upgradeTier === 'starter' ? 'bell' : 'zap'} size={22} color="#fff" />
+            </View>
+            <Text style={rms.upgradeTitle}>
+              {upgradeTier === 'starter' ? 'Enable email reminders' : 'More reminders need Pro'}
+            </Text>
+            <Text style={rms.upgradeText}>
+              {upgradeTier === 'starter'
+                ? 'Instant Confirmation is included free. Upgrade to Starter to turn on the 1-hour reminder.'
+                : 'Starter includes one custom reminder. Upgrade to Pro to add more reminder times.'}
+            </Text>
+            <View style={rms.upgradeActions}>
+              <Pressable style={rms.upgradeCancel} onPress={() => setUpgradeTier(null)}>
+                <Text style={rms.upgradeCancelText}>Not now</Text>
+              </Pressable>
+              <Pressable
+                style={rms.upgradeButton}
+                onPress={() => {
+                  const tier = upgradeTier;
+                  setUpgradeTier(null);
+                  onClose();
+                  router.push(`/profile/billing?plan=${tier}` as never);
+                }}
+              >
+                <Text style={rms.upgradeButtonText}>View {upgradeTier === 'starter' ? 'Starter' : 'Pro'} plan</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+    </Modal>
+  );
+}
+
+const rms = StyleSheet.create({
+  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.7)' },
+  sheet: {
+    backgroundColor: '#09090f',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    maxHeight: '90%',
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(99,102,241,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: { fontSize: 18, fontWeight: '800', color: '#fff', letterSpacing: -0.3 },
+  eventTitle: { fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 3 },
+  scrollView: { maxHeight: 550 },
+  content: { padding: 20, gap: 16 },
+  introText: { fontSize: 13, color: 'rgba(255,255,255,0.58)', lineHeight: 19, marginBottom: 2 },
+
+  // Reminder Card
+  reminderCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    padding: 16,
+    gap: 12,
+  },
+  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  timingTrigger: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4 },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: '#fff', letterSpacing: -0.3 },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  badgeActive: {
+    backgroundColor: 'rgba(16,185,129,0.15)',
+    borderColor: 'rgba(16,185,129,0.3)',
+  },
+  badgeInactive: {
+    backgroundColor: 'rgba(148,163,184,0.1)',
+    borderColor: 'rgba(148,163,184,0.2)',
+  },
+  badgeLocked: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(245,158,11,0.12)',
+    borderColor: 'rgba(245,158,11,0.25)',
+  },
+  badgeText: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' },
+  badgeTextActive: { color: '#10b981' },
+  badgeTextLocked: { color: '#f59e0b' },
+  cardMessage: { fontSize: 13, color: 'rgba(255,255,255,0.6)', lineHeight: 19 },
+  cardActions: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 4 },
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: 'rgba(99,102,241,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(99,102,241,0.2)',
+  },
+  editBtnText: { fontSize: 12, fontWeight: '600', color: '#6366f1' },
+  deleteBtn: {
+    padding: 7,
+    borderRadius: 8,
+    backgroundColor: 'rgba(239,68,68,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.2)',
+  },
+
+  // Add Button
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(99,102,241,0.3)',
+    backgroundColor: 'rgba(99,102,241,0.05)',
+  },
+  addBtnText: { fontSize: 14, fontWeight: '700', color: '#6366f1' },
+
+  // Info Box
+  infoBox: {
+    flexDirection: 'row',
+    gap: 10,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: 'rgba(99,102,241,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(99,102,241,0.2)',
+  },
+  infoTitle: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.7)', marginBottom: 4 },
+  infoText: { fontSize: 11, color: 'rgba(255,255,255,0.45)', lineHeight: 16 },
+
+  // Actions
+  actions: {
+    flexDirection: 'row',
+    gap: 10,
+    padding: 20,
+    paddingBottom: 32,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelText: { fontSize: 14, fontWeight: '700', color: 'rgba(255,255,255,0.6)' },
+  saveBtn: {
+    flex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#6366f1',
+  },
+  saveText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+
+  // Timing picker
+  timingOverlay: {
+    flex: 1,
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.56)',
+  },
+  timingSheet: {
+    width: '100%',
+    maxHeight: '72%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#09090f',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 32,
+  },
+  timingSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  timingList: { maxHeight: 410 },
+  timingOption: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    marginTop: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+  },
+  timingOptionSelected: { backgroundColor: 'rgba(99,102,241,0.18)', borderColor: 'rgba(129,140,248,0.65)' },
+  timingOptionDisabled: { opacity: 0.45 },
+  timingOptionText: { flex: 1, fontSize: 14, fontWeight: '700', color: '#fff' },
+  timingOptionTextDisabled: { color: 'rgba(255,255,255,0.55)' },
+  timingUsedText: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.42)' },
+
+  // Upgrade paywall
+  upgradeOverlay: {
+    flex: 1,
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.68)',
+    paddingHorizontal: 24,
+  },
+  upgradeCard: {
+    width: '100%',
+    maxWidth: 380,
+    alignItems: 'center',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(99,102,241,0.35)',
+    backgroundColor: '#11121a',
+    padding: 24,
+  },
+  upgradeIcon: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    backgroundColor: '#6366f1',
+    marginBottom: 14,
+  },
+  upgradeTitle: { fontSize: 19, fontWeight: '800', color: '#fff', textAlign: 'center', marginBottom: 8 },
+  upgradeText: { fontSize: 14, lineHeight: 20, color: 'rgba(255,255,255,0.62)', textAlign: 'center', marginBottom: 22 },
+  upgradeActions: { width: '100%', flexDirection: 'row', gap: 10 },
+  upgradeCancel: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 12, paddingVertical: 13, backgroundColor: 'rgba(255,255,255,0.07)' },
+  upgradeCancelText: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.68)' },
+  upgradeButton: { flex: 1.45, alignItems: 'center', justifyContent: 'center', borderRadius: 12, paddingVertical: 13, backgroundColor: '#6366f1' },
+  upgradeButtonText: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  editTitle: { fontSize: 18, fontWeight: '800', color: '#fff', marginBottom: 16 },
+  editInput: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#fff',
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+});
 
 /* ── Fallback images per event type ─────────────────────────────── */
 const TYPE_IMG: Record<string, string> = {
@@ -981,39 +1710,12 @@ export default function EventDetailScreen() {
       </Modal>
 
       {/* Event Reminders Modal */}
-      <Modal visible={remindersModalOpen} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setRemindersModalOpen(false)}>
-        <View style={ms.backdrop}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setRemindersModalOpen(false)} />
-          <View style={[ms.sheet, { maxHeight: '80%' }]}>
-            <View style={ms.handle} />
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, marginBottom: 8 }}>
-              <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(236,72,153,0.18)', alignItems: 'center', justifyContent: 'center' }}>
-                <Feather name="bell" size={20} color="#ec4899" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={ms.sheetTitle}>Event Reminders</Text>
-                <Text style={ms.sheetSub}>Automated email notifications</Text>
-              </View>
-              <Pressable onPress={() => setRemindersModalOpen(false)} hitSlop={10}>
-                <Feather name="x" size={22} color="rgba(255,255,255,0.5)" />
-              </Pressable>
-            </View>
-
-            <View style={{ padding: 20, gap: 16 }}>
-              <View style={{ padding: 16, backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(99,102,241,0.2)' }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#6366f1', marginBottom: 6 }}>Coming Soon</Text>
-                <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', lineHeight: 18 }}>
-                  Event reminders feature is coming to the mobile app soon. For now, you can manage reminders from the web dashboard.
-                </Text>
-              </View>
-            </View>
-
-            <Pressable style={ms.cancelBtn} onPress={() => setRemindersModalOpen(false)}>
-              <Text style={ms.cancelTxt}>Close</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+      <EventRemindersModal
+        visible={remindersModalOpen}
+        onClose={() => setRemindersModalOpen(false)}
+        eventId={id ?? ''}
+        eventTitle={event?.title ?? ''}
+      />
     </View>
   );
 }

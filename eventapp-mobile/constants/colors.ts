@@ -16,10 +16,11 @@ export const Colors = {
     cyan:    '#06b6d4',
   },
   text: {
-    primary: '#ffffff',
-    muted:   'rgba(255,255,255,0.45)',
-    subtle:  'rgba(255,255,255,0.25)',
-    inverse: '#07070f',
+    primary:   '#ffffff',
+    secondary: 'rgba(255,255,255,0.70)',
+    muted:     'rgba(255,255,255,0.45)',
+    subtle:    'rgba(255,255,255,0.25)',
+    inverse:   '#07070f',
   },
   border: {
     DEFAULT: 'rgba(255,255,255,0.10)',

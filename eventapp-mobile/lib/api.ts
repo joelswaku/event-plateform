@@ -20,8 +20,11 @@ const api: AxiosInstance = axios.create({
   timeout:         10_000,
 });
 
-// ─── Request: attach Bearer token ─────────────────────────────────────────────
+// ─── Request: attach Bearer token and mobile client identifier ───────────────
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  // Identify as mobile client so backend knows to return tokens in JSON
+  config.headers['X-Client-Type'] = 'mobile';
+
   if (_accessToken) {
     config.headers.Authorization = `Bearer ${_accessToken}`;
   }
@@ -72,13 +75,33 @@ api.interceptors.response.use(
       isRefreshing    = true;
 
       try {
-        const res      = await api.post<{ accessToken: string }>('/auth/refresh-token');
-        const newToken = res.data?.accessToken;
-        if (!newToken) throw new Error('No token in refresh response');
+        // Mobile doesn't use httpOnly cookies - send refresh token in body
+        const { loadSession } = await import('@/lib/secure-storage');
+        const session = await loadSession();
 
-        setToken(newToken);
-        processQueue(newToken);
-        original.headers.Authorization = `Bearer ${newToken}`;
+        if (!session.refreshToken) {
+          throw new Error('No refresh token available');
+        }
+
+        // Mobile refresh endpoint - expects refreshToken in body
+        const res = await api.post<{ data?: { accessToken: string; refreshToken: string }; accessToken?: string; refreshToken?: string }>('/auth/refresh-token', {
+          refreshToken: session.refreshToken
+        });
+        const newAccessToken = res.data?.data?.accessToken || res.data?.accessToken;
+        const newRefreshToken = res.data?.data?.refreshToken || res.data?.refreshToken;
+
+        if (!newAccessToken) throw new Error('No token in refresh response');
+
+        setToken(newAccessToken);
+
+        // Store new refresh token if backend rotated it
+        if (newRefreshToken && session.user) {
+          const { persistSession } = await import('@/lib/secure-storage');
+          await persistSession(session.user, true, newRefreshToken);
+        }
+
+        processQueue(newAccessToken);
+        original.headers.Authorization = `Bearer ${newAccessToken}`;
         return api(original);
       } catch {
         // Release the queue FIRST so pending requests don't deadlock.

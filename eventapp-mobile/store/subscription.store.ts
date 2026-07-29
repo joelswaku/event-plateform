@@ -6,10 +6,6 @@ import api from '@/lib/api';
 import { openStripeCheckout, STRIPE_SUCCESS_URL, STRIPE_CANCEL_URL } from '@/lib/stripe';
 import { PlanLimits, PlanUsage } from '@/types';
 
-// Grace period: 5 min after payment before trusting DB over optimistic state
-const GRACE_MS = 5 * 60 * 1000;
-let _paidAt: number | null = null;
-
 function normalizePlan(plan: string | undefined): 'free' | 'starter' | 'pro' | 'enterprise' {
   if (plan === 'pro' || plan === 'premium' || plan === 'enterprise') return 'pro';
   if (plan === 'starter') return 'starter';
@@ -22,9 +18,9 @@ const DEFAULT_FEATURES = {
   lockedTemplates:     true,
   lockedStyles:        true,
   freeTemplateStyle:   'CLASSIC' as string | null,
-  stripeTicketing:     false,
+  stripeTicketing:     true,
   guestEmailReminders: 0 as number | null,
-  platformFeePercent:  0,
+  platformFeePercent:  2,
 };
 
 interface LimitCheck { allowed: boolean; reason: string | null }
@@ -39,7 +35,7 @@ interface PlanFeatures {
   [key: string]:       unknown;
 }
 
-interface PriceInfo { amount: number | null; currency: string; interval: string }
+interface PriceInfo { id?: string; amount: number | null; currency: string; interval: string }
 
 interface SubscriptionState {
   plan:               'free' | 'starter' | 'pro' | 'enterprise';
@@ -71,9 +67,9 @@ interface SubscriptionState {
   // API
   fetchSubscription:    () => Promise<void>;
   createCheckoutSession:(priceId: string, tier?: 'starter' | 'pro') => Promise<{ success: boolean; canceled?: boolean; message?: string }>;
+  changeSubscriptionPlan: (priceId: string) => Promise<{ success: boolean; plan?: string; message?: string; code?: string }>;
   verifyAndActivate:    (sessionId: string) => Promise<boolean>;
   openCustomerPortal:   () => Promise<void>;
-  setSubscribed:        (plan?: SubscriptionState['plan']) => void;
   setUnsubscribed:      () => void;
 }
 
@@ -125,7 +121,7 @@ export const useSubscriptionStore = create<SubscriptionState>()(
               : { allowed: true, reason: null };
           case 'tickets':
             return !features?.stripeTicketing
-              ? { allowed: false, reason: 'Ticket selling requires Starter or Pro plan.' }
+              ? { allowed: false, reason: 'Ticket selling is not available on your current plan.' }
               : { allowed: true, reason: null };
           case 'reminders': {
             const reminderLimit = features?.guestEmailReminders ?? 0;
@@ -177,7 +173,6 @@ export const useSubscriptionStore = create<SubscriptionState>()(
           const dbSubscribed = data.is_subscribed ?? false;
 
           if (dbSubscribed) {
-            _paidAt = null;
             set({
               plan:               normalizePlan(data.plan),
               isSubscribed:       true,
@@ -189,21 +184,16 @@ export const useSubscriptionStore = create<SubscriptionState>()(
               isLoading:          false,
             });
           } else {
-            const inGrace = _paidAt !== null && Date.now() - _paidAt < GRACE_MS;
-            if (inGrace) {
-              set({ usage: data.usage ?? { events: 0 }, isLoading: false });
-            } else {
-              set({
-                plan:               normalizePlan(data.plan),
-                isSubscribed:       false,
-                subscriptionStatus: (data.subscription_status as SubscriptionState['subscriptionStatus']) ?? null,
-                currentPeriodEnd:   data.current_period_end ?? null,
-                usage:              data.usage    ?? { events: 0 },
-                limits:             data.limits   ?? DEFAULT_LIMITS,
-                features:           (data.features as PlanFeatures) ?? DEFAULT_FEATURES,
-                isLoading:          false,
-              });
-            }
+            set({
+              plan:               normalizePlan(data.plan),
+              isSubscribed:       false,
+              subscriptionStatus: (data.subscription_status as SubscriptionState['subscriptionStatus']) ?? null,
+              currentPeriodEnd:   data.current_period_end ?? null,
+              usage:              data.usage    ?? { events: 0 },
+              limits:             data.limits   ?? DEFAULT_LIMITS,
+              features:           (data.features as PlanFeatures) ?? DEFAULT_FEATURES,
+              isLoading:          false,
+            });
           }
         } catch {
           set({ isLoading: false });
@@ -231,11 +221,12 @@ export const useSubscriptionStore = create<SubscriptionState>()(
           const result = await openStripeCheckout(url);
 
           if (result.type === 'subscription_success') {
-            // Optimistically mark with the correct tier while the webhook lands
-            get().setSubscribed(tier);
-            // Then verify with the API (retries handled by caller if needed)
-            await get().verifyAndActivate(result.sessionId);
-            return { success: true };
+            // The return URL is not proof of payment. Verify the Stripe session
+            // before exposing paid features in the app.
+            const activated = await get().verifyAndActivate(result.sessionId);
+            return activated
+              ? { success: true }
+              : { success: false, message: 'Payment received. Your plan is being confirmed; please refresh shortly.' };
           }
           if (result.type === 'cancel') return { success: false, canceled: true };
           return { success: false, message: (result as { type: 'error'; message: string }).message };
@@ -243,6 +234,24 @@ export const useSubscriptionStore = create<SubscriptionState>()(
           set({ isLoading: false });
           const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Checkout failed';
           return { success: false, message };
+        }
+      },
+
+      changeSubscriptionPlan: async (priceId) => {
+        try {
+          set({ isLoading: true });
+          const res = await api.post<{ data: { plan?: string; subscription_status?: string; current_period_end?: string | null } }>(
+            '/subscription/change-plan',
+            { priceId },
+          );
+          const data = res.data?.data ?? {};
+          await get().fetchSubscription();
+          set({ isLoading: false });
+          return { success: true, plan: data.plan };
+        } catch (err: unknown) {
+          set({ isLoading: false });
+          const response = (err as { response?: { data?: { message?: string; code?: string } } })?.response?.data;
+          return { success: false, message: response?.message ?? 'Plan change failed', code: response?.code };
         }
       },
 
@@ -257,7 +266,6 @@ export const useSubscriptionStore = create<SubscriptionState>()(
           } }>('/subscription/verify-session', { params: { session_id: sessionId } });
           const data = res.data?.data ?? {};
           if (data.is_subscribed) {
-            _paidAt = null; // clear grace — DB is authoritative now
             // Full sync so limits/features reflect what the server now says
             await get().fetchSubscription();
             return true;
@@ -283,32 +291,7 @@ export const useSubscriptionStore = create<SubscriptionState>()(
         }
       },
 
-      // Optimistic unlock after payment
-      setSubscribed: (plan = 'starter') => {
-        const tier = normalizePlan(plan);
-        const isPro = tier === 'pro';
-        _paidAt = Date.now();
-        set({
-          plan:               tier,
-          isSubscribed:       true,
-          subscriptionStatus: 'active',
-          limits: isPro
-            ? { events: null, templates: null, guests: null }
-            : { events: 5,    templates: null, guests: 500  },
-          features: isPro
-            ? {
-                lockedTemplates: false, lockedStyles: false, freeTemplateStyle: null,
-                stripeTicketing: true, guestEmailReminders: null, platformFeePercent: 0,
-              }
-            : {
-                lockedTemplates: false, lockedStyles: false, freeTemplateStyle: null,
-                stripeTicketing: true, guestEmailReminders: 1, platformFeePercent: 2,
-              },
-        });
-      },
-
       setUnsubscribed: () => {
-        _paidAt = null;
         set({ plan: 'free', isSubscribed: false, subscriptionStatus: 'canceled', features: DEFAULT_FEATURES, limits: DEFAULT_LIMITS });
       },
     }),

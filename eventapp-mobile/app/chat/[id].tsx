@@ -48,7 +48,7 @@ function convTitle(c: Conversation | null): string {
 }
 
 /* ─── Mini Avatar ─────────────────────────────────────────────────────── */
-function MiniAvatar({ uri, name }: { uri: string | null; name: string }) {
+function MiniAvatar({ uri, name, support = false }: { uri: string | null; name: string; support?: boolean }) {
   if (uri) return <Image source={{ uri }} style={s.miniAvatar} />;
   return (
     <View style={s.miniAvatar}>
@@ -58,7 +58,9 @@ function MiniAvatar({ uri, name }: { uri: string | null; name: string }) {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       />
-      <Text style={s.miniAvatarTxt}>{initialsOf(name)}</Text>
+      {support
+        ? <Feather name="life-buoy" size={16} color="#fff" />
+        : <Text style={s.miniAvatarTxt}>{initialsOf(name)}</Text>}
     </View>
   );
 }
@@ -128,8 +130,12 @@ function Bubble({
         style={[s.bubbleRow, mine ? s.rowMine : s.rowTheirs]}
       >
         {/* Avatar for received messages */}
-        {!mine && !isSystem && (
-          <MiniAvatar uri={msg.sender_avatar} name={msg.sender_name || 'User'} />
+        {!mine && (
+          <MiniAvatar
+            uri={msg.sender_avatar}
+            name={isSystem ? 'LiteEvent Support' : msg.sender_name || 'User'}
+            support={isSystem}
+          />
         )}
 
         {/* Bubble */}
@@ -182,6 +188,7 @@ export default function ChatConversationScreen() {
   const fetchMessages = useChatStore(s => s.fetchMessages);
   const sendMessage = useChatStore(s => s.sendMessage);
   const markRead = useChatStore(s => s.markRead);
+  const fetchUnreadCount = useChatStore(s => s.fetchUnreadCount);
   const getConversation = useChatStore(s => s.getConversation);
   const deleteMessage = useChatStore(s => s.deleteMessage);
 
@@ -198,12 +205,18 @@ export default function ChatConversationScreen() {
       getConversation(id);
       fetchMessages(id);
       markRead(id);
+      fetchUnreadCount();
 
-      pollRef.current = setInterval(() => fetchMessages(id), MSG_POLL_MS);
+      pollRef.current = setInterval(() => {
+        fetchMessages(id);
+        // Keep messages received while this thread is visible out of unread badges.
+        markRead(id);
+        fetchUnreadCount();
+      }, MSG_POLL_MS);
       return () => {
         if (pollRef.current) clearInterval(pollRef.current);
       };
-    }, [id, getConversation, fetchMessages, markRead])
+    }, [id, getConversation, fetchMessages, markRead, fetchUnreadCount])
   );
 
   // Auto-scroll

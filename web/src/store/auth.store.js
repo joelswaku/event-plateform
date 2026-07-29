@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { api, setInMemoryToken, clearInMemoryToken } from "@/lib/api";
+import { api } from "@/lib/api";
 import { authSync } from "@/lib/auth-sync";
 import { sessionMonitor } from "@/lib/session-monitor";
 
@@ -102,14 +102,12 @@ export const useAuthStore = create(
             };
           }
 
-          const accessToken =
-            res.data?.data?.accessToken || res.data?.accessToken;
           const user = res.data?.data?.user || res.data?.user;
 
-          if (!accessToken || !user) throw new Error("Invalid login response");
+          if (!user) throw new Error("Invalid login response");
 
-          setInMemoryToken(accessToken);
-          set({ user, accessToken, isAuthenticated: true, isLoading: false });
+          // Tokens are in httpOnly cookies - no client-side storage needed
+          set({ user, isAuthenticated: true, isLoading: false });
 
           // Broadcast login to other tabs
           authSync.broadcast('login', { user });
@@ -149,15 +147,15 @@ export const useAuthStore = create(
 
       refreshToken: async () => {
         try {
+          // Web uses httpOnly cookies - refresh token sent automatically
           const res = await api.post("/auth/refresh-token");
 
-          const accessToken =
-            res.data?.data?.accessToken || res.data?.accessToken;
+          if (!res.data?.success && res.data?.success !== undefined) {
+            throw new Error("Invalid refresh response");
+          }
 
-          if (!accessToken) throw new Error("Invalid refresh response");
-
-          setInMemoryToken(accessToken);
-          set({ accessToken, isAuthenticated: true });
+          // New cookies set by backend - no client-side storage needed
+          set({ isAuthenticated: true });
 
           // Broadcast token refresh to reset activity timers in other tabs
           authSync.broadcast('token_refresh');
@@ -165,7 +163,7 @@ export const useAuthStore = create(
           // Reset activity timer
           sessionMonitor.reset();
 
-          return accessToken;
+          return true;
         } catch {
           // Return null — the interceptor already handles cleanup.
           // Do NOT call logout() here: it makes an API request that
@@ -252,14 +250,12 @@ export const useAuthStore = create(
 
           const res = await api.post("/auth/google", { access_token });
 
-          const accessToken =
-            res.data?.data?.accessToken || res.data?.accessToken;
           const user = res.data?.data?.user || res.data?.user;
 
-          if (!accessToken || !user) throw new Error("Invalid Google login response");
+          if (!user) throw new Error("Invalid Google login response");
 
-          setInMemoryToken(accessToken);
-          set({ user, accessToken, isAuthenticated: true, isLoading: false });
+          // Tokens are in httpOnly cookies - no client-side storage needed
+          set({ user, isAuthenticated: true, isLoading: false });
 
           return { success: true };
         } catch (err) {
@@ -318,10 +314,9 @@ export const useAuthStore = create(
           // Broadcast logout to other tabs
           authSync.broadcast('logout');
 
-          clearInMemoryToken();
+          // Cookies cleared by backend - just clear local state
           set({
             user: null,
-            accessToken: null,
             isAuthenticated: false,
             isLoading: false,
             error: null,
