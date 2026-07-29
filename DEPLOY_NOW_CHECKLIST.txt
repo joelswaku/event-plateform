@@ -1,0 +1,89 @@
+╔══════════════════════════════════════════════════════════════════════╗
+║                   🚀 RAILWAY DEPLOYMENT CHECKLIST                    ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+✅ COMPLETED:
+  [✓] Git commit created (f6b8566)
+  [✓] Pushed to GitHub origin/main
+  [✓] Railway auto-deployment triggered
+
+⚠️  URGENT - DO NOW:
+
+1. RUN DATABASE MIGRATIONS (5 minutes)
+   ────────────────────────────────────────────────────────────────────
+   Railway Dashboard → PostgreSQL → Data → Execute:
+   
+   Copy/paste: api/migrations/RUN_ON_RAILWAY_PRODUCTION.sql
+   
+   Then verify:
+   SELECT EXISTS(SELECT 1 FROM information_schema.columns 
+     WHERE table_name='ticket_orders' AND column_name='client_request_id');
+   
+   Should return: t (true)
+
+2. ROTATE DATABASE PASSWORD (10 minutes)
+   ────────────────────────────────────────────────────────────────────
+   Railway Dashboard → PostgreSQL → Settings → Reset Password
+   
+   Then update in ALL services:
+   - API service → Variables → DATABASE_URL
+   - Restart API service
+   
+   WHY: Password was in secret.json tracked in Git
+
+3. VERIFY DEPLOYMENT (5 minutes)
+   ────────────────────────────────────────────────────────────────────
+   Check Railway dashboard:
+   - Web service: "Deployed" status
+   - API service: "Deployed" status
+   
+   Test:
+   - Open web URL → should load
+   - API URL/health → should return 200
+   - Try login → should work
+
+4. TEST CRITICAL FLOWS (15 minutes)
+   ────────────────────────────────────────────────────────────────────
+   [ ] Login (web)
+   [ ] Create event
+   [ ] Try to access planner as Free user (should show upgrade)
+   [ ] Subscribe to Starter plan (use Stripe test card)
+   [ ] Access planner (should work after upgrade)
+   [ ] Create test ticket purchase
+   [ ] Verify tickets issued correctly
+
+5. PURGE GIT HISTORY (Optional, but recommended)
+   ────────────────────────────────────────────────────────────────────
+   ONLY if you're the sole developer:
+   
+   git filter-branch --force --index-filter \
+     'git rm --cached --ignore-unmatch secret.json' \
+     --prune-empty --tag-name-filter cat -- --all
+   git push --force --all
+
+═══════════════════════════════════════════════════════════════════════
+
+DEPLOYMENT URLs (check Railway for actual URLs):
+  Web:  https://your-web.railway.app
+  API:  https://your-api.railway.app
+
+STRIPE TEST CARD:
+  Number: 4242 4242 4242 4242
+  Expiry: Any future date
+  CVC:    Any 3 digits
+  ZIP:    Any 5 digits
+
+CRITICAL FILES:
+  - DEPLOYMENT_COMPLETE.md (full deployment guide)
+  - RAILWAY_MIGRATION_GUIDE.md (migration instructions)
+  - PRODUCTION_READY_STATUS.md (security checklist)
+  - PAYMENT_FIXES.md (what was fixed)
+
+═══════════════════════════════════════════════════════════════════════
+
+STATUS: ✅ Code Deployed | ⚠️ Migrations Required | ⚠️ Password Must Rotate
+
+Total Time Required: ~35 minutes
+Priority: URGENT (do migrations now, password rotation within 24 hours)
+
+═══════════════════════════════════════════════════════════════════════
