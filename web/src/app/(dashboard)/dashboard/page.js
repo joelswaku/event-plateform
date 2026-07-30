@@ -463,6 +463,7 @@ function MobileBottomNav() {
   const pathname  = usePathname();
   const router    = useRouter();
   const logoutFn  = useAuthStore(s => s.logout);
+  const requestPlannerAccess = useSubscriptionStore(s => s.requestPlannerAccess);
 
   async function handleLogout() {
     router.replace("/login");
@@ -473,7 +474,7 @@ function MobileBottomNav() {
     { href: "/dashboard", label: "Home",    Icon: Home,          active: pathname === "/dashboard" },
     { href: "/events",    label: "Events",  Icon: CalendarDays,  active: pathname.startsWith("/events") && !pathname.includes("create") },
     null, // center Scan FAB
-    { href: "/planner",   label: "Planner", Icon: ClipboardList, active: pathname.startsWith("/planner") },
+    { href: "/planner",   label: "Planner", Icon: ClipboardList, active: pathname.startsWith("/planner"), requiresPaid: true },
     { href: "/settings",  label: "Profile", Icon: User,          active: pathname === "/settings" },
   ];
 
@@ -512,8 +513,14 @@ function MobileBottomNav() {
           const { href, label, Icon, active } = tab;
           return (
             <Link
-              key={href}
-              href={href}
+             key={href}
+             href={href}
+              onClick={async (event) => {
+                if (tab.requiresPaid) {
+                  event.preventDefault();
+                  if (await requestPlannerAccess()) router.push(href);
+                }
+              }}
               className="flex flex-col items-center gap-1 px-3 py-1"
             >
               <Icon size={22} style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }} />

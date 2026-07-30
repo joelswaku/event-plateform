@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable,
   TextInput, Switch, ActivityIndicator,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -116,6 +116,46 @@ export default function EditEventScreen() {
 
   const change = (field: string, value: any) =>
     setFormState(prev => ({ ...prev, [field]: value }));
+
+  const changeModule = (key: 'allow_rsvp' | 'allow_ticketing' | 'allow_donations', enabled: boolean) => {
+    const labels = { allow_rsvp: 'RSVP', allow_ticketing: 'Ticketing', allow_donations: 'Donations' };
+    const exclusiveModules = ['allow_rsvp', 'allow_ticketing', 'allow_donations'] as const;
+    const conflicts = enabled
+      ? exclusiveModules
+          .filter(moduleKey => moduleKey !== key && form[moduleKey])
+          .map(moduleKey => labels[moduleKey])
+      : [];
+    const applyChange = () => {
+      setFormState(prev => enabled
+        ? {
+            ...prev,
+            allow_rsvp: key === 'allow_rsvp',
+            allow_ticketing: key === 'allow_ticketing',
+            allow_donations: key === 'allow_donations',
+            open_rsvp: false,
+          }
+        : {
+            ...prev,
+            [key]: false,
+            ...(key === 'allow_rsvp' ? { open_rsvp: false } : {}),
+          }
+      );
+    };
+
+    if (conflicts.length) {
+      Alert.alert(
+        `Enable ${labels[key]}?`,
+        `Enabling ${labels[key]} will turn off ${conflicts.join(' and ')}. Only one module can be active at a time.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: `Enable ${labels[key]}`, onPress: applyChange },
+        ],
+      );
+      return;
+    }
+
+    applyChange();
+  };
 
   if (!ready.current) {
     return (
@@ -318,7 +358,7 @@ export default function EditEventScreen() {
               label="Allow RSVP"
               sub="Guests can RSVP to this event"
               value={form.allow_rsvp}
-              onChange={v => change('allow_rsvp', v)}
+              onChange={v => changeModule('allow_rsvp', v)}
               color={Colors.accent.emerald}
             />
             <Divider />
@@ -334,7 +374,7 @@ export default function EditEventScreen() {
               label="Ticketing"
               sub="Sell free or paid tickets"
               value={form.allow_ticketing}
-              onChange={v => change('allow_ticketing', v)}
+              onChange={v => changeModule('allow_ticketing', v)}
               color={Colors.accent.amber}
             />
             <Divider />
@@ -342,7 +382,7 @@ export default function EditEventScreen() {
               label="Donations"
               sub="Accept optional contributions"
               value={form.allow_donations}
-              onChange={v => change('allow_donations', v)}
+              onChange={v => changeModule('allow_donations', v)}
               color="#f43f5e"
             />
           </Section>

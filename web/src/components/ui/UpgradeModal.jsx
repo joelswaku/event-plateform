@@ -52,6 +52,7 @@ function getTriggerCopy(feature, plan) {
       : { badge: "Guest Limit Reached",   headline: "You've hit the free guest cap.",    sub: "Upgrade to Starter for 500 guests, or Pro for unlimited." },
     templates: { badge: "Style Locked",      headline: "This style requires Starter or above.", sub: "Unlock all templates and styles with one upgrade." },
     tickets:   { badge: "Lower Ticket Fee",  headline: "Reduce your ticket-selling fee.",       sub: "Free and Starter are 2%; Pro reduces it to 1.5%." },
+    planner:   { badge: "Planner Locked",     headline: "The event planner requires a paid plan.", sub: "Upgrade to Starter or Pro to plan tasks, vendors, timelines, and budgets." },
     reminders: isStarter
       ? { badge: "Reminder Limit Reached", headline: "You've used your 1 Starter reminder config.",  sub: "Upgrade to Pro for unlimited email reminder configurations." }
       : { badge: "Reminders Locked",       headline: "Email reminders require Starter.",       sub: "Send guest reminders — Starter: 1 config/event, Pro: unlimited." },
@@ -69,6 +70,7 @@ function getTriggerCopy(feature, plan) {
   if (key.includes("guest"))                                           return COPY.guests;
   if (key.includes("template") || key.includes("style") || key.includes("theme")) return COPY.templates;
   if (key.includes("ticket"))                                          return COPY.tickets;
+  if (key.includes("planner"))                                         return COPY.planner;
   if (key.includes("reminder"))                                        return COPY.reminders;
   return { ...COPY.feature, badge: feature };
 }
@@ -166,24 +168,42 @@ function PlanCol({ label, price, period, features, highlight, badge, accentColor
 }
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
-export default function UpgradeModal() {
+export default function UpgradeModal({
+  isOpen: controlledOpen,
+  onClose,
+  feature: controlledFeature,
+  title,
+  description,
+} = {}) {
   const { upgradeModalOpen, upgradeModalFeature, closeUpgradeModal, createCheckoutSession, isLoading, plan, isSubscribed, prices, fetchPrices } =
     useSubscriptionStore();
+
+  // Most upgrade prompts are opened through the subscription store. Planner
+  // routes also use this modal as a route guard, so they need to control when
+  // it opens and where a user goes after dismissing it.
+  const isOpen = controlledOpen ?? upgradeModalOpen;
+  const feature = controlledFeature ?? upgradeModalFeature;
+  const closeModal = () => {
+    setSelectedPlan(isStarter ? "pro" : "starter");
+    if (controlledOpen !== undefined) {
+      onClose?.();
+      return;
+    }
+    closeUpgradeModal();
+  };
 
   const isStarter = plan === "starter";
   const [loadingTier, setLoadingTier] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState(isStarter ? "pro" : "starter");
 
-  // Re-derive the default selection each time the modal opens so stale
-  // initial state (captured before the store hydrates from localStorage) doesn't persist.
+  // Prices always come from the API, rather than trusting browser state.
   useEffect(() => {
-    if (upgradeModalOpen) {
-      setSelectedPlan(isStarter ? "pro" : "starter");
+    if (isOpen) {
       void fetchPrices();
     }
-  }, [upgradeModalOpen, isStarter, fetchPrices]);
+  }, [isOpen, fetchPrices]);
 
-  const copy = getTriggerCopy(upgradeModalFeature, plan);
+  const copy = getTriggerCopy(feature, plan);
   // The API is the source of truth for price IDs. Environment values are only
   // a backward-compatible fallback for older deployments.
   const starterPriceId = prices?.starter?.id || STARTER_PRICE_ID;
@@ -203,7 +223,7 @@ export default function UpgradeModal() {
       // Use change-plan endpoint for existing subscribers
       const result = await useSubscriptionStore.getState().changeSubscriptionPlan(priceId);
       if (result.success) {
-        closeUpgradeModal();
+        closeModal();
         // Show success message (you can add toast notification here)
         console.log(`Successfully upgraded to ${result.plan}`);
       } else {
@@ -223,7 +243,7 @@ export default function UpgradeModal() {
         await useSubscriptionStore.getState().fetchSubscription();
         const retryResult = await useSubscriptionStore.getState().changeSubscriptionPlan(priceId);
         if (retryResult.success) {
-          closeUpgradeModal();
+          closeModal();
         }
       }
     }
@@ -233,7 +253,7 @@ export default function UpgradeModal() {
 
   return (
     <AnimatePresence>
-      {upgradeModalOpen && (
+      {isOpen && (
         <motion.div
           key="upgrade-backdrop"
           variants={backdrop}
@@ -243,7 +263,7 @@ export default function UpgradeModal() {
           transition={{ duration: 0.2 }}
           className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
           style={{ background: "rgba(0,0,0,0.72)", backdropFilter: "blur(6px)" }}
-          onClick={closeUpgradeModal}
+          onClick={closeModal}
         >
           <motion.div
             key="upgrade-panel"
@@ -264,7 +284,7 @@ export default function UpgradeModal() {
 
             {/* Close */}
             <button
-              onClick={closeUpgradeModal}
+              onClick={closeModal}
               className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full transition-colors"
               style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.45)" }}
               onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.12)")}
@@ -284,10 +304,10 @@ export default function UpgradeModal() {
                 {copy.badge}
               </div>
               <h2 className="text-[1.4rem] font-extrabold leading-tight text-white">
-                {copy.headline}
+                {title || copy.headline}
               </h2>
               <p className="mt-1.5 text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.40)" }}>
-                {copy.sub}
+                {description || copy.sub}
               </p>
             </div>
 

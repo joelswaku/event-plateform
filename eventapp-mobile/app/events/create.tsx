@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Pressable, Switch, Dimensions,
+  View, Text, ScrollView, StyleSheet, Pressable, Switch, Dimensions, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -300,6 +300,29 @@ export default function CreateEventScreen() {
     }
   };
 
+  const requestModuleToggle = (key: 'allow_rsvp' | 'allow_ticketing' | 'allow_donations', val: boolean) => {
+    const labels = { allow_rsvp: 'RSVP', allow_ticketing: 'Ticketing', allow_donations: 'Donations' };
+    const conflicts = val
+      ? (['allow_rsvp', 'allow_ticketing', 'allow_donations'] as const)
+          .filter(moduleKey => moduleKey !== key && form[moduleKey])
+          .map(moduleKey => labels[moduleKey])
+      : [];
+
+    if (conflicts.length) {
+      Alert.alert(
+        `Enable ${labels[key]}?`,
+        `Enabling ${labels[key]} will turn off ${conflicts.join(' and ')}. Only one module can be active at a time.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: `Enable ${labels[key]}`, onPress: () => toggleModule(key, val) },
+        ],
+      );
+      return;
+    }
+
+    toggleModule(key, val);
+  };
+
   const canAdvance = () => {
     if (step === 0) return !!form.subcategory;
     if (step === 1) return !!form.title.trim() && !!form.starts_at;
@@ -594,7 +617,7 @@ export default function CreateEventScreen() {
                 icon="heart"       label="Donations"
                 sub="Accept optional donations at this event"
                 value={form.allow_donations}  color={Colors.accent.violet}
-                onChange={v => toggleModule('allow_donations', v)}
+                onChange={v => requestModuleToggle('allow_donations', v)}
               />
             </View>
           )}
@@ -750,7 +773,6 @@ const styles = StyleSheet.create({
 
   bottom: { padding: 16, paddingBottom: 32, borderTopWidth: 1, borderTopColor: Colors.border.subtle },
 });
-
 
 
 

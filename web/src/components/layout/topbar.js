@@ -22,7 +22,7 @@ export default function Topbar() {
   const isSuperAdmin   = !!user?.is_super_admin;
   const logoutAction   = useAuthStore((s) => s.logout);
   const { setMobileOpen, isMobileOpen } = useSidebarStore();
-  const { isSubscribed, plan, subscriptionStatus, openCustomerPortal, openUpgradeModal, isLoading } =
+  const { isSubscribed, plan, subscriptionStatus, openCustomerPortal, openUpgradeModal, isLoading, requestPlannerAccess } =
     useSubscriptionStore();
 
   const updateAvatar = useAuthStore((s) => s.updateAvatar);
@@ -73,6 +73,11 @@ export default function Topbar() {
     } else {
       router.push("/settings/billing");
     }
+  }
+
+  async function handlePlannerNavigation(event) {
+    event.preventDefault();
+    if (await requestPlannerAccess()) router.push("/planner");
   }
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
 
@@ -128,7 +133,7 @@ export default function Topbar() {
             <QrCode size={18} />
             <span>Scan</span>
           </Link>
-          <Link href="/planner" className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-(--text-secondary) hover:bg-(--bg-elevated) hover:text-(--text-primary) transition-colors">
+          <Link href="/planner" onClick={handlePlannerNavigation} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-(--text-secondary) hover:bg-(--bg-elevated) hover:text-(--text-primary) transition-colors">
             <ClipboardList size={18} />
             <span>Planner</span>
           </Link>

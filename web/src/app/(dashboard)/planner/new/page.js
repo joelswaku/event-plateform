@@ -5,8 +5,7 @@ import Link from "next/link";
 import { ChevronLeft, Loader2, ClipboardList, Sparkles, Send, Bot, User, CheckCircle2, AlertCircle, Plus } from "lucide-react";
 import { usePlannerStore } from "@/store/planner.store";
 import { useEventStore } from "@/store/event.store";
-import { useSubscriptionStore } from "@/store/subscription.store";
-import UpgradeModal from "@/components/ui/UpgradeModal";
+import SubscriptionGuard from "@/components/guards/SubscriptionGuard";
 import toast from "react-hot-toast";
 
 const QUESTIONS = [
@@ -68,13 +67,11 @@ function NewPlannerInner() {
 
   const { createProject, generateAITasks, projects, fetchProjects } = usePlannerStore();
   const { events, fetchEvents, loading: eventsLoading } = useEventStore();
-  const { isSubscribed, features } = useSubscriptionStore();
 
   const [phase, setPhase] = useState("form"); // "form" | "chat" | "creating"
   const [selectedEventId, setSelectedEventId] = useState(preEventId);
   const [title, setTitle] = useState("");
   const [formError, setFormError] = useState("");
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -85,15 +82,11 @@ function NewPlannerInner() {
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Check planner access - show upgrade modal if Free user
+  // Fetch data on mount
   useEffect(() => {
-    if (!isSubscribed || !features?.planner) {
-      setShowUpgradeModal(true);
-    } else {
-      fetchEvents();
-      fetchProjects();
-    }
-  }, [isSubscribed, features]);
+    fetchEvents();
+    fetchProjects();
+  }, [fetchEvents, fetchProjects]);
 
   // If a planner already exists for the pre-selected event, go straight to it
   useEffect(() => {
@@ -102,14 +95,14 @@ function NewPlannerInner() {
       (p) => (p.event_id ?? p.eventId) === preEventId
     );
     if (existing) router.replace(`/planner/${existing.id}`);
-  }, [projects, preEventId]);
+  }, [projects, preEventId, router]);
 
   useEffect(() => {
     if (preEventId && events.length > 0 && !title) {
       const ev = events.find((e) => e.id === preEventId);
       if (ev) setTitle(`${ev.title} — Planner`);
     }
-  }, [events, preEventId]);
+  }, [events, preEventId, title]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -416,25 +409,16 @@ function NewPlannerInner() {
           )}
         </div>
       </div>
-
-      <UpgradeModal
-        isOpen={showUpgradeModal}
-        onClose={() => {
-          setShowUpgradeModal(false);
-          router.push("/planner");
-        }}
-        feature="planner"
-        title="Planner Requires Paid Plan"
-        description="Access the full event planner with tasks, timeline, vendors, and budget management."
-      />
     </div>
   );
 }
 
 export default function NewPlannerPage() {
   return (
-    <Suspense>
-      <NewPlannerInner />
-    </Suspense>
+    <SubscriptionGuard feature="planner" showUpgrade>
+      <Suspense>
+        <NewPlannerInner />
+      </Suspense>
+    </SubscriptionGuard>
   );
 }

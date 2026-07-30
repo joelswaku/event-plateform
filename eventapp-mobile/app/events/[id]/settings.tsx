@@ -404,16 +404,40 @@ export default function EventSettingsScreen() {
   }
 
   function requestToggleModule(key: ModuleKey, nextValue: boolean, icon: keyof typeof Feather.glyphMap, color: string, title: string, message: string, label: string) {
+    const exclusiveModules: ModuleKey[] = ['allow_rsvp', 'allow_ticketing', 'allow_donations'];
+    const labels: Partial<Record<ModuleKey, string>> = {
+      allow_rsvp: 'RSVP', allow_ticketing: 'Ticketing', allow_donations: 'Donations',
+    };
+    const conflicts = nextValue && exclusiveModules.includes(key)
+      ? exclusiveModules
+          .filter(moduleKey => moduleKey !== key && !!currentEvent[moduleKey])
+          .map(moduleKey => labels[moduleKey])
+          .filter(Boolean)
+      : [];
+    const confirmationMessage = conflicts.length
+      ? `Enabling ${labels[key]} will turn off ${conflicts.join(' and ')}. Only one module can be active at a time.`
+      : message;
+
     setConfirmAction({
       type: 'module',
       icon,
       color,
       title,
-      message,
+      message: confirmationMessage,
       confirmLabel: label,
       action: async () => {
         setSaving(true);
-        await updateEvent(id!, { [key]: nextValue });
+        const payload = nextValue && exclusiveModules.includes(key)
+          ? {
+              allow_rsvp: key === 'allow_rsvp',
+              allow_ticketing: key === 'allow_ticketing',
+              allow_donations: key === 'allow_donations',
+              open_rsvp: false,
+            }
+          : key === 'allow_rsvp' && !nextValue
+          ? { allow_rsvp: false, open_rsvp: false }
+          : { [key]: nextValue };
+        await updateEvent(id!, payload);
         setSaving(false);
         setConfirmAction(null);
         notify.settingsSaved();
