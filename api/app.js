@@ -4,7 +4,6 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import compression from "compression";
 import hpp from "hpp";
-import rateLimit from "express-rate-limit";
 
 import { swaggerUi, swaggerSpec } from "./config/swagger.js";
 import { env } from "./config/env.js";
@@ -105,29 +104,6 @@ app.use("/webhooks/stripe", express.raw({ type: "application/json" }));
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 app.use(cookieParser());
-
-/*
-|--------------------------------------------------------------------------
-| Rate Limiter
-|--------------------------------------------------------------------------
-*/
-
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 500,
-  standardHeaders: true,
-  legacyHeaders: false,
-  // Never rate-limit in development — avoids lockouts during local work
-  skip: () => env.NODE_ENV === "development",
-  message: {
-    success: false,
-    message: "Too many requests, try again later.",
-  },
-});
-
-app.use("/api", globalLimiter);
-
-
 
 /*
 |--------------------------------------------------------------------------

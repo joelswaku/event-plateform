@@ -5,8 +5,7 @@ import Link from "next/link";
 import { ClipboardList, Plus, Calendar, Users, Trash2, ArrowRight, Loader2, Sparkles, ExternalLink } from "lucide-react";
 import { usePlannerStore } from "@/store/planner.store";
 import { useEventStore } from "@/store/event.store";
-import { useSubscriptionStore } from "@/store/subscription.store";
-import UpgradeModal from "@/components/ui/UpgradeModal";
+import SubscriptionGuard from "@/components/guards/SubscriptionGuard";
 import toast from "react-hot-toast";
 
 const EVENT_TYPE_EMOJI = {
@@ -38,25 +37,19 @@ function TaskRing({ done, total }) {
   );
 }
 
-export default function PlannerPage() {
+function PlannerPageContent() {
   const router = useRouter();
   const { projects, loading, fetchProjects, deleteProject } = usePlannerStore();
   const { events: allEvents, fetchEvents, loading: eventsLoading } = useEventStore();
-  const { isSubscribed, features } = useSubscriptionStore();
   const events = allEvents.filter(e => !e.user_role || e.user_role === "OWNER");
   const [deleting, setDeleting] = useState(null);
   const [showNoEventsWarning, setShowNoEventsWarning] = useState(false);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
-  // Check planner access - show upgrade modal if Free user
+  // Fetch data on mount
   useEffect(() => {
-    if (!isSubscribed || !features?.planner) {
-      setShowUpgradeModal(true);
-    } else {
-      fetchProjects();
-      fetchEvents();
-    }
-  }, [isSubscribed, features]);
+    fetchProjects();
+    fetchEvents();
+  }, [fetchProjects, fetchEvents]);
 
   async function handleDelete(e, id) {
     e.preventDefault();
@@ -270,17 +263,14 @@ export default function PlannerPage() {
           </div>
         )}
       </div>
-
-      <UpgradeModal
-        isOpen={showUpgradeModal}
-        onClose={() => {
-          setShowUpgradeModal(false);
-          router.push("/dashboard");
-        }}
-        feature="planner"
-        title="Planner Requires Paid Plan"
-        description="Access the full event planner with tasks, timeline, vendors, and budget management."
-      />
     </div>
+  );
+}
+
+export default function PlannerPage() {
+  return (
+    <SubscriptionGuard feature="planner" showUpgrade>
+      <PlannerPageContent />
+    </SubscriptionGuard>
   );
 }

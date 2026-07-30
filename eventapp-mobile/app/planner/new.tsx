@@ -93,7 +93,11 @@ export default function NewPlannerScreen() {
   }, [hasPlanner]);
   const inputRef  = useRef<TextInput>(null);
 
-  useEffect(() => { fetchEvents(); fetchProjects(); }, []);
+  useEffect(() => {
+    if (!hasPlanner) return;
+    fetchEvents();
+    fetchProjects();
+  }, [hasPlanner, fetchEvents, fetchProjects]);
 
   // Redirect if planner already exists for this event
   useEffect(() => {
@@ -146,7 +150,7 @@ export default function NewPlannerScreen() {
     setInput('');
 
     const parsed     = QUESTIONS[qIdx].parse(text);
-    const newAnswers = { ...answers, ...parsed };
+    const newAnswers: Record<string, any> = { ...answers, ...parsed };
     setAnswers(newAnswers);
     const next = qIdx + 1;
 

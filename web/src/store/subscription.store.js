@@ -30,6 +30,7 @@ const DEFAULT_FEATURES = {
   stripeTicketing:     true,
   guestEmailReminders: 0,
   platformFeePercent:  2,
+  planner:             false,
 };
 
 export const useSubscriptionStore = create(
@@ -41,6 +42,9 @@ export const useSubscriptionStore = create(
       subscriptionStatus: null,
       currentPeriodEnd:   null,
       isLoading:          false,
+      // Access guards wait for this server check instead of trusting persisted
+      // browser data from a previous login or subscription period.
+      subscriptionLoaded: false,
 
       // ── Usage (hydrated from server) ────────────────────────────────────────
       usage: { events: 0 },
@@ -78,6 +82,9 @@ export const useSubscriptionStore = create(
       /** Returns { allowed: bool, reason: string | null } for any feature key */
       checkLimit: (feature) => {
         const { plan, isSubscribed, usage, limits, features } = get();
+        if (feature === "planner" && !features?.planner) {
+          return { allowed: false, reason: "The event planner requires Starter or Pro plan." };
+        }
         // Any active paid plan passes hard-gate checks by default
         if (isSubscribed && plan !== "free") {
           // Starter-specific caps still apply
@@ -161,6 +168,7 @@ export const useSubscriptionStore = create(
               limits:             data.limits              ?? DEFAULT_LIMITS,
               features:           data.features            ?? DEFAULT_FEATURES,
               isLoading: false,
+              subscriptionLoaded: true,
             });
           } else {
             set({
@@ -172,11 +180,37 @@ export const useSubscriptionStore = create(
               limits:             data.limits              ?? DEFAULT_LIMITS,
               features:           data.features            ?? DEFAULT_FEATURES,
               isLoading: false,
+              subscriptionLoaded: true,
             });
           }
         } catch {
-          set({ isLoading: false });
+          // A failed entitlement check must never leave stale paid access in
+          // the client. The backend remains the authoritative enforcement.
+          set({
+            plan: "free",
+            isSubscribed: false,
+            subscriptionStatus: null,
+            currentPeriodEnd: null,
+            usage: { events: 0 },
+            limits: DEFAULT_LIMITS,
+            features: DEFAULT_FEATURES,
+            isLoading: false,
+            subscriptionLoaded: true,
+          });
         }
+      },
+
+      /**
+       * Refresh the server entitlement before entering Planner. This prevents a
+       * stale persisted plan in the browser from sending a user to Planner and
+       * producing a 403 during project generation.
+       */
+      requestPlannerAccess: async () => {
+        await get().fetchSubscription();
+        const { isSubscribed, features, openBillingModal } = get();
+        const allowed = Boolean(isSubscribed && features?.planner);
+        if (!allowed) openBillingModal();
+        return allowed;
       },
 
       // ── Stripe checkout (for new subscriptions only) ─────────────────────────
@@ -257,7 +291,7 @@ export const useSubscriptionStore = create(
       },
 
       setUnsubscribed: () => {
-        set({ plan: "free", isSubscribed: false, subscriptionStatus: "canceled", features: DEFAULT_FEATURES, limits: DEFAULT_LIMITS });
+        set({ plan: "free", isSubscribed: false, subscriptionStatus: "canceled", features: DEFAULT_FEATURES, limits: DEFAULT_LIMITS, subscriptionLoaded: false });
       },
     }),
     {

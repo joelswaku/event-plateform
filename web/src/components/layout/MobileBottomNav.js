@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Home, CalendarDays, QrCode, ClipboardList, User } from "lucide-react";
+import { useSubscriptionStore } from "@/store/subscription.store";
 
 const TABS = [
   { label: "Home",    href: "/dashboard", icon: Home },
   { label: "Events",  href: "/events",    icon: CalendarDays },
   { label: "Scan",    href: "/events",    icon: QrCode,        isScan: true },
-  { label: "Planner", href: "/planner",   icon: ClipboardList },
+  { label: "Planner", href: "/planner",   icon: ClipboardList, requiresPaid: true },
   { label: "Profile", href: "/settings",  icon: User },
 ];
 
@@ -19,6 +20,14 @@ const INACTIVE_COLOR = "#1f2937";
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const requestPlannerAccess = useSubscriptionStore((s) => s.requestPlannerAccess);
+
+  async function handleProtectedTab(event, tab) {
+    if (!tab.requiresPaid) return;
+    event.preventDefault();
+    if (await requestPlannerAccess()) router.push(tab.href);
+  }
 
   return (
     <nav
@@ -81,6 +90,7 @@ export default function MobileBottomNav() {
           <Link
             key={href}
             href={href}
+            onClick={(event) => handleProtectedTab(event, tab)}
             className="flex flex-col items-center justify-center gap-0.5 active:scale-90 transition-transform"
             style={{ minWidth: 56, padding: "6px 8px" }}
           >

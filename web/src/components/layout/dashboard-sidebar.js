@@ -131,6 +131,7 @@ export default function DashboardSidebar() {
   const { isCollapsed, isMobileOpen, toggleCollapsed, setMobileOpen } = useSidebarStore();
   const isSubscribed      = useSubscriptionStore((s) => s.isSubscribed);
   const openBillingModal  = useSubscriptionStore((s) => s.openBillingModal);
+  const requestPlannerAccess = useSubscriptionStore((s) => s.requestPlannerAccess);
   const logoutAction      = useAuthStore((s) => s.logout);
   const user              = useAuthStore((s) => s.user);
   const isSuperAdmin      = !!user?.is_super_admin;
@@ -163,6 +164,10 @@ export default function DashboardSidebar() {
     } catch {
       // Ignore logout API errors
     }
+  }
+
+  async function handlePlannerNavigation() {
+    if (await requestPlannerAccess()) router.push("/planner");
   }
 
   return (
@@ -207,15 +212,16 @@ export default function DashboardSidebar() {
         {/* Nav */}
         <nav className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1">
           {navItems.map((item) => {
-            // If item requires paid plan and user is not subscribed, show upgrade prompt
-            if (item.requiresPaid && !safeSubscribed) {
+            // Planner always verifies the current server entitlement before
+            // navigating. This avoids sending stale client state to a 403.
+            if (item.requiresPaid) {
               return (
                 <SidebarItem
                   key={item.href}
                   item={item}
                   showExpanded={showExpanded}
                   badge={0}
-                  onClick={openBillingModal}
+                  onClick={() => { void handlePlannerNavigation(); }}
                 />
               );
             }

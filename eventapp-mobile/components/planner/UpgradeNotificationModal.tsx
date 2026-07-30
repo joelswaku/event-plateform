@@ -14,7 +14,7 @@ export function UpgradeNotificationModal({ isOpen, onDismiss }: UpgradeNotificat
 
   const handleUpgrade = () => {
     onDismiss();
-    router.push('/profile/billing?plan=pro');
+    router.push('/profile/billing?plan=starter');
   };
 
   return (

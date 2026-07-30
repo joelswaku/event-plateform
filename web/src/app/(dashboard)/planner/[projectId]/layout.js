@@ -2,16 +2,17 @@
 import { useEffect } from "react";
 import { useParams } from "next/navigation";
 import { usePlannerStore } from "@/store/planner.store";
+import SubscriptionGuard from "@/components/guards/SubscriptionGuard";
 import PlannerShell from "@/components/planner/PlannerShell";
 import PlannerAICopilot from "@/components/planner/PlannerAICopilot";
 
-export default function PlannerProjectLayout({ children }) {
+function PlannerProjectContent({ children }) {
   const { projectId } = useParams();
   const { currentProject, fetchProject } = usePlannerStore();
 
   useEffect(() => {
     if (projectId) fetchProject(projectId);
-  }, [projectId]);
+  }, [projectId, fetchProject]);
 
   useEffect(() => {
     if (currentProject?.title) {
@@ -24,5 +25,13 @@ export default function PlannerProjectLayout({ children }) {
       <PlannerShell>{children}</PlannerShell>
       <PlannerAICopilot />
     </div>
+  );
+}
+
+export default function PlannerProjectLayout({ children }) {
+  return (
+    <SubscriptionGuard feature="planner" showUpgrade>
+      <PlannerProjectContent>{children}</PlannerProjectContent>
+    </SubscriptionGuard>
   );
 }

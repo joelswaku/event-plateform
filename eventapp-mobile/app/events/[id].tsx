@@ -1119,8 +1119,12 @@ export default function EventDetailScreen() {
       requestModule('allow_ticketing', () => router.push(route as never));
       return;
     }
+    if (label === 'Donations' && !modLocal.allow_donations) {
+      requestModule('allow_donations', () => router.push(route as never));
+      return;
+    }
     router.push(route as never);
-  }, [modLocal.allow_ticketing, requestModule, router]);
+  }, [modLocal.allow_ticketing, modLocal.allow_donations, requestModule, router]);
 
   const run = useCallback(async (fn: () => Promise<any>) => {
     setLoading(true);

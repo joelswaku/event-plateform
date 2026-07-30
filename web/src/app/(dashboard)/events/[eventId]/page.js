@@ -156,6 +156,13 @@ function DesktopGuestInsights({ eventId, guestCount }) {
 // ── Event Planner card ────────────────────────────────────────────────────────
 function EventPlannerCard({ eventId, project, loading }) {
   const router = useRouter();
+  const requestPlannerAccess = useSubscriptionStore(s => s.requestPlannerAccess);
+  const openPlanner = async () => {
+    const destination = project
+      ? `/planner/${project.id}`
+      : `/planner/new?eventId=${eventId}`;
+    if (await requestPlannerAccess()) router.push(destination);
+  };
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
@@ -167,12 +174,13 @@ function EventPlannerCard({ eventId, project, loading }) {
           <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">Event Planner</h3>
         </div>
         {project && (
-          <Link
-            href={`/planner/${project.id}`}
+          <button
+            type="button"
+            onClick={() => { void openPlanner(); }}
             className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
           >
             Open <ArrowRight className="w-3 h-3" />
-          </Link>
+          </button>
         )}
       </div>
 
@@ -190,7 +198,8 @@ function EventPlannerCard({ eventId, project, loading }) {
             <p className="text-xs text-gray-500 mt-0.5">Let AI build a full plan — tasks, timeline, vendors.</p>
           </div>
           <button
-            onClick={() => router.push(`/planner/new?eventId=${eventId}`)}
+            type="button"
+            onClick={() => { void openPlanner(); }}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors"
           >
             <Sparkles className="w-3.5 h-3.5" /> Create AI Planner
@@ -199,7 +208,7 @@ function EventPlannerCard({ eventId, project, loading }) {
       )}
 
       {project && (
-        <Link href={`/planner/${project.id}`} className="block group">
+        <button type="button" onClick={() => { void openPlanner(); }} className="block w-full text-left group">
           <div className="flex items-center justify-between p-3 rounded-xl border border-gray-100 dark:border-gray-800 hover:border-indigo-200 dark:hover:border-indigo-700 hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-all">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{project.title}</p>
@@ -209,7 +218,7 @@ function EventPlannerCard({ eventId, project, loading }) {
             </div>
             <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-indigo-500 shrink-0 transition-colors" />
           </div>
-        </Link>
+        </button>
       )}
     </div>
   );
@@ -526,6 +535,8 @@ function MobileConfirmDialog({ title, desc, danger, onConfirm, onCancel }) {
 
 function MobileBottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const requestPlannerAccess = useSubscriptionStore(s => s.requestPlannerAccess);
   const eventIdMatch = pathname.match(/\/events\/([^/]+)/);
   const scanHref = eventIdMatch ? `/events/${eventIdMatch[1]}/scanner` : "/events";
 
@@ -533,7 +544,7 @@ function MobileBottomNav() {
     { href: "/dashboard", label: "Home",    Icon: Home,          active: pathname === "/dashboard" },
     { href: "/events",    label: "Events",  Icon: CalendarDays,  active: pathname.startsWith("/events") && !pathname.includes("create") },
     null,
-    { href: "/planner",   label: "Planner", Icon: ClipboardList, active: pathname.startsWith("/planner") },
+    { href: "/planner",   label: "Planner", Icon: ClipboardList, active: pathname.startsWith("/planner"), requiresPaid: true },
     { href: "/settings",  label: "Profile", Icon: User,          active: pathname === "/settings" },
   ];
   return (
@@ -555,7 +566,17 @@ function MobileBottomNav() {
           }
           const { href, label, Icon, active } = tab;
           return (
-            <Link key={href} href={href} className="flex flex-col items-center gap-1 px-3 py-1 transition-opacity active:opacity-60">
+            <Link
+              key={href}
+              href={href}
+              onClick={async (event) => {
+                if (tab.requiresPaid) {
+                  event.preventDefault();
+                  if (await requestPlannerAccess()) router.push(href);
+                }
+              }}
+              className="flex flex-col items-center gap-1 px-3 py-1 transition-opacity active:opacity-60"
+            >
               <div
                 className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-all"
                 style={active ? { background: "rgba(99,102,241,0.18)", border: "1px solid rgba(99,102,241,0.28)" } : {}}
@@ -897,6 +918,7 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
   const perms = permissions ?? { canEdit: false, canDelete: false, canManageTeam: false, canManageGuests: false, canCheckin: false, canViewAnalytics: false, canPublish: false };
   const cfg      = sc(event.status);
   const router   = useRouter();
+  const requestPlannerAccess = useSubscriptionStore(s => s.requestPlannerAccess);
   const status   = (event.status ?? "DRAFT").toUpperCase();
   const countdown = useMobileCountdown(event.starts_at_utc);
   const { updateEvent, publishEvent, unpublishEvent, archiveEvent, restoreEvent, deleteEvent } = useEventStore();
@@ -992,9 +1014,16 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
     }
   }, [eventId, run, publishEvent, unpublishEvent, archiveEvent, deleteEvent, router]);
 
+  const openPlanner = useCallback(async () => {
+    const destination = plannerProject
+      ? `/planner/${plannerProject.id}`
+      : `/planner/new?eventId=${eventId}`;
+    if (await requestPlannerAccess()) router.push(destination);
+  }, [eventId, plannerProject, requestPlannerAccess, router]);
+
   const FEATURES = [
     { FIcon: Layout,        label: "Builder",   sub: "Design event page",      accent: "#6366f1", grad: "linear-gradient(135deg,#4f46e5,#6366f1)", href: `/events/${eventId}/builder`,   show: perms.canEdit         },
-    { FIcon: ClipboardList, label: "Planner",   sub: "AI-powered event plan",  accent: "#8b5cf6", grad: "linear-gradient(135deg,#7c3aed,#8b5cf6)", href: plannerProject ? `/planner/${plannerProject.id}` : `/planner/new?eventId=${eventId}`, show: perms.canEdit },
+    { FIcon: ClipboardList, label: "Planner",   sub: "AI-powered event plan",  accent: "#8b5cf6", grad: "linear-gradient(135deg,#7c3aed,#8b5cf6)", onClick: openPlanner, show: perms.canEdit },
     { FIcon: Users,         label: "Guests",    sub: "Manage attendees",       accent: "#10b981", grad: "linear-gradient(135deg,#059669,#10b981)", href: `/events/${eventId}/guests`,    show: perms.canManageGuests  },
     { FIcon: Bell,          label: "Reminders", sub: "Automated notifications", accent: "#ec4899", grad: "linear-gradient(135deg,#db2777,#ec4899)", onClick: onOpenReminders,              show: perms.canManageGuests  },
     { FIcon: Ticket,     label: "Tickets",   sub: "Types & orders",      accent: "#f59e0b", grad: "linear-gradient(135deg,#d97706,#f59e0b)", href: `/events/${eventId}/tickets`,   show: perms.canManageGuests  },
@@ -1677,7 +1706,7 @@ export default function EventDetailPage() {
   const router      = useRouter();
   const { fetchEventDashboard, dashboard, loading } = useEventStore();
   const { isHydrated, isAuthenticated } = useAuthStore();
-  const { isSubscribed, features, openUpgradeModal } = useSubscriptionStore();
+  const { isSubscribed, features, openUpgradeModal, requestPlannerAccess } = useSubscriptionStore();
   const { projects, fetchProjects, loading: plannerLoading } = usePlannerStore();
   const { generatePostEventSummary, loading: aiLoading } = useAIStore();
   const [fetchError, setFetchError] = useState(false);
@@ -1718,6 +1747,12 @@ export default function EventDetailPage() {
   const location = [event?.venue_name, event?.city, event?.country].filter(Boolean).join(", ") || null;
   const isPublic = event?.visibility === "PUBLIC";
   const plannerProject = projects.find((p) => (p.event_id ?? p.eventId) === eventId);
+  const openPlanner = async () => {
+    const destination = plannerProject
+      ? `/planner/${plannerProject.id}`
+      : `/planner/new?eventId=${eventId}`;
+    if (await requestPlannerAccess()) router.push(destination);
+  };
   const eventEnded = event
     ? (event.ends_at_utc && new Date(event.ends_at_utc) < new Date()) ||
       ["ARCHIVED", "CANCELLED"].includes((event.status ?? "").toUpperCase())
@@ -1890,7 +1925,7 @@ export default function EventDetailPage() {
                 {userPerms.canCheckin       && <QuickAction label="QR Scanner"   description="Check in on arrival"          href={`/events/${eventId}/scanner`}   icon={QrCode}         />}
                 {userPerms.canViewAnalytics && <QuickAction label="Analytics"    description="Views & conversions"           href={`/events/${eventId}/analytics`} icon={BarChart3}      />}
                 {userPerms.canManageTeam    && <QuickAction label="Team"         description="Add admins to your event"      href={`/events/${eventId}/team`}      icon={UserPlus}       />}
-                {userPerms.canEdit          && <QuickAction label="Planner"      description="AI-powered event planning"     href={plannerProject ? `/planner/${plannerProject.id}` : `/planner/new?eventId=${eventId}`} icon={ClipboardList}  />}
+                {userPerms.canEdit          && <QuickAction label="Planner"      description="AI-powered event planning"     onClick={() => { void openPlanner(); }} icon={ClipboardList}  />}
               </div>
             </div>
           </div>

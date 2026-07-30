@@ -17,6 +17,12 @@ import { updateProfile }  from "../controllers/auth/updateProfile.controller.js"
 import { changePassword } from "../controllers/auth/changePassword.controller.js";
 import { upload }         from "../middleware/upload.middleware.js";
 import { acceptTerms }    from "../controllers/auth/accept-terms.controller.js";
+import {
+  loginLimiter,
+  registerLimiter,
+  resetLimiter,
+  googleAuthLimiter,
+} from "../utils/rateLimite.js";
 
 const router = Router();
 
@@ -25,13 +31,13 @@ const router = Router();
 ========================= */
 
 // Register new user
-router.post("/register", register);
+router.post("/register", registerLimiter, register);
 
 // Login user
-router.post("/login", login);
+router.post("/login", loginLimiter, login);
 
 // Google OAuth login
-router.post("/google", googleLogin);
+router.post("/google", googleAuthLimiter, googleLogin);
 
 // Refresh access token
 router.post("/refresh-token", refreshToken);
@@ -43,10 +49,10 @@ router.post("/verify-email", verifyEmail);
 router.post("/resend-verification-code", resendCode);
 
 // Request password reset
-router.post("/request-password-reset", forgotPassword);
+router.post("/request-password-reset", resetLimiter, forgotPassword);
 
 // Reset password
-router.post("/reset-password", resetPassword);
+router.post("/reset-password", resetLimiter, resetPassword);
 
 /* =========================
    PROTECTED ROUTES (AUTH REQUIRED)

@@ -21,6 +21,7 @@ const DEFAULT_FEATURES = {
   stripeTicketing:     true,
   guestEmailReminders: 0 as number | null,
   platformFeePercent:  2,
+  planner:             false,
 };
 
 interface LimitCheck { allowed: boolean; reason: string | null }
@@ -102,6 +103,9 @@ export const useSubscriptionStore = create<SubscriptionState>()(
 
       checkLimit: (feature) => {
         const { plan, isSubscribed, usage, limits, features } = get();
+        if (feature === 'planner' && !features?.planner) {
+          return { allowed: false, reason: 'The event planner requires Starter or Pro plan.' };
+        }
         if (isSubscribed && plan !== 'free') {
           if (feature === 'events') {
             if (limits.events !== null && usage.events >= limits.events)
