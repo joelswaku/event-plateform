@@ -114,7 +114,9 @@ export const useEventStore = create<EventState>((set, get) => ({
       const event = res.data?.data;
       if (event) {
         set(s => ({
-          events:       patchStatus(s.events, id, event.status),
+          // Keep dashboard cards in sync with every saved event field, not
+          // only its status. Template selection updates cover_image_url.
+          events: s.events.map(item => item.id === id ? { ...item, ...event } : item),
           currentEvent: s.currentEvent?.id === id ? event : s.currentEvent,
         }));
 

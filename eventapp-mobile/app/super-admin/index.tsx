@@ -123,7 +123,7 @@ const INSIGHT_COLORS: Record<string, string> = {
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
-function Sk({ w, h, r }: { w?: number | string; h?: number; r?: number }) {
+function Sk({ w, h, r }: { w?: number | `${number}%`; h?: number; r?: number }) {
   return (
     <View style={{
       width: w ?? '100%', height: h ?? 14, borderRadius: r ?? 6,

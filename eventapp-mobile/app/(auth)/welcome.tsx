@@ -265,7 +265,7 @@ const s = StyleSheet.create({
 
   /* dots */
   dots: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 28, marginBottom: 28 },
-  dot:  { height: 6, borderRadius: 99, transition: 'all 0.3s' },
+  dot:  { height: 6, borderRadius: 99 },
 
   /* cta */
   ctaBlock:  { paddingHorizontal: 20, gap: 4 },

@@ -1528,7 +1528,7 @@ function MarketplaceBrowserModal({ projectId, onClose }: { projectId: string; on
   const [cat,      setCat]      = useState('All');
   const [adding,   setAdding]   = useState<string | null>(null);
 
-  const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000/api';
+  const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.liteevent.com/api';
 
   useEffect(() => {
     setLoading(true);
@@ -2152,7 +2152,7 @@ function TeamSection({ projectId, activeSection }: { projectId: string; activeSe
     const res = await inviteTeamMember(projectId, { email: inviteForm.email.trim(), name: '' });
     setSaving(false);
     if (res.success) {
-      const message = res.type === 'invited'
+      const message = res.data?.type === 'invited'
         ? "Invitation sent! They'll receive a signup link."
         : 'Team member added';
       notify.success(message);
@@ -2170,7 +2170,7 @@ function TeamSection({ projectId, activeSection }: { projectId: string; activeSe
       message: `Remove ${member.name}?`,
       confirmLabel: 'Remove',
       variant: 'danger',
-      onConfirm: () => removeTeamMember(projectId, member.id),
+      onConfirm: async () => { await removeTeamMember(projectId, member.id); },
     });
   }
 
@@ -2178,16 +2178,15 @@ function TeamSection({ projectId, activeSection }: { projectId: string; activeSe
   const others = team.filter((m: any) => m.role?.toUpperCase() !== 'OWNER');
 
   // Use same team limits as event team page
-  // Free: 1 total (owner only), Starter: 2 total, Pro: 4 total, Premium/Enterprise: unlimited
-  const isPro = isSubscribed && (plan === 'pro' || plan === 'premium' || plan === 'enterprise');
+  // Free: 1 total (owner only), Starter: 2 total, Pro/Enterprise: unlimited.
+  const isPro = isSubscribed && (plan === 'pro' || plan === 'enterprise');
   const planLimits: Record<string, number> = {
     free: 1,
     starter: 2,
-    pro: 4,
-    premium: Infinity,
+    pro: Infinity,
     enterprise: Infinity
   };
-  const maxTotal = isPro && (plan === 'premium' || plan === 'enterprise')
+  const maxTotal = isPro
     ? null
     : (planLimits[plan as string] ?? 1);
   const currentTotal = team.length;
@@ -2589,7 +2588,7 @@ function FilesSection({ projectId }: { projectId: string }) {
                   message: `Delete "${file.file_name}"?`,
                   confirmLabel: 'Delete',
                   variant: 'danger',
-                  onConfirm: () => deleteFile(projectId, file.id),
+                  onConfirm: async () => { await deleteFile(projectId, file.id); },
                 })}
               >
                 <View style={s.filePreview}>

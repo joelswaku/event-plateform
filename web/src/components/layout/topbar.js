@@ -4,13 +4,12 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Menu, Bell, Sun, Moon, Sparkles, CreditCard, LogOut, User, ChevronRight, Star, MessageSquare, Home, CalendarDays, QrCode, ClipboardList } from "lucide-react";
+import { Menu, Bell, Sun, Moon, Sparkles, CreditCard, LogOut, User, ChevronRight, Star, Home, CalendarDays, QrCode, ClipboardList } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme }            from "@/providers/ThemeProvider";
 import { useAuthStore }        from "@/store/auth.store";
 import { useSidebarStore }     from "@/store/sidebar.store";
 import { useSubscriptionStore } from "@/store/subscription.store";
-import { useChatStore }        from "@/store/chat.store";
 import { useNotifications }    from "@/hooks/useNotifications";
 import NotificationPanel       from "@/components/layout/NotificationPanel";
 import BillingModal            from "@/components/layout/BillingModal";
@@ -26,21 +25,11 @@ export default function Topbar() {
     useSubscriptionStore();
 
   const updateAvatar = useAuthStore((s) => s.updateAvatar);
-  const chatUnreadTotal = useChatStore((s) => s.unreadTotal);
-  const fetchChatUnread = useChatStore((s) => s.fetchUnreadCount);
 
   const [billingOpen,   setBillingOpen]  = useState(false);
   const [bellOpen,      setBellOpen]     = useState(false);
   const [profileOpen,   setProfileOpen]  = useState(false);
 
-  // Fetch chat unread count for all users
-  useEffect(() => {
-    if (!user) return; // Only fetch if authenticated
-    fetchChatUnread();
-    const interval = setInterval(() => fetchChatUnread(), 10000);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   const [avatarLoading, setAvatarLoading] = useState(false);
   const bellRef      = useRef(null);
   const profileRef   = useRef(null);
@@ -80,6 +69,15 @@ export default function Topbar() {
     if (await requestPlannerAccess()) router.push("/planner");
   }
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+  // Chat alerts for super admins are intentionally kept in the dedicated
+  // Super Admin support inbox, never in the regular dashboard bell.
+  const visibleNotifications = isSuperAdmin
+    ? notifications.filter((notification) => notification.type !== "chat")
+    : notifications;
+  const visibleUnreadCount = visibleNotifications.reduce(
+    (count, notification) => count + (notification.read_at ? 0 : 1),
+    0
+  );
 
   const initials = user?.name
     ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
@@ -174,22 +172,6 @@ export default function Topbar() {
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
 
-          {/* Support Chat (Super Admin Only) */}
-          {isSuperAdmin && (
-            <Link
-              href="/chat"
-              className="relative rounded-xl p-2 text-(--text-muted) hover:bg-(--bg-elevated) transition-colors"
-              aria-label="Support Messages"
-            >
-              <MessageSquare className="h-4 w-4" />
-              {chatUnreadTotal > 0 && (
-                <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white leading-none">
-                  {chatUnreadTotal > 9 ? "9+" : chatUnreadTotal}
-                </span>
-              )}
-            </Link>
-          )}
-
           {/* Notifications */}
           <div ref={bellRef} className="relative">
             <button
@@ -199,17 +181,17 @@ export default function Topbar() {
               suppressHydrationWarning
             >
               <Bell className="h-4 w-4" />
-              {unreadCount > 0 && (
+              {visibleUnreadCount > 0 && (
                 <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[9px] font-bold text-white leading-none">
-                  {unreadCount > 9 ? "9+" : unreadCount}
+                  {visibleUnreadCount > 9 ? "9+" : visibleUnreadCount}
                 </span>
               )}
             </button>
             <AnimatePresence>
               {bellOpen && (
                 <NotificationPanel
-                  notifications={notifications}
-                  unreadCount={unreadCount}
+                  notifications={visibleNotifications}
+                  unreadCount={visibleUnreadCount}
                   onClose={() => setBellOpen(false)}
                   onMarkRead={markRead}
                   onMarkAllRead={markAllRead}

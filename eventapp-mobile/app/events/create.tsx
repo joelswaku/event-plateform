@@ -708,6 +708,7 @@ const styles = StyleSheet.create({
 
   content:  { padding: 16, paddingBottom: 16, gap: 12 },
   stepHint: { fontSize: 14, color: Colors.text.muted, marginBottom: 4 },
+  label:    { fontSize: 11, fontWeight: '700', color: Colors.text.muted, marginBottom: 6 },
 
   catWrap:  { gap: 8 },
   catGroup: { gap: 0 },

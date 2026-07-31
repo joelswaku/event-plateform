@@ -1715,17 +1715,21 @@ export default function EventDetailPage() {
   const [summaryBannerDismissed, setSummaryBannerDismissed] = useState(false);
   const [reminderModalOpen, setReminderModalOpen] = useState(false);
 
+  // Event data must not depend on the subscription object. A subscription
+  // refresh creates a new features object; including it here caused the page
+  // to clear and reload after the event had already appeared.
   useEffect(() => {
     if (!isHydrated) return;
     if (!isAuthenticated) { router.replace("/login?redirect=" + encodeURIComponent(`/events/${eventId}`)); return; }
     if (eventId) {
       fetchEventDashboard(eventId).catch(() => setFetchError(true));
-      // Only fetch planner projects if user has planner access
-      if (isSubscribed && features?.planner) {
-        fetchProjects();
-      }
     }
-  }, [eventId, isHydrated, isAuthenticated, isSubscribed, features]);
+  }, [eventId, isHydrated, isAuthenticated, fetchEventDashboard, router]);
+
+  // Planner data is independent from the event dashboard request.
+  useEffect(() => {
+    if (isSubscribed && features?.planner) fetchProjects();
+  }, [isSubscribed, features?.planner, fetchProjects]);
 
   // Auto-open reminders modal if coming from settings
   useEffect(() => {
@@ -1773,11 +1777,13 @@ export default function EventDetailPage() {
       <>
         {/* Mobile skeleton */}
         <div className="sm:hidden">
-          <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "#0e0f11" }}>
-            <div className="h-[320px] animate-pulse" style={{ background: "#0e0e16" }} />
-            <div className="flex flex-col gap-4 p-4">
+          <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "#080a12" }} aria-busy="true" aria-label="Loading event">
+            <div className="h-[320px] animate-pulse" style={{ background: "linear-gradient(135deg, #1d2340, #12182a)" }} />
+            <div className="flex flex-col gap-4 p-5">
+              <div className="h-5 w-36 animate-pulse rounded-full" style={{ background: "rgba(129,140,248,0.40)" }} />
+              <div className="h-8 w-3/4 animate-pulse rounded-lg" style={{ background: "rgba(255,255,255,0.16)" }} />
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-16 animate-pulse rounded-[16px]" style={{ background: "#0e0e16" }} />
+                <div key={i} className="h-16 animate-pulse rounded-[16px] border" style={{ background: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.10)" }} />
               ))}
             </div>
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   HelpCircle, Mail, MessageSquare, ChevronDown,
   ExternalLink, LifeBuoy, BookOpen, Zap, X, Minus,
@@ -95,6 +96,7 @@ function ContactCard({ href, icon: Icon, iconColor, iconBg, title, sub, external
    Page
    ═══════════════════════════════════════════════════════════════════════════ */
 export default function SupportPage() {
+  const router = useRouter();
   const [chatOpen, setChatOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const user = useAuthStore((s) => s.user);
@@ -112,12 +114,16 @@ export default function SupportPage() {
   }, [user, isSuperAdmin, fetchUnreadCount]);
 
   async function openSupportChat() {
+    if (isSuperAdmin) {
+      router.push("/super-admin/chat");
+      return;
+    }
+
     setChatOpen(true);
     setMinimized(false);
 
     // Opening the support thread is an intentional read action: clear the
     // support notification after the API has recorded the read receipt.
-    if (isSuperAdmin) return;
     const conversation = await openSupport();
     if (conversation) {
       await markRead(conversation.id);

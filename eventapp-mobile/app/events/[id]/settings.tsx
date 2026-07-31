@@ -410,7 +410,7 @@ export default function EventSettingsScreen() {
     };
     const conflicts = nextValue && exclusiveModules.includes(key)
       ? exclusiveModules
-          .filter(moduleKey => moduleKey !== key && !!currentEvent[moduleKey])
+          .filter(moduleKey => moduleKey !== key && !!currentEvent?.[moduleKey])
           .map(moduleKey => labels[moduleKey])
           .filter(Boolean)
       : [];
@@ -797,7 +797,7 @@ export default function EventSettingsScreen() {
         ────────────────────────────────────────────────────────────────────── */}
         <GlassCard style={{ marginTop: 20 }}>
           <SectionHeader
-            icon="shield-alert"
+            icon="shield"
             label="Sensitive Actions"
             description="Lifecycle management and safety tools"
             color="#ef4444"

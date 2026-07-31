@@ -110,12 +110,16 @@ export interface SAActivity {
 }
 
 export interface SAHealth {
-  services: Array<{ name: string; status: 'healthy' | 'degraded' | 'down'; latency?: number }>;
+  services: Array<{ name: string; status: string; latency?: number }> | Record<string, { status: string; latency?: number }>;
   metrics:  {
     total_users?:      number;
     total_events?:     number;
     total_tickets?:    number;
     active_users_24h?: number;
+    users?:            number;
+    events?:           number;
+    tickets?:          number;
+    activeUsers24h?:   number;
   };
   uptime?: string;
 }
@@ -452,16 +456,12 @@ export const useSuperAdminStore = create<SuperAdminState>((set) => ({
   },
 
   // ── Vendors ────────────────────────────────────────────────────────────
-  vendors:      [],
-  vendorsMeta:  null,
-  vendorStats:  null,
-
   fetchAdminVendors: async (params = {}) => {
     set({ loading: true });
     try {
       const res = await api.get('/super-admin/vendors', { params });
       const d   = res.data?.data;
-      set({ vendors: d?.vendors ?? [], vendorsMeta: { total: d?.total ?? 0, pages: d?.pages ?? 1 }, vendorStats: d?.stats ?? null });
+      set({ vendors: d?.vendors ?? [], vendorsMeta: { total: d?.total ?? 0, page: d?.page ?? 1, per_page: d?.per_page ?? d?.limit ?? 50 }, vendorStats: d?.stats ?? null });
     } catch { /* silent */ }
     finally { set({ loading: false }); }
   },

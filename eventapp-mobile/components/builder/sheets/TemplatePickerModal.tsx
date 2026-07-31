@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useBuilderStore } from '@/store/builder.store';
+import { useEventStore } from '@/store/event.store';
 import {
   STYLE_TEMPLATES, TEMPLATE_CATEGORIES, CATEGORY_ORDER,
   getTemplatesForEventType, canAccessTemplate,
@@ -29,6 +30,7 @@ interface Props {
 
 export default function TemplatePickerModal({ visible, eventId, eventType, isPremium, onClose, onUpgrade }: Props) {
   const applyPreset = useBuilderStore((s) => s.applyPreset);
+  const updateEvent = useEventStore((s) => s.updateEvent);
   const [applying, setApplying] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterKey>('ALL');
 
@@ -87,7 +89,17 @@ export default function TemplatePickerModal({ visible, eventId, eventType, isPre
                 ...(sec.type === 'GALLERY' && t.assets.gallery_images ? { images: t.assets.gallery_images }           : {}),
               },
             }));
-            await applyPreset(eventId, sections);
+            const appliedSections = await applyPreset(eventId, sections);
+            if (!appliedSections?.length) {
+              setApplying(null);
+              return;
+            }
+
+            // Event cards and the event-detail hero read cover_image_url, so
+            // persist the selected template cover alongside the HERO section.
+            const coverImage = t.assets.cover_image ?? t.assets.hero_image;
+            if (coverImage) await updateEvent(eventId, { cover_image_url: coverImage });
+
             setApplying(null);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             onClose();

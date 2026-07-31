@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNotificationStore, AppNotification } from '@/store/notification.store';
+import { useAuthStore } from '@/store/auth.store';
 
 /* ─── Premium Colors ──────────────────────────────────────────────────── */
 const COLORS = {
@@ -25,7 +26,9 @@ const COLORS = {
 };
 
 /* ─── Type Config ─────────────────────────────────────────────────────── */
-const TYPE_CFG: Record<string, { icon: keyof typeof Feather.glyphMap; color: string; gradient: string[] }> = {
+type NotificationStyle = { icon: keyof typeof Feather.glyphMap; color: string; gradient: readonly [string, string] };
+
+const TYPE_CFG: Record<string, NotificationStyle> = {
   chat:         { icon: 'message-circle', color: COLORS.primary,  gradient: ['#3B82F6', '#2563EB'] },
   new_rsvp:     { icon: 'users',          color: COLORS.success,  gradient: ['#22C55E', '#16A34A'] },
   ticket_sold:  { icon: 'tag',            color: '#10B981',       gradient: ['#10B981', '#059669'] },
@@ -34,7 +37,7 @@ const TYPE_CFG: Record<string, { icon: keyof typeof Feather.glyphMap; color: str
   event:        { icon: 'calendar',       color: COLORS.warning,  gradient: ['#F59E0B', '#D97706'] },
   system:       { icon: 'bell',           color: COLORS.textSecondary, gradient: ['#71717A', '#52525B'] },
 };
-const DEFAULT_CFG = { icon: 'bell' as const, color: COLORS.textSecondary, gradient: ['#71717A', '#52525B'] };
+const DEFAULT_CFG: NotificationStyle = { icon: 'bell', color: COLORS.textSecondary, gradient: ['#71717A', '#52525B'] };
 
 /* ─── Helper Functions ────────────────────────────────────────────────── */
 function fmtTime(iso: string): string {
@@ -252,16 +255,29 @@ function EmptyState() {
 export default function NotificationsScreen() {
   const router = useRouter();
   const { notifications, unreadCount, loading, fetch, markRead, markAllRead } = useNotificationStore();
+  const isSuperAdmin = useAuthStore(s => !!s.user?.is_super_admin);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
   useEffect(() => { fetch(); }, []);
 
+  // Support alerts for super admins live in Super Admin → Support, keeping
+  // the regular mobile notification screen focused on platform activity.
+  const visibleNotifications = useMemo(
+    () => isSuperAdmin ? notifications.filter(notification => notification.type !== 'chat') : notifications,
+    [isSuperAdmin, notifications]
+  );
+  const visibleUnreadCount = useMemo(
+    () => isSuperAdmin
+      ? visibleNotifications.reduce((count, notification) => count + (notification.read_at ? 0 : 1), 0)
+      : unreadCount,
+    [isSuperAdmin, unreadCount, visibleNotifications]
+  );
   const filteredNotifications = useMemo(() => {
     if (filter === 'unread') {
-      return notifications.filter(n => !n.read_at);
+      return visibleNotifications.filter(n => !n.read_at);
     }
-    return notifications;
-  }, [notifications, filter]);
+    return visibleNotifications;
+  }, [visibleNotifications, filter]);
 
   const groupedData = useMemo(() => groupByDate(filteredNotifications), [filteredNotifications]);
 
@@ -299,9 +315,9 @@ export default function NotificationsScreen() {
             </Pressable>
 
             <View style={s.headerActions}>
-              {unreadCount > 0 && (
+              {visibleUnreadCount > 0 && (
                 <Pressable onPress={markAllRead} style={s.actionBtn}>
-                  <Feather name="check-double" size={18} color={COLORS.primary} />
+                  <Feather name="check-circle" size={18} color={COLORS.primary} />
                 </Pressable>
               )}
               <Pressable onPress={() => setFilter(f => f === 'all' ? 'unread' : 'all')} style={s.actionBtn}>
@@ -312,9 +328,9 @@ export default function NotificationsScreen() {
 
           <View style={s.headerTitle}>
             <Text style={s.title}>Notifications</Text>
-            {unreadCount > 0 && (
+            {visibleUnreadCount > 0 && (
               <View style={s.headerBadge}>
-                <Text style={s.headerBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                <Text style={s.headerBadgeText}>{visibleUnreadCount > 99 ? '99+' : visibleUnreadCount}</Text>
               </View>
             )}
           </View>

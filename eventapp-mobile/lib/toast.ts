@@ -89,6 +89,10 @@ export const showWarning = (text1: string, text2?: string) => toast.warning(text
 // ─── Domain-specific messages ─────────────────────────────────────────────────
 
 export const notify = {
+  // Generic helpers retained for existing feature screens.
+  success:       (title: string, message?: string) => toast.success(title, message),
+  error:         (title: string, message?: string) => toast.error(title, message),
+  warning:       (title: string, message?: string) => toast.warning(title, message),
   // Auth
   loginFailed:     (err?: string) => showError(err || 'Login failed'),
   registerSuccess:               () => toast.success('Account created!', 'Welcome! Please sign in.'),

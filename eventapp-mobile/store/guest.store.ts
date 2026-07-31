@@ -56,7 +56,7 @@ interface GuestState {
   /** @deprecated use getGuestDashboard */
   fetchDashboard: (eventId: string) => Promise<void>;
   /** @deprecated use sendGuestInvitation */
-  sendInvitation: (eventId: string, guestId: string) => Promise<{ success: boolean }>;
+  sendInvitation: (eventId: string, guestId: string, payload?: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
 
   // Public
   getInvitationByToken:  (token: string) => Promise<{ success: boolean; data?: unknown }>;

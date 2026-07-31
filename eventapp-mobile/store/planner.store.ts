@@ -53,6 +53,7 @@ interface PlannerStore {
   updateVendor: (projectId: string, vendorId: string, payload: any) => Promise<{ success: boolean; data?: any; error?: string }>;
   deleteVendor: (projectId: string, vendorId: string) => Promise<{ success: boolean; error?: string }>;
   createTimelineItem: (projectId: string, payload: any) => Promise<{ success: boolean; data?: any; error?: string }>;
+  deleteTimelineItem: (projectId: string, itemId: string) => Promise<{ success: boolean; error?: string }>;
 
   fetchBudget: (projectId: string) => Promise<void>;
   createBudgetItem: (projectId: string, payload: any) => Promise<{ success: boolean; data?: any; error?: string }>;
@@ -302,6 +303,20 @@ export const usePlannerStore = create<PlannerStore>((set, get) => ({
       return { success: true, data: item };
     } catch (err: any) {
       set({ saving: false });
+      return { success: false, error: err?.response?.data?.message || err.message };
+    }
+  },
+
+  deleteTimelineItem: async (projectId, itemId) => {
+    try {
+      await api.delete(`/planner/projects/${projectId}/timeline/${itemId}`);
+      set((s) => ({
+        currentProject: s.currentProject
+          ? { ...s.currentProject, timeline: (s.currentProject.timeline || []).filter((item: any) => item.id !== itemId) }
+          : s.currentProject,
+      }));
+      return { success: true };
+    } catch (err: any) {
       return { success: false, error: err?.response?.data?.message || err.message };
     }
   },

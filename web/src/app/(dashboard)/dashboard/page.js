@@ -1128,7 +1128,7 @@ const UPGRADE_CFG = {
         gradTo:     "#818cf8",
         shadowHex:  "rgba(99,102,241,0.35)",
         ctaText:    "#fff",
-        ctaLabel:   "Upgrade to Starter",
+        ctaLabel:   "Upgrade",
         perks:      ["1 active event", "500 guests/event", "All templates", "Full planner", "1 team invite", "Tickets (2% fee)"],
       },
       {
@@ -1159,7 +1159,7 @@ const UPGRADE_CFG = {
         gradTo:     "#f59e0b",
         shadowHex:  "rgba(201,169,110,0.35)",
         ctaText:    "#000",
-        ctaLabel:   "Upgrade to Pro",
+        ctaLabel:   "Go Pro",
         perks:      ["3 active events", "Unlimited guests", "Full planner", "3 team invites", "Unlimited reminders", "Tickets (1.5% fee)"],
       },
     ],
@@ -1197,7 +1197,7 @@ function PlanUpgradeBanner({ plan, eventsUsed, eventsLimit, onUpgrade }) {
         aria-hidden
       />
 
-      <div className="relative flex flex-col gap-0 lg:flex-row lg:items-center">
+      <div className="relative flex flex-col gap-0 2xl:flex-row 2xl:items-center">
 
         {/* ── Left: current plan + usage ───────────────────────────── */}
         <div className="flex flex-1 items-center gap-3 px-5 py-4">
@@ -1252,15 +1252,15 @@ function PlanUpgradeBanner({ plan, eventsUsed, eventsLimit, onUpgrade }) {
         </div>
 
         {/* ── Divider ───────────────────────────────────────────────── */}
-        <div className="hidden lg:block h-12 w-px shrink-0" style={{ background: "rgba(255,255,255,0.07)" }} />
-        <div className="lg:hidden h-px mx-5" style={{ background: "rgba(255,255,255,0.06)" }} />
+        <div className="hidden 2xl:block h-12 w-px shrink-0" style={{ background: "rgba(255,255,255,0.07)" }} />
+        <div className="2xl:hidden h-px mx-5" style={{ background: "rgba(255,255,255,0.06)" }} />
 
         {/* ── Right: plan card(s) ───────────────────────────────────── */}
-        <div className={`flex gap-3 p-4 ${cfg.plans.length === 1 ? "lg:w-[440px]" : "lg:w-[580px]"}`}>
+        <div className={`flex flex-col gap-3 p-4 sm:flex-row ${cfg.plans.length === 1 ? "2xl:w-[440px]" : "2xl:w-[580px]"}`}>
           {cfg.plans.map((p) => (
             <div
               key={p.key}
-              className="relative flex flex-1 overflow-hidden rounded-xl"
+              className="relative flex min-w-0 flex-1 overflow-hidden rounded-xl"
               style={{
                 background: `linear-gradient(145deg, ${p.gradFrom}12 0%, ${p.gradTo}08 100%)`,
                 border:     `1px solid ${p.gradFrom}30`,
@@ -1272,7 +1272,7 @@ function PlanUpgradeBanner({ plan, eventsUsed, eventsLimit, onUpgrade }) {
                 style={{ background: `linear-gradient(90deg, transparent, ${p.gradFrom}70, transparent)` }}
               />
 
-              <div className="flex flex-1 items-center gap-4 px-4 py-3">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3 px-4 py-3">
                 {/* Icon + name + price */}
                 <div className="flex items-center gap-2.5 shrink-0">
                   <div
@@ -1291,6 +1291,21 @@ function PlanUpgradeBanner({ plan, eventsUsed, eventsLimit, onUpgrade }) {
                   </div>
                 </div>
 
+                {/* CTA stays beside the plan name and wraps left when space is tight */}
+                <button
+                  onClick={onUpgrade}
+                  className="shrink-0 whitespace-nowrap flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold transition hover:opacity-90 active:scale-[0.97]"
+                  style={{
+                    background: `linear-gradient(135deg,${p.gradFrom},${p.gradTo})`,
+                    color:      p.ctaText,
+                    boxShadow:  `0 4px 14px ${p.shadowHex}`,
+                    minWidth:   p.key === "starter" ? 94 : 76,
+                  }}
+                >
+                  <Zap className="h-3 w-3" fill="currentColor" />
+                  {p.ctaLabel}
+                </button>
+
                 {/* Perks — 2 columns */}
                 <div className="hidden sm:grid flex-1 grid-cols-2 gap-x-3 gap-y-1 min-w-0">
                   {p.perks.slice(0, 4).map((perk) => (
@@ -1300,20 +1315,6 @@ function PlanUpgradeBanner({ plan, eventsUsed, eventsLimit, onUpgrade }) {
                     </div>
                   ))}
                 </div>
-
-                {/* CTA */}
-                <button
-                  onClick={onUpgrade}
-                  className="shrink-0 flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold transition hover:opacity-90 active:scale-[0.97]"
-                  style={{
-                    background: `linear-gradient(135deg,${p.gradFrom},${p.gradTo})`,
-                    color:      p.ctaText,
-                    boxShadow:  `0 4px 14px ${p.shadowHex}`,
-                  }}
-                >
-                  <Zap className="h-3 w-3" fill="currentColor" />
-                  {p.ctaLabel}
-                </button>
               </div>
             </div>
           ))}

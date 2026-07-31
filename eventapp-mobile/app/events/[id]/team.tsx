@@ -18,10 +18,10 @@ function initials(name = '') {
   return name.trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?';
 }
 
-const ROLE_CFG = {
+const ROLE_CFG: Record<string, { label: string; color: string; bg: string; icon: keyof typeof Feather.glyphMap }> = {
   OWNER: { label: 'Owner', color: Colors.accent.amber,  bg: 'rgba(245,158,11,0.14)', icon: 'award'  as const },
   ADMIN: { label: 'Admin', color: Colors.accent.indigo, bg: 'rgba(99,102,241,0.14)',  icon: 'shield' as const },
-} as const;
+};
 
 const ACCESS_ROWS: [string, boolean][] = [
   ['Manage guests & RSVPs',    true],

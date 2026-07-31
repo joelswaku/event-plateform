@@ -1,12 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, StyleSheet, Pressable, TextInput,
-  ScrollView, Share, Alert, ActivityIndicator,
+  ScrollView, Share, Alert, ActivityIndicator, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useSuperAdminStore, SAAuditLog } from '@/store/superAdmin.store';
 import { Colors } from '@/constants/colors';
 import api from '@/lib/api';
@@ -465,6 +465,10 @@ const styles = StyleSheet.create({
   exportBtn:    { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 9, borderWidth: 1, backgroundColor: 'rgba(255,255,255,0.03)' },
   exportBtnTxt: { fontSize: 11, fontWeight: '800' },
   pageInfo:     { marginLeft: 'auto' as any, fontSize: 10, color: 'rgba(255,255,255,0.25)', fontWeight: '600' },
+
+  detailItem:   { paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' },
+  detailLabel:  { fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.32)', textTransform: 'uppercase', letterSpacing: 0.5 },
+  detailValue:  { fontSize: 12, color: 'rgba(255,255,255,0.68)', marginTop: 2 },
 
   listContent:  { paddingHorizontal: 12, paddingBottom: 40 },
   skeletonWrap: { gap: 0 },

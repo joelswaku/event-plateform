@@ -113,7 +113,6 @@ export function ProEventCard({ event, onRefresh, isActive, onSetActive }: Props)
       <Pressable
         style={[s.card, { borderColor: `${cfg.color}30` }]}
         onPress={() => router.push(`/events/${event.id}` as never)}
-        activeOpacity={0.95}
       >
         {/* Subtle card background glow */}
         <LinearGradient

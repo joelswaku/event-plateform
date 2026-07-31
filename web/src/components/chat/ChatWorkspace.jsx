@@ -72,7 +72,7 @@ function UserSearchModal({ onClose, onSelectUser, searchQuery, setSearchQuery, s
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
           <div className="flex items-center gap-2">
             <UserPlus size={16} style={{ color: ACCENT }} />
-            <h3 className="text-sm font-black text-white">Start New Conversation</h3>
+            <h3 className="text-sm font-black text-white">All users</h3>
           </div>
           <button onClick={onClose} className="text-white/40 hover:text-white"><X size={18} /></button>
         </div>
@@ -82,7 +82,7 @@ function UserSearchModal({ onClose, onSelectUser, searchQuery, setSearchQuery, s
             <input
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search users by name or email…"
+              placeholder="Search all users by name or email…"
               className="flex-1 bg-transparent text-sm text-white placeholder-white/30 outline-none"
               autoFocus
             />
@@ -90,12 +90,7 @@ function UserSearchModal({ onClose, onSelectUser, searchQuery, setSearchQuery, s
           </div>
 
           <div className="max-h-100 overflow-y-auto space-y-2">
-            {!searchQuery.trim() ? (
-              <div className="text-center py-8">
-                <UserPlus size={32} className="mx-auto mb-2 text-white/20" />
-                <p className="text-sm text-white/40">Type to search for users</p>
-              </div>
-            ) : searching ? (
+            {searching ? (
               <div className="text-center py-8">
                 <Loader2 size={32} className="mx-auto animate-spin text-white/20" />
               </div>
@@ -543,15 +538,12 @@ export default function ChatWorkspace({ variant = "support" }) {
     setConversations(prev => prev.map(c => c.id === id ? { ...c, unread_count: 0 } : c));
   };
 
-  // Search for users
+  // Super admins can choose from the protected all-users directory. This is
+  // separate from the existing support conversations shown in the inbox.
   const searchUsers = useCallback(async (query) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
-    }
     setSearchingUsers(true);
     try {
-      const results = await chatApi.searchUsers(query);
+      const results = await chatApi.contacts(query);
       setSearchResults(results || []);
     } catch (error) {
       console.error('Failed to search users:', error);
@@ -628,10 +620,10 @@ export default function ChatWorkspace({ variant = "support" }) {
               <LifeBuoy size={18} style={{ color: ACCENT }} /> Support inbox
             </h2>
             <div className="flex items-center gap-2">
-              <button onClick={() => setShowUserSearch(true)} title="Start new conversation"
+              <button onClick={() => setShowUserSearch(true)} title="Browse all users"
                 className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 transition text-xs font-bold"
                 style={{ borderColor: `${ACCENT}40`, background: `${ACCENT}1a`, color: ACCENT }}>
-                <UserPlus size={14} /> New
+                <UserPlus size={14} /> All users
               </button>
               <button onClick={() => setShowBroadcast(true)} title="Broadcast to all users"
                 className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 transition text-xs font-bold"

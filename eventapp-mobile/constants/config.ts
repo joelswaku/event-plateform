@@ -1,6 +1,8 @@
 export const Config = {
-  API_URL:   process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000/api',
-  WEB_URL:   process.env.EXPO_PUBLIC_WEB_URL ?? 'http://localhost:3000',
+  // The safe fallbacks are production hosts. Local development may still
+  // override them through EXPO_PUBLIC_* values in .env.local.
+  API_URL:   process.env.EXPO_PUBLIC_API_URL ?? 'https://api.liteevent.com/api',
+  WEB_URL:   process.env.EXPO_PUBLIC_WEB_URL ?? 'https://liteevent.com',
   APP_NAME:  'LiteEvent',
   VERSION:   '1.0.0',
 

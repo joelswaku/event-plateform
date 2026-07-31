@@ -67,7 +67,7 @@ export default function AuthProvider({ children }) {
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
         const isAuth = useAuthStore.getState().isAuthenticated;
-        if (isAuth) fetchSubscription();
+        if (isAuth) fetchSubscription({ force: true });
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);

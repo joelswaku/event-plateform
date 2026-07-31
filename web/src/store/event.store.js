@@ -9,6 +9,10 @@ import { create } from "zustand";
 import { api } from "@/lib/api";
 import { useBuilderStore } from "@/store/builder.store";
 
+// Only the most recent event switch is allowed to update the shared dashboard.
+// This prevents a slower earlier request from replacing the event the user just chose.
+let latestDashboardRequest = 0;
+
 export const useEventStore = create((set, get) => ({
   events: [],
   currentEvent: null,
@@ -204,11 +208,19 @@ deleteEvent: async (id) => {
   
   
   fetchEventDashboard: async (eventId) => {
+    const requestId = ++latestDashboardRequest;
+    const isRefreshingCurrentEvent = get().dashboard?.event?.id === eventId;
     try {
-      // Clear previous event's dashboard so stale userRole/permissions never leak
-      set({ loading: true, error: null, dashboard: null, currentEvent: null });
+      // Keep the current event visible while it is refreshed. When switching to
+      // a different event, clear it so its permissions never bleed into the new route.
+      set({
+        loading: true,
+        error: null,
+        ...(isRefreshingCurrentEvent ? {} : { dashboard: null, currentEvent: null }),
+      });
 
       const res = await api.get(`/events/${eventId}/dashboard`);
+      if (requestId !== latestDashboardRequest) return null;
 
       set({
         dashboard: res.data?.data || null,
@@ -218,6 +230,7 @@ deleteEvent: async (id) => {
 
       return res.data?.data;
     } catch (error) {
+      if (requestId !== latestDashboardRequest) return null;
       const message = error?.response?.data?.message || "Failed to fetch event";
       set({ loading: false, error: message });
       toast.error(message);

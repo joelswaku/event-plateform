@@ -8,9 +8,23 @@ import { Colors } from '@/constants/colors';
 
 const STATUS_STYLE = {
   healthy:  { dot: Colors.accent.emerald, bg: 'rgba(16,185,129,0.12)',  text: '#10b981', label: 'Healthy'  },
+  operational: { dot: Colors.accent.emerald, bg: 'rgba(16,185,129,0.12)', text: '#10b981', label: 'Operational' },
+  connected: { dot: Colors.accent.emerald, bg: 'rgba(16,185,129,0.12)', text: '#10b981', label: 'Connected' },
+  not_configured: { dot: Colors.text.muted, bg: 'rgba(255,255,255,0.07)', text: Colors.text.muted, label: 'Not configured' },
   degraded: { dot: Colors.accent.amber,   bg: 'rgba(245,158,11,0.12)',  text: '#f59e0b', label: 'Degraded' },
   down:     { dot: Colors.accent.red,     bg: 'rgba(239,68,68,0.12)',   text: '#ef4444', label: 'Down'     },
 } as const;
+
+function normalizeServices(services: unknown) {
+  if (Array.isArray(services)) return services;
+  if (services && typeof services === 'object') {
+    return Object.entries(services).map(([name, service]) => ({
+      name,
+      ...(service && typeof service === 'object' ? service : { status: 'down' }),
+    }));
+  }
+  return [];
+}
 
 function SkeletonCard() {
   return (
@@ -31,7 +45,11 @@ export default function HealthScreen() {
     React.useCallback(() => { fetchHealth(); }, [])
   );
 
-  const allHealthy = health?.services.every(s => s.status === 'healthy');
+  const services = normalizeServices(health?.services);
+  const allHealthy = services.length > 0 && services.every((service: any) =>
+    ['healthy', 'operational', 'connected', 'not_configured'].includes(service.status)
+  );
+  const metrics = health?.metrics ?? {};
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -62,8 +80,8 @@ export default function HealthScreen() {
           {loading && !health ? (
             [0, 1, 2, 3, 4].map(i => <SkeletonCard key={i} />)
           ) : (
-            health?.services.map((svc, i) => {
-              const st = STATUS_STYLE[svc.status] ?? STATUS_STYLE.degraded;
+            services.map((svc: any, i) => {
+              const st = STATUS_STYLE[svc.status as keyof typeof STATUS_STYLE] ?? STATUS_STYLE.degraded;
               return (
                 <View key={i} style={[styles.serviceCard, { borderColor: `${st.dot}30` }]}>
                   <View style={[styles.statusDot, { backgroundColor: st.dot }]} />
@@ -86,10 +104,10 @@ export default function HealthScreen() {
             <Text style={styles.sectionTitle}>Metrics</Text>
             <View style={styles.metricsGrid}>
               {[
-                { label: 'Total Users',    value: health.metrics.total_users,       icon: 'users'    as const },
-                { label: 'Total Events',   value: health.metrics.total_events,      icon: 'calendar' as const },
-                { label: 'Total Tickets',  value: health.metrics.total_tickets,     icon: 'tag'      as const },
-                { label: 'Active (24h)',   value: health.metrics.active_users_24h,  icon: 'activity' as const },
+                { label: 'Total Users',    value: metrics.total_users ?? metrics.users,                  icon: 'users'    as const },
+                { label: 'Total Events',   value: metrics.total_events ?? metrics.events,                icon: 'calendar' as const },
+                { label: 'Total Tickets',  value: metrics.total_tickets ?? metrics.tickets,              icon: 'tag'      as const },
+                { label: 'Active (24h)',   value: metrics.active_users_24h ?? metrics.activeUsers24h,    icon: 'activity' as const },
               ].filter(m => m.value !== undefined).map(m => (
                 <View key={m.label} style={styles.metricCard}>
                   <Feather name={m.icon} size={14} color={Colors.accent.gold} />

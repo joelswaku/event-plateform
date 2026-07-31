@@ -8,6 +8,7 @@ import { useRouter, usePathname } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore }     from '@/store/auth.store';
+import { useChatStore }     from '@/store/chat.store';
 import { useSADrawerStore } from '@/store/superAdminDrawer.store';
 import { Colors } from '@/constants/colors';
 
@@ -46,6 +47,8 @@ export function SuperAdminDrawer() {
   const { isOpen, close } = useSADrawerStore();
   const user   = useAuthStore(s => s.user);
   const logout = useAuthStore(s => s.logout);
+  const supportUnread = useChatStore(s => s.unreadTotal);
+  const fetchSupportUnread = useChatStore(s => s.fetchUnreadCount);
 
   const slideX  = useRef(new Animated.Value(-DRAWER_W)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -63,6 +66,15 @@ export function SuperAdminDrawer() {
       }),
     ]).start();
   }, [isOpen]);
+
+  // User support messages belong in the Super Admin inbox. Keep its badge
+  // fresh while this workspace is available.
+  useEffect(() => {
+    if (!user?.is_super_admin) return;
+    void fetchSupportUnread();
+    const interval = setInterval(() => void fetchSupportUnread(), 10_000);
+    return () => clearInterval(interval);
+  }, [user?.is_super_admin, fetchSupportUnread]);
 
   const initials = (user?.full_name ?? 'SA')
     .split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
@@ -124,6 +136,7 @@ export function SuperAdminDrawer() {
               const active = item.route === '/super-admin'
                 ? pathname === '/super-admin'
                 : pathname.startsWith(item.route);
+              const badge = item.route === '/super-admin/chat' ? supportUnread : 0;
               return (
                 <Pressable
                   key={item.route}
@@ -138,6 +151,11 @@ export function SuperAdminDrawer() {
                   <Text style={[styles.navLabel, active && styles.navLabelActive]}>
                     {item.label}
                   </Text>
+                  {badge > 0 && (
+                    <View style={styles.navBadge}>
+                      <Text style={styles.navBadgeText}>{badge > 9 ? '9+' : badge}</Text>
+                    </View>
+                  )}
                   {active && (
                     <Feather name="chevron-right" size={11} color={GOLD} style={{ opacity: 0.6 }} />
                   )}
@@ -244,6 +262,11 @@ const styles = StyleSheet.create({
   },
   navLabel:       { flex: 1, fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.48)' },
   navLabelActive: { color: GOLD, fontWeight: '700' },
+  navBadge: {
+    minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 5,
+    backgroundColor: '#ef4444', alignItems: 'center', justifyContent: 'center',
+  },
+  navBadgeText: { color: '#fff', fontSize: 9, fontWeight: '900' },
 
   // Bottom buttons
   bottomBtn: {

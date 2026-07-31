@@ -110,10 +110,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         "LiteEvent uses your camera to scan QR codes at event check-in.",
       NSContactsUsageDescription:
         "LiteEvent uses your contacts to quickly add guests to your events.",
-      NSAppTransportSecurity: {
-        NSAllowsArbitraryLoads: true,
-      },
-
       // Google OAuth reverse client ID
       CFBundleURLTypes: [
         {
@@ -172,7 +168,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       "expo-build-properties",
       {
         android: {
-          usesCleartextTraffic: true,
+          // Release builds may only communicate over HTTPS. This prevents a
+          // device on an untrusted network from intercepting API traffic.
+          usesCleartextTraffic: false,
         },
       },
     ],
@@ -185,7 +183,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
 
   extra: {
-    apiUrl: process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:5000/api",
+    apiUrl: process.env.EXPO_PUBLIC_API_URL ?? "https://api.liteevent.com/api",
     eas: {
       projectId: "d03571a3-0dee-483c-9a4f-0706b2d9e07d",
     },

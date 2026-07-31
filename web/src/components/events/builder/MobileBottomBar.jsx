@@ -62,6 +62,7 @@ export default function MobileBottomBar({
   onDeselectSection,
   activeSheet,
   onSheetChange,
+  onLockedPresetPreview,
 }) {
   const createSectionFromTemplate = useBuilderStore((s) => s.createSectionFromTemplate);
   const applyPreset               = useBuilderStore((s) => s.applyPreset);
@@ -82,7 +83,8 @@ export default function MobileBottomBar({
 
   const handlePresetSelect = async (presetKey) => {
     if (lockedTemplates && presetKey !== "CLASSIC") {
-      openUpgradeModal("templates");
+      if (onLockedPresetPreview) onLockedPresetPreview(presetKey);
+      else openUpgradeModal("templates");
       return;
     }
     const preset = PAGE_PRESETS[presetKey];
@@ -137,8 +139,8 @@ export default function MobileBottomBar({
             style={{
               bottom: 64,
               maxHeight: "72dvh",
-              background: "#16181c",
-              border: "1px solid rgba(255,255,255,0.1)",
+              background: "#1B1F29",
+              border: "1px solid rgba(255,255,255,0.13)",
               borderBottom: "none",
             }}
           >
@@ -150,7 +152,7 @@ export default function MobileBottomBar({
             {/* Sheet header */}
             <div
               className="flex shrink-0 items-center justify-between px-4 py-3"
-              style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
+              style={{ borderBottom: "1px solid rgba(255,255,255,0.11)" }}
             >
               <span className="text-sm font-semibold text-white">{sheetTitle}</span>
               <button
@@ -180,8 +182,8 @@ export default function MobileBottomBar({
                           onClick={() => handlePresetSelect(k)}
                           className="flex items-center gap-2.5 w-full text-left rounded-md px-3 py-2 transition-colors"
                           style={{
-                            background: isActive ? "rgba(108,111,238,0.12)" : "#1e2026",
-                            border: `1px solid ${isActive ? "rgba(108,111,238,0.4)" : "rgba(255,255,255,0.07)"}`,
+                            background: isActive ? "rgba(108,111,238,0.17)" : "#242936",
+                            border: `1px solid ${isActive ? "rgba(108,111,238,0.52)" : "rgba(255,255,255,0.10)"}`,
                             cursor: "pointer",
                           }}
                         >
@@ -197,12 +199,12 @@ export default function MobileBottomBar({
                           <span
                             style={{
                               flex: 1, fontSize: 12, fontWeight: 500,
-                              color: locked ? "#44495a" : isActive ? "#c4c6ff" : "#c0c4d0",
+                              color: locked ? "#B8C0CD" : isActive ? "#E0E1FF" : "#F0F2F6",
                             }}
                           >
                             {v.label}
                           </span>
-                          <span style={{ fontSize: 10, color: "#44495a" }}>
+                          <span style={{ fontSize: 10, color: "#C1C8D4" }}>
                             {v.sections.length} blocks
                           </span>
                           {locked && (
@@ -213,7 +215,7 @@ export default function MobileBottomBar({
                     })}
                   </div>
                   {lockedTemplates && (
-                    <p style={{ fontSize: 10, color: "#44495a", lineHeight: 1.5, marginTop: 2 }}>
+                    <p style={{ fontSize: 10, color: "#C6CDD8", lineHeight: 1.5, marginTop: 2 }}>
                       Classic is free. Upgrade to Starter to unlock all layouts and styles.
                     </p>
                   )}
@@ -231,7 +233,7 @@ export default function MobileBottomBar({
                         onSheetChange(null);
                       }}
                       className="flex flex-col items-center gap-2 rounded-2xl p-3 transition-transform active:scale-95"
-                      style={{ background: "#1e2026", border: "1px solid rgba(255,255,255,0.07)" }}
+                      style={{ background: "#242936", border: "1px solid rgba(255,255,255,0.10)" }}
                     >
                       <div
                         className="flex h-11 w-11 items-center justify-center rounded-xl"
@@ -239,7 +241,7 @@ export default function MobileBottomBar({
                       >
                         <Icon className="h-5 w-5" style={{ color }} />
                       </div>
-                      <span className="text-center text-[11px] font-medium leading-tight text-white/60">{label}</span>
+                      <span className="text-center text-[11px] font-medium leading-tight text-white/85">{label}</span>
                     </button>
                   ))}
                 </div>
@@ -310,7 +312,7 @@ export default function MobileBottomBar({
       {/* ── Bottom tab bar ────────────────────────────────────────── */}
       <div
         className="relative z-50 flex h-16 shrink-0 items-center justify-between px-3"
-        style={{ background: "#16181c", borderTop: "1px solid rgba(255,255,255,0.07)" }}
+        style={{ background: "#1B1F29", borderTop: "1px solid rgba(255,255,255,0.11)" }}
       >
         {/* Undo / Redo */}
         <div className="flex items-center gap-1">
@@ -319,7 +321,7 @@ export default function MobileBottomBar({
             disabled={!canUndo}
             title="Undo"
             className="flex h-10 w-10 items-center justify-center rounded-xl transition-colors active:scale-90"
-            style={{ color: canUndo ? "#8b8f9a" : "#333640" }}
+            style={{ color: canUndo ? "#C1C8D4" : "#596171" }}
           >
             <UndoIcon />
           </button>
@@ -328,7 +330,7 @@ export default function MobileBottomBar({
             disabled={!canRedo}
             title="Redo"
             className="flex h-10 w-10 items-center justify-center rounded-xl transition-colors active:scale-90"
-            style={{ color: canRedo ? "#8b8f9a" : "#333640" }}
+            style={{ color: canRedo ? "#C1C8D4" : "#596171" }}
           >
             <RedoIcon />
           </button>
@@ -347,7 +349,7 @@ export default function MobileBottomBar({
                 className="flex flex-col items-center gap-0.5 rounded-xl px-3 py-2 transition-all active:scale-90"
                 style={{
                   background: active ? "rgba(108,111,238,0.15)" : "transparent",
-                  color: disabled ? "#333640" : active ? "#6c6fee" : "#8b8f9a",
+                  color: disabled ? "#596171" : active ? "#9FA1FF" : "#C1C8D4",
                   minWidth: 48,
                   opacity: disabled ? 0.4 : 1,
                 }}
@@ -368,7 +370,7 @@ export default function MobileBottomBar({
 
 function SheetLabel({ children }) {
   return (
-    <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#555a66" }}>
+    <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#D1D7E2" }}>
       {children}
     </span>
   );

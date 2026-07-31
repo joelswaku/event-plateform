@@ -118,7 +118,7 @@ function GuestCard({
 }: {
   guest: any; onPress: () => void;
   selectMode?: boolean; selected?: boolean; onToggle?: () => void;
-  seatInfo?: { tableName: string; seatNumber: number | null } | null;
+  seatInfo?: { tableName: string; seatNumber: string | null } | null;
   onAssignSeat?: () => void;
 }) {
   const cfg      = getStatusCfg(guest);

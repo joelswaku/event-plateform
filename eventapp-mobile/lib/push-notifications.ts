@@ -32,7 +32,8 @@ const KEY_WELCOME_SENT     = 'push:welcome_sent';
 // Must be called at module level (outside components).
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList:   true,
     shouldPlaySound: true,
     shouldSetBadge:  true,
   }),
@@ -179,7 +180,7 @@ export async function cancelEventReminders(_eventId: string) {
 
 // ─── Notification tap handler (deep linking) ─────────────────────────────────
 
-type RouterType = { push: (route: string) => void; replace: (route: string) => void };
+type RouterType = { push: (route: never) => void; replace: (route: never) => void };
 
 /**
  * Derive the in-app route from notification data.
@@ -223,7 +224,7 @@ export function handleNotificationResponse(
   if (route) {
     // Small delay so navigation is ready (especially on cold start)
     setTimeout(() => {
-      try { router.push(route); } catch { /* ignore invalid routes */ }
+      try { router.push(route as never); } catch { /* ignore invalid routes */ }
     }, 300);
   }
 }

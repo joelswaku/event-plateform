@@ -9,6 +9,10 @@ export interface Donation {
   amount: number;
   currency: string;
   message: string | null;
+  donor_phone?: string | null;
+  is_anonymous?: boolean;
+  frequency?: 'one_time' | 'monthly' | string | null;
+  provider_transaction_id?: string | null;
   payment_status: 'PENDING' | 'SUCCEEDED' | 'FAILED';
   donated_at: string | null;
   created_at: string;

@@ -20,7 +20,7 @@ interface SeatingState {
 
   // Assignments
   fetchAssignments:    (eventId: string) => Promise<SeatingAssignment[]>;
-  assignGuest:         (eventId: string, payload: { guest_id: string; seating_table_id: string; seat_number?: number }) => Promise<{ success: boolean; data?: SeatingAssignment; message?: string }>;
+  assignGuest:         (eventId: string, payload: { guest_id: string; seating_table_id: string; seat_number?: string }) => Promise<{ success: boolean; data?: SeatingAssignment; message?: string }>;
   removeAssignment:    (eventId: string, assignmentId: string) => Promise<{ success: boolean; message?: string }>;
 
   // Chart

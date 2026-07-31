@@ -527,7 +527,7 @@ export async function sendMessageService({ conversationId, userId, body, attachm
 
   // enrich with sender info for the realtime payload
   const sender = await db.query(
-    `SELECT full_name, avatar_url FROM users WHERE id=$1`, [userId]
+    `SELECT full_name, avatar_url, is_super_admin FROM users WHERE id=$1`, [userId]
   );
   const message = mapMessage({
     ...ins.rows[0],
@@ -544,14 +544,41 @@ export async function sendMessageService({ conversationId, userId, body, attachm
     message,
   });
 
+  // Support threads notify the team when a user writes, and notify only the
+  // requesting user when an admin replies. This keeps support alerts in the
+  // Super Admin inbox instead of leaking into other user-facing areas.
+  const conversation = await db.query(
+    `SELECT type FROM conversations WHERE id=$1`, [conversationId]
+  );
+  const isSupportConversation = conversation.rows[0]?.type === "support";
+  const recipientProfiles = recipients.length
+    ? await db.query(
+        `SELECT id, is_super_admin FROM users WHERE id = ANY($1::uuid[])`,
+        [recipients]
+      )
+    : { rows: [] };
+  const profileById = new Map(recipientProfiles.rows.map((profile) => [profile.id, profile]));
+  const senderIsSuperAdmin = sender.rows[0]?.is_super_admin === true;
+  const notificationRecipients = isSupportConversation
+    ? recipients.filter((recipientId) => {
+        const recipientIsSuperAdmin = profileById.get(recipientId)?.is_super_admin === true;
+        return senderIsSuperAdmin ? !recipientIsSuperAdmin : recipientIsSuperAdmin;
+      })
+    : recipients;
+
   // ── push fallback for offline recipients (never blocks) ──
   const { createNotificationService } = await import('./notifications.service.js');
-  for (const rid of recipients) {
+  for (const rid of notificationRecipients) {
+    const recipientIsSuperAdmin = profileById.get(rid)?.is_super_admin === true;
+    const link = isSupportConversation
+      ? (recipientIsSuperAdmin ? "/super-admin/chat" : "/support")
+      : `/chat/${conversationId}`;
+
     // Send push notification (mobile)
     sendPushToUser(rid, {
       title: sender.rows[0]?.full_name || "New message",
       body: preview || "Sent you a message",
-      data: { type: "chat", conversation_id: conversationId },
+      data: { type: "chat", conversation_id: conversationId, support: isSupportConversation },
     }).catch(() => {});
 
     // Create in-app notification (web)
@@ -560,8 +587,8 @@ export async function sendMessageService({ conversationId, userId, body, attachm
       type: "chat",
       title: sender.rows[0]?.full_name || "New message",
       body: preview || "Sent you a message",
-      link: `/chat/${conversationId}`,
-      metadata: { conversation_id: conversationId },
+      link,
+      metadata: { conversation_id: conversationId, support: isSupportConversation },
     }).catch(() => {});
   }
 

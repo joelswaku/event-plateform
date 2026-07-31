@@ -33,6 +33,14 @@ const DEFAULT_FEATURES = {
   planner:             false,
 };
 
+// Several dashboard components request the subscription at the same time.
+// Coalesce those requests and briefly reuse the fresh result so route changes
+// do not repeatedly reload plan data and trigger unrelated page renders.
+const SUBSCRIPTION_CACHE_MS = 15_000;
+let subscriptionRequest = null;
+let subscriptionUpdatedAt = 0;
+let subscriptionEpoch = 0;
+
 export const useSubscriptionStore = create(
   persist(
     (set, get) => ({
@@ -150,54 +158,75 @@ export const useSubscriptionStore = create(
       },
 
       // ── Fetch ─────────────────────────────────────────────────────────────────
-      fetchSubscription: async () => {
-        try {
-          set({ isLoading: true });
-          get().fetchPrices();
-          const res  = await api.get("/subscription/status");
-          const data = res.data?.data ?? {};
-          const dbSubscribed = data.is_subscribed ?? false;
+      fetchSubscription: ({ force = false } = {}) => {
+        if (subscriptionRequest) return subscriptionRequest;
 
-          if (dbSubscribed) {
+        const hasFreshSubscription = get().subscriptionLoaded &&
+          Date.now() - subscriptionUpdatedAt < SUBSCRIPTION_CACHE_MS;
+        if (!force && hasFreshSubscription) return Promise.resolve();
+
+        const requestEpoch = subscriptionEpoch;
+        let request;
+        request = (async () => {
+          try {
+            set({ isLoading: true });
+            get().fetchPrices();
+            const res  = await api.get("/subscription/status");
+            const data = res.data?.data ?? {};
+            const dbSubscribed = data.is_subscribed ?? false;
+
+            // A logout or account switch happened while this request was in
+            // flight. Its response is no longer allowed to restore old access.
+            if (requestEpoch !== subscriptionEpoch) return;
+
+            if (dbSubscribed) {
+              set({
+                plan:               normalizePlan(data.plan),
+                isSubscribed:       true,
+                subscriptionStatus: data.subscription_status ?? "active",
+                currentPeriodEnd:   data.current_period_end  ?? null,
+                usage:              data.usage               ?? { events: 0 },
+                limits:             data.limits              ?? DEFAULT_LIMITS,
+                features:           data.features            ?? DEFAULT_FEATURES,
+                isLoading: false,
+                subscriptionLoaded: true,
+              });
+            } else {
+              set({
+                plan:               "free",
+                isSubscribed:       false,
+                subscriptionStatus: data.subscription_status ?? null,
+                currentPeriodEnd:   data.current_period_end  ?? null,
+                usage:              data.usage               ?? { events: 0 },
+                limits:             data.limits              ?? DEFAULT_LIMITS,
+                features:           data.features            ?? DEFAULT_FEATURES,
+                isLoading: false,
+                subscriptionLoaded: true,
+              });
+            }
+            subscriptionUpdatedAt = Date.now();
+          } catch {
+            if (requestEpoch !== subscriptionEpoch) return;
+            // A failed entitlement check must never leave stale paid access in
+            // the client. The backend remains the authoritative enforcement.
             set({
-              plan:               normalizePlan(data.plan),
-              isSubscribed:       true,
-              subscriptionStatus: data.subscription_status ?? "active",
-              currentPeriodEnd:   data.current_period_end  ?? null,
-              usage:              data.usage               ?? { events: 0 },
-              limits:             data.limits              ?? DEFAULT_LIMITS,
-              features:           data.features            ?? DEFAULT_FEATURES,
+              plan: "free",
+              isSubscribed: false,
+              subscriptionStatus: null,
+              currentPeriodEnd: null,
+              usage: { events: 0 },
+              limits: DEFAULT_LIMITS,
+              features: DEFAULT_FEATURES,
               isLoading: false,
               subscriptionLoaded: true,
             });
-          } else {
-            set({
-              plan:               "free",
-              isSubscribed:       false,
-              subscriptionStatus: data.subscription_status ?? null,
-              currentPeriodEnd:   data.current_period_end  ?? null,
-              usage:              data.usage               ?? { events: 0 },
-              limits:             data.limits              ?? DEFAULT_LIMITS,
-              features:           data.features            ?? DEFAULT_FEATURES,
-              isLoading: false,
-              subscriptionLoaded: true,
-            });
+          } finally {
+            if (subscriptionRequest === request) subscriptionRequest = null;
           }
-        } catch {
-          // A failed entitlement check must never leave stale paid access in
-          // the client. The backend remains the authoritative enforcement.
-          set({
-            plan: "free",
-            isSubscribed: false,
-            subscriptionStatus: null,
-            currentPeriodEnd: null,
-            usage: { events: 0 },
-            limits: DEFAULT_LIMITS,
-            features: DEFAULT_FEATURES,
-            isLoading: false,
-            subscriptionLoaded: true,
-          });
-        }
+        })();
+
+        subscriptionRequest = request;
+        return request;
       },
 
       /**
@@ -206,7 +235,7 @@ export const useSubscriptionStore = create(
        * producing a 403 during project generation.
        */
       requestPlannerAccess: async () => {
-        await get().fetchSubscription();
+        await get().fetchSubscription({ force: true });
         const { isSubscribed, features, openBillingModal } = get();
         const allowed = Boolean(isSubscribed && features?.planner);
         if (!allowed) openBillingModal();
@@ -239,7 +268,7 @@ export const useSubscriptionStore = create(
         try {
           const res = await api.get(`/subscription/verify-session?session_id=${encodeURIComponent(sessionId)}`);
           if (!res.data?.data?.is_subscribed) return false;
-          await get().fetchSubscription();
+          await get().fetchSubscription({ force: true });
           return true;
         } catch {
           return false;
@@ -265,7 +294,7 @@ export const useSubscriptionStore = create(
               currentPeriodEnd: data.current_period_end ?? null,
             });
             // Re-fetch to get updated limits/features
-            await get().fetchSubscription();
+            await get().fetchSubscription({ force: true });
           }
 
           set({ isLoading: false });
@@ -291,6 +320,9 @@ export const useSubscriptionStore = create(
       },
 
       setUnsubscribed: () => {
+        subscriptionEpoch += 1;
+        subscriptionUpdatedAt = 0;
+        subscriptionRequest = null;
         set({ plan: "free", isSubscribed: false, subscriptionStatus: "canceled", features: DEFAULT_FEATURES, limits: DEFAULT_LIMITS, subscriptionLoaded: false });
       },
     }),
