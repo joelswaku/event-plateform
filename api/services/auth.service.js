@@ -648,6 +648,15 @@ export async function loginUser({
 
     if (!valid) throw new Error("Invalid credentials");
 
+    // Check if email is verified
+    if (!user.email_verified) {
+      const error = new Error("Please verify your email before logging in. Check your inbox for the verification code.");
+      error.statusCode = 403;
+      error.requiresVerification = true;
+      error.verificationToken = user.verification_token;
+      throw error;
+    }
+
     const tokens = generateTokens({
       userId:       user.id,
       organizationId: user.default_organization_id,

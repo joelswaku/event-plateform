@@ -44,6 +44,16 @@ export async function login(req, res) {
   } catch (error) {
     const status = error.statusCode || 401;
 
+    // Handle email verification required
+    if (error.requiresVerification) {
+      return res.status(status).json({
+        success: false,
+        requiresVerification: true,
+        verificationToken: error.verificationToken,
+        message: error.message || "Email verification required",
+      });
+    }
+
     return res.status(status).json({
       success: false,
       message: error.message || "Login failed",
