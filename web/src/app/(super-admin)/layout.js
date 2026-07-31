@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import CommandPalette from "@/components/super-admin/CommandPalette";
 import { useSuperAdminStore } from "@/store/superAdmin.store";
+import { useChatStore } from "@/store/chat.store";
 
 const NAV = [
   { href: "/super-admin",               label: "Dashboard",     Icon: LayoutDashboard },
@@ -43,6 +44,8 @@ export default function SuperAdminLayout({ children }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
   const { moderation, fetchModeration } = useSuperAdminStore();
+  const supportUnread = useChatStore((s) => s.unreadTotal);
+  const fetchSupportUnread = useChatStore((s) => s.fetchUnreadCount);
   const alertCount = (moderation?.suspiciousTickets?.length ?? 0) + (moderation?.suspended?.length ?? 0);
 
   useEffect(() => {
@@ -61,6 +64,14 @@ export default function SuperAdminLayout({ children }) {
   }, []);
 
   useEffect(() => { fetchModeration(); }, []);
+
+  // Support messages are surfaced only in the Super Admin workspace.
+  useEffect(() => {
+    if (!user?.is_super_admin) return;
+    void fetchSupportUnread();
+    const interval = setInterval(() => void fetchSupportUnread(), 10_000);
+    return () => clearInterval(interval);
+  }, [user?.is_super_admin, fetchSupportUnread]);
 
   useEffect(() => {
     if (!profileOpen) return;
@@ -153,6 +164,12 @@ export default function SuperAdminLayout({ children }) {
                   <span className="rounded-full px-1.5 py-0.5 text-[8px] font-black"
                     style={{ background: "#ef4444", color: "#fff", minWidth: 16, textAlign: "center", lineHeight: "1.4" }}>
                     {alertCount > 9 ? "9+" : alertCount}
+                  </span>
+                )}
+                {href === "/super-admin/chat" && supportUnread > 0 && (
+                  <span className="rounded-full px-1.5 py-0.5 text-[8px] font-black"
+                    style={{ background: "#ef4444", color: "#fff", minWidth: 16, textAlign: "center", lineHeight: "1.4" }}>
+                    {supportUnread > 9 ? "9+" : supportUnread}
                   </span>
                 )}
                 {active && <ChevronRight size={11} className="opacity-60" />}

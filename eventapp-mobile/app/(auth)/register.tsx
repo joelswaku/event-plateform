@@ -11,7 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { notify } from '@/lib/toast';
+import { notify, toast } from '@/lib/toast';
 import { scheduleWelcomeNotification, registerPushToken } from '@/lib/push-notifications';
 import { useAuthStore } from '@/store/auth.store';
 import { Input }  from '@/components/ui/Input';
@@ -44,18 +44,14 @@ export default function RegisterScreen() {
 
   const onSubmit = async (data: Form) => {
     setTermsTouched(true);
-    if (!termsChecked) return notify.warning?.('Terms required', 'Please accept the terms to continue.');
+    if (!termsChecked) return toast.warning('Terms required', 'Please accept the terms to continue.');
     const result = await register({ full_name: data.full_name, email: data.email, password: data.password });
-
-    console.log('Mobile Register Result:', JSON.stringify(result, null, 2)); // DEBUG
 
     if (result.success) {
       // Check if email verification is required
       if (result.requiresVerification && result.verificationToken) {
-        console.log('Redirecting to verify-email with token:', result.verificationToken); // DEBUG
         router.replace(`/(auth)/verify-email?token=${result.verificationToken}`);
       } else {
-        console.log('No verification required, redirecting to login'); // DEBUG
         notify.registerSuccess();
         // Request permission + schedule welcome notification in the background
         registerPushToken().then(() => scheduleWelcomeNotification());

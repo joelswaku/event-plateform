@@ -115,7 +115,7 @@ function TemplateCard({ template }: { template: typeof TEMPLATES[0] }) {
         <Image source={{ uri: template.image }} style={styles.templateImage} />
         {!isFree && (
           <View style={styles.premiumBadge}>
-            <Feather name="crown" size={12} color="#fff" />
+            <Feather name="award" size={12} color="#fff" />
             <Text style={styles.premiumText}>PRO</Text>
           </View>
         )}
@@ -154,7 +154,7 @@ function TemplateCard({ template }: { template: typeof TEMPLATES[0] }) {
               !isFree && { backgroundColor: Colors.accent.indigo },
             ]}
           >
-            <Feather name={isFree ? 'check' : 'crown'} size={16} color="#fff" />
+            <Feather name={isFree ? 'check' : 'award'} size={16} color="#fff" />
             <Text style={styles.useBtnText}>{isFree ? 'Use Free' : 'Use Template'}</Text>
           </Pressable>
         </View>
@@ -259,7 +259,7 @@ export default function TemplatesScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View style={styles.premiumSectionBadge}>
-                <Feather name="crown" size={14} color="#fff" />
+                <Feather name="award" size={14} color="#fff" />
                 <Text style={styles.premiumSectionText}>PREMIUM</Text>
               </View>
               <Text style={styles.sectionTitle}>Premium Templates</Text>

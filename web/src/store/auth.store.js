@@ -5,6 +5,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { api } from "@/lib/api";
 import { authSync } from "@/lib/auth-sync";
 import { sessionMonitor } from "@/lib/session-monitor";
+import { useSubscriptionStore } from "@/store/subscription.store";
 
 export const useAuthStore = create(
   persist(
@@ -321,6 +322,10 @@ export const useAuthStore = create(
             isLoading: false,
             error: null,
           });
+          // Subscription state is persisted separately. Clear it with the
+          // account session so its short request cache and plan never leak
+          // into the next login.
+          useSubscriptionStore.getState().setUnsubscribed();
 
           // Redirect to homepage after logout
           if (typeof window !== "undefined") {

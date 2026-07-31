@@ -231,7 +231,7 @@ function TableDetailSheet({
   const seatMap = useMemo(() => {
     const map: Record<number, { assignment: SeatingAssignment; guest?: Guest }> = {};
     assigns.forEach((a, idx) => {
-      const si = a.seat_number ? parseInt(a.seat_number, 10) - 1 : idx;
+      const si = a.seat_number ? parseInt(String(a.seat_number), 10) - 1 : idx;
       map[si] = { assignment: a, guest: guests.find(g => g.id === a.guest_id) };
     });
     return map;
@@ -1057,7 +1057,6 @@ function AutoSheet({
           <Pressable
             onPress={() => { onClose(); onAddTable(); }}
             style={au.emptyBtn}
-            activeOpacity={0.85}
           >
             <Feather name="plus" size={14} color="#fff" />
             <Text style={au.emptyBtnTxt}>Create Your First Table</Text>

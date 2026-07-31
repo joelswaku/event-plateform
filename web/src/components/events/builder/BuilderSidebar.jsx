@@ -34,7 +34,7 @@ const BLOCK_ITEMS = [
 ];
 
 export default function BuilderSidebar({
-  eventId, sections, isOpen, onToggle, selectedSectionId, onSectionSelect,
+  eventId, sections, isOpen, onToggle, selectedSectionId, onSectionSelect, onLockedPresetPreview,
 }) {
   const createSectionFromTemplate = useBuilderStore((s) => s.createSectionFromTemplate);
   const applyPreset               = useBuilderStore((s) => s.applyPreset);
@@ -52,7 +52,8 @@ export default function BuilderSidebar({
 
   const handlePresetSelect = async (presetKey) => {
     if (lockedTemplates && presetKey !== "CLASSIC") {
-      openUpgradeModal("templates");
+      if (onLockedPresetPreview) onLockedPresetPreview(presetKey);
+      else openUpgradeModal("templates");
       return;
     }
     const preset = PAGE_PRESETS[presetKey];
@@ -74,20 +75,20 @@ export default function BuilderSidebar({
       className="flex flex-col border-r shrink-0 transition-all duration-300"
       style={{
         width: isOpen ? 272 : 56,
-        background: "#16181c",
-        borderColor: "rgba(255,255,255,0.07)",
+        background: "#1B1F29",
+        borderColor: "rgba(255,255,255,0.10)",
       }}
     >
       {/* ── Header ─────────────────────────────────────────────────── */}
       <div
         className="flex h-14 items-center justify-between px-3 shrink-0"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.10)" }}
       >
         <div className="flex items-center gap-2 overflow-hidden">
           <LogoMark />
           <span
             className="text-[13px] font-semibold whitespace-nowrap overflow-hidden transition-all duration-300"
-            style={{ opacity: isOpen ? 1 : 0, maxWidth: isOpen ? 140 : 0, color: "#e4e6eb" }}
+            style={{ opacity: isOpen ? 1 : 0, maxWidth: isOpen ? 140 : 0, color: "#fff" }}
           >
             Page Builder
           </span>
@@ -95,7 +96,7 @@ export default function BuilderSidebar({
         <button
           onClick={onToggle}
           className={`${btn} h-7 w-7 shrink-0`}
-          style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.1)", color: "#8b8f9a" }}
+          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "#D1D7E2" }}
         >
           {isOpen ? <ChevronLeftIcon className="h-3.5 w-3.5" /> : <ChevronRightIcon className="h-3.5 w-3.5" />}
         </button>
@@ -110,7 +111,7 @@ export default function BuilderSidebar({
               title={label}
               onClick={() => createSectionFromTemplate(eventId, type)}
               className={`${btn} h-9 w-9`}
-              style={{ color: "#b8bdc9", borderRadius: 8 }}
+              style={{ color: "#D1D7E2", borderRadius: 8 }}
             >
               <Icon className="h-4 w-4" />
             </button>
@@ -136,8 +137,8 @@ export default function BuilderSidebar({
                     onClick={() => handlePresetSelect(k)}
                     className="flex items-center gap-2.5 w-full text-left rounded-md px-3 py-2 transition-colors"
                     style={{
-                      background: isActive ? "rgba(108,111,238,0.12)" : "#1e2026",
-                      border: `1px solid ${isActive ? "rgba(108,111,238,0.4)" : "rgba(255,255,255,0.07)"}`,
+                      background: isActive ? "rgba(108,111,238,0.17)" : "#242936",
+                      border: `1px solid ${isActive ? "rgba(108,111,238,0.52)" : "rgba(255,255,255,0.10)"}`,
                       cursor: "pointer",
                     }}
                   >
@@ -153,12 +154,12 @@ export default function BuilderSidebar({
                     <span
                       style={{
                         flex: 1, fontSize: 12, fontWeight: 500,
-                        color: locked ? "#7a7f8e" : isActive ? "#c4c6ff" : "#d4d7df",
+                        color: locked ? "#B8C0CD" : isActive ? "#E0E1FF" : "#F0F2F6",
                       }}
                     >
                       {v.label}
                     </span>
-                    <span style={{ fontSize: 10, color: "#8b909e" }}>
+                    <span style={{ fontSize: 10, color: "#C1C8D4" }}>
                       {v.sections.length} blocks
                     </span>
                     {locked && (
@@ -169,7 +170,7 @@ export default function BuilderSidebar({
               })}
             </div>
             {lockedTemplates && (
-              <p style={{ fontSize: 10, color: "#9096a3", lineHeight: 1.5, marginTop: 2 }}>
+              <p style={{ fontSize: 10, color: "#C6CDD8", lineHeight: 1.5, marginTop: 2 }}>
                 Classic is free. Upgrade to Starter to unlock all layouts and styles.
               </p>
             )}
@@ -185,9 +186,9 @@ export default function BuilderSidebar({
                   onClick={() => createSectionFromTemplate(eventId, type)}
                   className={`${btn} flex-col gap-1.5 py-2.5`}
                   style={{
-                    background: "#1e2026",
-                    border: "1px solid rgba(255,255,255,0.07)",
-                    color: "#b8bdc9",
+                    background: "#242936",
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    color: "#E2E6ED",
                     borderRadius: 7,
                     fontSize: 10,
                   }}
@@ -199,7 +200,7 @@ export default function BuilderSidebar({
             </div>
           </div>
 
-          <div style={{ height: 1, background: "rgba(255,255,255,0.07)" }} />
+          <div style={{ height: 1, background: "rgba(255,255,255,0.11)" }} />
 
           {/* ── Layers ──────────────────────────────────────────────── */}
           <div className="flex flex-col gap-2">
@@ -219,7 +220,7 @@ export default function BuilderSidebar({
 
 function SidebarLabel({ children }) {
   return (
-    <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#9ca3b4" }}>
+    <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#D1D7E2" }}>
       {children}
     </span>
   );

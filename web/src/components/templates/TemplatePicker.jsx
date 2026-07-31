@@ -14,6 +14,7 @@ import {
 import { STYLE_META } from "@/lib/styleThemes";
 import { useSubscriptionStore } from "@/store/subscription.store";
 import { useBuilderStore } from "@/store/builder.store";
+import { useEventStore } from "@/store/event.store";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 const ALL_TEMPLATES = Array.from(
@@ -381,56 +382,85 @@ function SectionWireframe({ type, index, bg, accent, heroImg, isHero }) {
   );
 }
 
-// ── Phone mockup wireframe ─────────────────────────────────────────────────────
+// ── Event page preview ─────────────────────────────────────────────────────────
 function PhonePreview({ template, accent, bg, heroImg }) {
-  const sections = template.sections ?? [];
+  const sections = (template.sections ?? []).filter((section) => section.type !== "HERO");
+  const previewSections = sections.slice(0, 3);
+  const eventType = formatEventTypeName(template.eventTypes?.[0]);
+  const headingFont = template.design?.fonts?.heading ?? "Georgia, serif";
 
   return (
     <div
       style={{
-        width: 260,
-        flexShrink: 0,
-        background: "#1a1b1f",
-        borderRadius: 32,
-        padding: "14px 12px",
-        boxShadow: "0 40px 80px rgba(0,0,0,0.8), inset 0 0 0 1px rgba(255,255,255,0.08)",
-        border: "4px solid rgba(255,255,255,0.15)",
+        width: "100%",
+        maxWidth: 410,
+        overflow: "hidden",
+        background: bg,
+        borderRadius: 18,
+        boxShadow: "0 28px 70px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.16)",
+        border: "1px solid rgba(255,255,255,0.2)",
       }}
     >
-      {/* Notch */}
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
-        <div style={{ width: 60, height: 7, borderRadius: 99, background: "rgba(255,255,255,0.15)" }} />
-      </div>
-
-      {/* Screen */}
+      {/* Hero — uses the actual image assigned to this template */}
       <div
         style={{
-          borderRadius: 18,
+          height: 218,
+          position: "relative",
           overflow: "hidden",
-          background: bg,
-          boxShadow: "0 0 0 2px rgba(0,0,0,0.3)",
-          maxHeight: 560,
-          overflowY: "auto",
-          scrollbarWidth: "none",
+          background: heroImg ? "#171717" : `linear-gradient(135deg, ${accent}, ${accent}b8)`,
         }}
-        className="hide-scrollbar"
       >
-        {sections.map((s, i) => (
-          <SectionWireframe
-            key={i}
-            type={s.type}
-            index={i}
-            bg={bg}
-            accent={accent}
-            heroImg={heroImg}
-            isHero={s.type === "HERO"}
+        {heroImg && (
+          <img
+            src={heroImg}
+            alt=""
+            aria-hidden="true"
+            crossOrigin="anonymous"
+            referrerPolicy="no-referrer"
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
           />
-        ))}
+        )}
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(4,7,13,0.2) 0%, rgba(4,7,13,0.15) 38%, rgba(4,7,13,0.82) 100%)" }} />
+
+        <div style={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px" }}>
+          <span style={{ fontSize: 8, fontWeight: 800, color: "#fff", letterSpacing: "0.13em", textTransform: "uppercase" }}>Liteevent</span>
+          <span style={{ fontSize: 7, fontWeight: 700, color: "rgba(255,255,255,0.84)", letterSpacing: "0.08em", textTransform: "uppercase" }}>Details&nbsp;&nbsp; RSVP</span>
+        </div>
+
+        <div style={{ position: "absolute", zIndex: 1, right: 20, bottom: 20, left: 20 }}>
+          <p style={{ fontSize: 8, fontWeight: 800, color: "rgba(255,255,255,0.8)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 7 }}>{eventType}</p>
+          <h3 style={{ fontFamily: headingFont, fontSize: 27, fontWeight: 700, color: "#fff", letterSpacing: "-0.03em", lineHeight: 1.03, marginBottom: 7 }}>
+            Your unforgettable moment
+          </h3>
+          <p style={{ fontSize: 9, fontWeight: 600, color: "rgba(255,255,255,0.84)" }}>A beautifully designed event experience</p>
+        </div>
       </div>
 
-      {/* Home bar */}
-      <div style={{ display: "flex", justifyContent: "center", marginTop: 8 }}>
-        <div style={{ width: 48, height: 4, borderRadius: 99, background: "rgba(255,255,255,0.12)" }} />
+      {/* About and template sections */}
+      <div style={{ padding: "22px 20px 20px", background: bg }}>
+        <p style={{ fontSize: 8, fontWeight: 800, color: accent, letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 7 }}>About the event</p>
+        <h4 style={{ fontFamily: headingFont, fontSize: 19, fontWeight: 700, color: template.design?.colors?.text ?? "#1a1a1a", letterSpacing: "-0.025em", lineHeight: 1.15, marginBottom: 8 }}>
+          A complete page, ready for every detail.
+        </h4>
+        <p style={{ fontSize: 10, lineHeight: 1.65, color: "rgba(0,0,0,0.56)", marginBottom: 18 }}>
+          Share the story, guide your guests, and turn invitations into confirmations.
+        </p>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+          {previewSections.map((section) => {
+            const shape = SECTION_SHAPES[section.type] ?? { label: section.type };
+            return (
+              <div key={section.type} style={{ minHeight: 62, padding: "10px 7px", borderRadius: 10, background: `${accent}10`, border: `1px solid ${accent}20` }}>
+                <div style={{ width: 18, height: 3, borderRadius: 3, background: accent, opacity: 0.8, marginBottom: 9 }} />
+                <p style={{ fontSize: 8, fontWeight: 800, color: template.design?.colors?.text ?? "#1a1a1a", lineHeight: 1.25 }}>{shape.label}</p>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "center", marginTop: 18 }}>
+          <span style={{ padding: "8px 18px", borderRadius: 8, background: accent, color: "#fff", fontSize: 9, fontWeight: 800, boxShadow: `0 6px 16px ${accent}45` }}>RSVP NOW</span>
+        </div>
       </div>
     </div>
   );
@@ -471,16 +501,10 @@ function PreviewModal({ template, userPlan, onClose, onUse, onUpgrade }) {
   const heroBg     = meta.preview.hero;
   const pageBg     = meta.preview.bg;
   const heroImg    = template.assets?.hero_image;
+  const coverImg   = template.assets?.cover_image ?? heroImg;
   const accessible = canAccessTemplate(template, userPlan);
-  const colors     = template.design?.colors ?? {};
-
-  // Determine dominant colors for display
-  const paletteColors = [
-    { label: "Background", value: colors.bg     ?? pageBg },
-    { label: "Accent",     value: colors.accent  ?? accent },
-    { label: "Dark",       value: colors.dark    ?? heroBg },
-    { label: "Text",       value: colors.text    ?? "#1a1a1a" },
-  ];
+  const isPremium  = template.style !== FREE_STYLE;
+  const premiumTemplateCount = ALL_TEMPLATES.filter((item) => item.style !== FREE_STYLE).length;
 
   return (
     <motion.div
@@ -501,11 +525,11 @@ function PreviewModal({ template, userPlan, onClose, onUse, onUpgrade }) {
         transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
         className="relative w-full overflow-hidden rounded-3xl"
         style={{
-          maxWidth: 820,
-          maxHeight: "90vh",
-          background: "#111215",
+          maxWidth: 1060,
+          maxHeight: "92vh",
+          background: "#0B0D14",
           border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow: `0 48px 120px rgba(0,0,0,0.95), 0 0 0 1px ${accent}18`,
+          boxShadow: `0 48px 120px rgba(0,0,0,0.95), 0 0 0 1px ${accent}22`,
           display: "flex",
           flexDirection: "column",
         }}
@@ -521,53 +545,105 @@ function PreviewModal({ template, userPlan, onClose, onUse, onUpgrade }) {
         </button>
 
         {/* ── Top accent bar */}
-        <div style={{ height: 3, background: `linear-gradient(90deg, ${accent}00, ${accent}, ${accent}00)`, flexShrink: 0 }} />
+        <div style={{ height: 3, background: `linear-gradient(90deg, transparent, ${accent}, transparent)`, flexShrink: 0 }} />
 
         {/* ── Body */}
-        <div className="flex flex-col sm:flex-row flex-1 min-h-0 overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
 
-          {/* ── Phone preview */}
+          {/* ── Visual template showcase ── */}
           <div
-            className="flex w-full shrink-0 flex-col items-center justify-center border-b p-5 sm:w-[320px] sm:border-b-0 sm:border-r sm:p-8"
+            className="relative flex min-h-[390px] w-full shrink-0 flex-col overflow-hidden border-b lg:min-h-0 lg:w-[47%] lg:border-b-0 lg:border-r"
             style={{
-              background: `radial-gradient(ellipse at center, ${accent}10 0%, transparent 70%)`,
+              background: heroBg,
               borderColor: "rgba(255,255,255,0.05)",
             }}
           >
-            {/* Preview header */}
-            <div className="mb-4 text-center">
-              <p style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: accent, marginBottom: 4 }}>
-                Live Preview
-              </p>
-              <p style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>
-                How your event will look
-              </p>
+            {coverImg && (
+              <img
+                src={coverImg}
+                alt=""
+                aria-hidden="true"
+                crossOrigin="anonymous"
+                referrerPolicy="no-referrer"
+                className="absolute inset-0 h-full w-full scale-110 object-cover opacity-30 blur-xl"
+              />
+            )}
+            <div className="absolute inset-0" style={{ background: `linear-gradient(155deg, ${heroBg}E8 0%, #090A10D9 58%, #090A10 100%)` }} />
+            <div className="absolute inset-0" style={{ background: `radial-gradient(circle at 50% 38%, ${accent}30, transparent 48%)` }} />
+
+            <div className="relative z-10 flex items-center justify-between px-5 pt-5 sm:px-7 sm:pt-7">
+              <div
+                className="flex items-center gap-2 rounded-full px-3 py-1.5"
+                style={{ background: "rgba(8,10,16,0.52)", border: "1px solid rgba(255,255,255,0.13)", backdropFilter: "blur(12px)" }}
+              >
+                <Eye size={13} color={accent} />
+                <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.82)" }}>
+                  Template preview
+                </span>
+              </div>
+              {isPremium && (
+                <div
+                  className="flex items-center gap-1.5 rounded-full px-3 py-1.5"
+                  style={{ background: "rgba(245,158,11,0.14)", border: "1px solid rgba(245,158,11,0.32)", backdropFilter: "blur(12px)" }}
+                >
+                  <Lock size={11} color="#FBBF24" />
+                  <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#FCD34D" }}>Premium</span>
+                </div>
+              )}
             </div>
 
-            {/* Desktop: full-size phone */}
-            <div className="hidden sm:block">
+            <div className="relative z-10 flex flex-1 items-center justify-center overflow-hidden px-5 py-3 sm:px-7">
               <PhonePreview template={template} accent={accent} bg={pageBg} heroImg={heroImg} />
             </div>
-            {/* Mobile: scaled-down phone */}
-            <div className="sm:hidden" style={{ transform: "scale(0.72)", transformOrigin: "top center" }}>
-              <PhonePreview template={template} accent={accent} bg={pageBg} heroImg={heroImg} />
+
+            {!accessible && (
+              <motion.button
+                whileTap={{ scale: 0.96 }}
+                onClick={onUpgrade}
+                className="absolute left-1/2 top-1/2 z-20 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center gap-2 whitespace-nowrap rounded-full px-5 py-3 lg:hidden"
+                style={{
+                  background: "linear-gradient(135deg,#F59E0B,#F97316)",
+                  color: "#1c1407",
+                  fontSize: 12,
+                  fontWeight: 900,
+                  boxShadow: "0 12px 32px rgba(0,0,0,0.42), 0 0 0 4px rgba(245,158,11,0.18)",
+                }}
+              >
+                <Crown size={15} /> Unlock this template
+              </motion.button>
+            )}
+
+            <div
+              className="relative z-10 mx-5 mb-5 grid grid-cols-3 overflow-hidden rounded-2xl sm:mx-7 sm:mb-7"
+              style={{ background: "rgba(8,10,16,0.64)", border: "1px solid rgba(255,255,255,0.12)", backdropFilter: "blur(14px)" }}
+            >
+              {[
+                { label: "Responsive", value: "Mobile ready" },
+                { label: "Built in", value: `${template.sections.length} sections` },
+                { label: "Style", value: meta.label },
+              ].map(({ label, value }, index) => (
+                <div key={label} style={{ padding: "10px 8px", textAlign: "center", borderLeft: index ? "1px solid rgba(255,255,255,0.09)" : "none" }}>
+                  <p style={{ fontSize: 8, fontWeight: 700, color: "rgba(255,255,255,0.38)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: 3 }}>{label}</p>
+                  <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.9)" }}>{value}</p>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* ── Info */}
+          {/* ── Template details and access ── */}
           <div
-            className="flex-1 overflow-y-auto"
-            style={{ padding: "20px 20px 20px", display: "flex", flexDirection: "column", gap: 16 }}
+            className="flex-1"
+            style={{ padding: "28px clamp(20px, 4vw, 42px) 26px", display: "flex", flexDirection: "column", gap: 22 }}
           >
 
             {/* Header */}
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                 {/* Style badge */}
                 <span
                   style={{
-                    fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em",
-                    padding: "2px 8px", borderRadius: 99,
+                    fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.14em",
+                    padding: "5px 9px", borderRadius: 99,
                     background: `${accent}18`, border: `1px solid ${accent}30`, color: accent,
                   }}
                 >
@@ -575,77 +651,61 @@ function PreviewModal({ template, userPlan, onClose, onUse, onUpgrade }) {
                 </span>
                 {/* Tier badge */}
                 {template.style === FREE_STYLE ? (
-                  <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 99, background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", color: "#10b981" }}>
-                    Free
+                  <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", padding: "5px 9px", borderRadius: 99, background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", color: "#34D399" }}>
+                    Included
                   </span>
                 ) : (
-                  <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", padding: "2px 8px", borderRadius: 99, background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.25)", color: "#f59e0b" }}>
-                    ✦ Premium
+                  <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", padding: "5px 9px", borderRadius: 99, background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.25)", color: "#FBBF24" }}>
+                    Premium collection
                   </span>
                 )}
               </div>
 
-              <h2 style={{ fontSize: 22, fontWeight: 900, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.2, marginBottom: 6 }}>
+              <h2 style={{ fontSize: 30, fontWeight: 900, color: "#fff", letterSpacing: "-0.04em", lineHeight: 1.08, marginBottom: 10 }}>
                 {template.name}
               </h2>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.6 }}>
+              <p style={{ fontSize: 14, color: "rgba(255,255,255,0.52)", lineHeight: 1.7, maxWidth: 420 }}>
                 {template.description}
               </p>
             </div>
 
-            {/* Color palette */}
-            <div>
-              <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", color: "rgba(255,255,255,0.3)", marginBottom: 8 }}>
-                Color Palette
-              </p>
-              <div style={{ display: "flex", gap: 8 }}>
-                {paletteColors.map(({ label, value }) => (
-                  <div key={label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                    <div
-                      style={{
-                        width: 32, height: 32, borderRadius: 8,
-                        background: value,
-                        border: "2px solid rgba(255,255,255,0.1)",
-                        boxShadow: `0 4px 12px ${value}40`,
-                      }}
-                    />
-                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontWeight: 600 }}>{label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
             {/* Sections list */}
             <div>
-              <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", color: "rgba(255,255,255,0.3)", marginBottom: 8 }}>
-                {template.sections.length} Sections Included
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
+                <p style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: "rgba(255,255,255,0.35)" }}>
+                  Designed to launch faster
+                </p>
+                <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 800, color: accent }}>{template.sections.length} sections</span>
+              </div>
+              <p style={{ fontSize: 12, lineHeight: 1.55, color: "rgba(255,255,255,0.42)", marginBottom: 10 }}>
+                Start with a complete event page, then make every detail your own.
               </p>
               <SectionPills sections={template.sections} accent={accent} />
             </div>
 
-            {/* Stats row */}
-            <div style={{ display: "flex", gap: 12 }}>
-              {[
-                { label: "Style",     value: meta.label },
-                { label: "Sections",  value: template.sections.length },
-                { label: "Category",  value: template.category ?? "General" },
-              ].map(({ label, value }) => (
-                <div key={label} style={{
-                  flex: 1, padding: "10px 12px", borderRadius: 12,
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.07)",
-                }}>
-                  <p style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 3 }}>{label}</p>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{value}</p>
+            {!accessible && (
+              <div
+                className="flex items-start gap-3 rounded-2xl p-3.5"
+                style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(249,115,22,0.05))", border: "1px solid rgba(245,158,11,0.22)" }}
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl" style={{ background: "rgba(245,158,11,0.16)", color: "#FBBF24" }}>
+                  <Crown size={16} />
                 </div>
-              ))}
-            </div>
+                <div>
+                  <p style={{ fontSize: 12, fontWeight: 800, color: "#FEF3C7", marginBottom: 3 }}>A premium template, ready for your event</p>
+                  <p style={{ fontSize: 11, lineHeight: 1.55, color: "rgba(254,243,199,0.62)" }}>Upgrade once to use this design and every premium template in the collection.</p>
+                </div>
+              </div>
+            )}
 
             {/* Spacer */}
             <div style={{ flex: 1 }} />
 
             {/* CTA */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div
+              className={accessible ? "flex flex-col" : "hidden flex-col lg:flex"}
+              style={{ gap: 8 }}
+            >
               {accessible ? (
                 <motion.button
                   whileHover={{ scale: 1.02 }}
@@ -660,7 +720,7 @@ function PreviewModal({ template, userPlan, onClose, onUse, onUpgrade }) {
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                   }}
                 >
-                  <Check size={14} /> Use This Template
+                  <Check size={15} /> Start with this template
                 </motion.button>
               ) : (
                 <motion.button
@@ -676,13 +736,13 @@ function PreviewModal({ template, userPlan, onClose, onUse, onUpgrade }) {
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                   }}
                 >
-                  <Crown size={14} /> Unlock Premium · Use This Template
+                  <Crown size={15} /> Unlock {template.name}
                 </motion.button>
               )}
-              <p style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.2)" }}>
+              <p style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
                 {accessible
-                  ? "Applies to your event page instantly"
-                  : "Unlock all " + ALL_TEMPLATES.filter(t => t.style !== FREE_STYLE).length + " premium templates"}
+                  ? "Applies to your event page instantly — fully editable after you choose it"
+                  : `Includes all ${premiumTemplateCount} premium templates`}
               </p>
             </div>
 
@@ -700,23 +760,24 @@ function NavPill({ label, count, active, accent = "#818CF8", isFree = false, onC
       onClick={onClick}
       className="group flex items-center gap-2.5 w-full rounded-xl px-3 py-2.5 text-left transition-all"
       style={{
-        background: active ? `${accent}18` : "transparent",
-        border: active ? `1px solid ${accent}40` : "1px solid transparent",
+        background: active ? `${accent}24` : "rgba(255,255,255,0.035)",
+        border: active ? `1px solid ${accent}55` : "1px solid rgba(255,255,255,0.055)",
+        boxShadow: active ? `0 5px 16px ${accent}16` : "none",
       }}
     >
       <span
         className="h-2.5 w-2.5 rounded-full shrink-0 transition-all"
-        style={{ background: active ? accent : "rgba(255,255,255,0.2)", boxShadow: active ? `0 0 8px ${accent}88` : "none" }}
+        style={{ background: active ? accent : "rgba(255,255,255,0.48)", boxShadow: active ? `0 0 8px ${accent}88` : "none" }}
       />
-      <span className="flex-1 text-[12px] font-semibold transition-colors" style={{ color: active ? "#fff" : "rgba(255,255,255,0.45)" }}>
+      <span className="flex-1 text-[12px] font-semibold transition-colors" style={{ color: active ? "#fff" : "rgba(255,255,255,0.76)" }}>
         {label}
       </span>
       {count != null && (
         <span
           className="text-[10px] font-bold rounded-full px-1.5 py-0.5 transition-all"
           style={{
-            background: active ? `${accent}30` : "rgba(255,255,255,0.06)",
-            color: active ? accent : "rgba(255,255,255,0.25)",
+            background: active ? `${accent}32` : "rgba(255,255,255,0.10)",
+            color: active ? "#fff" : "rgba(255,255,255,0.65)",
           }}
         >
           {count}
@@ -959,6 +1020,7 @@ function MobileTemplateCard({ t, userPlan, applying, onSelect, onPreview }) {
 export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) {
   const { plan, isSubscribed, openUpgradeModal, fetchSubscription } = useSubscriptionStore();
   const { applyPreset } = useBuilderStore();
+  const { updateEvent } = useEventStore();
 
   const categoryKey  = useMemo(() => getCategoryForType(eventType), [eventType]);
   const hasEventType = Boolean(eventType);
@@ -1024,7 +1086,17 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
       if (s.type === "GALLERY" && t.assets?.gallery_images?.length) config.images            = t.assets.gallery_images;
       return { type: s.type, config };
     });
-    await applyPreset(eventId, sections);
+    const appliedSections = await applyPreset(eventId, sections);
+    if (!appliedSections?.length) {
+      setApplying(null);
+      return;
+    }
+
+    // Event cards and the Expo app use cover_image_url. Keep it aligned with
+    // the selected template's hero image as well as the builder's HERO section.
+    const coverImage = t.assets?.cover_image ?? t.assets?.hero_image;
+    if (coverImage) await updateEvent(eventId, { cover_image_url: coverImage });
+
     setApplying(null);
     setPreview(null);
     onClose();
@@ -1061,7 +1133,7 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
             exit={{ opacity: 0, y: 20, scale: 0.98 }}
             transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
             className="fixed inset-4 sm:inset-6 z-[9991] flex flex-col rounded-3xl overflow-hidden"
-            style={{ background: "#0e0f11", border: "1px solid rgba(255,255,255,0.07)", boxShadow: "0 40px 120px rgba(0,0,0,0.95)" }}
+            style={{ background: "#11141B", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 40px 120px rgba(0,0,0,0.95)" }}
           >
             {/* ── Header ── */}
             <div className="flex shrink-0 items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
@@ -1073,7 +1145,7 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
                   <h2 className="text-[14px] font-black text-white">
                     {hasEventType ? `Templates for ${eventTypeName}` : "Templates"}
                   </h2>
-                  <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>
+                  <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.58)" }}>
                     {hasEventType
                       ? `${exactMatchTemplates.length} exact match · ${ALL_TEMPLATES.length} total`
                       : `${ALL_TEMPLATES.filter((t) => t.style === FREE_STYLE).length} free · ${ALL_TEMPLATES.filter((t) => t.style !== FREE_STYLE).length} premium`}
@@ -1109,27 +1181,27 @@ export default function TemplatePicker({ eventId, isOpen, onClose, eventType }) 
               {/* Sidebar (desktop only) */}
               <aside
                 className="hidden sm:flex flex-col gap-0.5 shrink-0 overflow-y-auto p-3"
-                style={{ width: 200, borderRight: "1px solid rgba(255,255,255,0.05)" }}
+                style={{ width: 216, background: "#171A22", borderRight: "1px solid rgba(255,255,255,0.09)" }}
               >
                 {hasEventType && (
                   <>
-                    <p className="px-3 pt-1 pb-2 text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: "rgba(255,255,255,0.2)" }}>Recommended</p>
+                    <p className="px-3 pt-1 pb-2 text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: "rgba(255,255,255,0.58)" }}>Recommended</p>
                     <NavPill label={`For ${eventTypeName}`} count={forYouTemplates.length} active={activeFilter === "FOR_YOU"} accent="#818CF8" onClick={() => setActiveFilter("FOR_YOU")} />
-                    <div className="my-2 mx-3 h-px" style={{ background: "rgba(255,255,255,0.05)" }} />
+                    <div className="my-2 mx-3 h-px" style={{ background: "rgba(255,255,255,0.10)" }} />
                   </>
                 )}
 
-                <p className="px-3 pt-1 pb-2 text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: "rgba(255,255,255,0.2)" }}>Browse All</p>
+                <p className="px-3 pt-1 pb-2 text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: "rgba(255,255,255,0.58)" }}>Browse All</p>
                 <NavPill label="All Templates" count={ALL_TEMPLATES.length} active={activeFilter === "ALL"} accent="#818CF8" onClick={() => setActiveFilter("ALL")} />
 
-                <div className="my-2 mx-3 h-px" style={{ background: "rgba(255,255,255,0.05)" }} />
-                <p className="px-3 pb-2 text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: "rgba(255,255,255,0.2)" }}>By Category</p>
+                <div className="my-2 mx-3 h-px" style={{ background: "rgba(255,255,255,0.10)" }} />
+                <p className="px-3 pb-2 text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: "rgba(255,255,255,0.58)" }}>By Category</p>
                 {CATEGORY_ORDER.filter((c) => countByCategory[c]).map((c) => (
                   <NavPill key={c} label={`${TEMPLATE_CATEGORIES[c]?.emoji} ${TEMPLATE_CATEGORIES[c]?.label}`} count={countByCategory[c]} active={activeFilter === c} accent="#818CF8" onClick={() => setActiveFilter(c)} />
                 ))}
 
-                <div className="my-2 mx-3 h-px" style={{ background: "rgba(255,255,255,0.05)" }} />
-                <p className="px-3 pb-2 text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: "rgba(255,255,255,0.2)" }}>By Style</p>
+                <div className="my-2 mx-3 h-px" style={{ background: "rgba(255,255,255,0.10)" }} />
+                <p className="px-3 pb-2 text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: "rgba(255,255,255,0.58)" }}>By Style</p>
                 {STYLE_ORDER.filter((s) => countByStyle[s]).map((s) => {
                   const m = STYLE_META[s];
                   return (

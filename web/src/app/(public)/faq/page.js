@@ -334,9 +334,11 @@ export default function FAQPage() {
                   return (
                     <motion.div
                       key={category.category}
+                      id={category.category.toLowerCase().replace(/&/g, "and").replace(/\s+/g, "-")}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.5, delay: categoryIndex * 0.1 }}
+                      className="scroll-mt-28"
                     >
                       {/* Category Header */}
                       <div className="flex items-center gap-3 mb-8">

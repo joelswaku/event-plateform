@@ -3,14 +3,88 @@
 import { useEffect, useRef, useState, useMemo, useCallback, Suspense } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useBuilderStore } from "@/store/builder.store";
+import { useSubscriptionStore } from "@/store/subscription.store";
 import BuilderSidebar   from "@/components/events/builder/BuilderSidebar";
 import BuilderTopbar    from "@/components/events/builder/BuilderTopbar";
 import SectionConfigPanel from "@/components/events/builder/SectionConfigPanel";
 import MobileBottomBar  from "@/components/events/builder/MobileBottomBar";
 import SharedEventRenderer from "@/components/events/shared/SharedEventRenderer";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { AnimatePresence, motion } from "framer-motion";
 import { resolveTemplate } from "@/lib/defaultTemplates";
+import { PAGE_PRESETS } from "@/builder/page-presets";
 import TemplatePicker from "@/components/templates/TemplatePicker";
+
+function makeLayoutPreviewSections(layoutKey, currentSections = []) {
+  const preset = PAGE_PRESETS[layoutKey];
+  if (!preset) return currentSections;
+
+  return preset.sections.map((type, index) => {
+    const existing = currentSections.find((section) => section.section_type === type);
+    return {
+      ...(existing ?? {}),
+      id: `layout-preview-${layoutKey}-${type}-${index}`,
+      section_type: type,
+      position_order: index + 1,
+      is_visible: true,
+      config: { ...(existing?.config ?? {}), _theme: layoutKey },
+    };
+  });
+}
+
+function PremiumLayoutPreviewGate({ open, layoutLabel, onCancel, onUpgrade }) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/35 p-5 backdrop-blur-[2px]"
+          onClick={onCancel}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 22, scale: 0.94 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.97 }}
+            transition={{ type: "spring", damping: 25, stiffness: 360 }}
+            className="w-full max-w-sm overflow-hidden rounded-3xl p-6 text-center"
+            style={{ background: "#171B25", border: "1px solid rgba(255,255,255,0.13)", boxShadow: "0 28px 80px rgba(0,0,0,0.55)" }}
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${layoutLabel} layout preview`}
+          >
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.28), rgba(249,115,22,0.18))", border: "1px solid rgba(245,158,11,0.35)", color: "#FBBF24" }}>
+              <span className="text-xl">✦</span>
+            </div>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: "#FBBF24" }}>Premium layout preview</p>
+            <h2 className="mt-2 text-[22px] font-black tracking-tight text-white">{layoutLabel} looks great on your event.</h2>
+            <p className="mt-2 text-[13px] leading-6" style={{ color: "rgba(255,255,255,0.62)" }}>
+              You can preview this design, but a paid plan is required to keep it on your event page.
+            </p>
+            <div className="mt-5 flex gap-2.5">
+              <button
+                onClick={onCancel}
+                className="flex-1 rounded-xl px-3 py-3 text-[12px] font-bold transition hover:bg-white/[0.08]"
+                style={{ color: "rgba(255,255,255,0.78)", border: "1px solid rgba(255,255,255,0.14)" }}
+              >
+                Back to free layout
+              </button>
+              <button
+                onClick={onUpgrade}
+                className="flex-1 rounded-xl px-3 py-3 text-[12px] font-black transition hover:brightness-110 active:scale-[0.97]"
+                style={{ background: "linear-gradient(135deg,#F59E0B,#F97316)", color: "#211504", boxShadow: "0 8px 22px rgba(245,158,11,0.28)" }}
+              >
+                Upgrade to use it
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
 
 function BuilderContent() {
   const params       = useParams();
@@ -25,6 +99,7 @@ function BuilderContent() {
   const reorderSections     = useBuilderStore((s) => s.reorderSections);
   const undo                = useBuilderStore((s) => s.undo);
   const redo                = useBuilderStore((s) => s.redo);
+  const openUpgradeModal    = useSubscriptionStore((s) => s.openUpgradeModal);
 
   const [selectedSectionId, setSelectedSectionId] = useState(null);
   const selectedSection = useMemo(
@@ -37,12 +112,25 @@ function BuilderContent() {
   const [device,             setDevice]             = useState("desktop");
   const [panelWidth,    setPanelWidth]    = useState(340);
   const [mobileSheet,   setMobileSheet]   = useState(null); // 'blocks' | 'layers' | 'edit' | null
+  const [previewLayout, setPreviewLayout] = useState(null);
+  const [showPreviewGate, setShowPreviewGate] = useState(false);
   const resizing        = useRef(false);
   const templateApplied = useRef(false);
+  const previewGateTimer = useRef(null);
+
+  const previewSections = useMemo(
+    () => previewLayout ? makeLayoutPreviewSections(previewLayout, builder?.sections ?? []) : null,
+    [previewLayout, builder?.sections]
+  );
+  const displayedSections = previewSections ?? builder?.sections ?? [];
 
   useEffect(() => {
     if (eventId) fetchBuilder(eventId);
   }, [eventId, fetchBuilder]);
+
+  useEffect(() => () => {
+    if (previewGateTimer.current) clearTimeout(previewGateTimer.current);
+  }, []);
 
   // Auto-apply default template when builder loads with no sections
   useEffect(() => {
@@ -116,9 +204,42 @@ function BuilderContent() {
   }, []);
 
   const handleReorder = useCallback((reorderedSections) => {
+    if (previewLayout) return;
     const payload = reorderedSections.map((s, i) => ({ id: s.id, position_order: i + 1 }));
     reorderSections(eventId, payload);
-  }, [eventId, reorderSections]);
+  }, [eventId, reorderSections, previewLayout]);
+
+  const dismissLayoutPreview = useCallback(() => {
+    if (previewGateTimer.current) clearTimeout(previewGateTimer.current);
+    previewGateTimer.current = null;
+    setShowPreviewGate(false);
+    setPreviewLayout(null);
+  }, []);
+
+  const previewLockedLayout = useCallback((layoutKey) => {
+    if (!PAGE_PRESETS[layoutKey]) return;
+    const scrollPreviewToTop = () => {
+      document.querySelectorAll("[data-builder-preview-scroll]").forEach((element) => {
+        element.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    };
+    if (previewGateTimer.current) clearTimeout(previewGateTimer.current);
+    setSelectedSectionId(null);
+    setMobileSheet(null);
+    setShowPreviewGate(false);
+    setPreviewLayout(layoutKey);
+    requestAnimationFrame(scrollPreviewToTop);
+    previewGateTimer.current = setTimeout(() => {
+      scrollPreviewToTop();
+      setShowPreviewGate(true);
+      previewGateTimer.current = null;
+    }, 700);
+  }, []);
+
+  const upgradeFromLayoutPreview = useCallback(() => {
+    dismissLayoutPreview();
+    openUpgradeModal("templates");
+  }, [dismissLayoutPreview, openUpgradeModal]);
 
   const previewWidth = {
     mobile:  "w-[390px]",
@@ -146,12 +267,13 @@ function BuilderContent() {
       <div className="hidden lg:flex shrink-0">
         <BuilderSidebar
           eventId={eventId}
-          sections={builder.sections || []}
+          sections={displayedSections}
           isOpen={isSidebarOpen}
           onToggle={() => setIsSidebarOpen((v) => !v)}
           selectedSectionId={selectedSectionId}
           onSectionSelect={handleSectionClick}
           onBrowseTemplates={() => setTemplatePickerOpen(true)}
+          onLockedPresetPreview={previewLockedLayout}
         />
       </div>
 
@@ -172,10 +294,10 @@ function BuilderContent() {
           <div className="flex flex-1 min-h-0 overflow-hidden" data-canvas-scroll style={{ background: "#1a1b1f" }}>
 
             {/* ── Mobile canvas: full-width, no device frame ── */}
-            <div className="flex w-full flex-col overflow-y-auto lg:hidden">
+            <div data-builder-preview-scroll className="flex w-full flex-col overflow-y-auto lg:hidden">
               <SharedEventRenderer
                 event={{ ...builder.event, speakers: builder.speakers || [], schedule_items: builder.schedule_items || [] }}
-                sections={builder.sections || []}
+                sections={displayedSections}
                 isEditor
                 onSectionClick={handleSectionClick}
                 onReorder={handleReorder}
@@ -184,7 +306,7 @@ function BuilderContent() {
             </div>
 
             {/* ── Desktop canvas: device frame ── */}
-            <div className={`hidden lg:flex flex-1 min-h-0 overflow-y-auto ${device !== "desktop" ? "items-start justify-center p-6" : ""}`}>
+            <div data-builder-preview-scroll className={`hidden lg:flex flex-1 min-h-0 overflow-y-auto ${device !== "desktop" ? "items-start justify-center p-6" : ""}`}>
               <div className={`${previewWidth} transition-all duration-300 ${device === "desktop" ? "min-h-full" : ""}`}>
                 <div
                   className="overflow-hidden shadow-2xl"
@@ -208,7 +330,7 @@ function BuilderContent() {
                   )}
                   <SharedEventRenderer
                     event={{ ...builder.event, speakers: builder.speakers || [], schedule_items: builder.schedule_items || [] }}
-                    sections={builder.sections || []}
+                    sections={displayedSections}
                     isEditor
                     onSectionClick={handleSectionClick}
                     onReorder={handleReorder}
@@ -272,11 +394,18 @@ function BuilderContent() {
           eventType={builder.event?.event_type}
         />
 
+        <PremiumLayoutPreviewGate
+          open={showPreviewGate}
+          layoutLabel={PAGE_PRESETS[previewLayout]?.label ?? "Premium"}
+          onCancel={dismissLayoutPreview}
+          onUpgrade={upgradeFromLayoutPreview}
+        />
+
         {/* ── Mobile bottom bar ─────────────────────────────────────── */}
         <div className="lg:hidden shrink-0">
           <MobileBottomBar
             eventId={eventId}
-            sections={builder.sections || []}
+            sections={displayedSections}
             selectedSectionId={selectedSectionId}
             selectedSection={selectedSection}
             onSectionSelect={handleSectionClick}
@@ -284,6 +413,7 @@ function BuilderContent() {
             activeSheet={mobileSheet}
             onSheetChange={setMobileSheet}
             onBrowseTemplates={() => setTemplatePickerOpen(true)}
+            onLockedPresetPreview={previewLockedLayout}
           />
         </div>
       </div>

@@ -13,7 +13,7 @@ export interface User {
 }
 
 // ─── Event ────────────────────────────────────────────────────────────────────
-export type EventStatus = 'DRAFT' | 'PUBLISHED' | 'CANCELLED' | 'ARCHIVED';
+export type EventStatus = 'DRAFT' | 'PUBLISHED' | 'CANCELLED' | 'ARCHIVED' | 'DELETED';
 export type Visibility  = 'PUBLIC' | 'PRIVATE';
 
 export interface Event {
@@ -40,6 +40,10 @@ export interface Event {
   ends_at_utc: string | null;
   starts_at_local: string | null;
   ends_at_local: string | null;
+  // Legacy aliases returned by a few list and scanner endpoints.
+  starts_at?: string | null;
+  location?: string | null;
+  zip_code?: string | null;
   allow_rsvp: boolean;
   open_rsvp: boolean;
   allow_plus_ones: boolean;
@@ -90,11 +94,14 @@ export interface EventCreatePayload {
   timezone: string;
   description?: string;
   short_description?: string;
+  cover_image_url?: string;
+  banner_url?: string;
   visibility?: Visibility;
   venue_name?: string;
   venue_address?: string;
   city?: string;
   state?: string;
+  zip_code?: string;
   country?: string;
   allow_rsvp?: boolean;
   open_rsvp?: boolean;
@@ -311,7 +318,8 @@ export interface SeatingAssignment {
   event_id: string;
   guest_id: string;
   seating_table_id: string;
-  seat_number: number | null;
+  // Seat labels may be numeric or human-friendly values such as "A1".
+  seat_number: string | null;
   created_at: string;
 }
 
@@ -345,6 +353,8 @@ export interface BuilderSection {
   position_order: number;
   created_at: string;
   updated_at: string;
+  title?: string;
+  body?: string;
 }
 
 export interface BuilderPage {
@@ -361,4 +371,6 @@ export interface BuilderData {
   event: Event;
   page: BuilderPage | null;
   sections: BuilderSection[];
+  // Speaker records are API-managed and have a flexible social-links payload.
+  speakers?: any[];
 }

@@ -209,7 +209,7 @@ function Eyebrow({ text, t, center=false }: { text:string; t:T; center?:boolean 
 const ey = StyleSheet.create({ base:{fontSize:10, fontWeight:'600', textTransform:'uppercase', letterSpacing:4, marginBottom:4}});
 
 function Heading({ text, t, center=false, style={} }: { text:string; t:T; center?:boolean; style?:any }) {
-  const th = cfg => ({
+  const th = (_cfg: unknown) => ({
     fontWeight: t.hw as any,
     textTransform: t.ht as any,
     fontStyle: t.hi as any,
@@ -276,17 +276,17 @@ function HeroBlock({ cfg, title, body, t, event }: any) {
   const subT     = body  || 'Add your event subtitle here';
   const ctaTxt   = cfg.cta_text || (th==='MODERN' ? 'JOIN NOW' : th==='FUN' ? "I'm Coming!" : 'RSVP Now');
   const centered = cfg.headline_align !== 'left';
-  const gradC    = HERO_GRAD[th] ?? HERO_GRAD.CLASSIC;
+  const gradC    = HERO_GRAD[th as keyof typeof HERO_GRAD] ?? HERO_GRAD.CLASSIC;
 
   // Per-theme heading styles matching web HEADING_STYLE (letterSpacing/lineHeight as em→px at fontSize)
-  const headStyle: any = {
+  const headStyle: any = ({
     MODERN:  { fontWeight:'900', textTransform:'uppercase', letterSpacing:-0.78, fontSize:26, lineHeight:25 },
     FUN:     { fontWeight:'800', letterSpacing:-0.26, fontSize:26, lineHeight:26 },
     MINIMAL: { fontWeight:'300', letterSpacing:0.96, fontSize:24, lineHeight:29 },
     LUXURY:  { fontWeight:'200', textTransform:'uppercase', fontStyle:'italic', letterSpacing:2.64, fontSize:22, lineHeight:25 },
     ELEGANT: { fontWeight:'300', fontStyle:'italic', letterSpacing:1.92, fontSize:24, lineHeight:29 },
     CLASSIC: { fontWeight:'400', letterSpacing:1.44, fontSize:24, lineHeight:28 },
-  }[th] ?? { fontWeight:'400', fontSize:24, lineHeight:28 };
+  } as Record<string, any>)[th] ?? { fontWeight:'400', fontSize:24, lineHeight:28 };
 
   // Overlay opacity from config (web default is 50)
   const overlayOpacity = ((cfg.overlay_opacity ?? 50) / 100);
@@ -3848,4 +3848,3 @@ function cfg(...args: any[]) { return null; }
 //   hidden:  { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, zIndex: 5 },
 //   hiddenTxt:{ fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.6)', letterSpacing: 1 },
 // });
-

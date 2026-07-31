@@ -145,14 +145,14 @@ export default function DashboardSidebar() {
 
   const showExpanded = !safeCollapsed;
 
-  // Fetch unread count for support badge
+  // Regular users see replies in their Support entry. Super-admin support
+  // alerts belong exclusively in the Super Admin inbox sidebar.
   useEffect(() => {
-    if (!user) return; // Only fetch if authenticated
+    if (!user || isSuperAdmin) return;
     fetchUnreadCount();
-    const interval = setInterval(() => fetchUnreadCount(), 10000); // Poll every 10 seconds
+    const interval = setInterval(() => fetchUnreadCount(), 10000);
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user, isSuperAdmin, fetchUnreadCount]);
 
   // ── FIX: await store logout then navigate with router ───────────────────────
   async function handleLogout() {
@@ -231,7 +231,7 @@ export default function DashboardSidebar() {
                 key={item.href}
                 item={item}
                 showExpanded={showExpanded}
-                badge={item.href === "/support" ? unreadTotal : 0}
+                badge={item.href === "/support" && !isSuperAdmin ? unreadTotal : 0}
               />
             );
           })}

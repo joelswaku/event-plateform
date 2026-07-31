@@ -93,8 +93,8 @@ export default function BillingScreen() {
   }, [urlPlan]);
 
   const premium    = isPremium();
-  // "premium" and "enterprise" from the API map to the Pro tier
-  const isPro        = isSubscribed && (plan === 'pro' || plan === 'premium' || plan === 'enterprise');
+  // Enterprise is represented by the same paid entitlement tier as Pro.
+  const isPro        = isSubscribed && (plan === 'pro' || plan === 'enterprise');
   const currentTier  = tierOf(isPro ? 'pro' : plan);
   const eventsUsed = usage?.events ?? 0;
   const renewDate  = fmtDate(currentPeriodEnd);

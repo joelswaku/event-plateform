@@ -15,7 +15,7 @@ export const chatApi = {
   markRead:      (id)                 => api.post(`/chat/conversations/${id}/read`).then(r => r.data),
   typing:        (id)                 => api.post(`/chat/conversations/${id}/typing`).catch(() => {}),
   broadcast:     (payload)            => api.post(`/chat/broadcast`, payload).then(r => r.data?.data),
-  searchUsers:   (search = "")        => api.get(`/chat/users/search`, { params: { search } }).then(r => r.data?.data ?? []),
+  searchUsers:   (search = "")        => api.get(`/chat/contacts`, { params: { search } }).then(r => r.data?.data ?? []),
 };
 
 /* ── Real-time SSE connector ──────────────────────────────────────────────────

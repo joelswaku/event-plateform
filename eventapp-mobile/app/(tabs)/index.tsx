@@ -792,7 +792,10 @@ export default function HomeScreen() {
 
   const { events, fetchEvents, loading, activeEventId, setActiveEvent, dashboard, fetchEventDashboard } = useEventStore();
   const { isPremium, fetchSubscription, plan, usage, limits } = useSubscriptionStore();
-  const { unreadCount, fetch: fetchNotifs } = useNotificationStore();
+  const { notifications, unreadCount, fetch: fetchNotifs } = useNotificationStore();
+  const visibleNotificationCount = user?.is_super_admin
+    ? notifications.reduce((count, notification) => count + (notification.type !== 'chat' && !notification.read_at ? 1 : 0), 0)
+    : unreadCount;
   const teamEvents  = events.filter(e => e.user_role && e.user_role !== 'OWNER');
 
   // My events only — exclude admin/team events, archived events, and expired events
@@ -975,9 +978,9 @@ export default function HomeScreen() {
           <View style={s.headerRight}>
             <Pressable style={s.headerBtn} onPress={() => router.push('/notifications' as never)}>
               <Feather name="bell" size={18} color={Colors.text.muted} />
-              {unreadCount > 0 && (
+              {visibleNotificationCount > 0 && (
                 <View style={s.notifBadge}>
-                  <Text style={s.notifBadgeTxt}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                  <Text style={s.notifBadgeTxt}>{visibleNotificationCount > 9 ? '9+' : visibleNotificationCount}</Text>
                 </View>
               )}
             </Pressable>

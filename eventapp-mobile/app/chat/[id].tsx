@@ -243,7 +243,7 @@ export default function ChatConversationScreen() {
     setDeletingId(null);
   };
 
-  const title = convTitle(conversation);
+  const title = convTitle(conversation ?? null);
   const avatarUri = conversation?.counterpart?.avatar_url;
 
   return (

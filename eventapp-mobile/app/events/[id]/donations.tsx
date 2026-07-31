@@ -655,7 +655,7 @@ const s = StyleSheet.create({
 
   /* form card */
   formCard: { borderRadius: 16, borderWidth: 1, borderColor: Colors.border.DEFAULT, backgroundColor: Colors.bg.elevated, marginBottom: 4, overflow: 'hidden' },
-  formTopBar: { height: 3, background: 'linear-gradient(90deg,#be185d,#f43f5e)' },
+  formTopBar: { height: 3, backgroundColor: '#e11d48' },
   formHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
   formHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   formIconWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: `${ROSE}14`, borderWidth: 1, borderColor: `${ROSE}30`, alignItems: 'center', justifyContent: 'center' },
@@ -729,7 +729,7 @@ const s = StyleSheet.create({
   configInputWrap: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: Colors.border.DEFAULT, backgroundColor: Colors.bg.primary, paddingHorizontal: 14, height: 44 },
   configPrefix: { fontSize: 15, color: Colors.text.muted, marginRight: 4 },
   configInput:  { flex: 1, fontSize: 14, fontWeight: '600', color: Colors.text.primary },
-  optional:       { fontWeight: '400', fontSize: 10, color: Colors.text.muted },
+  configOptional: { fontWeight: '400', fontSize: 10, color: Colors.text.muted },
   charCount:      { fontSize: 10, color: Colors.text.subtle, textAlign: 'right', marginTop: 3 },
   configError:    { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(239,68,68,0.10)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 8 },
   configErrorTxt: { fontSize: 12, color: '#ef4444', flex: 1 },

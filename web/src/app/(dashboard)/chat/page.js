@@ -11,6 +11,7 @@ export default function ChatListPage() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const isSuperAdmin = !!user?.is_super_admin;
+  const isUserChat = !isSuperAdmin;
   const conversations = useChatStore((s) => s.conversations);
   const loadingList = useChatStore((s) => s.loadingList);
   const fetchConversations = useChatStore((s) => s.fetchConversations);
@@ -51,24 +52,30 @@ export default function ChatListPage() {
   if (!user) return null;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
+    <div className={`mx-auto ${isUserChat ? "max-w-4xl" : "max-w-3xl"} px-4 py-8`}>
       {/* Header */}
       <div className="mb-6 flex items-center gap-4">
         <button
           onClick={() => router.back()}
-          className="flex h-11 w-11 items-center justify-center rounded-xl transition"
+          className={`flex h-11 w-11 shrink-0 items-center justify-center transition ${isUserChat ? "rounded-2xl" : "rounded-xl"}`}
           style={{
-            background: "rgba(255,255,255,0.06)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            background: isUserChat ? "linear-gradient(145deg, rgba(255,255,255,0.09), rgba(255,255,255,0.035))" : "rgba(255,255,255,0.06)",
+            border: isUserChat ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(255,255,255,0.08)",
+            boxShadow: isUserChat ? "0 8px 24px rgba(0,0,0,0.16)" : "none",
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.10)")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
+          onMouseEnter={(e) => (e.currentTarget.style.background = isUserChat ? "rgba(99,102,241,0.20)" : "rgba(255,255,255,0.10)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = isUserChat ? "linear-gradient(145deg, rgba(255,255,255,0.09), rgba(255,255,255,0.035))" : "rgba(255,255,255,0.06)")}
+          aria-label="Go back"
         >
           <ChevronLeft size={20} style={{ color: "rgba(255,255,255,0.7)" }} />
         </button>
+        {isUserChat && <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl" style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.28), rgba(124,58,237,0.22))", border: "1px solid rgba(129,140,248,0.24)" }}>
+          <MessageSquare size={19} style={{ color: "#c7d2fe" }} />
+        </div>}
         <div>
-          <h1 className="text-2xl font-black text-white">Messages</h1>
-          <p className="mt-0.5 text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
+          {isUserChat && <p className="mb-0.5 text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: "rgba(165,180,252,0.76)" }}>Inbox</p>}
+          <h1 className={isUserChat ? "text-[26px] font-black tracking-[-0.03em] text-white" : "text-2xl font-black text-white"}>Messages</h1>
+          <p className="mt-0.5 text-sm" style={{ color: isUserChat ? "rgba(255,255,255,0.48)" : "rgba(255,255,255,0.45)" }}>
             {conversations.length === 0
               ? "No conversations yet"
               : `${conversations.length} conversation${conversations.length > 1 ? "s" : ""}`}
@@ -78,10 +85,11 @@ export default function ChatListPage() {
 
       {/* Conversations */}
       <div
-        className="overflow-hidden rounded-3xl"
+        className={`overflow-hidden ${isUserChat ? "rounded-[28px] shadow-2xl" : "rounded-3xl"}`}
         style={{
-          background: "#0e0e16",
-          border: "1px solid rgba(255,255,255,0.08)",
+          background: isUserChat ? "linear-gradient(155deg, #141422 0%, #0d0d16 48%, #0a0a12 100%)" : "#0e0e16",
+          border: isUserChat ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(255,255,255,0.08)",
+          boxShadow: isUserChat ? "0 24px 70px rgba(0,0,0,0.28)" : "none",
         }}
       >
         {loadingList ? (
@@ -89,12 +97,13 @@ export default function ChatListPage() {
             <Loader2 className="h-8 w-8 animate-spin" style={{ color: "#6366f1" }} />
           </div>
         ) : conversations.length === 0 ? (
-          <div className="flex flex-col items-center gap-4 px-8 py-16 text-center">
+          <div className={`flex flex-col items-center gap-4 px-8 text-center ${isUserChat ? "py-20" : "py-16"}`}>
             <div
-              className="flex h-16 w-16 items-center justify-center rounded-2xl"
+              className={`flex h-16 w-16 items-center justify-center ${isUserChat ? "rounded-3xl" : "rounded-2xl"}`}
               style={{
-                background: "rgba(99,102,241,0.12)",
-                border: "1px solid rgba(99,102,241,0.25)",
+                background: isUserChat ? "linear-gradient(135deg, rgba(99,102,241,0.24), rgba(124,58,237,0.16))" : "rgba(99,102,241,0.12)",
+                border: isUserChat ? "1px solid rgba(129,140,248,0.30)" : "1px solid rgba(99,102,241,0.25)",
+                boxShadow: isUserChat ? "0 12px 30px rgba(79,70,229,0.16)" : "none",
               }}
             >
               <MessageSquare size={28} style={{ color: "#818cf8" }} />
@@ -118,11 +127,11 @@ export default function ChatListPage() {
             return (
               <div
                 key={conv.id}
-                className="group relative flex w-full items-center gap-4 px-6 py-4 transition cursor-pointer"
+                className={`group relative flex w-full items-center gap-4 py-4 cursor-pointer ${isUserChat ? "px-5 transition-all duration-200 md:px-6" : "px-6 transition"}`}
                 style={{
-                  borderBottom: idx < conversations.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
+                  borderBottom: idx < conversations.length - 1 ? (isUserChat ? "1px solid rgba(255,255,255,0.07)" : "1px solid rgba(255,255,255,0.06)") : "none",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.03)")}
+                onMouseEnter={(e) => (e.currentTarget.style.background = isUserChat ? "linear-gradient(90deg, rgba(99,102,241,0.13), rgba(124,58,237,0.04))" : "rgba(255,255,255,0.03)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 onClick={() => router.push(`/chat/${conv.id}`)}
               >
@@ -183,17 +192,18 @@ export default function ChatListPage() {
                 {/* Avatar */}
                 <div className="relative">
                   <div
-                    className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl"
+                    className={`flex h-14 w-14 shrink-0 items-center justify-center ${isUserChat ? "rounded-2xl" : "rounded-xl"}`}
                     style={{
                       background: "linear-gradient(135deg, #4f46e5, #7c3aed)",
                       border: "1px solid rgba(99,102,241,0.3)",
+                      boxShadow: isUserChat ? "0 8px 18px rgba(79,70,229,0.25)" : "none",
                     }}
                   >
                     {conv.counterpart?.avatar_url ? (
                       <img
                         src={conv.counterpart.avatar_url}
                         alt=""
-                        className="h-full w-full rounded-xl object-cover"
+                        className={`h-full w-full object-cover ${isUserChat ? "rounded-2xl" : "rounded-xl"}`}
                       />
                     ) : (
                       <span style={{ fontSize: 16, fontWeight: 900, color: "#fff" }}>
@@ -206,7 +216,7 @@ export default function ChatListPage() {
                       className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full"
                       style={{
                         background: "#ef4444",
-                        border: "2px solid #0e0e16",
+                        border: isUserChat ? "2px solid #12121e" : "2px solid #0e0e16",
                       }}
                     >
                       <span style={{ fontSize: 10, fontWeight: 900, color: "#fff" }}>
@@ -219,7 +229,7 @@ export default function ChatListPage() {
                 {/* Content */}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="truncate text-base font-black text-white">
+                    <p className={isUserChat ? "truncate text-[15px] font-black tracking-[-0.01em] text-white" : "truncate text-base font-black text-white"}>
                       {conv.title || conv.counterpart?.full_name || "Support Team"}
                     </p>
                     {conv.last_message_at && (
@@ -232,7 +242,7 @@ export default function ChatListPage() {
                     )}
                   </div>
                   <p
-                    className="mt-1 truncate text-sm"
+                    className={isUserChat ? "mt-1 truncate text-[13px]" : "mt-1 truncate text-sm"}
                     style={{
                       color: conv.unread_count > 0 ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.45)",
                       fontWeight: conv.unread_count > 0 ? 600 : 400,

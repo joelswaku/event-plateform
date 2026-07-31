@@ -148,7 +148,6 @@ const styles = StyleSheet.create({
     fontSize:      10,
     fontWeight:    '700',
     letterSpacing: 0,       // ← 0 tracking prevents overflow
-    numberOfLines: 1,       // note: set this on the Text component below too
   },
 
   // Scan center FAB — green, matches web mobile

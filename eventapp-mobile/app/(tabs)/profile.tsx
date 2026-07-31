@@ -26,12 +26,14 @@ export default function ProfileTab() {
   const [logoutModal,    setLogoutModal]    = useState(false);
   const [legalSlug,      setLegalSlug]      = useState<string | null>(null);
 
-  // Fetch unread count for all users (including super admins)
+  // User support replies belong in the regular profile. Super-admin support
+  // alerts are displayed in the dedicated Super Admin drawer instead.
   useEffect(() => {
+    if (isSuperAdmin) return;
     fetchUnreadCount();
-    const interval = setInterval(() => fetchUnreadCount(), 10000); // Poll every 10 seconds
+    const interval = setInterval(() => fetchUnreadCount(), 10000);
     return () => clearInterval(interval);
-  }, [fetchUnreadCount]);
+  }, [isSuperAdmin, fetchUnreadCount]);
 
   async function handlePickAvatar() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();

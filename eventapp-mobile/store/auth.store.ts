@@ -12,8 +12,8 @@ interface AuthState {
 
   // Actions
   hydrate:      () => Promise<void>;
-  login:        (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
-  register:     (data: { full_name: string; email: string; password: string }) => Promise<{ success: boolean; message?: string }>;
+  login:        (email: string, password: string) => Promise<AuthActionResult>;
+  register:     (data: { full_name: string; email: string; password: string }) => Promise<AuthActionResult>;
   googleLogin:  (idToken: string) => Promise<{ success: boolean; message?: string }>;
   refreshToken: (storedToken?: string | null) => Promise<string | null>;
   fetchMe:      () => Promise<void>;
@@ -21,6 +21,13 @@ interface AuthState {
   logout:       () => Promise<void>;
   clearError:   () => void;
   setUser:      (user: User) => void;
+}
+
+interface AuthActionResult {
+  success: boolean;
+  message?: string;
+  requiresVerification?: boolean;
+  verificationToken?: string;
 }
 
 function applyUser(user: User) {
@@ -65,18 +72,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const res = await api.post<any>('/auth/login', { email, password });
       // SECURITY FIX: Never log tokens - removed sensitive data logging
 
-      // Check if email verification is required
+      // Check if email verification is required.
       if (res.data?.requiresVerification) {
-        console.log('AUTH STORE: Verification required, returning verification response'); // DEBUG
         set({ isLoading: false });
-        const verificationResponse = {
+        return {
           success: false,
           requiresVerification: true,
           verificationToken: res.data.verificationToken,
           message: res.data.message,
         };
-        console.log('AUTH STORE: Returning:', JSON.stringify(verificationResponse, null, 2)); // DEBUG
-        return verificationResponse;
       }
 
       const accessToken  = res.data?.data?.accessToken;
@@ -90,7 +94,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await persistSession(user, true, refreshToken ?? undefined);
       set({ user, isAuthenticated: true, isLoading: false, error: null });
 
-      console.log('✅ Login successful, session persisted securely');
       return { success: true };
     } catch (err: unknown) {
       const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
@@ -105,12 +108,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const res = await api.post('/auth/register', data);
-      console.log('API Register Response:', JSON.stringify(res.data, null, 2)); // DEBUG
       set({ isLoading: false });
-      // Return full response data (includes requiresVerification flag)
-      const result = { success: true, ...res.data };
-      console.log('Returning from auth store:', JSON.stringify(result, null, 2)); // DEBUG
-      return result;
+      // Registration may require verification before the user can sign in.
+      return { success: true, ...res.data } as AuthActionResult;
     } catch (err: unknown) {
       const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
         ?? (err instanceof Error ? err.message : 'Registration failed');
@@ -204,7 +204,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   // ─── Logout ───────────────────────────────────────────────────────────────
   logout: async () => {
-    try { await api.post('/auth/logout'); } catch { /* ignore */ }
+    // Include the refresh token so the server can revoke the session even if
+    // the in-memory access token has already expired.
+    const { refreshToken } = await loadSession();
+    try { await api.post('/auth/logout', { refreshToken }); } catch { /* local cleanup still proceeds */ }
     clearToken();
     clearOrgId();
     await clearSession();

@@ -41,15 +41,15 @@ const CONTACT_INFO = [
     title: "Documentation",
     description: "Browse our help center",
     value: "Help Center",
-    link: "#contact-form",
+    link: "/faq",
   },
 ];
 
 
 const FAQ_TOPICS = [
-  { icon: HelpCircle, title: "Getting Started", description: "Learn the basics of LiteEvent", href: "/help/getting-started" },
-  { icon: MessageSquare, title: "Event Management", description: "Tips for organizing events", href: "/help/event-management" },
-  { icon: CheckCircle2, title: "Ticketing & RSVP", description: "Manage tickets and guests", href: "/help/ticketing" },
+  { icon: HelpCircle, title: "Getting Started", description: "Learn the basics of LiteEvent", href: "/faq#getting-started" },
+  { icon: MessageSquare, title: "Event Management", description: "Tips for organizing events", href: "/faq#events-and-tickets" },
+  { icon: CheckCircle2, title: "Ticketing & RSVP", description: "Manage tickets and guests", href: "/faq#guest-management" },
 ];
 
 export default function ContactPageContent() {
