@@ -141,7 +141,7 @@ function VerifyEmailForm() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="flex gap-2 justify-center" onPaste={handlePaste}>
+        <div className="flex gap-2 justify-center">
           {code.map((digit, i) => (
             <input
               key={i}
@@ -152,6 +152,7 @@ function VerifyEmailForm() {
               value={digit}
               onChange={(e) => handleChange(i, e.target.value)}
               onKeyDown={(e) => handleKeyDown(i, e)}
+              onPaste={handlePaste}
               className={INPUT_CLASS}
               autoFocus={i === 0}
             />
