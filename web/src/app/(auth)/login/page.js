@@ -46,6 +46,9 @@ function LoginForm() {
   const [touched,     setTouched]     = useState({});
   const [showPass,    setShowPass]    = useState(false);
   const [serverError, setServerError] = useState("");
+  const [verificationToken, setVerificationToken] = useState("");
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
 
   // Single redirect point — fires when auth state becomes true
   useEffect(() => {
@@ -62,13 +65,16 @@ function LoginForm() {
     e.preventDefault();
     setTouched({ email: true, password: true });
     setServerError("");
+    setVerificationToken("");
+    setResendMessage("");
     if (errors.email || errors.password) return;
 
     const res = await login(form);
 
     // Check if email verification is required
     if (res.requiresVerification && res.verificationToken) {
-      router.push(`/verify-email?token=${res.verificationToken}`);
+      setVerificationToken(res.verificationToken);
+      setServerError(res.message || "Please verify your email before logging in. Check your inbox for the verification code.");
       return;
     }
 
@@ -76,6 +82,23 @@ function LoginForm() {
     if (!res.success) {
       setServerError(res.message || "Invalid credentials. Please try again.");
     }
+  };
+
+  const handleResendVerification = async () => {
+    setResendLoading(true);
+    setResendMessage("");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/resend-verification-code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: verificationToken }),
+      });
+      const data = await res.json();
+      setResendMessage(data.message || "Verification code sent! Check your email.");
+    } catch (err) {
+      setResendMessage("Failed to resend code. Please try again.");
+    }
+    setResendLoading(false);
   };
 
   const redirectTo = searchParams.get("redirect") || "/dashboard";
@@ -138,9 +161,26 @@ function LoginForm() {
         </div>
 
         {serverError && (
-          <div className="flex items-start gap-2.5 rounded-xl border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3">
-            <AlertCircle className="w-4 h-4 text-[#ef4444] shrink-0 mt-0.5" />
-            <p className="text-[#ef4444] text-sm">{serverError}</p>
+          <div className="rounded-xl border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3">
+            <div className="flex items-start gap-2.5 mb-3">
+              <AlertCircle className="w-4 h-4 text-[#ef4444] shrink-0 mt-0.5" />
+              <p className="text-[#ef4444] text-sm">{serverError}</p>
+            </div>
+            {verificationToken && (
+              <div className="pt-3 border-t border-[#ef4444]/20">
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={resendLoading}
+                  className="w-full py-2 px-4 rounded-lg bg-[#ef4444]/20 hover:bg-[#ef4444]/30 text-[#ef4444] text-sm font-semibold transition-colors disabled:opacity-50"
+                >
+                  {resendLoading ? "Sending..." : "Resend Verification Code"}
+                </button>
+                {resendMessage && (
+                  <p className="text-[#10b981] text-xs mt-2 text-center">{resendMessage}</p>
+                )}
+              </div>
+            )}
           </div>
         )}
 
