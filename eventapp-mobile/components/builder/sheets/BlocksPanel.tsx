@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useBuilderStore } from '@/store/builder.store';
+import { WebMobileBlockIcon } from '@/components/builder/WebMobileBlockIcon';
 
 const BLOCKS = [
   { type: 'HERO',      icon: '🖼',  label: 'Hero',      color: '#6c6fee' },
@@ -35,7 +36,7 @@ export default function BlocksPanel({ eventId, onClose }: Props) {
     <ScrollView contentContainerStyle={s.grid}>
       <Text style={s.header}>ADD BLOCK</Text>
       <View style={s.gridInner}>
-        {BLOCKS.map(({ type, icon, label, color }) => (
+        {BLOCKS.map(({ type, label, color }) => (
           <TouchableOpacity
             key={type}
             style={s.cell}
@@ -43,7 +44,7 @@ export default function BlocksPanel({ eventId, onClose }: Props) {
             activeOpacity={0.75}
           >
             <View style={[s.iconWrap, { backgroundColor: color + '20' }]}>
-              <Text style={s.iconTxt}>{icon}</Text>
+              <WebMobileBlockIcon type={type} color={color} />
             </View>
             <Text style={s.label}>{label}</Text>
           </TouchableOpacity>
@@ -59,6 +60,5 @@ const s = StyleSheet.create({
   gridInner: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   cell:      { width: '29%', alignItems: 'center', gap: 6, backgroundColor: '#1e2026', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
   iconWrap:  { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  iconTxt:   { fontSize: 20 },
   label:     { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.55)', textAlign: 'center' },
 });

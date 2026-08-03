@@ -159,7 +159,7 @@ export async function getAllOrganizations(req, res) {
     const { rows: orgs } = await db.query(
       `SELECT
          o.id, o.name, o.slug, o.is_personal, o.created_at,
-         u.subscription_plan AS plan,
+         COALESCE(u.admin_plan_override, u.subscription_plan) AS plan,
          u.full_name AS owner_name, u.email AS owner_email, u.id AS owner_id,
          COUNT(DISTINCT e.id)::int   AS event_count,
          COUNT(DISTINCT om.user_id)::int AS member_count
@@ -168,7 +168,7 @@ export async function getAllOrganizations(req, res) {
        LEFT JOIN events e ON e.organization_id = o.id AND e.deleted_at IS NULL
        LEFT JOIN organization_members om ON om.organization_id = o.id
        WHERE ${where}
-       GROUP BY o.id, u.full_name, u.email, u.id, u.subscription_plan
+       GROUP BY o.id, u.full_name, u.email, u.id, u.subscription_plan, u.admin_plan_override
        ORDER BY o.created_at DESC
        LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
       [...params, limit, offset]
@@ -204,7 +204,8 @@ export async function getAllUsers(req, res) {
     const { rows: users } = await db.query(
       `SELECT
          u.id, u.full_name, u.email, u.status, u.is_super_admin,
-         u.created_at, u.last_login_at, u.subscription_plan AS plan,
+         u.created_at, u.last_login_at,
+         COALESCE(u.admin_plan_override, u.subscription_plan) AS plan,
          o.name AS org_name,
          COUNT(DISTINCT e.id)::int AS event_count
        FROM users u
@@ -294,6 +295,58 @@ export async function updateUser(req, res) {
   } catch (e) { handleError(res, e); }
 }
 
+/* ── PATCH /super-admin/users/:userId/plan ───────────────────────────────── */
+// Manual grants are deliberately stored separately from Stripe subscription data.
+// Removing a grant restores the user's real subscription entitlement, if any.
+export async function updateUserPlan(req, res) {
+  try {
+    const { userId } = req.params;
+    const plan = String(req.body?.plan ?? "").trim().toLowerCase();
+    const allowedPlans = new Set(["free", "starter", "pro", "enterprise"]);
+
+    if (!allowedPlans.has(plan)) {
+      return res.status(400).json({
+        success: false,
+        message: "plan must be free, starter, pro, or enterprise",
+      });
+    }
+
+    const { rows } = await db.query(
+      `UPDATE users
+       SET admin_plan_override = CASE WHEN $1 = 'free' THEN NULL ELSE $1 END,
+           admin_plan_override_expires_at = NULL,
+           updated_at = NOW()
+       WHERE id = $2 AND deleted_at IS NULL
+       RETURNING id, full_name, email,
+                 COALESCE(admin_plan_override, subscription_plan) AS plan`,
+      [plan, userId]
+    );
+
+    const target = rows[0];
+    if (!target) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    await audit({
+      adminId: req.user.id,
+      action: "user_plan_grant_updated",
+      resourceType: "user",
+      resourceId: userId,
+      details: {
+        requested_plan: plan,
+        effective_plan: target.plan,
+        target_email: target.email,
+        target_name: target.full_name,
+        source: "super_admin",
+      },
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
+
+    res.json({ success: true, data: target });
+  } catch (e) { handleError(res, e); }
+}
+
 /* ── POST /super-admin/organizations ────────────────────────────────────── */
 export async function createEnterpriseOrganization(req, res) {
   try {
@@ -327,7 +380,14 @@ export async function createEnterpriseOrganization(req, res) {
       [org.id, ownerId]
     );
 
-    await db.query(`UPDATE users SET subscription_plan=$1 WHERE id=$2`, [plan, ownerId]);
+    await db.query(
+      `UPDATE users
+       SET admin_plan_override = CASE WHEN $1 = 'free' THEN NULL ELSE $1 END,
+           admin_plan_override_expires_at = NULL,
+           updated_at = NOW()
+       WHERE id = $2`,
+      [plan, ownerId]
+    );
 
     await audit({
       adminId: req.user.id,
@@ -435,7 +495,8 @@ export async function getOrganizationDetail(req, res) {
     const { orgId } = req.params;
 
     const { rows: orgRows } = await db.query(
-      `SELECT o.*, u.full_name AS owner_name, u.email AS owner_email, u.subscription_plan AS plan
+      `SELECT o.*, u.full_name AS owner_name, u.email AS owner_email,
+              COALESCE(u.admin_plan_override, u.subscription_plan) AS plan
        FROM organizations o
        JOIN users u ON u.id = o.owner_user_id
        WHERE o.id = $1`,
@@ -474,26 +535,34 @@ export async function getOrganizationDetail(req, res) {
 export async function updateOrgPlan(req, res) {
   try {
     const { orgId } = req.params;
-    const { plan }  = req.body;
-    if (!plan) return res.status(400).json({ success: false, message: "plan is required" });
+    const plan = String(req.body?.plan ?? "").trim().toLowerCase();
+    const allowedPlans = new Set(["free", "starter", "pro", "enterprise"]);
+    if (!allowedPlans.has(plan)) {
+      return res.status(400).json({ success: false, message: "plan must be free, starter, pro, or enterprise" });
+    }
 
     const { rows: orgRows } = await db.query(
       `SELECT name FROM organizations WHERE id=$1`,
       [orgId]
     );
+    if (!orgRows.length) return res.status(404).json({ success: false, message: "Organization not found" });
 
     const { rows } = await db.query(
-      `UPDATE users SET subscription_plan=$1
+      `UPDATE users
+       SET admin_plan_override = CASE WHEN $1 = 'free' THEN NULL ELSE $1 END,
+           admin_plan_override_expires_at = NULL,
+           updated_at = NOW()
        WHERE id=(SELECT owner_user_id FROM organizations WHERE id=$2)
-       RETURNING id, email, subscription_plan AS plan`,
+       RETURNING id, email,
+                 COALESCE(admin_plan_override, subscription_plan) AS plan`,
       [plan, orgId]
     );
 
     await audit({
       adminId: req.user.id,
-      action: "org_plan_updated",
+      action: "org_plan_grant_updated",
       resourceType: "organization", resourceId: orgId,
-      details: { org_name: orgRows[0]?.name, new_plan: plan, owner_email: rows[0]?.email },
+      details: { org_name: orgRows[0]?.name, new_plan: plan, owner_email: rows[0]?.email, source: "super_admin" },
       ip: req.ip, userAgent: req.headers["user-agent"],
     });
 
@@ -533,10 +602,12 @@ export async function getActivityFeed(req, res) {
         [limit]
       ),
       db.query(
-        `SELECT u.id, u.full_name, u.email, u.subscription_plan, u.updated_at AS created_at, 'plan_upgraded' AS type
+        `SELECT u.id, u.full_name, u.email,
+                COALESCE(u.admin_plan_override, u.subscription_plan) AS subscription_plan,
+                u.updated_at AS created_at, 'plan_upgraded' AS type
          FROM users u
-         WHERE u.subscription_plan != 'free'
-           AND u.is_subscribed = true
+         WHERE (u.admin_plan_override IS NOT NULL
+                OR (u.subscription_plan != 'free' AND u.is_subscribed = true))
            AND u.updated_at > NOW()-INTERVAL '30 days'
            AND u.deleted_at IS NULL
          ORDER BY u.updated_at DESC LIMIT $1`,
@@ -672,7 +743,9 @@ export async function globalSearch(req, res) {
     const term = `%${q}%`;
     const [usersRes, eventsRes, orgsRes] = await Promise.all([
       db.query(
-        `SELECT id, full_name, email, status, subscription_plan AS plan, is_super_admin, created_at
+        `SELECT id, full_name, email, status,
+                COALESCE(admin_plan_override, subscription_plan) AS plan,
+                is_super_admin, created_at
          FROM users WHERE (full_name ILIKE $1 OR email ILIKE $1) AND deleted_at IS NULL LIMIT 8`,
         [term]
       ),
@@ -687,13 +760,13 @@ export async function globalSearch(req, res) {
         [term]
       ),
       db.query(
-        `SELECT o.id, o.name, u.subscription_plan AS plan, u.email AS owner_email,
+        `SELECT o.id, o.name, COALESCE(u.admin_plan_override, u.subscription_plan) AS plan, u.email AS owner_email,
                 COUNT(DISTINCT e.id)::int AS event_count
          FROM organizations o
          JOIN users u ON u.id = o.owner_user_id
          LEFT JOIN events e ON e.organization_id = o.id AND e.deleted_at IS NULL
          WHERE (o.name ILIKE $1 OR u.email ILIKE $1) AND o.deleted_at IS NULL
-         GROUP BY o.id, u.email, u.subscription_plan
+         GROUP BY o.id, u.email, u.subscription_plan, u.admin_plan_override
          ORDER BY o.created_at DESC LIMIT 8`,
         [term]
       ),

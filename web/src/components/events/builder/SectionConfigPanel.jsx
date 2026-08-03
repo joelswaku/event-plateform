@@ -162,6 +162,18 @@ export default function SectionConfigPanel({ section, eventId }) {
               ]}
             />
           </Field>
+          <Field label="Hero Donation Style">
+            <Select
+              value={localConfig.hero_donation_style ?? "button"}
+              onChange={(e) => handleConfig("hero_donation_style", e.target.value)}
+              options={[
+                { value: "none",    label: "None" },
+                { value: "button",  label: "Curved Donate + Share (recommended)" },
+                { value: "summary", label: "Small donation summary" },
+                { value: "full",    label: "Full donation card" },
+              ]}
+            />
+          </Field>
           <Field label={`Overlay Opacity: ${localConfig.overlay_opacity ?? 40}%`}>
             <input
               type="range" min={0} max={100}
@@ -172,7 +184,7 @@ export default function SectionConfigPanel({ section, eventId }) {
             />
           </Field>
           <p style={{ fontSize: 11, color: "#555a66", lineHeight: 1.5 }}>
-            ⓘ The RSVP button is only visible to guests who open the event via their personal invitation link.
+            ⓘ The curved panel keeps the hero focused on your event while making Donate and Share easy to find.
           </p>
         </>
       )}

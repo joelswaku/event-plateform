@@ -7,10 +7,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, ChevronLeft, DollarSign, Users, CheckCircle2,
   Clock, AlertCircle, Loader2, Pencil, Save, X,
-  ChevronDown, ChevronUp, Mail, Phone, Hash, Calendar, RefreshCw,
+  ChevronDown, ChevronUp, Mail, Phone, Hash, Calendar, RefreshCw, Plus,
 } from "lucide-react";
 import { useEventStore } from "@/store/event.store";
 import { api } from "@/lib/api";
+import ImageUploader from "@/components/events/builder/ImageUploader";
 
 const DEFAULT_AMOUNTS = [5, 10, 25];
 
@@ -46,34 +47,42 @@ function StatCard({ icon: Icon, label, value, bgClass, borderClass, iconColorCla
   );
 }
 
-/* ── Donation amounts setup card ────────────────────────────────── */
-/* ONE per event. Admin sets exactly 3 required amounts.            */
-function DonationSetup({ eventId, amounts, message: savedMessage, onChange }) {
-  const hasSetup    = amounts.length === 3;
+/* ── Fundraiser setup card ──────────────────────────────────────── */
+function DonationSetup({ eventId, amounts, message: savedMessage, title: savedTitle, coverImage: savedCoverImage, onChange }) {
+  const hasSetup    = amounts.length > 0;
   const [editing, setEditing] = useState(!hasSetup);
-  const [vals, setVals]       = useState(hasSetup ? amounts.map(String) : ["", "", ""]);
+  const [vals, setVals]       = useState(hasSetup ? [...amounts.map(String), "", "", ""].slice(0, 3) : ["", "", ""]);
   const [msg, setMsg]         = useState(savedMessage ?? "");
+  const [title, setTitle]     = useState(savedTitle ?? "");
+  const [coverImage, setCoverImage] = useState(savedCoverImage ?? "");
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState("");
 
   useEffect(() => {
-    if (hasSetup) setVals(amounts.map(String));
-  }, [amounts]);
+    if (hasSetup) setVals([...amounts.map(String), "", "", ""].slice(0, 3));
+  }, [amounts, hasSetup]);
 
   useEffect(() => {
     setMsg(savedMessage ?? "");
   }, [savedMessage]);
 
+  useEffect(() => {
+    setTitle(savedTitle ?? "");
+    setCoverImage(savedCoverImage ?? "");
+  }, [savedTitle, savedCoverImage]);
+
   const handleSave = async () => {
-    const parsed = vals.map((v) => Number(v)).filter(Boolean);
-    if (parsed.length !== 3 || parsed.some((n) => n <= 0)) {
-      setError("All 3 amounts are required and must be greater than 0.");
+    const parsed = vals.map((v) => Number(v)).filter((n) => Number.isFinite(n) && n > 0);
+    if (parsed.length < 1) {
+      setError("Add at least one suggested amount greater than 0.");
       return;
     }
     setSaving(true); setError("");
     try {
-      await api.patch(`/engagement/events/${eventId}/donation-config`, { amounts: parsed, message: msg.trim() });
-      onChange(parsed, msg.trim());
+      await api.patch(`/engagement/events/${eventId}/donation-config`, {
+        amounts: parsed, message: msg.trim(), title: title.trim(), cover_image: coverImage,
+      });
+      onChange(parsed, msg.trim(), title.trim(), coverImage);
       setEditing(false);
     } catch {
       setError("Failed to save. Please try again.");
@@ -97,8 +106,8 @@ function DonationSetup({ eventId, amounts, message: savedMessage, onChange }) {
             <Heart size={18} className="text-rose-500 dark:text-rose-400" />
           </div>
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-500 dark:text-rose-400">Donation Setup</p>
-            <h2 className="text-base font-black text-gray-900 dark:text-white">Preset Amounts</h2>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-500 dark:text-rose-400">Fundraiser setup</p>
+            <h2 className="text-base font-black text-gray-900 dark:text-white">Your public donation card</h2>
           </div>
         </div>
         {hasSetup && !editing && (
@@ -115,17 +124,22 @@ function DonationSetup({ eventId, amounts, message: savedMessage, onChange }) {
         {/* Preview — when saved and not editing */}
         {hasSetup && !editing ? (
           <div className="space-y-4">
-            {msg && (
-              <div className="rounded-xl border border-rose-100 dark:border-rose-500/20 bg-rose-50/50 dark:bg-rose-500/6 px-4 py-3">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-rose-400 dark:text-rose-300/60 mb-1">Donation message</p>
-                <p className="text-sm text-gray-700 dark:text-white/70 leading-relaxed">{msg}</p>
+            <div className="overflow-hidden rounded-2xl border border-rose-100 dark:border-rose-500/20 bg-rose-50/50 dark:bg-rose-500/6">
+              {coverImage && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={coverImage} alt="Fundraiser cover" className="h-32 w-full object-cover" />
+              )}
+              <div className="p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-rose-400 dark:text-rose-300/60 mb-1">Fundraiser</p>
+                <p className="text-base font-black text-gray-900 dark:text-white">{title || "Support this event"}</p>
+                <p className="mt-1 text-sm text-gray-700 dark:text-white/70 leading-relaxed">{msg || "Add a short story so guests understand what their donation supports."}</p>
               </div>
-            )}
-            <p className="text-xs text-gray-400 dark:text-white/40">Donors choose from these 3 amounts.</p>
-            <div className="flex gap-3">
+            </div>
+            <p className="text-xs text-gray-400 dark:text-white/40">Guests can choose from these suggested amounts or enter their own.</p>
+            <div className="flex flex-wrap gap-3">
               {amounts.map((a, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center rounded-2xl border-2 border-rose-200 dark:border-rose-400/30 bg-rose-50/60 dark:bg-rose-500/8 py-4">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-rose-400 dark:text-rose-300/60 mb-1">Option {i + 1}</span>
+                <div key={i} className="min-w-24 flex-1 flex flex-col items-center rounded-2xl border-2 border-rose-200 dark:border-rose-400/30 bg-rose-50/60 dark:bg-rose-500/8 py-4">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-rose-400 dark:text-rose-300/60 mb-1">Suggested</span>
                   <span className="text-2xl font-black text-rose-600 dark:text-rose-300">{fmt(a)}</span>
                 </div>
               ))}
@@ -134,32 +148,43 @@ function DonationSetup({ eventId, amounts, message: savedMessage, onChange }) {
         ) : (
           /* Edit form */
           <div className="space-y-4">
-            <p className="text-xs text-gray-500 dark:text-white/40">
-              Set exactly 3 donation amounts donors can choose from. All 3 are required.
-            </p>
+            <p className="text-xs text-gray-500 dark:text-white/40">Add the story guests see before they donate. One suggested amount is required; the next two are optional.</p>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-white/40 mb-2">Fundraiser title</label>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Help us bring this celebration to life"
+                maxLength={140}
+                className={inputCls}
+              />
+            </div>
 
             {/* Message */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-white/40 mb-2">
-                Donation message <span className="font-normal opacity-60">(shown on the event page)</span>
+                Fundraiser story <span className="font-normal opacity-60">(shown on the event page)</span>
               </label>
               <textarea
                 rows={2}
-                placeholder="e.g. Help us cover costs and make this event amazing for everyone!"
+                placeholder="Share what donations will make possible and why it matters."
                 value={msg}
                 onChange={(e) => setMsg(e.target.value)}
-                maxLength={280}
+                maxLength={1200}
                 className={`${inputCls} resize-none`}
               />
-              <p className="mt-1 text-right text-[10px] text-gray-400 dark:text-white/30">{msg.length}/280</p>
+              <p className="mt-1 text-right text-[10px] text-gray-400 dark:text-white/30">{msg.length}/1200</p>
             </div>
+
+            <ImageUploader eventId={eventId} value={coverImage} onChange={setCoverImage} label="Fundraiser cover image (optional)" />
 
             {/* Amounts */}
             <div className="grid grid-cols-3 gap-3">
               {[0, 1, 2].map((i) => (
                 <div key={i}>
                   <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-white/40 mb-2">
-                    Amount {i + 1} <span className="text-rose-400">*</span>
+                    Suggested amount {i + 1} {i === 0 ? <span className="text-rose-400">*</span> : <span className="font-normal opacity-60">(optional)</span>}
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-400 dark:text-white/40">$</span>
@@ -193,7 +218,7 @@ function DonationSetup({ eventId, amounts, message: savedMessage, onChange }) {
               </motion.button>
               {hasSetup && (
                 <button
-                  onClick={() => { setEditing(false); setVals(amounts.map(String)); setMsg(savedMessage ?? ""); setError(""); }}
+                  onClick={() => { setEditing(false); setVals([...amounts.map(String), "", "", ""].slice(0, 3)); setMsg(savedMessage ?? ""); setTitle(savedTitle ?? ""); setCoverImage(savedCoverImage ?? ""); setError(""); }}
                   className="flex items-center gap-1.5 rounded-xl border border-gray-200 dark:border-white/10 px-4 py-2.5 text-sm font-semibold text-gray-500 dark:text-white/50 hover:bg-gray-50 dark:hover:bg-white/5 transition"
                 >
                   <X size={13} /> Cancel
@@ -557,6 +582,8 @@ export default function DonationsPage() {
   const [fetchErr, setFetchErr]         = useState(null);
   const [configAmounts, setConfigAmounts] = useState([]);
   const [configMessage, setConfigMessage] = useState("");
+  const [configTitle, setConfigTitle] = useState("");
+  const [configCoverImage, setConfigCoverImage] = useState("");
 
   const loadDonations = useCallback(async () => {
     setLoading(true); setFetchErr(null);
@@ -574,7 +601,12 @@ export default function DonationsPage() {
     loadDonations();
     if (!event) fetchEvents();
     api.get(`/engagement/events/${eventId}/donation-config`)
-      .then((r) => { setConfigAmounts(r.data?.data?.amounts ?? []); setConfigMessage(r.data?.data?.message ?? ""); })
+      .then((r) => {
+        setConfigAmounts(r.data?.data?.amounts ?? []);
+        setConfigMessage(r.data?.data?.message ?? "");
+        setConfigTitle(r.data?.data?.title ?? "");
+        setConfigCoverImage(r.data?.data?.cover_image ?? "");
+      })
       .catch(() => {});
   }, [eventId]); // eslint-disable-line
 
@@ -682,7 +714,14 @@ export default function DonationsPage() {
           eventId={eventId}
           amounts={configAmounts}
           message={configMessage}
-          onChange={(a, m) => { setConfigAmounts(a); setConfigMessage(m ?? ""); }}
+          title={configTitle}
+          coverImage={configCoverImage}
+          onChange={(a, m, title, coverImage) => {
+            setConfigAmounts(a);
+            setConfigMessage(m ?? "");
+            setConfigTitle(title ?? "");
+            setConfigCoverImage(coverImage ?? "");
+          }}
         />
 
         {/* Right: donors list */}

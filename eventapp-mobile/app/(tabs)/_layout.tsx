@@ -17,7 +17,7 @@ function TabIcon({
   const color = focused ? Colors.accent.indigo : Colors.text.subtle;
   return (
     <View style={styles.tabItem}>
-      <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+      <View style={styles.iconWrap}>
         <Feather name={name} size={17} color={color} />
         {!!badge && (
           <View style={styles.badge}>
@@ -25,7 +25,7 @@ function TabIcon({
           </View>
         )}
       </View>
-      <Text style={[styles.tabLabel, { color }]} numberOfLines={1}>{label}</Text>
+      <Text style={styles.tabLabel} numberOfLines={1}>{label}</Text>
     </View>
   );
 }
@@ -39,6 +39,11 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: styles.tabBar,
+        // The selected state belongs to TabIcon only. Do not let the navigator
+        // paint a full-width selected/pressed background behind the bar.
+        tabBarActiveBackgroundColor: 'transparent',
+        tabBarInactiveBackgroundColor: 'transparent',
+        tabBarItemStyle: styles.tabBarItem,
         tabBarBackground: () => (
           <BlurView intensity={70} tint="dark" style={StyleSheet.absoluteFill} />
         ),
@@ -118,6 +123,9 @@ const styles = StyleSheet.create({
     paddingTop:     2,
     minWidth:       44,
   },
+  tabBarItem: {
+    backgroundColor: 'transparent',
+  },
   iconWrap: {
     width:           38,
     height:          38,
@@ -125,11 +133,6 @@ const styles = StyleSheet.create({
     alignItems:      'center',
     justifyContent:  'center',
     position:        'relative',
-  },
-  iconWrapActive: {
-    backgroundColor: `${Colors.accent.indigo}15`,
-    borderWidth:     1,
-    borderColor:     `${Colors.accent.indigo}30`,
   },
   badge: {
     position:          'absolute',
@@ -147,6 +150,7 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize:      10,
     fontWeight:    '700',
+    color:         Colors.text.subtle,
     letterSpacing: 0,       // ← 0 tracking prevents overflow
   },
 

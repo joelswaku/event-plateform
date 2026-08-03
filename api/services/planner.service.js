@@ -1,6 +1,6 @@
 import { db } from "../config/db.js";
 import { callAI, logAIGeneration } from "./ai.service.js";
-import { PLANS } from "./planLimits.service.js";
+import { PLANS, getUserPlan } from "./planLimits.service.js";
 
 export class AppError extends Error {
   constructor(message, statusCode = 400, details = null) {
@@ -762,13 +762,9 @@ export async function inviteTeamMemberService({ organizationId, projectId, userI
   const { name, email, role } = payload;
   if (!email?.trim()) throw new AppError("email is required", 400);
 
-  // Get user's subscription plan to check limits
-  const { rows: userRows } = await db.query(
-    `SELECT subscription_plan, is_subscribed FROM users WHERE id = $1`,
-    [userId]
-  );
-  const user = userRows[0];
-  const plan = user?.is_subscribed ? (user.subscription_plan || 'free') : 'free';
+  // Use the shared entitlement resolver so complimentary Super Admin grants
+  // follow the same rules as every other paid-plan feature.
+  const plan = await getUserPlan(db, userId);
 
   // Use same team limits as event team page
   const planLimit = PLANS[plan]?.teamMembers ?? 1;

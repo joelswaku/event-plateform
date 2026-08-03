@@ -8,6 +8,7 @@ import {
   getAllOrganizations,
   getAllUsers,
   updateUser,
+  updateUserPlan,
   createEnterpriseOrganization,
   addOrgMember,
   deleteEvent,
@@ -56,6 +57,7 @@ router.post("/organizations/:orgId/members",         addOrgMember);
 
 router.get("/users",              getAllUsers);
 router.patch("/users/:userId",    updateUser);
+router.patch("/users/:userId/plan", updateUserPlan);
 
 router.get("/activity",       getActivityFeed);
 router.get("/financial",      getFinancialOverview);

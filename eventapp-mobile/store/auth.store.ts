@@ -96,7 +96,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       return { success: true };
     } catch (err: unknown) {
-      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      const verification = (err as {
+        response?: { data?: { message?: string; requiresVerification?: boolean; verificationToken?: string } };
+      })?.response?.data;
+
+      if (verification?.requiresVerification && verification.verificationToken) {
+        const message = verification.message ?? 'Please verify your email before logging in.';
+        set({ error: message, isLoading: false });
+        return {
+          success: false,
+          requiresVerification: true,
+          verificationToken: verification.verificationToken,
+          message,
+        };
+      }
+
+      const message = verification?.message
         ?? (err instanceof Error ? err.message : 'Login failed');
       set({ error: message, isLoading: false });
       return { success: false, message };

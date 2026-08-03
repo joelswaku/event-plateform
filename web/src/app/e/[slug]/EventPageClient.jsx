@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, X, ArrowRight, Loader2, Lock, Ticket, CheckCircle, Zap } from "lucide-react";
 import SharedEventRenderer from "@/components/events/shared/SharedEventRenderer";
 import RsvpPanel from "@/components/events/shared/RsvpPanel";
 import OpenRsvpModal from "@/components/events/shared/OpenRsvpModal";
 import { createPaymentRequestKey } from "@/lib/payment-idempotency";
+import { resolveThemeFromSections } from "@/lib/styleThemes";
 
 const API          = process.env.NEXT_PUBLIC_API_URL;
 const DON_DEFAULTS = [5, 10, 25];
@@ -15,10 +16,11 @@ const DON_DEFAULTS = [5, 10, 25];
 // Mobile  → slides up from bottom as a full-width sheet
 // Desktop → fades/scales in as a centered card (max-w-md)
 function useIsDesktop() {
-  const [desktop, setDesktop] = useState(false);
+  const [desktop, setDesktop] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches
+  );
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 640px)");
-    setDesktop(mq.matches);
     const handler = (e) => setDesktop(e.matches);
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
@@ -26,12 +28,18 @@ function useIsDesktop() {
   return desktop;
 }
 
-function SheetModal({ onClose, accentBar, children, maxWidth = "max-w-md" }) {
+function SheetModal({ onClose, accentBar, children, maxWidth = "max-w-md", palette }) {
   const desktop = useIsDesktop();
+  const sheetStyle = palette
+    ? { background: palette.background, border: `1px solid ${palette.border}`, boxShadow: "0 32px 80px rgba(0,0,0,0.38)" }
+    : { background: "rgba(8,8,18,0.98)", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 32px 80px rgba(0,0,0,0.75)" };
+  const closeStyle = { background: palette ? palette.surface : "rgba(255,255,255,0.08)" };
+  const closeColor = palette ? palette.muted : "rgba(255,255,255,0.55)";
 
   if (desktop) {
     return (
       <motion.div
+        key="desktop-sheet"
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         className="fixed inset-0 z-[60] flex items-center justify-center p-6"
         style={{ background: "rgba(0,0,0,0.70)", backdropFilter: "blur(8px)" }}
@@ -43,13 +51,13 @@ function SheetModal({ onClose, accentBar, children, maxWidth = "max-w-md" }) {
           exit={{ opacity: 0, scale: 0.95, y: 16 }}
           transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
           className={`relative w-full ${maxWidth} overflow-hidden rounded-3xl`}
-          style={{ background: "rgba(8,8,18,0.98)", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 32px 80px rgba(0,0,0,0.75)", maxHeight: "90vh" }}
+          style={{ ...sheetStyle, maxHeight: "90vh" }}
         >
           {accentBar}
           <button onClick={onClose}
             className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-xl z-10"
-            style={{ background: "rgba(255,255,255,0.08)" }}>
-            <X size={15} color="rgba(255,255,255,0.55)" />
+            style={closeStyle}>
+            <X size={15} color={closeColor} />
           </button>
           <div className="overflow-y-auto" style={{ maxHeight: "calc(90vh - 4px)" }}>
             {children}
@@ -62,19 +70,20 @@ function SheetModal({ onClose, accentBar, children, maxWidth = "max-w-md" }) {
   // Mobile — bottom sheet
   return (
     <motion.div
+      key="mobile-sheet"
       initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
       transition={{ type: "spring", damping: 28, stiffness: 300 }}
       className="fixed inset-x-0 bottom-0 z-[60] overflow-hidden rounded-t-3xl"
-      style={{ background: "rgba(8,8,18,0.97)", border: "1px solid rgba(255,255,255,0.12)", backdropFilter: "blur(24px)", boxShadow: "0 -24px 80px rgba(0,0,0,0.60)", maxHeight: "92vh" }}
+      style={{ ...sheetStyle, backdropFilter: "blur(24px)", boxShadow: palette ? "0 -24px 64px rgba(0,0,0,0.26)" : "0 -24px 80px rgba(0,0,0,0.60)", maxHeight: "92vh" }}
     >
       {accentBar}
       <div className="flex justify-center pt-3 pb-1">
-        <div className="h-1 w-10 rounded-full" style={{ background: "rgba(255,255,255,0.18)" }} />
+        <div className="h-1 w-10 rounded-full" style={{ background: palette ? palette.border : "rgba(255,255,255,0.18)" }} />
       </div>
       <button onClick={onClose}
         className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-xl"
-        style={{ background: "rgba(255,255,255,0.08)" }}>
-        <X size={15} color="rgba(255,255,255,0.55)" />
+        style={closeStyle}>
+        <X size={15} color={closeColor} />
       </button>
       <div className="overflow-y-auto" style={{ maxHeight: "calc(92vh - 40px)" }}>
         {children}
@@ -107,7 +116,7 @@ const TIER = {
 };
 
 // ─── Donation drawer ───────────────────────────────────────────────────────────
-function DonationDrawer({ event, onClose, donConfig }) {
+function DonationDrawer({ event, onClose, donConfig, theme }) {
   const [freq,       setFreq]       = useState("once");
   const [preset,     setPreset]     = useState(null);
   const [custom,     setCustom]     = useState("");
@@ -117,9 +126,17 @@ function DonationDrawer({ event, onClose, donConfig }) {
   const [error,      setError]      = useState("");
   const donationRequestKey = useRef(createPaymentRequestKey("donation"));
 
-  const presets    = donConfig?.amounts?.length === 3 ? donConfig.amounts : DON_DEFAULTS;
+  const presets    = donConfig?.amounts?.length ? donConfig.amounts : DON_DEFAULTS;
   const amount     = preset === "custom" ? Number(custom) : (preset ?? 0);
-  const inputStyle = { background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.13)" };
+  const colors = {
+    background: theme?.["--t-bg-alt"] ?? "#FFFFFF",
+    surface: theme?.["--t-bg"] ?? "#FAF9F6",
+    text: theme?.["--t-text"] ?? "#1C1917",
+    muted: theme?.["--t-text-muted"] ?? "#78716C",
+    accent: theme?.["--t-accent"] ?? "#C9A96E",
+    accentFg: theme?.["--t-accent-fg"] ?? "#111111",
+    border: theme?.["--t-border"] ?? "#E7E5E4",
+  };
 
   async function handleDonate(e) {
     e.preventDefault();
@@ -137,72 +154,106 @@ function DonationDrawer({ event, onClose, donConfig }) {
     } catch (err) { setError(err.message); setSubmitting(false); }
   }
 
-  const accentBar = <div className="h-1 w-full" style={{ background: "linear-gradient(90deg,#be185d,#f43f5e,#fb923c)" }} />;
+  const accentBar = <div className="h-1.5 w-full" style={{ background: colors.accent }} />;
 
   return (
-    <SheetModal onClose={onClose} accentBar={accentBar}>
-      <div className="px-6 pb-10 pt-4">
+    <SheetModal onClose={onClose} accentBar={accentBar} palette={colors} maxWidth="max-w-lg">
+      <div className="relative isolate overflow-hidden px-5 pb-7 pt-4 sm:px-6 sm:pb-8">
+        {/* Gentle, theme-coloured movement gives the sheet depth without competing with the form. */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+          <motion.div
+            className="absolute -right-20 -top-24 h-56 w-56 rounded-full blur-3xl"
+            style={{ background: colors.accent, opacity: 0.16 }}
+            animate={{ x: [0, -24, 8, 0], y: [0, 20, -10, 0], scale: [1, 1.12, 0.96, 1] }}
+            transition={{ duration: 11, ease: "easeInOut", repeat: Infinity }}
+          />
+          <motion.div
+            className="absolute -bottom-28 -left-20 h-52 w-52 rounded-full blur-3xl"
+            style={{ background: colors.accent, opacity: 0.10 }}
+            animate={{ x: [0, 22, -8, 0], y: [0, -18, 10, 0], scale: [0.94, 1.08, 1, 0.94] }}
+            transition={{ duration: 13, ease: "easeInOut", repeat: Infinity }}
+          />
+        </div>
+        <div className="relative">
         {done ? (
-          <div className="flex flex-col items-center justify-center py-14 text-center gap-3">
-            <div className="text-5xl">💝</div>
-            <p className="text-xl font-black text-white">Thank you!</p>
-            <p className="text-sm text-white/50">Your {freq === "monthly" ? "monthly" : ""} donation of ${amount} means everything.</p>
-            <button onClick={onClose} className="mt-2 text-xs uppercase tracking-widest text-white/30 underline">Close</button>
+          <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
+              <Heart size={24} fill={colors.accent} stroke={colors.accent} />
+            </div>
+            <p className="text-xl font-black" style={{ color: colors.text }}>Thank you</p>
+            <p className="text-sm" style={{ color: colors.muted }}>Your {freq === "monthly" ? "monthly " : ""}contribution of ${amount} means a lot.</p>
+            <button onClick={onClose} className="mt-2 text-xs font-bold uppercase tracking-widest underline" style={{ color: colors.muted }}>Close</button>
           </div>
         ) : (
           <>
-            <div className="mb-5">
-              <div className="flex items-center gap-2 mb-1.5"><Heart size={13} fill="#f43f5e" stroke="#f43f5e" /><p className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-400">Support this event</p></div>
-              <p className="text-lg font-bold text-white leading-snug">{donConfig?.message || "Every contribution makes a difference."}</p>
+            <div className="mb-5 flex items-center gap-3 rounded-2xl p-4" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: colors.background, border: `1px solid ${colors.border}` }}>
+                <Heart size={16} fill={colors.accent} stroke={colors.accent} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: colors.muted }}>Support this event</p>
+                <p className="mt-0.5 text-base font-bold leading-snug" style={{ color: colors.text }}>{donConfig?.title || "Choose an amount to contribute"}</p>
+              </div>
             </div>
+            {donConfig?.message && <p className="mb-4 text-sm leading-6" style={{ color: colors.muted }}>{donConfig.message}</p>}
             <form onSubmit={handleDonate} className="space-y-3">
-              <div className="flex rounded-xl p-1 gap-1" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}>
+              <div className="flex gap-1 rounded-xl p-1" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
                 {[["once", "One Time"], ["monthly", "Monthly"]].map(([val, label]) => (
                   <button key={val} type="button" onClick={() => setFreq(val)}
                     className="flex-1 rounded-lg py-2.5 text-sm font-black transition-all"
-                    style={freq === val ? { background: "var(--t-accent,#f43f5e)", color: "#000" } : { color: "rgba(255,255,255,0.45)" }}>
+                    style={freq === val ? { background: colors.accent, color: colors.accentFg } : { color: colors.muted }}>
                     {label}
                   </button>
                 ))}
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(3, Math.max(1, presets.length))}, minmax(0, 1fr))` }}>
                 {presets.map((a) => (
                   <button key={a} type="button" onClick={() => { setPreset(a); setCustom(""); setError(""); }}
                     className="py-4 text-base font-black transition-all active:scale-95"
-                    style={{ borderRadius: 14, border: preset === a ? "2px solid #f43f5e" : "1px solid rgba(255,255,255,0.13)", background: preset === a ? "#f43f5e" : "rgba(255,255,255,0.05)", color: preset === a ? "#fff" : "rgba(255,255,255,0.80)", boxShadow: preset === a ? "0 4px 20px rgba(244,63,94,0.35)" : "none" }}>
+                    style={{ borderRadius: 14, border: preset === a ? `2px solid ${colors.accent}` : `1px solid ${colors.border}`, background: preset === a ? colors.accent : colors.surface, color: preset === a ? colors.accentFg : colors.text, boxShadow: preset === a ? "0 5px 16px rgba(0,0,0,0.12)" : "none" }}>
                     ${a}
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-2 rounded-xl px-4 py-3" style={preset === "custom" ? { ...inputStyle, border: "1.5px solid #f43f5e" } : inputStyle}>
-                <span className="text-base font-bold text-white/35">$</span>
+              <div className="flex items-center gap-2 rounded-xl px-4 py-3" style={{ background: colors.surface, border: preset === "custom" ? `1.5px solid ${colors.accent}` : `1.5px solid ${colors.border}` }}>
+                <span className="text-base font-bold" style={{ color: colors.muted }}>$</span>
                 <input type="number" min="1" value={preset === "custom" ? custom : ""} placeholder="Other amount"
                   onFocus={() => setPreset("custom")} onChange={(e) => { setPreset("custom"); setCustom(e.target.value); setError(""); }}
-                  className="flex-1 bg-transparent text-base font-semibold text-white placeholder-white/25 outline-none" />
+                  className="flex-1 bg-transparent text-base font-semibold outline-none placeholder:text-stone-400" style={{ color: colors.text }} />
               </div>
               <input type="text" value={name} placeholder="Your name (optional)" onChange={(e) => setName(e.target.value)}
-                className="w-full rounded-xl px-4 py-3 text-base font-medium text-white placeholder-white/30 outline-none" style={inputStyle} />
-              {error && <p className="text-sm font-semibold text-rose-400">{error}</p>}
-              <button type="submit" disabled={submitting || !amount || amount <= 0}
+                className="w-full rounded-xl px-4 py-3 text-base font-medium outline-none placeholder:text-stone-400" style={{ background: colors.surface, border: `1.5px solid ${colors.border}`, color: colors.text }} />
+              {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
+              <button type="submit" disabled={submitting}
                 className="w-full rounded-xl py-4 text-sm font-black uppercase tracking-widest transition-all active:scale-[0.98] disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg,#be185d,#f43f5e)", boxShadow: "0 8px 28px rgba(244,63,94,0.40)", color: "#fff" }}>
+                style={{ background: colors.accent, boxShadow: "0 8px 22px rgba(0,0,0,0.14)", color: colors.accentFg }}>
                 {submitting
                   ? <span className="flex items-center justify-center gap-2"><Loader2 size={16} className="animate-spin" />Processing…</span>
                   : <span className="flex items-center justify-center gap-2">{freq === "monthly" ? "Give Monthly" : "Donate"}{amount > 0 ? ` — $${amount}` : ""}<ArrowRight size={16} strokeWidth={2.5} /></span>}
               </button>
-              <p className="flex items-center justify-center gap-1.5 text-center text-[11px] text-white/20"><Lock size={9} />Secure payment via Stripe</p>
+              <p className="flex items-center justify-center gap-1.5 text-center text-[11px]" style={{ color: colors.muted }}><Lock size={9} />Secure payment via Stripe</p>
             </form>
           </>
         )}
+        </div>
       </div>
     </SheetModal>
   );
 }
 
 // ─── Ticket checkout drawer ────────────────────────────────────────────────────
-function TicketCheckoutDrawer({ ticket, event, onClose, onBack }) {
+function TicketCheckoutDrawer({ ticket, event, onClose, onBack, theme }) {
   const tierKey  = resolveTier(ticket);
   const cfg      = TIER[tierKey];
+  const colors = {
+    background: theme?.["--t-bg-alt"] ?? "#FFFFFF",
+    surface: theme?.["--t-bg"] ?? "#FAF9F6",
+    text: theme?.["--t-text"] ?? "#1C1917",
+    muted: theme?.["--t-text-muted"] ?? "#78716C",
+    accent: theme?.["--t-accent"] ?? "#C9A96E",
+    accentFg: theme?.["--t-accent-fg"] ?? "#111111",
+    border: theme?.["--t-border"] ?? "#E7E5E4",
+  };
   const available = ticket.quantity_total != null ? ticket.quantity_total - (ticket.quantity_sold ?? 0) : 99;
   const maxQty    = Math.min(available, 10);
   const priceEach = ticket.kind === "FREE" ? 0 : Number(ticket.price);
@@ -237,12 +288,21 @@ function TicketCheckoutDrawer({ ticket, event, onClose, onBack }) {
   }
 
   return (
-    <div className="px-6 pb-10 pt-4">
+    <div className="relative isolate overflow-hidden px-5 pb-7 pt-4 sm:px-6 sm:pb-8">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+        <motion.div
+          className="absolute -right-24 -top-28 h-60 w-60 rounded-full blur-3xl"
+          style={{ background: colors.accent, opacity: 0.15 }}
+          animate={{ x: [0, -26, 6, 0], y: [0, 18, -8, 0], scale: [1, 1.12, 0.96, 1] }}
+          transition={{ duration: 12, ease: "easeInOut", repeat: Infinity }}
+        />
+      </div>
+      <div className="relative">
       {/* ticket header */}
       <div className="flex items-start gap-3 mb-5">
         {onBack && (
-          <button onClick={onBack} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl mt-1" style={{ background: "rgba(255,255,255,0.08)" }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+          <button onClick={onBack} className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={colors.muted} strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
         )}
         <div>
@@ -250,8 +310,8 @@ function TicketCheckoutDrawer({ ticket, event, onClose, onBack }) {
             style={{ background: `${cfg.accent}20`, color: cfg.accent, border: `1px solid ${cfg.accent}35` }}>
             {cfg.icon} {cfg.label}
           </span>
-          <h3 className="text-xl font-bold text-white">{ticket.name}</h3>
-          <p className="text-xs mt-0.5" style={{ color: cfg.muted }}>{event?.title}</p>
+          <h3 className="text-xl font-bold" style={{ color: colors.text }}>{ticket.name}</h3>
+          <p className="mt-0.5 text-xs" style={{ color: colors.muted }}>{event?.title}</p>
         </div>
       </div>
 
@@ -260,36 +320,36 @@ function TicketCheckoutDrawer({ ticket, event, onClose, onBack }) {
           <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
             {ticket.kind !== "FREE" && (
               <div>
-                <label className="block text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "rgba(255,255,255,0.4)" }}>Quantity</label>
+                <label className="mb-2 block text-xs font-bold uppercase tracking-widest" style={{ color: colors.muted }}>Quantity</label>
                 <div className="flex items-center gap-3">
-                  <button onClick={() => setQty(q => Math.max(1, q - 1))} className="w-9 h-9 rounded-xl font-bold text-white flex items-center justify-center" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}>−</button>
-                  <span className="text-xl font-bold text-white w-8 text-center">{qty}</span>
-                  <button onClick={() => setQty(q => Math.min(maxQty, q + 1))} className="w-9 h-9 rounded-xl font-bold text-white flex items-center justify-center" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}>+</button>
-                  <span className="text-sm ml-2 font-bold" style={{ color: cfg.accent }}>{fmt(total)}</span>
+                  <button onClick={() => setQty(q => Math.max(1, q - 1))} className="flex h-9 w-9 items-center justify-center rounded-xl font-bold" style={{ background: colors.surface, border: `1px solid ${colors.border}`, color: colors.text }}>−</button>
+                  <span className="w-8 text-center text-xl font-bold" style={{ color: colors.text }}>{qty}</span>
+                  <button onClick={() => setQty(q => Math.min(maxQty, q + 1))} className="flex h-9 w-9 items-center justify-center rounded-xl font-bold" style={{ background: colors.surface, border: `1px solid ${colors.border}`, color: colors.text }}>+</button>
+                  <span className="ml-2 text-sm font-bold" style={{ color: colors.accent }}>{fmt(total)}</span>
                 </div>
               </div>
             )}
             {[{ key: "name", label: "Full Name", type: "text", placeholder: "Your full name" }, { key: "email", label: "Email", type: "email", placeholder: "your@email.com" }, { key: "phone", label: "Phone (optional)", type: "tel", placeholder: "+1 234 567 8900" }].map(({ key, label, type, placeholder }) => (
               <div key={key}>
-                <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: "rgba(255,255,255,0.4)" }}>{label}</label>
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-widest" style={{ color: colors.muted }}>{label}</label>
                 <input type={type} value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} placeholder={placeholder}
-                  className="w-full rounded-xl px-4 py-3 text-sm text-white outline-none"
-                  style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}
-                  onFocus={e => e.target.style.borderColor = cfg.accent + "80"}
-                  onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.12)"} />
+                  className="w-full rounded-xl px-4 py-3 text-sm outline-none placeholder:text-stone-400"
+                  style={{ background: colors.surface, border: `1px solid ${colors.border}`, color: colors.text }}
+                  onFocus={e => e.target.style.borderColor = colors.accent}
+                  onBlur={e => e.target.style.borderColor = colors.border} />
               </div>
             ))}
-            <div className="rounded-xl p-3 text-xs" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }}>
-              📧 Your ticket number will be emailed to you.
+            <div className="rounded-xl p-3 text-xs leading-5" style={{ background: colors.surface, border: `1px solid ${colors.border}`, color: colors.muted }}>
+              ✉️ Your e-ticket and QR entry code will be sent to this email after checkout.
             </div>
-            {error && <p className="text-sm text-rose-400">{error}</p>}
-            <div className="flex items-center justify-between py-3 border-t" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-              <span className="text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>Total</span>
-              <span className="text-xl font-bold" style={{ color: cfg.accent }}>{fmt(total)}</span>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <div className="flex items-center justify-between border-t py-3" style={{ borderColor: colors.border }}>
+              <span className="text-sm" style={{ color: colors.muted }}>Total</span>
+              <span className="text-xl font-bold" style={{ color: colors.text }}>{fmt(total)}</span>
             </div>
             <button onClick={submit} disabled={submitting}
               className="w-full py-4 rounded-xl text-sm font-black transition-all active:scale-[0.98] disabled:opacity-50"
-              style={{ background: `linear-gradient(135deg,${cfg.accent},${cfg.accent}cc)`, color: cfg.dark, boxShadow: `0 4px 20px ${cfg.accent}40` }}>
+              style={{ background: colors.accent, color: colors.accentFg, boxShadow: "0 8px 22px rgba(0,0,0,0.14)" }}>
               {submitting ? "Processing…" : ticket.kind === "FREE" ? "Reserve My Free Spot →" : `Pay ${fmt(total)} →`}
             </button>
           </motion.div>
@@ -300,53 +360,90 @@ function TicketCheckoutDrawer({ ticket, event, onClose, onBack }) {
             <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center" style={{ background: `${cfg.accent}20` }}>
               <CheckCircle size={32} style={{ color: cfg.accent }} />
             </div>
-            <div><h3 className="text-2xl font-black text-white">You&apos;re in! 🎉</h3><p className="text-sm mt-1" style={{ color: cfg.muted }}>Your ticket is confirmed.</p></div>
+            <div><h3 className="text-2xl font-black" style={{ color: colors.text }}>You&apos;re in! 🎉</h3><p className="mt-1 text-sm" style={{ color: colors.muted }}>Your ticket is confirmed.</p></div>
             {result?.issued_tickets?.[0] && (
-              <div className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.06)", border: `1px solid ${cfg.border}` }}>
+              <div className="rounded-2xl p-4" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
                 <div className="w-36 h-36 mx-auto rounded-xl overflow-hidden bg-white p-2">
                   <img src={`${API}/public/tickets/qr/${result.issued_tickets[0].qr_token}`} alt="QR" className="w-full h-full" />
                 </div>
               </div>
             )}
-            <p className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>Confirmation sent to <strong style={{ color: "rgba(255,255,255,0.6)" }}>{form.email}</strong></p>
+            <p className="text-xs" style={{ color: colors.muted }}>Confirmation sent to <strong style={{ color: colors.text }}>{form.email}</strong></p>
             <a href={`/my-tickets?email=${encodeURIComponent(form.email)}`}
               className="block w-full py-3 rounded-xl text-sm font-bold"
-              style={{ background: `${cfg.accent}20`, color: cfg.accent, border: `1px solid ${cfg.border}` }}>
+              style={{ background: colors.surface, color: colors.text, border: `1px solid ${colors.border}` }}>
               View My Ticket Profile →
             </a>
-            <button onClick={onClose} className="block w-full py-3 rounded-xl text-sm font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>Close</button>
+            <button onClick={onClose} className="block w-full py-3 rounded-xl text-sm font-medium" style={{ color: colors.muted }}>Close</button>
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }
 
 // ─── Ticket selector drawer ────────────────────────────────────────────────────
-function TicketDrawer({ event, tickets, onClose }) {
+function TicketDrawer({ event, tickets, onClose, theme }) {
   const [selected, setSelected] = useState(null);
+  const colors = {
+    background: theme?.["--t-bg-alt"] ?? "#FFFFFF",
+    surface: theme?.["--t-bg"] ?? "#FAF9F6",
+    text: theme?.["--t-text"] ?? "#1C1917",
+    muted: theme?.["--t-text-muted"] ?? "#78716C",
+    accent: theme?.["--t-accent"] ?? "#C9A96E",
+    accentFg: theme?.["--t-accent-fg"] ?? "#111111",
+    border: theme?.["--t-border"] ?? "#E7E5E4",
+  };
+
+  const eventDate = event?.starts_at_local || event?.starts_at_utc || event?.starts_at
+    ? new Date(event.starts_at_local || event.starts_at_utc || event.starts_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    : null;
 
   if (selected) {
-    const selAccent = TIER[resolveTier(selected)].accent;
     return (
-      <SheetModal onClose={onClose} accentBar={<div style={{ height: 3, background: `linear-gradient(90deg,${selAccent},transparent)` }} />}>
-        <TicketCheckoutDrawer ticket={selected} event={event} onClose={onClose} onBack={() => setSelected(null)} />
+      <SheetModal onClose={onClose} palette={colors} maxWidth="max-w-lg" accentBar={<div className="h-1.5 w-full" style={{ background: colors.accent }} />}>
+        <TicketCheckoutDrawer ticket={selected} event={event} theme={theme} onClose={onClose} onBack={() => setSelected(null)} />
       </SheetModal>
     );
   }
 
   return (
-    <SheetModal onClose={onClose} accentBar={<div className="h-1 w-full" style={{ background: "linear-gradient(90deg,#4f46e5,#6366f1,#8b5cf6)" }} />}>
-      <div className="px-6 pb-10 pt-4">
-        <div className="mb-5">
-          <div className="flex items-center gap-2 mb-1.5">
-            <Ticket size={13} style={{ color: "#6366f1" }} />
-            <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: "#818cf8" }}>Get Tickets</p>
-          </div>
-          <p className="text-lg font-bold text-white leading-snug">{event.title}</p>
+    <SheetModal onClose={onClose} palette={colors} maxWidth="max-w-lg" accentBar={<div className="h-1.5 w-full" style={{ background: colors.accent }} />}>
+      <div className="relative isolate overflow-hidden px-5 pb-7 pt-4 sm:px-6 sm:pb-8">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+          <motion.div
+            className="absolute -right-24 -top-28 h-60 w-60 rounded-full blur-3xl"
+            style={{ background: colors.accent, opacity: 0.15 }}
+            animate={{ x: [0, -26, 6, 0], y: [0, 18, -8, 0], scale: [1, 1.12, 0.96, 1] }}
+            transition={{ duration: 12, ease: "easeInOut", repeat: Infinity }}
+          />
+          <motion.div
+            className="absolute -bottom-32 -left-24 h-56 w-56 rounded-full blur-3xl"
+            style={{ background: colors.accent, opacity: 0.09 }}
+            animate={{ x: [0, 22, -6, 0], y: [0, -16, 8, 0], scale: [0.94, 1.08, 1, 0.94] }}
+            transition={{ duration: 14, ease: "easeInOut", repeat: Infinity }}
+          />
         </div>
 
-        <div className="space-y-3">
+        <div className="relative">
+          <div className="mb-5 flex items-center gap-3 rounded-2xl p-4" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: colors.background, border: `1px solid ${colors.border}`, color: colors.accent }}>
+              <Ticket size={18} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: colors.muted }}>Tickets for this event</p>
+              <p className="mt-0.5 truncate text-base font-bold" style={{ color: colors.text }}>{event.title}</p>
+            </div>
+          </div>
+
+          <div className="mb-4 flex flex-wrap gap-2">
+            {eventDate && <span className="rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: colors.surface, border: `1px solid ${colors.border}`, color: colors.muted }}>{eventDate}</span>}
+            {event?.venue_name && <span className="max-w-full truncate rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: colors.surface, border: `1px solid ${colors.border}`, color: colors.muted }}>📍 {event.venue_name}</span>}
+            <span className="rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: colors.surface, border: `1px solid ${colors.border}`, color: colors.muted }}>QR entry included</span>
+          </div>
+
+          <div className="space-y-3">
           {tickets.map((t) => {
             const cfg      = TIER[resolveTier(t)];
             const available = t.quantity_total != null ? t.quantity_total - (t.quantity_sold ?? 0) : null;
@@ -356,28 +453,35 @@ function TicketDrawer({ event, tickets, onClose }) {
               <button key={t.id}
                 onClick={() => !soldOut && setSelected(t)}
                 disabled={soldOut}
-                className="w-full flex items-center gap-4 overflow-hidden rounded-2xl px-4 py-4 text-left transition-all active:scale-[0.99] disabled:opacity-40"
-                style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, boxShadow: `0 4px 20px ${cfg.accent}12` }}
+                className="relative w-full overflow-hidden rounded-2xl p-4 text-left transition-all active:scale-[0.99] disabled:opacity-40"
+                style={{ background: colors.background, border: `1px solid ${soldOut ? colors.border : cfg.accent + "55"}`, boxShadow: `0 6px 20px ${cfg.accent}12` }}
               >
-                <div>
-                  <div style={{ height: "100%", width: 3, background: cfg.accent, borderRadius: 99, position: "absolute", left: 0, top: 0 }} />
-                  <div className="flex items-center gap-2 mb-1">
+                <div className="absolute inset-y-0 left-0 w-1" style={{ background: cfg.accent }} />
+                <div className="flex items-start gap-3 pl-1">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex items-center gap-2">
                     <span className="text-base">{cfg.icon}</span>
                     <span className="text-xs font-black uppercase tracking-widest" style={{ color: cfg.accent }}>{cfg.label}</span>
-                    {urgent && <span className="text-[10px] font-bold text-rose-400 flex items-center gap-0.5"><Zap size={9} />{available} left</span>}
-                    {soldOut && <span className="text-[10px] font-bold text-white/30">Sold Out</span>}
+                      {urgent && <span className="flex items-center gap-0.5 text-[10px] font-bold text-red-600"><Zap size={9} />{available} left</span>}
+                      {soldOut && <span className="text-[10px] font-bold" style={{ color: colors.muted }}>Sold out</span>}
+                    </div>
+                    <p className="text-base font-bold" style={{ color: colors.text }}>{t.name}</p>
+                    {t.description && <p className="mt-1 line-clamp-1 text-xs" style={{ color: colors.muted }}>{t.description}</p>}
+                    <p className="mt-2 text-[10px] font-bold" style={{ color: colors.muted }}>
+                      {available === null ? "Instant email delivery · QR code entry" : `${Math.max(available, 0)} available · Instant email delivery`}
+                    </p>
                   </div>
-                  <p className="text-base font-bold text-white">{t.name}</p>
-                </div>
-                <div className="ml-auto text-right shrink-0">
-                  <p className="text-xl font-black" style={{ color: t.kind === "FREE" ? cfg.accent : "#fff" }}>
+                  <div className="shrink-0 text-right">
+                    <p className="text-xl font-black" style={{ color: t.kind === "FREE" ? cfg.accent : colors.text }}>
                     {fmtPrice(Number(t.price), t.currency)}
-                  </p>
-                  {!soldOut && <ArrowRight size={14} style={{ color: cfg.accent, marginLeft: "auto" }} />}
+                    </p>
+                    {!soldOut && <span className="mt-1.5 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-black uppercase" style={{ background: colors.accent, color: colors.accentFg }}>Select <ArrowRight size={11} /></span>}
+                  </div>
                 </div>
               </button>
             );
           })}
+          </div>
         </div>
       </div>
     </SheetModal>
@@ -385,92 +489,99 @@ function TicketDrawer({ event, tickets, onClose }) {
 }
 
 // ─── Sticky bars ───────────────────────────────────────────────────────────────
-function StickyBars({ event, donConfig, tickets }) {
+function StickyBars({ event, donConfig, tickets, theme }) {
   const showDonate  = !!event.allow_donations;
   const showTicket  = !!event.allow_ticketing && tickets.length > 0;
   const hasBoth   = showDonate && showTicket;
-  const goDonate  = () => { window.location.href = `/e/${event.slug}/donate`; };
-  const goTickets = () => { window.location.href = `/e/${event.slug}/tickets`; };
+  const [donationOpen, setDonationOpen] = useState(false);
+  const [ticketsOpen, setTicketsOpen] = useState(false);
 
-  const presets = donConfig?.amounts?.length === 3 ? donConfig.amounts : DON_DEFAULTS;
   const cheapest = tickets.length ? tickets.reduce((a, b) => Number(a.price) <= Number(b.price) ? a : b) : null;
-  const cfg = cheapest ? TIER[resolveTier(cheapest)] : TIER.standard;
+  const colors = {
+    bg: theme?.["--t-bg"] ?? "#FAF9F6",
+    bgAlt: theme?.["--t-bg-alt"] ?? "#FFFFFF",
+    text: theme?.["--t-text"] ?? "#1C1917",
+    muted: theme?.["--t-text-muted"] ?? "#78716C",
+    accent: theme?.["--t-accent"] ?? "#C9A96E",
+    accentFg: theme?.["--t-accent-fg"] ?? "#111111",
+    border: theme?.["--t-border"] ?? "#E7E5E4",
+  };
 
   return (
     <>
-      {/* Sticky bar */}
-      <AnimatePresence>
-        {(
-          <motion.div
-            initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }}
-            transition={{ type: "spring", damping: 22, stiffness: 260 }}
-            className="fixed inset-x-0 bottom-0 z-50"
-            style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))", paddingLeft: 16, paddingRight: 16 }}
-          >
-            <div className="mx-auto w-full max-w-lg" style={{ display: "flex", gap: 10 }}>
+      <motion.div
+        initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }}
+        transition={{ type: "spring", damping: 24, stiffness: 280 }}
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-50 pt-14"
+      >
+        <svg aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-14 w-full" viewBox="0 0 1440 112" preserveAspectRatio="none">
+          <path d="M0 112V74C350 22 1090 22 1440 74V112H0Z" fill={colors.accent} />
+        </svg>
+        <div
+          className="pointer-events-auto relative w-full"
+          style={{ background: colors.bgAlt, color: colors.text, boxShadow: "0 -12px 34px rgba(0,0,0,0.12)", paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
+        >
+        <div className={`mx-auto flex w-full gap-2.5 px-4 pt-2 ${hasBoth ? "max-w-xl" : "max-w-3xl"}`}>
+          {showDonate && (
+            <button
+              type="button"
+              onClick={() => setDonationOpen(true)}
+              className={`group relative flex min-w-0 flex-1 items-center overflow-hidden rounded-2xl text-left transition duration-200 active:scale-[0.985] ${hasBoth ? "min-h-[68px] gap-2 p-2.5" : "min-h-[70px] gap-3 px-3 py-2.5 sm:px-4"}`}
+              style={{
+                background: colors.bg,
+                border: `1px solid ${colors.border}`,
+                boxShadow: "0 4px 14px rgba(0,0,0,0.05)",
+              }}
+            >
+              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl sm:h-11 sm:w-11"
+                style={{ background: colors.accent, color: colors.accentFg, boxShadow: "0 5px 14px rgba(0,0,0,0.14)" }}>
+                <Heart size={16} fill="currentColor" stroke="currentColor" />
+              </div>
+              <div className="relative min-w-0 flex-1">
+                <p className="text-[9px] font-black uppercase tracking-[0.16em]" style={{ color: colors.accent }}>Support this event</p>
+                <p className={`truncate font-bold ${hasBoth ? "mt-0.5 text-sm" : "mt-0.5 text-base"}`} style={{ color: colors.text }}>
+                  Choose an amount
+                </p>
+              </div>
+              <div className="relative flex shrink-0 items-center gap-1 rounded-xl px-3 py-2 text-[11px] font-black uppercase tracking-wide"
+                style={{ background: colors.accent, color: colors.accentFg, boxShadow: "0 5px 14px rgba(0,0,0,0.14)" }}>
+                Donate <ArrowRight size={13} strokeWidth={2.7} />
+              </div>
+            </button>
+          )}
 
-              {/* Donation bar — navigates to /donate page */}
-              {showDonate && (
-                <button onClick={goDonate}
-                  className="flex flex-1 items-center gap-2 overflow-hidden rounded-2xl p-2.5 transition-all active:scale-[0.98]"
-                  style={{ background: "rgba(8,8,18,0.94)", border: "1px solid rgba(255,255,255,0.14)", backdropFilter: "blur(20px)", boxShadow: "0 8px 40px rgba(0,0,0,0.55)" }}>
-                  {/* icon */}
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
-                    style={{ background: "rgba(244,63,94,0.15)", border: "1px solid rgba(244,63,94,0.30)" }}>
-                    <Heart size={15} fill="#f43f5e" stroke="#f43f5e" />
-                  </div>
-                  {/* "Donate" label */}
-                  <p className="shrink-0 text-xs font-black uppercase tracking-widest" style={{ color: "rgba(244,63,94,0.80)" }}>
-                    Donate
+          {showTicket && (
+            <button type="button" onClick={() => setTicketsOpen(true)}
+              className="group relative flex min-h-[68px] min-w-0 flex-1 items-center gap-2 overflow-hidden rounded-2xl p-2.5 text-left transition duration-200 active:scale-[0.985]"
+              style={{ background: colors.bg, border: `1px solid ${colors.border}`, boxShadow: "0 4px 14px rgba(0,0,0,0.05)" }}>
+              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl"
+                style={{ background: colors.accent, color: colors.accentFg, boxShadow: "0 5px 14px rgba(0,0,0,0.14)" }}>
+                <Ticket size={16} />
+              </div>
+              {!hasBoth && (
+                <div className="relative min-w-0 flex-1">
+                  <p className="truncate text-[10px] font-bold uppercase tracking-widest" style={{ color: colors.accent }}>
+                    {tickets.length === 1 ? tickets[0].name : `${tickets.length} ticket types`}
                   </p>
-                  {/* preset amount pills */}
-                  {!hasBoth && (
-                    <div className="flex flex-1 gap-1.5">
-                      {presets.map((a) => (
-                        <div key={a}
-                          className="flex-1 rounded-xl py-2 text-center text-xs font-black"
-                          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.75)" }}>
-                          ${a}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {/* CTA pill */}
-                  <div className="flex shrink-0 items-center gap-1 rounded-xl px-3 py-2 text-xs font-black text-white"
-                    style={{ background: "linear-gradient(135deg,#be185d,#f43f5e)", boxShadow: "0 4px 16px rgba(244,63,94,0.40)" }}>
-                    Donate <ArrowRight size={13} strokeWidth={2.5} />
-                  </div>
-                </button>
+                  {cheapest && <p className="mt-0.5 text-sm font-black" style={{ color: colors.text }}>{fmtPrice(Number(cheapest.price), cheapest.currency)}{tickets.length > 1 ? "+" : ""}</p>}
+                </div>
               )}
+              <div className="relative ml-auto flex shrink-0 items-center gap-1 rounded-xl px-3 py-2 text-[11px] font-black uppercase tracking-wide"
+                style={{ background: colors.accent, color: colors.accentFg, boxShadow: "0 5px 14px rgba(0,0,0,0.14)" }}>
+                {hasBoth ? "Tickets" : "Buy Tickets"} <ArrowRight size={13} strokeWidth={2.7} />
+              </div>
+            </button>
+          )}
+        </div>
+        </div>
+      </motion.div>
 
-              {/* Ticket bar — entire bar navigates to tickets page */}
-              {showTicket && (
-                <button onClick={goTickets}
-                  className="flex flex-1 items-center gap-2 overflow-hidden rounded-2xl p-2.5 transition-all active:scale-[0.98]"
-                  style={{ background: "rgba(8,8,18,0.94)", border: "1px solid rgba(255,255,255,0.14)", backdropFilter: "blur(20px)", boxShadow: "0 8px 40px rgba(0,0,0,0.55)" }}>
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
-                    style={{ background: `${cfg.accent}18`, border: `1px solid ${cfg.accent}35` }}>
-                    <Ticket size={15} style={{ color: cfg.accent }} />
-                  </div>
-                  {!hasBoth && (
-                    <div className="flex-1 min-w-0 text-left">
-                      <p className="text-[10px] font-bold uppercase tracking-widest truncate" style={{ color: cfg.accent }}>
-                        {tickets.length === 1 ? tickets[0].name : `${tickets.length} ticket types`}
-                      </p>
-                      {cheapest && (
-                        <p className="text-sm font-black text-white">{fmtPrice(Number(cheapest.price), cheapest.currency)}{tickets.length > 1 ? "+" : ""}</p>
-                      )}
-                    </div>
-                  )}
-                  <div className="flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition-all ml-auto"
-                    style={{ background: `linear-gradient(135deg,${cfg.accent},${cfg.accent}cc)`, boxShadow: `0 4px 16px ${cfg.accent}40`, color: cfg.dark }}>
-                    {hasBoth ? "Tickets" : "Buy Tickets"} <ArrowRight size={13} strokeWidth={2.5} />
-                  </div>
-                </button>
-              )}
-
-            </div>
-          </motion.div>
+      <AnimatePresence>
+        {donationOpen && (
+          <DonationDrawer event={event} donConfig={donConfig} theme={theme} onClose={() => setDonationOpen(false)} />
+        )}
+        {ticketsOpen && (
+          <TicketDrawer event={event} tickets={tickets} theme={theme} onClose={() => setTicketsOpen(false)} />
         )}
       </AnimatePresence>
     </>
@@ -479,6 +590,7 @@ function StickyBars({ event, donConfig, tickets }) {
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
 export default function EventPageClient({ event, sections, token }) {
+  const eventTheme = useMemo(() => resolveThemeFromSections(sections || []), [sections]);
   const enrichedEvent = {
     ...event,
     starts_at_utc:  event.starts_at_utc ?? event.starts_at ?? null,
@@ -527,7 +639,7 @@ export default function EventPageClient({ event, sections, token }) {
       {showOpenRsvp && <OpenRsvpModal eventId={enrichedEvent.id} />}
 
       {showStickyBar && pastHero && (
-        <StickyBars event={enrichedEvent} donConfig={donConfig} tickets={tickets} />
+        <StickyBars event={enrichedEvent} donConfig={donConfig} tickets={tickets} theme={eventTheme} />
       )}
     </>
   );
