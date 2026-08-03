@@ -6,27 +6,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Heart, Clock, Lock, Loader2, ArrowRight, CheckCircle } from "lucide-react";
 import LegalModal from "@/components/legal/LegalModal";
 import { createPaymentRequestKey } from "@/lib/payment-idempotency";
+import { resolveThemeFromSections } from "@/lib/styleThemes";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
-
-const DONATION_MARKETING = {
-  CONCERT:    ["Give Back to", "Live Music."],
-  FESTIVAL:   ["Support the", "Magic We Make."],
-  LIVE_SHOW:  ["Back the Artists.", "Fuel the Stage."],
-  NIGHTCLUB:  ["Keep the Night", "Alive."],
-  THEATER:    ["Support the Arts.", "Lift the Curtain."],
-  COMEDY:     ["Keep Laughter", "Free & Alive."],
-  SPORTS:     ["Back Your", "Champions."],
-  EXHIBITION: ["Invest in", "Art & Culture."],
-  CONFERENCE: ["Fund the Ideas", "That Matter."],
-  WEDDING:    ["Celebrate Love.", "Give From the Heart."],
-  BIRTHDAY:   ["Make Their Day", "Unforgettable."],
-  GALA:       ["Give Generously.", "Give With Grace."],
-};
-function marketingLine(event) {
-  const t = String(event?.event_type ?? event?.dashboard_mode ?? "").toUpperCase();
-  return DONATION_MARKETING[t] ?? ["Make a Difference.", "Give What You Can."];
-}
 
 function fmtDate(d) {
   if (!d) return null;
@@ -36,12 +18,179 @@ function fmt(n, currency = "USD") {
   return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(n ?? 0);
 }
 
-const ROSE  = "#f43f5e";
-const GOLD  = "rgba(201,169,110,0.70)";
+const ROSE  = "var(--t-accent)";
+const GOLD  = "var(--t-text-muted)";
 
-// ── Donation card ─────────────────────────────────────────────────────────────
-function DonationCard({ event, donConfig }) {
-  const presets = donConfig?.amounts?.length === 3 ? donConfig.amounts : [5, 10, 25];
+// ── Selected contribution confirmation ────────────────────────────────────────
+function ContributionSummary({ amount, frequency }) {
+  if (!amount || amount <= 0) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="rounded-2xl px-4 py-3 flex items-center gap-3"
+      style={{ background: "color-mix(in srgb, var(--t-accent) 10%, var(--t-bg-alt))", border: "1px solid var(--t-border)" }}>
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ background: "color-mix(in srgb, var(--t-accent) 18%, var(--t-bg-alt))", color: ROSE }}>
+        <Heart size={14} fill="currentColor" stroke="currentColor" />
+      </div>
+      <p className="text-sm font-semibold leading-snug" style={{ color: "var(--t-text)" }}>
+        Your selected contribution is <strong>{fmt(amount)}</strong>{frequency === "monthly" ? " each month." : "."}
+      </p>
+    </motion.div>
+  );
+}
+
+// ── Fundraiser information ────────────────────────────────────────────────────
+function InfoCard({ event, donConfig, children }) {
+  const fundraiserTitle = donConfig?.title || event?.title;
+  const coverImage = donConfig?.cover_image || event?.cover_image_url;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.5 }}
+      className="overflow-hidden"
+    >
+
+      {/* Cover image or header */}
+      {coverImage ? (
+        <div className="relative h-[330px] overflow-hidden sm:h-[430px]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={coverImage} alt="" className="h-full w-full object-cover" />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(to top, color-mix(in srgb, var(--t-dark) 96%, transparent) 0%, color-mix(in srgb, var(--t-dark) 52%, transparent) 52%, color-mix(in srgb, var(--t-dark) 10%, transparent) 100%)" }} />
+          <motion.div
+            className="absolute inset-0"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1.5 }}
+            style={{
+              background: "radial-gradient(circle at 30% 50%, var(--t-accent-dim) 0%, transparent 70%)",
+              mixBlendMode: "overlay"
+            }}
+          />
+          <div className="absolute inset-x-0 bottom-0">
+            <div className="mx-auto max-w-3xl px-6 pb-8 sm:px-10 sm:pb-10">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}>
+              <div className="inline-flex items-center gap-2 mb-3 px-3 py-1.5 rounded-full"
+                style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.22)" }}>
+                <Heart size={12} fill="var(--t-accent)" stroke="var(--t-accent)" />
+                <span className="text-[9px] font-black uppercase tracking-[0.22em] text-white">Support this event</span>
+              </div>
+              <h1 className="text-3xl font-black text-white leading-tight mb-2" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+                {fundraiserTitle}
+              </h1>
+              {event?.title && event.title !== fundraiserTitle && (
+                <p className="text-sm font-semibold text-white/70">Supporting {event.title}</p>
+              )}
+            </motion.div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="relative px-8 py-10 flex flex-col gap-4" style={{ background: "linear-gradient(135deg, var(--t-dark) 0%, var(--t-dark-surface) 100%)" }}>
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl" style={{ background: "color-mix(in srgb, var(--t-accent) 16%, transparent)", border: "1.5px solid color-mix(in srgb, var(--t-accent) 42%, transparent)" }}>
+              <Heart size={24} fill="var(--t-accent)" stroke="var(--t-accent)" />
+            </div>
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.24em]" style={{ color: "var(--t-accent)" }}>Support This Event</p>
+              <p className="text-lg font-black text-white mt-1">{fundraiserTitle}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Info body */}
+      <div className="px-6 py-7 sm:px-10 sm:py-10" style={{ background: "var(--t-bg-alt)" }}>
+        <div className="mx-auto grid max-w-5xl gap-10 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:gap-14">
+          <div className="flex flex-col gap-6">
+
+        {/* Event details */}
+        <div className="space-y-3">
+          {donConfig?.message ? (
+            <p className="text-sm font-semibold leading-relaxed" style={{ color: "var(--t-text-muted)" }}>{donConfig.message}</p>
+          ) : (
+            <p className="text-sm font-semibold leading-relaxed" style={{ color: "var(--t-text-muted)" }}>
+              Every contribution makes a difference. Your donation helps us create an unforgettable experience for everyone.
+            </p>
+          )}
+          {event?.starts_at_local && (
+            <p className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg" style={{ color: "var(--t-text)", background: "color-mix(in srgb, var(--t-accent) 10%, var(--t-bg-alt))" }}>
+              <Clock size={12} /> Event: {fmtDate(event.starts_at_local)}
+            </p>
+          )}
+        </div>
+
+        {/* Why donate section */}
+        <div className="space-y-4 border-t pt-6" style={{ borderColor: "var(--t-border)" }}>
+          <p className="text-center text-[9px] font-black uppercase tracking-[0.28em]" style={{ color: GOLD }}>
+            Donation details
+          </p>
+          <div className="space-y-3">
+            {[
+              { icon: "🔒", title: "Secure checkout", text: "Your contribution is processed securely through Stripe." },
+              { icon: "💚", title: "Support the event", text: "Help the hosts deliver a memorable experience for their guests." },
+              { icon: "✉️", title: "Confirmation by email", text: "You will receive a receipt after your contribution is complete." },
+            ].map((item, i) => (
+              <div key={i} className="flex items-start gap-3">
+                <span className="text-2xl">{item.icon}</span>
+                <div className="flex-1">
+                  <p className="text-xs font-black" style={{ color: "var(--t-text)" }}>{item.title}</p>
+                  <p className="text-[11px] leading-relaxed" style={{ color: "var(--t-text-muted)" }}>{item.text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Trust indicators */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest"
+            style={{ color: "var(--t-text-muted)", letterSpacing: "0.12em" }}>
+            <Lock size={10} /> Secure Payment
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-3 opacity-40">
+            {/* Visa */}
+            <svg width="40" height="26" viewBox="0 0 40 26" fill="none">
+              <rect width="40" height="26" rx="4" fill="#1A1F71"/>
+              <path d="M16.2 17.8L17.8 8.2h2.5l-1.6 9.6h-2.5zm11-9.4c-.5-.2-1.3-.4-2.2-.4-2.4 0-4.1 1.2-4.1 3 0 1.3 1.2 2 2.1 2.4.9.5 1.2.8 1.2 1.2 0 .6-.8.9-1.5.9-1 0-1.5-.1-2.3-.5l-.3-.1-.3 2c.6.2 1.6.4 2.7.4 2.6 0 4.3-1.2 4.3-3.1 0-1-.6-1.8-2-2.4-.8-.4-1.3-.7-1.3-1.1 0-.4.4-.7 1.3-.7.7 0 1.3.1 1.7.3l.2.1.3-1.9zm5.7-2.2h-1.9c-.6 0-1 .2-1.3.8l-3.6 8.6h2.6s.4-1.1.5-1.4h3.1c.1.3.3 1.4.3 1.4h2.3l-2-9.4zm-3 6.1c.2-.5 1-2.6 1-2.6s.2-.5.3-.8l.2.9s.5 2.2.6 2.7h-2.1v-.2zm-16.7-6.1l-2.4 6.5-.3-1.3c-.4-1.4-1.8-3-3.3-3.7l2.2 8.5h2.6l3.9-9.6h-2.7v-.4z" fill="white"/>
+            </svg>
+            <svg width="40" height="26" viewBox="0 0 40 26" fill="none">
+              <rect width="40" height="26" rx="4" fill="#EB001B"/>
+              <circle cx="15" cy="13" r="7" fill="#FF5F00"/>
+              <circle cx="25" cy="13" r="7" fill="#F79E1B"/>
+              <path d="M20 7.5c-1.2 1.4-1.9 3.2-1.9 5.5s.7 4.1 1.9 5.5c1.2-1.4 1.9-3.2 1.9-5.5s-.7-4.1-1.9-5.5z" fill="#FF5F00"/>
+            </svg>
+            <svg width="40" height="26" viewBox="0 0 40 26" fill="none">
+              <rect width="40" height="26" rx="4" fill="#006FCF"/>
+              <path d="M13.5 10.5h-2.2l-1.4 3.3-1.4-3.3h-2.3v4.8l-1.7-4.8h-2l-2.5 7h1.8l.5-1.4h2.7l.5 1.4h2.5v-5.3l1.6 5.3h1.5l1.6-5.3v5.3h1.8v-7zm-10.9 4.6l.8-2.2.8 2.2h-1.6zm21.9-4.6h-3.8v7h3.8c1.9 0 3.2-1.3 3.2-3.5s-1.3-3.5-3.2-3.5zm0 5.5h-1.8v-4h1.8c1 0 1.6.8 1.6 2s-.6 2-1.6 2zm9.5-5.5h-5v7h5v-1.5h-3.2v-1.2h3.1v-1.5h-3.1v-1.3h3.2v-1.5zm3.5 0l-2.2 3.5 2.2 3.5h-2.1l-1.3-2.2-1.3 2.2h-2.1l2.2-3.5-2.2-3.5h2.1l1.3 2.2 1.3-2.2h2.1z" fill="white"/>
+            </svg>
+            <div className="flex items-center gap-1 px-2 py-1 rounded" style={{ background: "rgba(0,0,0,0.05)" }}>
+              <svg width="32" height="14" viewBox="0 0 60 25" fill="none">
+                <path fillRule="evenodd" clipRule="evenodd" d="M60 12.5c0-6.9-5.6-12.5-12.5-12.5S35 5.6 35 12.5 40.6 25 47.5 25 60 19.4 60 12.5zm-23.8 0c0-4.3 2-8.2 5.1-10.6-2.3-1.5-5-2.4-7.9-2.4C26.5 0 20 5.6 20 12.5S26.5 25 33.4 25c2.9 0 5.6-.9 7.9-2.4-3.1-2.4-5.1-6.3-5.1-10.6zM20 12.5C20 5.6 13.8 0 6.2 0 2.8 0 0 2.2 0 5s2.8 5 6.2 5c1.5 0 2.9-.5 4-1.3v8.7c0 4.1-3.4 7.5-7.5 7.5-.7 0-1.4-.1-2-.3v.9c.6.3 1.3.5 2 .5C8.6 25 13.8 19.4 13.8 12.5c0-1.5-.3-2.9-.8-4.2 1.4.9 3 1.4 4.8 1.4 1.1 0 2.2-.2 3.2-.6v10.9c0 2.8-2.2 5-5 5h-1v1h1c3.3 0 6-2.7 6-6V5c0-2.8 2.2-5 5-5h1V0h-1c-3.3 0-6 2.7-6 6v6.5z" fill="#635BFF"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+          </div>
+          {children && (
+            <div className="min-w-0 lg:border-l lg:pl-14" style={{ borderColor: "var(--t-border)" }}>
+              {children}
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Payment card (desktop right side + mobile) ────────────────────────────────
+function PaymentCard({ event, donConfig }) {
+  const presets = donConfig?.amounts?.length ? donConfig.amounts : [10, 25, 50, 100];
   const [freq,         setFreq]         = useState("once");
   const [preset,       setPreset]       = useState(null);
   const [custom,       setCustom]       = useState("");
@@ -79,25 +228,34 @@ function DonationCard({ event, donConfig }) {
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="overflow-hidden rounded-3xl text-center"
-        style={{ background: "#f0ebe0", boxShadow: "0 32px 80px rgba(0,0,0,0.50)" }}
+        className="px-6 py-16 text-center sm:px-10"
       >
-        <div className="h-1 w-full" style={{ background: `linear-gradient(90deg,#be185d,${ROSE},#fb923c)` }} />
-        <div className="px-8 py-16 flex flex-col items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl"
-            style={{ background: "rgba(244,63,94,0.10)", border: "1px solid rgba(244,63,94,0.20)" }}>
-            <Heart size={28} fill={ROSE} stroke={ROSE} />
+        <div className="flex flex-col items-center gap-5">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", delay: 0.2 }}
+            className="flex h-20 w-20 items-center justify-center rounded-2xl"
+            style={{ background: "color-mix(in srgb, var(--t-accent) 12%, var(--t-bg-alt))", border: "2px solid var(--t-border)" }}>
+            <Heart size={36} fill={ROSE} stroke={ROSE} />
+          </motion.div>
+          <div className="space-y-2">
+            <p style={{ fontFamily: "var(--t-font-heading)", fontSize: "clamp(2rem,5vw,3.2rem)", fontWeight: 900, color: "var(--t-text)", lineHeight: 1 }}>
+              Thank you
+            </p>
+            <p className="text-base font-bold" style={{ color: "var(--t-text-muted)" }}>
+              Your {freq === "monthly" ? "monthly " : ""}donation of <strong style={{ color: ROSE, fontSize: "1.15em" }}>{fmt(amount)}</strong> makes a real difference
+            </p>
           </div>
-          <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "clamp(1.8rem,4vw,2.8rem)", fontWeight: 900, color: "#0f0d0a", lineHeight: 1 }}>
-            Thank you!
-          </p>
-          <p className="text-sm font-semibold" style={{ color: "#7a6e5f" }}>
-            Your {freq === "monthly" ? "monthly " : ""}donation of <strong style={{ color: ROSE }}>{fmt(amount)}</strong> means everything.
-          </p>
+          <div className="mt-2 rounded-2xl px-6 py-4 max-w-md" style={{ background: "color-mix(in srgb, var(--t-accent) 8%, var(--t-bg-alt))" }}>
+            <p className="text-xs leading-relaxed font-semibold" style={{ color: "var(--t-text-muted)" }}>
+               Your contribution helps make this event possible. You&apos;ll receive a confirmation email shortly with the details.
+            </p>
+          </div>
           <a href={`/e/${event.slug}`}
-            className="mt-4 flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-black text-white transition-all"
-            style={{ background: "#0f0d0a", letterSpacing: "0.06em" }}>
-            Back to Event
+            className="mt-4 flex items-center gap-2 rounded-xl px-8 py-4 text-sm font-black text-white transition-all hover:scale-105 active:scale-95"
+            style={{ background: "var(--t-accent)", color: "var(--t-dark)", letterSpacing: "0.06em" }}>
+            <ArrowLeft size={14} /> Back to Event
           </a>
         </div>
       </motion.div>
@@ -105,88 +263,69 @@ function DonationCard({ event, donConfig }) {
   }
 
   const inputBase = {
-    background: "rgba(0,0,0,0.06)",
-    border: "1.5px solid rgba(0,0,0,0.12)",
+    background: "var(--t-bg)",
+    border: "1.5px solid var(--t-border)",
     borderRadius: 12,
     padding: "12px 16px",
     fontSize: 15,
     fontWeight: 600,
-    color: "#0f0d0a",
+    color: "var(--t-text)",
     outline: "none",
     width: "100%",
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 28 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="overflow-hidden rounded-3xl"
-      style={{ boxShadow: "0 32px 80px rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.06)" }}
+      className="pb-1 pt-6"
+      style={{ background: "var(--t-bg-alt)" }}
     >
-      {/* ── Dark header ── */}
-      <div className="px-6 py-5 flex items-center justify-between"
-        style={{ background: "#0c0814", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl"
-            style={{ background: "rgba(244,63,94,0.15)", border: "1px solid rgba(244,63,94,0.30)" }}>
-            <Heart size={16} fill={ROSE} stroke={ROSE} />
-          </div>
-          <div>
-            <p className="text-[9px] font-black uppercase tracking-[0.22em]" style={{ color: "rgba(244,63,94,0.75)" }}>
-              Contribution
-            </p>
-            <p className="text-sm font-bold text-white">{event?.title}</p>
-          </div>
-        </div>
-        {donConfig?.message && (
-          <p className="hidden sm:block text-xs font-semibold max-w-xs text-right" style={{ color: "rgba(255,255,255,0.35)" }}>
-            {donConfig.message}
-          </p>
-        )}
-      </div>
-
-      {/* ── Cream body ── */}
-      <div className="px-6 sm:px-8 pt-8 pb-8 flex flex-col gap-6" style={{ background: "#f0ebe0" }}>
-
-        {donConfig?.message && (
-          <p className="text-sm font-semibold text-center sm:hidden" style={{ color: "#7a6e5f" }}>{donConfig.message}</p>
-        )}
+      <div className="flex max-w-none flex-col gap-6">
 
         {/* One Time / Monthly */}
         <div className="flex rounded-2xl p-1 gap-1"
-          style={{ background: "rgba(0,0,0,0.06)", border: "1px solid rgba(0,0,0,0.10)" }}>
+          style={{ background: "color-mix(in srgb, var(--t-text) 7%, transparent)", border: "1px solid var(--t-border)" }}>
           {[["once", "One Time"], ["monthly", "Monthly"]].map(([val, label]) => (
             <button key={val} type="button" onClick={() => setFreq(val)}
               className="flex-1 rounded-xl py-3 text-sm font-black tracking-wide transition-all"
               style={freq === val
-                ? { background: "#0f0d0a", color: "#f0ebe0" }
-                : { color: "#7a6e5f" }}>
+                ? { background: "var(--t-accent)", color: "var(--t-dark)" }
+                : { color: "var(--t-text-muted)" }}>
               {label}
             </button>
           ))}
         </div>
 
-        {/* Large centered price display */}
+        {/* Amount selection */}
         <div className="text-center">
-          <p className="text-[9px] font-black uppercase tracking-[0.25em] mb-3" style={{ color: "#9a8c7e" }}>
-            Choose your amount
+          <p className="text-[9px] font-black uppercase tracking-[0.25em] mb-4" style={{ color: "#6d8f76" }}>
+            Choose an amount
           </p>
-          <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="grid gap-3 mb-4" style={{ gridTemplateColumns: `repeat(2, minmax(0, 1fr))` }}>
             {presets.map((a) => (
               <button key={a} type="button"
                 onClick={() => { setPreset(a); setCustom(""); setError(""); }}
-                className="py-5 font-black transition-all active:scale-95"
+                className="py-6 font-black transition-all active:scale-95 hover:scale-105 relative overflow-hidden"
                 style={{
                   borderRadius: 16,
-                  fontFamily: "'Playfair Display', Georgia, serif",
-                  fontSize: "clamp(1.4rem,3vw,2rem)",
-                  border: preset === a ? `2px solid ${ROSE}` : "1.5px solid rgba(0,0,0,0.12)",
-                  background: preset === a ? ROSE : "rgba(0,0,0,0.04)",
-                  color: preset === a ? "#fff" : "#0f0d0a",
-                  boxShadow: preset === a ? `0 8px 24px rgba(244,63,94,0.30)` : "none",
+                  fontFamily: "var(--t-font-heading)",
+                  fontSize: "clamp(1.6rem,4vw,2.2rem)",
+                  border: preset === a ? `2.5px solid ${ROSE}` : "1.5px solid var(--t-border)",
+                  background: preset === a ? ROSE : "var(--t-bg)",
+                  color: preset === a ? "var(--t-dark)" : "var(--t-text)",
+                  boxShadow: preset === a ? "0 12px 26px var(--t-accent-dim)" : "0 2px 8px rgba(0,0,0,0.04)",
                 }}>
-                ${a}
+                {preset === a && (
+                  <motion.div
+                    layoutId="selectedBg"
+                    className="absolute inset-0"
+                    style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--t-accent) 82%, #fff) 0%, var(--t-accent) 100%)" }}
+                    transition={{ type: "spring", duration: 0.5 }}
+                  />
+                )}
+                <span className="relative z-10">${a}</span>
               </button>
             ))}
           </div>
@@ -196,28 +335,33 @@ function DonationCard({ event, donConfig }) {
             style={{
               ...inputBase,
               display: "flex",
-              border: preset === "custom" ? `1.5px solid ${ROSE}` : "1.5px solid rgba(0,0,0,0.12)",
+              border: preset === "custom" ? `1.5px solid ${ROSE}` : "1.5px solid var(--t-border)",
             }}>
-            <span className="text-base font-bold" style={{ color: "#9a8c7e" }}>$</span>
+            <span className="text-base font-bold" style={{ color: "var(--t-text-muted)" }}>$</span>
             <input
               type="number" min="1"
               value={preset === "custom" ? custom : ""}
               placeholder="Other amount"
               onFocus={() => setPreset("custom")}
               onChange={(e) => { setPreset("custom"); setCustom(e.target.value); setError(""); }}
-              style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 15, fontWeight: 600, color: "#0f0d0a" }}
-              className="placeholder-[#9a8c7e]"
+              style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 15, fontWeight: 600, color: "var(--t-text)" }}
+              className="placeholder-[#88958c]"
             />
           </div>
 
           {amount > 0 && (
             <motion.p
               initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-              className="mt-2 text-sm font-bold" style={{ color: ROSE }}>
-              {freq === "monthly" ? `${fmt(amount)} / month` : `Donating ${fmt(amount)}`}
+              className="mt-3 text-base font-black" style={{ color: ROSE }}>
+              {freq === "monthly" ? `${fmt(amount)} / month` : `Total: ${fmt(amount)}`}
             </motion.p>
           )}
         </div>
+
+        {/* Selected contribution */}
+        <AnimatePresence mode="wait">
+          {amount > 0 && <ContributionSummary amount={amount} frequency={freq} key={`${amount}-${freq}`} />}
+        </AnimatePresence>
 
         {/* Divider */}
         <div className="flex items-center gap-2">
@@ -228,15 +372,15 @@ function DonationCard({ event, donConfig }) {
 
         {/* Name */}
         <div>
-          <label className="block text-[10px] font-black uppercase tracking-[0.20em] mb-2" style={{ color: "#9a8c7e" }}>
+          <label className="block text-[10px] font-black uppercase tracking-[0.20em] mb-2" style={{ color: "var(--t-text-muted)" }}>
             Your name <span style={{ fontWeight: 400, textTransform: "none" }}>(optional)</span>
           </label>
           <input type="text" value={name} onChange={(e) => setName(e.target.value)}
             placeholder="Full name"
             style={{ ...inputBase }}
-            className="placeholder-[#b0a89a]"
+            className="placeholder-[#98a49b]"
             onFocus={e => e.target.style.borderColor = ROSE}
-            onBlur={e => e.target.style.borderColor = "rgba(0,0,0,0.12)"}
+            onBlur={e => e.target.style.borderColor = "var(--t-border)"}
           />
         </div>
 
@@ -251,11 +395,11 @@ function DonationCard({ event, donConfig }) {
             onClick={() => { setTermsChecked(v => !v); setTermsTouched(true); }}
             className="mt-0.5 shrink-0 flex items-center justify-center rounded-[5px] border-2 transition-all"
             style={{ width: 16, height: 16,
-              background: termsChecked ? "#0f0d0a" : "transparent",
-              borderColor: termsTouched && !termsChecked ? ROSE : "rgba(0,0,0,0.25)" }}>
+              background: termsChecked ? "var(--t-accent)" : "transparent",
+              borderColor: termsTouched && !termsChecked ? ROSE : "var(--t-border)" }}>
             {termsChecked && (
               <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-                <path d="M1 3.5L3 5.5L8 1" stroke="#f0ebe0" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M1 3.5L3 5.5L8 1" stroke="#ffffff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             )}
           </button>
@@ -274,37 +418,49 @@ function DonationCard({ event, donConfig }) {
         </div>
         <LegalModal slug={legalSlug} onClose={() => setLegalSlug(null)} />
 
-        {/* Dual CTA buttons */}
-        <div className="flex flex-col gap-2.5 mt-1">
+        {/* Primary CTA */}
+        <div className="flex flex-col gap-3 mt-2">
           <button
             onClick={handleDonate}
             disabled={submitting || !amount || amount <= 0}
-            className="w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all active:scale-[0.98] disabled:opacity-50"
-            style={{ background: "#0f0d0a", color: "#f0ebe0", fontSize: 14, letterSpacing: "0.09em" }}>
-            {submitting
-              ? <span className="flex items-center justify-center gap-2"><Loader2 size={16} className="animate-spin" />Processing…</span>
-              : <span className="flex items-center justify-center gap-2">
-                  <Heart size={14} fill="#f0ebe0" stroke="#f0ebe0" />
-                  {freq === "monthly" ? "Give Monthly" : "Donate Now"}{amount > 0 ? ` — ${fmt(amount)}` : ""}
+            className="group w-full py-5 rounded-xl font-black uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 relative overflow-hidden"
+            style={{ background: "var(--t-accent)", color: "var(--t-dark)", fontSize: 14, letterSpacing: "0.10em", boxShadow: "0 8px 24px var(--t-accent-dim)" }}>
+            <motion.div
+              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--t-accent) 82%, #fff) 0%, var(--t-accent) 100%)" }}
+            />
+            <span className="relative z-10">
+              {submitting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 size={18} className="animate-spin" />
+                  Processing Your Donation...
                 </span>
-            }
+              ) : (
+                <span className="flex items-center justify-center gap-2.5">
+                  <Heart size={16} fill="#ffffff" stroke="#ffffff" className="group-hover:scale-110 transition-transform" />
+                  {amount > 0 ? (
+                    freq === "monthly"
+                      ? `Donate ${fmt(amount)}/Month`
+                      : `Donate ${fmt(amount)}`
+                  ) : (
+                    "Select Amount to Continue"
+                  )}
+                  {amount > 0 && <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />}
+                </span>
+              )}
+            </span>
           </button>
-          {!submitting && amount > 0 && (
-            <button
-              onClick={handleDonate}
-              className="w-full py-3 rounded-xl font-bold uppercase tracking-widest transition-all active:scale-[0.98]"
-              style={{ background: "transparent", color: "#4a3f30", border: `1.5px solid rgba(0,0,0,0.18)`, fontSize: 11, letterSpacing: "0.12em" }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = ROSE}
-              onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.18)"}>
-              Reserve Contribution
-            </button>
+
+          {amount > 0 && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center text-[10px] font-semibold"
+              style={{ color: "#607067" }}>
+              You will receive instant confirmation by email.
+            </motion.p>
           )}
         </div>
-
-        <p className="flex items-center justify-center gap-1.5 text-center text-[10px] font-semibold uppercase tracking-widest"
-          style={{ color: "rgba(0,0,0,0.25)", letterSpacing: "0.12em" }}>
-          <Lock size={9} /> Secure payment via Stripe
-        </p>
       </div>
     </motion.div>
   );
@@ -315,20 +471,26 @@ export default function DonatePage() {
   const { slug }    = useParams();
   const router      = useRouter();
   const [event,     setEvent]     = useState(null);
-  const [donConfig, setDonConfig] = useState({ amounts: [], message: "" });
+  const [theme,     setTheme]     = useState(() => resolveThemeFromSections([]));
+  const [donConfig, setDonConfig] = useState({ amounts: [], message: "", title: "", cover_image: "" });
   const [loading,   setLoading]   = useState(true);
-  const [banner,    setBanner]    = useState(null);
+  const [banner] = useState(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("donation");
+  });
 
   useEffect(() => {
-    const p = new URLSearchParams(window.location.search).get("donation");
-    if (p) { setBanner(p); window.history.replaceState({}, "", window.location.pathname); }
-  }, []);
+    if (banner) window.history.replaceState({}, "", window.location.pathname);
+  }, [banner]);
 
   useEffect(() => {
     if (!slug) return;
     fetch(`/api/public/pages/${slug}`)
       .then(r => r.json())
-      .then(d => { if (d.data?.event) setEvent(d.data.event); })
+      .then(d => {
+        if (d.data?.event) setEvent(d.data.event);
+        setTheme(resolveThemeFromSections(d.data?.sections));
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [slug]);
@@ -341,39 +503,27 @@ export default function DonatePage() {
       .catch(() => {});
   }, [event?.id]);
 
-  const [line1, line2] = marketingLine(event);
-
   return (
     <div className="relative min-h-screen overflow-x-hidden"
-      style={{ background: "linear-gradient(160deg,#1a0533 0%,#0d0a1e 28%,#061428 60%,#020a18 100%)" }}>
+      style={{ ...theme, background: "var(--t-bg)", color: "var(--t-text)", fontFamily: "var(--t-font-body)" }}>
 
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&display=swap');`}</style>
 
       {/* Fixed gradient layers */}
       <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0,
-        background: "radial-gradient(ellipse 65% 50% at 10% 8%, rgba(160,50,220,0.16) 0%,transparent 55%), radial-gradient(ellipse 55% 45% at 90% 85%, rgba(6,50,110,0.18) 0%,transparent 55%)" }} />
-
-      {/* Cover image hero */}
-      {event?.cover_image_url && (
-        <div className="absolute inset-x-0 top-0 pointer-events-none" style={{ height: "62vh", zIndex: 1 }}>
-          <img src={event.cover_image_url} alt="" className="w-full h-full object-cover object-center"
-            style={{ filter: "brightness(0.40) saturate(0.75)" }} />
-          <div className="absolute inset-x-0 bottom-0" style={{ height: "58%", background: "linear-gradient(to bottom,transparent,#061428)" }} />
-          <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 100% 100% at 50% 0%,transparent 40%,rgba(6,20,40,0.55) 100%)" }} />
-        </div>
-      )}
+        background: "radial-gradient(ellipse 65% 45% at 10% 0%, var(--t-accent-dim) 0%,transparent 62%), radial-gradient(ellipse 55% 45% at 92% 90%, var(--t-accent-dim) 0%,transparent 62%)" }} />
 
       {/* Nav */}
-      <div className="sticky top-0 z-40 border-b" style={{ background: "rgba(14,5,28,0.90)", backdropFilter: "blur(22px)", borderColor: "rgba(255,255,255,0.07)" }}>
-        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+      <div className="sticky top-0 z-40 border-b" style={{ background: "color-mix(in srgb, var(--t-bg-alt) 88%, transparent)", backdropFilter: "blur(22px)", borderColor: "var(--t-border)" }}>
+        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
           <button onClick={() => router.back()}
             className="flex items-center gap-2 text-sm font-medium transition"
-            style={{ color: "rgba(255,255,255,0.40)" }}
-            onMouseEnter={e => e.currentTarget.style.color = "#fff"}
-            onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.40)"}>
-            <ArrowLeft size={15} /> Back
+            style={{ color: "var(--t-text-muted)" }}
+            onMouseEnter={e => e.currentTarget.style.color = "var(--t-accent)"}
+            onMouseLeave={e => e.currentTarget.style.color = "var(--t-text-muted)"}>
+            <ArrowLeft size={15} /> Back to event
           </button>
-          <p className="text-[9px] font-black uppercase tracking-[0.30em]" style={{ color: "rgba(201,169,110,0.50)" }}>
+          <p className="text-[9px] font-black uppercase tracking-[0.30em]" style={{ color: "var(--t-accent)" }}>
             Support This Event
           </p>
           <div className="w-20" />
@@ -381,73 +531,56 @@ export default function DonatePage() {
       </div>
 
       {/* Content */}
-      <div className="relative max-w-2xl mx-auto px-4 space-y-6" style={{ paddingTop: event?.cover_image_url ? "min(38vh,300px)" : "3rem", paddingBottom: "5rem", zIndex: 2 }}>
+      <div className="relative w-full py-0" style={{ zIndex: 2 }}>
 
         {/* Payment banner */}
         <AnimatePresence>
           {banner === "success" && (
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="flex items-center gap-3 rounded-2xl px-5 py-4"
-              style={{ background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.30)" }}>
-              <CheckCircle size={18} style={{ color: "#10b981", flexShrink: 0 }} />
-              <p className="text-sm font-bold text-white">Thank you — your donation was received!</p>
+              className="mx-auto flex max-w-3xl items-center gap-3 rounded-2xl px-5 py-4 my-6"
+              style={{ background: "color-mix(in srgb, var(--t-accent) 12%, var(--t-bg-alt))", border: "1px solid var(--t-border)" }}>
+              <CheckCircle size={18} style={{ color: "var(--t-accent)", flexShrink: 0 }} />
+              <p className="text-sm font-bold" style={{ color: "var(--t-text)" }}>Thank you — your donation was received!</p>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Marketing headline */}
-        {loading ? (
-          <div className="space-y-4">
-            <div className="h-4 w-28 rounded animate-pulse" style={{ background: "rgba(255,255,255,0.06)" }} />
-            <div className="h-20 w-4/5 rounded-xl animate-pulse" style={{ background: "rgba(255,255,255,0.05)" }} />
+        {loading && (
+          <div className="mx-auto max-w-3xl space-y-4 px-4 py-8">
+            <div className="h-64 rounded-[28px] animate-pulse" style={{ background: "#e4ece5" }} />
+            <div className="h-52 rounded-[28px] animate-pulse" style={{ background: "#edf3ee" }} />
           </div>
-        ) : (
-          <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
-            <p className="text-[9px] font-black uppercase tracking-[0.30em] mb-3" style={{ color: "rgba(201,169,110,0.60)" }}>
-              ✦ Curated Events &amp; Ticket Première
-            </p>
-            <h1 className="leading-[0.95] mb-4"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 900 }}>
-              <span className="block" style={{ fontSize: "clamp(1.9rem,4vw,3.2rem)", color: "#f5f0e8", letterSpacing: "-0.02em" }}>{line1}</span>
-              <span className="block italic" style={{ fontSize: "clamp(1.9rem,4vw,3.2rem)", color: "rgba(244,63,94,0.85)", letterSpacing: "-0.02em" }}>{line2}</span>
-            </h1>
-            {event && (
-              <div className="flex items-center gap-3 mb-3">
-                <div className="h-px w-6" style={{ background: "rgba(201,169,110,0.45)" }} />
-                <p className="text-sm font-bold tracking-wide" style={{ color: "rgba(255,255,255,0.50)" }}>
-                  {event.title}
-                </p>
+        )}
+
+        {/* One continuous fundraiser experience */}
+        {!loading && event && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            className="w-full overflow-hidden"
+            style={{ background: "var(--t-bg-alt)" }}
+          >
+            <InfoCard event={event} donConfig={donConfig}>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: "var(--t-text-muted)" }}>Your contribution</p>
+                <h2 className="mt-1 text-2xl font-black" style={{ color: "var(--t-text)", fontFamily: "var(--t-font-heading)" }}>Choose how you would like to give</h2>
+                <PaymentCard event={event} donConfig={donConfig} />
               </div>
-            )}
-            <div className="flex flex-wrap gap-x-5 gap-y-2">
-              {event?.starts_at_local && (
-                <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: "rgba(255,255,255,0.38)" }}>
-                  <Clock size={13} style={{ color: "rgba(201,169,110,0.55)" }} />
-                  {fmtDate(event.starts_at_local)}
-                </span>
-              )}
-              {event?.venue_name && (
-                <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: "rgba(255,255,255,0.38)" }}>
-                  <span style={{ color: "rgba(201,169,110,0.55)" }}>📍</span>
-                  {event.venue_name}{event.city ? `, ${event.city}` : ""}
-                </span>
-              )}
-            </div>
-            <div className="mt-8 h-px" style={{ background: "linear-gradient(90deg,rgba(201,169,110,0.35),transparent 70%)" }} />
+            </InfoCard>
           </motion.div>
         )}
 
-        {/* Donation card */}
-        {!loading && event && (
-          <DonationCard event={event} donConfig={donConfig} />
-        )}
-
         {/* Trust bar */}
-        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-          {[["🔒","Secure Payment"],["💝","Your Impact Matters"],["💳","Powered by Stripe"]].map(([icon, label]) => (
-            <span key={label} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest"
-              style={{ color: "rgba(201,169,110,0.30)", letterSpacing: "0.12em" }}>
-              {icon} {label}
+        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 px-4 py-9 sm:py-11" style={{ background: "color-mix(in srgb, var(--t-accent) 8%, var(--t-bg))" }}>
+          {[
+            ["🔒", "Secure Stripe Checkout"],
+            ["⚡", "Instant Confirmation"],
+            ["✉️", "Receipt by Email"]
+          ].map(([icon, label]) => (
+            <span key={label} className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider"
+              style={{ color: "var(--t-text-muted)", letterSpacing: "0.10em" }}>
+              <span className="text-sm">{icon}</span> {label}
             </span>
           ))}
         </div>

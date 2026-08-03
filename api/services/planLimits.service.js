@@ -126,6 +126,20 @@ export const LIMIT_CODES = {
   FEATURE:   "PLAN_LIMIT_FEATURE",
 };
 
+const ADMIN_GRANT_PLANS = new Set(["starter", "pro", "enterprise"]);
+
+function getActiveAdminPlanOverride(row) {
+  const plan = String(row?.admin_plan_override ?? "").toLowerCase();
+  if (!ADMIN_GRANT_PLANS.has(plan)) return null;
+
+  if (row.admin_plan_override_expires_at) {
+    const expiresAt = new Date(row.admin_plan_override_expires_at);
+    if (Number.isNaN(expiresAt.getTime()) || expiresAt <= new Date()) return null;
+  }
+
+  return plan;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
@@ -136,10 +150,13 @@ export const LIMIT_CODES = {
 export async function getUserPlan(client, userId) {
   const result = await client.query(
     `SELECT subscription_plan, is_subscribed, subscription_id, subscription_status,
-            subscription_current_period_end FROM users WHERE id = $1 LIMIT 1`,
+            subscription_current_period_end, admin_plan_override,
+            admin_plan_override_expires_at FROM users WHERE id = $1 LIMIT 1`,
     [userId]
   );
   const row = result.rows[0];
+  const adminPlan = getActiveAdminPlanOverride(row);
+  if (adminPlan) return adminPlan;
   if (!row || !row.is_subscribed) return "free";
 
   // CRITICAL: Require subscription_id - cannot be subscribed without one
@@ -214,7 +231,8 @@ export async function countEventGuests(client, eventId) {
 export async function getEventOwnerPlan(client, eventId) {
   const result = await client.query(
     `SELECT u.subscription_plan, u.is_subscribed, u.subscription_id, u.subscription_status,
-            u.subscription_current_period_end, u.id as user_id
+            u.subscription_current_period_end, u.admin_plan_override,
+            u.admin_plan_override_expires_at, u.id as user_id
      FROM events e
      JOIN organizations o ON o.id = e.organization_id
      JOIN users u ON u.id = o.owner_user_id
@@ -222,6 +240,8 @@ export async function getEventOwnerPlan(client, eventId) {
     [eventId]
   );
   const row = result.rows[0];
+  const adminPlan = getActiveAdminPlanOverride(row);
+  if (adminPlan) return adminPlan;
   if (!row || !row.is_subscribed) return "free";
 
   // CRITICAL: Require all fields for paid plans

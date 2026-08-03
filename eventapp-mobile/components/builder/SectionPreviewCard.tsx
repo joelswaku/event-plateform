@@ -179,7 +179,7 @@ function SectionContent({ type,cfg,title,body,event,t }: any) {
     case 'COUNTDOWN': return <CountdownBlock cfg={cfg} event={event} t={t}/>;
     case 'SCHEDULE':  return <ScheduleBlock  cfg={cfg} title={title} t={t} event={event}/>;
     case 'VENUE':     return <VenueBlock     cfg={cfg} title={title} t={t} event={event}/>;
-    case 'GALLERY':   return <GalleryBlock   cfg={cfg} t={t}/>;
+    case 'GALLERY':   return <GalleryBlock   cfg={cfg} title={title} t={t}/>;
     case 'SPEAKERS':  return <SpeakersBlock  cfg={cfg} t={t} event={event}/>;
     case 'TICKETS':   return <TicketsBlock   cfg={cfg} event={event} t={t}/>;
     case 'FAQ':       return <FAQBlock       cfg={cfg} title={title} t={t}/>;
@@ -986,10 +986,12 @@ function HappeningNowMobile({ iso, t }: { iso?: string; t: any }) {
    MINIMAL: 2-col, alt 4:5/4:3, no radius
    CLASSIC/ELEGANT/LUXURY: 2-col masonry, radius 8
 ══════════════════════════════════════════════════════════════════ */
-function GalleryBlock({ cfg, t }: any) {
+function GalleryBlock({ cfg, title, t }: any) {
   const th     = cfg._theme ?? 'CLASSIC';
   const images: string[] = cfg.images || cfg.media_ids || [];
   const layout: 'grid'|'carousel' = cfg.layout ?? 'grid';
+  // config.title is only a legacy fallback for data saved by an older Expo build.
+  const galleryTitle = title || cfg.title;
   const [lbIdx, setLbIdx] = useState<number|null>(null);
 
   const PAD    = 20;
@@ -999,32 +1001,32 @@ function GalleryBlock({ cfg, t }: any) {
     if (th==='FUN') return (
       <View style={{alignItems:'center'}}>
         <Text style={{fontSize:11,fontWeight:'800',letterSpacing:2,textTransform:'uppercase',color:t.accent,marginBottom:2}}>✦ Gallery</Text>
-        <Text style={{fontSize:22,fontWeight:'900',letterSpacing:-0.5,color:t.text}}>{cfg.title||'Our Moments'}</Text>
+        <Text style={{fontSize:22,fontWeight:'900',letterSpacing:-0.5,color:t.text}}>{galleryTitle||'Our Moments'}</Text>
       </View>
     );
     if (th==='MODERN') return (
       <View>
         <View style={{height:2,width:32,borderRadius:2,backgroundColor:t.accent,marginBottom:8}} />
-        <Text style={{fontSize:20,fontWeight:'900',textTransform:'uppercase',letterSpacing:-0.5,color:t.text}}>{cfg.title||'Gallery'}</Text>
+        <Text style={{fontSize:20,fontWeight:'900',textTransform:'uppercase',letterSpacing:-0.5,color:t.text}}>{galleryTitle||'Gallery'}</Text>
       </View>
     );
     if (th==='MINIMAL') return (
       <View style={{alignItems:'center'}}>
         <Text style={{fontSize:8,fontWeight:'400',letterSpacing:5,textTransform:'uppercase',color:t.muted,marginBottom:6}}>Gallery</Text>
-        <Text style={{fontSize:22,fontWeight:'300',letterSpacing:1,color:t.text}}>{cfg.title||'Our Moments'}</Text>
+        <Text style={{fontSize:22,fontWeight:'300',letterSpacing:1,color:t.text}}>{galleryTitle||'Our Moments'}</Text>
       </View>
     );
     if (th==='LUXURY') return (
       <View>
         <Text style={{fontSize:8,fontWeight:'400',letterSpacing:5,textTransform:'uppercase',color:t.accent,marginBottom:4}}>Gallery</Text>
-        <Text style={{fontSize:22,fontWeight:'200',fontStyle:'italic',textTransform:'uppercase',letterSpacing:3,color:t.text}}>{cfg.title||'Our Moments'}</Text>
+        <Text style={{fontSize:22,fontWeight:'200',fontStyle:'italic',textTransform:'uppercase',letterSpacing:3,color:t.text}}>{galleryTitle||'Our Moments'}</Text>
       </View>
     );
     // CLASSIC/ELEGANT
     return (
       <View>
         <Eyebrow text="Gallery" t={t} />
-        <Heading text={cfg.title||'Our Moments'} t={t} />
+        <Heading text={galleryTitle||'Our Moments'} t={t} />
         <Ornament t={t} />
       </View>
     );
@@ -1348,10 +1350,10 @@ function StoryBlock({ cfg, title, body, t }: any) {
 }
 
 function CoupleBlock({ cfg, t }: any) {
-  const p1=cfg.bride_name||cfg.person1_name||'Person 1';
-  const p2=cfg.groom_name||cfg.person2_name||'Person 2';
-  const i1=cfg.person1_image as string|undefined;
-  const i2=cfg.person2_image as string|undefined;
+  const p1=cfg.bride_name||cfg.partner1_name||cfg.person1_name||'Partner One';
+  const p2=cfg.groom_name||cfg.partner2_name||cfg.person2_name||'Partner Two';
+  const i1=(cfg.bride_image||cfg.partner1_photo||cfg.person1_image) as string|undefined;
+  const i2=(cfg.groom_image||cfg.partner2_photo||cfg.person2_image) as string|undefined;
   const Av=({img,name,size=60}:{img?:string;name:string;size?:number})=>{
     const initials=(name).split(' ').map((w:string)=>w[0]).join('').slice(0,2).toUpperCase();
     return (

@@ -1,7 +1,7 @@
 import React, { useEffect, useCallback, useState } from 'react';
 import {
   View, Text, FlatList, StyleSheet, Pressable,
-  ActivityIndicator, RefreshControl, TextInput,
+  ActivityIndicator, RefreshControl, TextInput, Image,
   KeyboardAvoidingView, Platform, Switch, ScrollView,
 } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useDonationStore, Donation } from '@/store/donation.store';
 import { Colors } from '@/constants/colors';
 import { toast } from '@/lib/toast';
+import { pickAndUploadImage } from '@/lib/imageUpload';
 
 const ROSE = '#f43f5e';
 const DEFAULT_AMOUNTS = [5, 10, 25];
@@ -94,6 +95,41 @@ function StatTile({ label, value, color }: { label: string; value: string | numb
   );
 }
 
+function FundraiserCard({
+  title, message, coverImage, amounts, onEdit,
+}: {
+  title: string; message: string; coverImage: string; amounts: number[]; onEdit: () => void;
+}) {
+  return (
+    <View style={s.fundraiserCard}>
+      <View style={s.fundraiserTopBar} />
+      {coverImage ? <Image source={{ uri: coverImage }} style={s.fundraiserImage} resizeMode="cover" /> : null}
+      <View style={s.fundraiserBody}>
+        <View style={s.fundraiserTitleRow}>
+          <View>
+            <Text style={s.fundraiserEyebrow}>FUNDRAISER</Text>
+            <Text style={s.fundraiserTitle}>{title || 'Support this event'}</Text>
+          </View>
+          <Pressable onPress={onEdit} style={s.fundraiserEdit} hitSlop={8}>
+            <Feather name="edit-3" size={13} color={ROSE} />
+            <Text style={s.fundraiserEditTxt}>Edit</Text>
+          </Pressable>
+        </View>
+        <Text style={s.fundraiserMessage} numberOfLines={3}>
+          {message || 'Add a short story so guests understand what their contribution supports.'}
+        </Text>
+        <View style={s.fundraiserAmounts}>
+          {(amounts.length ? amounts : DEFAULT_AMOUNTS).map((amount, index) => (
+            <View key={`${amount}-${index}`} style={s.fundraiserAmountPill}>
+              <Text style={s.fundraiserAmountTxt}>{fmtAmount(amount)}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+}
+
 /* ── Donation row (expandable, no delete) ───────────────────────── */
 function DonationRow({ item }: { item: Donation }) {
   const [open, setOpen] = useState(false);
@@ -169,29 +205,31 @@ function DonationRow({ item }: { item: Donation }) {
 }
 
 /* ── Amount config sheet ─────────────────────────────────────── */
-function ConfigSheet({ eventId, amounts, savedMsg, onSaved, onClose }: {
-  eventId: string; amounts: number[]; savedMsg: string;
-  onSaved: (a: number[], m: string) => void; onClose: () => void;
+function ConfigSheet({ eventId, amounts, savedMsg, savedTitle, savedCoverImage, onSaved, onClose }: {
+  eventId: string; amounts: number[]; savedMsg: string; savedTitle: string; savedCoverImage: string;
+  onSaved: (a: number[], m: string, title: string, coverImage: string) => void; onClose: () => void;
 }) {
   const { saveDonationConfig } = useDonationStore();
   const [vals, setVals]  = useState<string[]>(
-    amounts.length === 3 ? amounts.map(String) : ['', '', '']
+    amounts.length ? [...amounts.map(String), '', '', ''].slice(0, 3) : ['', '', '']
   );
   const [msg, setMsg]       = useState(savedMsg ?? '');
+  const [title, setTitle]   = useState(savedTitle ?? '');
+  const [coverImage, setCoverImage] = useState(savedCoverImage ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState('');
 
   const handleSave = async () => {
-    const parsed = vals.map(v => parseFloat(v));
-    if (parsed.some(n => !n || n <= 0)) {
-      setError('All 3 amounts are required and must be greater than 0.');
+    const parsed = vals.map(v => parseFloat(v)).filter(n => Number.isFinite(n) && n > 0);
+    if (!parsed.length) {
+      setError('Add at least one suggested amount greater than 0.');
       return;
     }
     setSaving(true); setError('');
     try {
-      await saveDonationConfig(eventId, parsed, msg.trim());
-      onSaved(parsed, msg.trim());
-      toast.success('Saved', 'Donation amounts updated.');
+      await saveDonationConfig(eventId, parsed, msg.trim(), title.trim(), coverImage);
+      onSaved(parsed, msg.trim(), title.trim(), coverImage);
+      toast.success('Saved', 'Fundraiser details updated.');
       onClose();
     } catch {
       toast.error('Error', 'Could not save amounts.');
@@ -200,13 +238,18 @@ function ConfigSheet({ eventId, amounts, savedMsg, onSaved, onClose }: {
     }
   };
 
+  const handlePickImage = async () => {
+    const url = await pickAndUploadImage(eventId);
+    if (url) setCoverImage(url);
+  };
+
   return (
     <View style={s.configSheet}>
       {/* drag handle */}
       <View style={s.dragHandle} />
 
       <View style={s.configHeader}>
-        <Text style={s.configTitle}>Preset Amounts</Text>
+        <Text style={s.configTitle}>Fundraiser setup</Text>
         <Pressable onPress={onClose} hitSlop={8}>
           <Feather name="x" size={18} color={Colors.text.muted} />
         </Pressable>
@@ -218,30 +261,66 @@ function ConfigSheet({ eventId, amounts, savedMsg, onSaved, onClose }: {
         contentContainerStyle={{ paddingBottom: 16 }}
       >
         <Text style={s.configSub}>
-          Set a message and 3 donation amounts. Donors see these on the event page.
+          Add the information guests see before donating. One suggested amount is required; two more are optional.
         </Text>
+
+        <View style={s.configRow}>
+          <Text style={s.configLabel}>Fundraiser title</Text>
+          <View style={s.configInputWrap}>
+            <TextInput
+              style={s.configInput}
+              placeholder="e.g. Help us make this day possible"
+              placeholderTextColor={Colors.text.subtle}
+              maxLength={140}
+              value={title}
+              onChangeText={setTitle}
+            />
+          </View>
+        </View>
 
         {/* Message */}
         <View style={s.configRow}>
-          <Text style={s.configLabel}>Message <Text style={s.optional}>(shown on event page)</Text></Text>
+          <Text style={s.configLabel}>Fundraiser story <Text style={s.optional}>(shown on event page)</Text></Text>
           <View style={[s.configInputWrap, { height: 80, alignItems: 'flex-start', paddingTop: 10 }]}>
             <TextInput
               style={[s.configInput, { height: 60, textAlignVertical: 'top' }]}
-              placeholder="e.g. Help us make this event amazing for everyone!"
+              placeholder="Share what donations will make possible and why it matters."
               placeholderTextColor={Colors.text.subtle}
               multiline
-              maxLength={280}
+              maxLength={1200}
               value={msg}
               onChangeText={t => setMsg(t)}
             />
           </View>
-          <Text style={s.charCount}>{msg.length}/280</Text>
+          <Text style={s.charCount}>{msg.length}/1200</Text>
+        </View>
+
+        <View style={s.configRow}>
+          <Text style={s.configLabel}>Fundraiser cover <Text style={s.optional}>(optional)</Text></Text>
+          <Pressable style={s.coverPicker} onPress={handlePickImage}>
+            {coverImage ? (
+              <>
+                <Image source={{ uri: coverImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                <View style={s.coverOverlay}><Feather name="camera" size={14} color="#fff" /></View>
+              </>
+            ) : (
+              <>
+                <Feather name="image" size={20} color={Colors.text.muted} />
+                <Text style={s.coverPickerTxt}>Tap to upload a cover image</Text>
+              </>
+            )}
+          </Pressable>
+          {coverImage ? (
+            <Pressable onPress={() => setCoverImage('')} style={s.removeCover}>
+              <Text style={s.removeCoverTxt}>Remove image</Text>
+            </Pressable>
+          ) : null}
         </View>
 
         {[0, 1, 2].map(i => (
           <View key={i} style={s.configRow}>
             <Text style={s.configLabel}>
-              Amount {i + 1} <Text style={{ color: ROSE }}>*</Text>
+              Suggested amount {i + 1} {i === 0 ? <Text style={{ color: ROSE }}>*</Text> : <Text style={s.optional}>(optional)</Text>}
             </Text>
             <View style={[s.configInputWrap, !vals[i] && !!error ? { borderColor: `${ROSE}60` } : {}]}>
               <Text style={s.configPrefix}>$</Text>
@@ -267,7 +346,7 @@ function ConfigSheet({ eventId, amounts, savedMsg, onSaved, onClose }: {
           <LinearGradient colors={['#be185d', ROSE]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
           {saving
             ? <ActivityIndicator color="#fff" size="small" />
-            : <Text style={s.configSaveTxt}>Save Amounts</Text>}
+            : <Text style={s.configSaveTxt}>Save fundraiser</Text>}
         </Pressable>
       </ScrollView>
     </View>
@@ -454,16 +533,24 @@ export default function DonationsScreen() {
   const { id: eventId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { donations, loading, totalRaised, confirmedCount,
-          donationAmounts, fetchDonations, fetchDonationConfig } = useDonationStore();
+          donationAmounts, donationConfig, fetchDonations, fetchDonationConfig } = useDonationStore();
   const [configOpen, setConfigOpen] = useState(false);
   const [localAmounts, setLocalAmounts] = useState<number[]>([]);
   const [localMessage, setLocalMessage] = useState('');
+  const [localTitle, setLocalTitle] = useState('');
+  const [localCoverImage, setLocalCoverImage] = useState('');
 
   useEffect(() => {
     if (!eventId) return;
     fetchDonations(eventId);
     fetchDonationConfig(eventId);
   }, [eventId]);
+
+  useEffect(() => {
+    setLocalMessage(donationConfig.message ?? '');
+    setLocalTitle(donationConfig.title ?? '');
+    setLocalCoverImage(donationConfig.cover_image ?? '');
+  }, [donationConfig.message, donationConfig.title, donationConfig.cover_image]);
 
   const onRefresh = useCallback(() => {
     if (eventId) { fetchDonations(eventId); fetchDonationConfig(eventId); }
@@ -499,6 +586,14 @@ export default function DonationsScreen() {
 
   const ListHeader = (
     <>
+      <FundraiserCard
+        title={localTitle}
+        message={localMessage}
+        coverImage={localCoverImage}
+        amounts={presets}
+        onEdit={() => setConfigOpen(true)}
+      />
+
       {/* Stats */}
       <View style={s.statsRow}>
         <StatTile label="Total Raised"  value={fmtAmount(totalRaised)} color={ROSE} />
@@ -522,7 +617,7 @@ export default function DonationsScreen() {
         </Text>
         <Pressable onPress={() => setConfigOpen(true)} style={s.configBtn} hitSlop={8}>
           <Feather name="settings" size={13} color={Colors.text.muted} />
-          <Text style={s.configBtnTxt}>Amounts</Text>
+          <Text style={s.configBtnTxt}>Setup</Text>
         </Pressable>
       </View>
     </>
@@ -605,9 +700,13 @@ export default function DonationsScreen() {
             >
               <ConfigSheet
                 eventId={eventId as string}
-                amounts={localAmounts.length === 3 ? localAmounts : donationAmounts}
+                amounts={localAmounts.length ? localAmounts : donationAmounts}
                 savedMsg={localMessage}
-                onSaved={(a, m) => { setLocalAmounts(a); setLocalMessage(m); }}
+                savedTitle={localTitle}
+                savedCoverImage={localCoverImage}
+                onSaved={(a, m, title, coverImage) => {
+                  setLocalAmounts(a); setLocalMessage(m); setLocalTitle(title); setLocalCoverImage(coverImage);
+                }}
                 onClose={() => setConfigOpen(false)}
               />
             </KeyboardAvoidingView>
@@ -640,6 +739,21 @@ const s = StyleSheet.create({
   headerSub:   { fontSize: 11, color: Colors.text.muted, marginTop: 1 },
 
   listContent: { paddingHorizontal: 16, paddingBottom: 48 },
+
+  /* fundraiser preview */
+  fundraiserCard: { marginTop: 16, overflow: 'hidden', borderRadius: 18, borderWidth: 1, borderColor: `${ROSE}35`, backgroundColor: Colors.bg.elevated },
+  fundraiserTopBar: { height: 3, backgroundColor: ROSE },
+  fundraiserImage: { width: '100%', height: 156 },
+  fundraiserBody: { padding: 16, gap: 10 },
+  fundraiserTitleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
+  fundraiserEyebrow: { fontSize: 9, fontWeight: '900', letterSpacing: 1.2, color: `${ROSE}cc` },
+  fundraiserTitle: { marginTop: 3, flexShrink: 1, fontSize: 18, lineHeight: 22, fontWeight: '900', color: '#fff' },
+  fundraiserMessage: { fontSize: 13, lineHeight: 19, color: Colors.text.muted },
+  fundraiserEdit: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 9, borderWidth: 1, borderColor: `${ROSE}40`, backgroundColor: `${ROSE}10` },
+  fundraiserEditTxt: { fontSize: 11, fontWeight: '800', color: ROSE },
+  fundraiserAmounts: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 2 },
+  fundraiserAmountPill: { borderRadius: 99, paddingHorizontal: 11, paddingVertical: 7, borderWidth: 1, borderColor: `${ROSE}45`, backgroundColor: `${ROSE}12` },
+  fundraiserAmountTxt: { fontSize: 12, fontWeight: '900', color: '#fda4af' },
 
   /* stats */
   statsRow: { flexDirection: 'row', gap: 10, paddingTop: 16, paddingBottom: 12 },
@@ -731,6 +845,11 @@ const s = StyleSheet.create({
   configInput:  { flex: 1, fontSize: 14, fontWeight: '600', color: Colors.text.primary },
   configOptional: { fontWeight: '400', fontSize: 10, color: Colors.text.muted },
   charCount:      { fontSize: 10, color: Colors.text.subtle, textAlign: 'right', marginTop: 3 },
+  coverPicker: { height: 128, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: Colors.border.DEFAULT, backgroundColor: Colors.bg.primary, alignItems: 'center', justifyContent: 'center', gap: 7, overflow: 'hidden' },
+  coverPickerTxt: { fontSize: 12, color: Colors.text.muted },
+  coverOverlay: { position: 'absolute', right: 9, bottom: 9, width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.58)' },
+  removeCover: { alignSelf: 'flex-start', marginTop: 7, paddingVertical: 3 },
+  removeCoverTxt: { fontSize: 11, fontWeight: '700', color: ROSE },
   configError:    { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(239,68,68,0.10)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 8 },
   configErrorTxt: { fontSize: 12, color: '#ef4444', flex: 1 },
   configSaveBtn:  { height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginTop: 8 },

@@ -14,31 +14,51 @@ const TX  = 'rgba(255,255,255,0.85)';
 const BD  = 'rgba(255,255,255,0.1)';
 const ACC = '#6c6fee';
 
-interface Props { section: BuilderSection; eventId: string; iosKeyboardInsets?: boolean }
+interface Props {
+  section: BuilderSection;
+  eventId: string;
+  iosKeyboardInsets?: boolean;
+  onOverlayPreviewChange?: (opacity: number) => void;
+  onOverlayPreviewCommit?: (opacity: number) => void;
+}
 
 // Standalone slider — Animated.Value drives fill/thumb so no re-renders while dragging
 function OpacitySlider({
   value,
   onChange,
   onRelease,
+  onSlidingChange,
 }: {
   value: number;
   onChange: (v: number) => void;
   onRelease: (v: number) => void;
+  onSlidingChange: (isSliding: boolean) => void;
 }) {
-  const trackWidthRef  = useRef(1);
-  const startXRef      = useRef(0);        // locationX at grant
-  const startPctRef    = useRef(value);    // opacity at grant
+  const trackWidthRef = useRef(1);
+  const isSlidingRef = useRef(false);
 
-  // Animated value drives fill width (0–trackWidth px) and thumb left
+  // Animated.Value keeps the control fluid without re-rendering the panel.
   const animPx = useRef(new Animated.Value(0)).current;
-  // We also need a readable pct during release; store it in a ref
   const liveValueRef = useRef(value);
+  const onChangeRef = useRef(onChange);
+  const onReleaseRef = useRef(onRelease);
+  const onSlidingChangeRef = useRef(onSlidingChange);
+
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+  useEffect(() => { onReleaseRef.current = onRelease; }, [onRelease]);
+  useEffect(() => { onSlidingChangeRef.current = onSlidingChange; }, [onSlidingChange]);
 
   // Sync animPx when track lays out or value prop changes externally
   const syncAnim = (pct: number, width: number) => {
     animPx.setValue((pct / 100) * width);
   };
+
+  // Keep the native thumb correct if another Hero section is selected.
+  useEffect(() => {
+    if (isSlidingRef.current) return;
+    liveValueRef.current = value;
+    syncAnim(value, trackWidthRef.current);
+  }, [value]);
 
   const clamp = (x: number) =>
     Math.round(Math.max(0, Math.min(100, (x / trackWidthRef.current) * 100)));
@@ -48,38 +68,48 @@ function OpacitySlider({
       onStartShouldSetPanResponderCapture: () => true,
       onMoveShouldSetPanResponderCapture:  () => true,
       onPanResponderGrant: (e) => {
-        startXRef.current   = e.nativeEvent.locationX;
-        startPctRef.current = liveValueRef.current;
+        isSlidingRef.current = true;
+        onSlidingChangeRef.current(true);
         // Jump fill to tap position immediately
         const pct = clamp(e.nativeEvent.locationX);
         liveValueRef.current = pct;
         animPx.setValue((pct / 100) * trackWidthRef.current);
-        onChange(pct);
+        onChangeRef.current(pct);
       },
-      onPanResponderMove: (_, g) => {
-        const newX  = startXRef.current + g.dx;
-        const pct   = clamp(newX);
+      onPanResponderMove: (e) => {
+        const pct = clamp(e.nativeEvent.locationX);
         liveValueRef.current = pct;
         animPx.setValue((pct / 100) * trackWidthRef.current);
-        onChange(pct);
+        onChangeRef.current(pct);
       },
-      onPanResponderRelease:    () => onRelease(liveValueRef.current),
-      onPanResponderTerminate:  () => onRelease(liveValueRef.current),
+      onPanResponderRelease: () => {
+        isSlidingRef.current = false;
+        onSlidingChangeRef.current(false);
+        onReleaseRef.current(liveValueRef.current);
+      },
+      onPanResponderTerminate: () => {
+        isSlidingRef.current = false;
+        onSlidingChangeRef.current(false);
+        onReleaseRef.current(liveValueRef.current);
+      },
+      // Keep the active horizontal drag inside the control instead of letting
+      // the sheet ScrollView or Android's native responder take over.
+      onPanResponderTerminationRequest: () => false,
+      onShouldBlockNativeResponder: () => true,
     })
   ).current;
 
   return (
     <View
-      style={s.track}
+      style={s.sliderHitArea}
       onLayout={(e) => {
         trackWidthRef.current = e.nativeEvent.layout.width;
         syncAnim(liveValueRef.current, trackWidthRef.current);
       }}
       {...panResponder.panHandlers}
     >
-      {/* Fill */}
+      <View style={s.track} pointerEvents="none" />
       <Animated.View style={[s.trackFill, { width: animPx }]} />
-      {/* Thumb — positioned relative to fill width */}
       <Animated.View
         style={[
           s.thumb,
@@ -92,7 +122,13 @@ function OpacitySlider({
   );
 }
 
-export default function HeroConfigFields({ section, eventId, iosKeyboardInsets }: Props) {
+export default function HeroConfigFields({
+  section,
+  eventId,
+  iosKeyboardInsets,
+  onOverlayPreviewChange,
+  onOverlayPreviewCommit,
+}: Props) {
   const updateSection = useBuilderStore(s => s.updateSection);
 
   const cfgRef   = useRef<Record<string, unknown>>(section.config ?? {});
@@ -102,7 +138,9 @@ export default function HeroConfigFields({ section, eventId, iosKeyboardInsets }
   const [body,    setBody]    = useState(section.body  ?? '');
   const [bgImage, setBgImage] = useState(String(cfgRef.current.background_image ?? ''));
   const [align,   setAlign]   = useState(String(cfgRef.current.headline_align   ?? 'center'));
+  const [donationStyle, setDonationStyle] = useState(String(cfgRef.current.hero_donation_style ?? 'button'));
   const [opacity, setOpacity] = useState(Number(cfgRef.current.overlay_opacity  ?? 40));
+  const [isSlidingOpacity, setIsSlidingOpacity] = useState(false);
 
   useEffect(() => {
     const c = section.config ?? {};
@@ -111,6 +149,7 @@ export default function HeroConfigFields({ section, eventId, iosKeyboardInsets }
     setBody(section.body   ?? '');
     setBgImage(String(c.background_image ?? ''));
     setAlign(String(c.headline_align   ?? 'center'));
+    setDonationStyle(String(c.hero_donation_style ?? 'button'));
     setOpacity(Number(c.overlay_opacity ?? 40));
   }, [section.id]);
 
@@ -139,6 +178,7 @@ export default function HeroConfigFields({ section, eventId, iosKeyboardInsets }
       style={{ flex: 1, backgroundColor: BG }}
       contentContainerStyle={s.scroll}
       keyboardShouldPersistTaps="handled"
+      scrollEnabled={!isSlidingOpacity}
       automaticallyAdjustKeyboardInsets={iosKeyboardInsets}
       showsVerticalScrollIndicator={false}
     >
@@ -196,11 +236,42 @@ export default function HeroConfigFields({ section, eventId, iosKeyboardInsets }
         </View>
       </Field>
 
+      <Field label="Hero Donation Style">
+        <View style={s.donationStyleGrid}>
+          {[
+            ['none', 'None'],
+            ['button', 'Curved actions'],
+            ['summary', 'Small summary'],
+            ['full', 'Full card'],
+          ].map(([value, label]) => {
+            const active = donationStyle === value;
+            return (
+              <Pressable
+                key={value}
+                style={[s.donationStyleBtn, active && s.donationStyleBtnActive]}
+                onPress={() => { setDonationStyle(value); saveConfig('hero_donation_style', value); }}
+              >
+                <Text style={[s.donationStyleLabel, active && s.donationStyleLabelActive]}>{label}</Text>
+                {value === 'button' && <Text style={[s.donationStyleHint, active && s.donationStyleHintActive]}>Recommended</Text>}
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={s.fieldHint}>Curved actions keeps the hero clean with Donate and Share below the event details.</Text>
+      </Field>
+
       <Field label={`Overlay Opacity: ${opacity}%`}>
         <OpacitySlider
           value={opacity}
-          onChange={setOpacity}
-          onRelease={(v) => { saveConfig('overlay_opacity', v); }}
+          onChange={(value) => {
+            setOpacity(value);
+            onOverlayPreviewChange?.(value);
+          }}
+          onRelease={(value) => {
+            onOverlayPreviewCommit?.(value);
+            saveConfig('overlay_opacity', value);
+          }}
+          onSlidingChange={setIsSlidingOpacity}
         />
       </Field>
     </ScrollView>
@@ -251,19 +322,33 @@ const s = StyleSheet.create({
   segLabel:       { fontSize: 12, fontWeight: '600', color: MT },
   segLabelActive: { color: ACC },
 
+  donationStyleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  donationStyleBtn: {
+    width: '48%', minHeight: 48, paddingHorizontal: 10, paddingVertical: 8,
+    borderRadius: 10, borderWidth: 1, borderColor: BD, backgroundColor: 'rgba(255,255,255,0.04)',
+    justifyContent: 'center', gap: 2,
+  },
+  donationStyleBtnActive: { borderColor: `${ACC}70`, backgroundColor: `${ACC}1c` },
+  donationStyleLabel: { fontSize: 12, fontWeight: '700', color: MT },
+  donationStyleLabelActive: { color: '#d9daff' },
+  donationStyleHint: { fontSize: 9, fontWeight: '600', color: MT },
+  donationStyleHintActive: { color: `${ACC}cc` },
+  fieldHint: { fontSize: 10, lineHeight: 14, color: MT, marginTop: -2 },
+
+  sliderHitArea: {
+    height: 36, justifyContent: 'center', position: 'relative',
+  },
   track: {
-    height: 36, justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 8, borderWidth: 1, borderColor: BD,
-    overflow: 'hidden',
+    position: 'absolute', left: 0, right: 0, top: 15.5, height: 5,
+    backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 99,
   },
   trackFill: {
-    position: 'absolute', left: 0, top: 0, bottom: 0,
-    backgroundColor: ACC, opacity: 0.7,
+    position: 'absolute', left: 0, top: 15.5, height: 5, borderRadius: 99,
+    backgroundColor: ACC,
   },
   thumb: {
     position: 'absolute', left: 0, width: 20, height: 20, borderRadius: 10,
-    backgroundColor: '#fff', top: 8,
+    backgroundColor: '#fff', top: 8, borderWidth: 3, borderColor: ACC,
     shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 }, elevation: 4,
   },

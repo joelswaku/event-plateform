@@ -23,7 +23,8 @@ export async function getSubscriptionStatusService(userId) {
     const res = await client.query(
       `SELECT stripe_customer_id, subscription_id, subscription_status,
               subscription_plan, subscription_current_period_end, is_subscribed,
-              default_organization_id
+              default_organization_id, admin_plan_override,
+              admin_plan_override_expires_at
        FROM users WHERE id = $1`,
       [userId]
     );
@@ -49,12 +50,15 @@ export async function getSubscriptionStatusService(userId) {
     // stale database flag can never keep a cancelled or expired plan active.
     const effectivePlan = await getUserPlan(client, userId);
     const hasActiveEntitlement = effectivePlan !== "free";
+    const hasAdminGrant = hasActiveEntitlement && u.admin_plan_override === effectivePlan;
 
     return {
       is_subscribed:       hasActiveEntitlement,
       plan:                effectivePlan,
-      subscription_status: u.subscription_status              ?? null,
-      current_period_end:  u.subscription_current_period_end  ?? null,
+      subscription_status: hasAdminGrant ? "admin_granted" : (u.subscription_status ?? null),
+      current_period_end:  hasAdminGrant
+        ? (u.admin_plan_override_expires_at ?? null)
+        : (u.subscription_current_period_end ?? null),
       limits:              summary.limits,
       usage:               summary.usage,
       features:            summary.features,
@@ -79,7 +83,8 @@ export async function createCheckoutSessionService(userId, priceId, successUrl, 
 
     // CRITICAL FIX #2: Lock user row to prevent race conditions on double-click
     const uRes = await client.query(
-      `SELECT email, full_name, stripe_customer_id, subscription_id, is_subscribed
+      `SELECT email, full_name, stripe_customer_id, subscription_id, is_subscribed,
+              admin_plan_override
        FROM users WHERE id = $1 FOR UPDATE`,
       [userId]
     );
@@ -87,6 +92,14 @@ export async function createCheckoutSessionService(userId, priceId, successUrl, 
     if (!user) {
       await client.query("ROLLBACK");
       throw Object.assign(new Error("User not found"), { statusCode: 404 });
+    }
+
+    if (user.admin_plan_override) {
+      await client.query("ROLLBACK");
+      throw Object.assign(
+        new Error("Your plan is managed by an administrator. Contact support to change it."),
+        { statusCode: 409, code: "ADMIN_PLAN_GRANTED" }
+      );
     }
 
     // Check database flag first (fast check)

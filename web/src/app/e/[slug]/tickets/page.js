@@ -2,86 +2,196 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Zap, Clock, CheckCircle } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CalendarDays,
+  CheckCircle,
+  CreditCard,
+  Loader2,
+  MapPin,
+  Minus,
+  Plus,
+  ShieldCheck,
+  Ticket,
+  Users,
+  X,
+  Zap,
+} from "lucide-react";
 import LegalModal from "@/components/legal/LegalModal";
 import { createPaymentRequestKey } from "@/lib/payment-idempotency";
+import { resolveThemeFromSections } from "@/lib/styleThemes";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 
-// ── Tier resolver ─────────────────────────────────────────────────────────────
-function resolveTier(ticket, priceRank = 0) {
-  const n = (ticket.name ?? "").toLowerCase();
-  if (ticket.kind === "FREE")                                                                         return "free";
-  if (n.includes("vip") || n.includes("platinum") || n.includes("premium") || n.includes("elite"))  return "vip";
-  if (n.includes("pro") || n.includes("diamond") || n.includes("ultra") || n.includes("all-access")) return "pro";
-  if (n.includes("early") || n.includes("bird") || n.includes("presale"))                           return "early";
-  if (n.includes("student") || n.includes("youth") || n.includes("concession"))                     return "discount";
-  // Fallback: differentiate by price rank so multiple generic tickets get distinct designs
-  const RANK_TIERS = ["vip", "standard", "early", "discount", "pro"];
-  return RANK_TIERS[priceRank % RANK_TIERS.length] ?? "standard";
-}
-
-// Build a rank map: highest price = rank 0
-function buildPriceRanks(tickets) {
-  const sorted = [...tickets].sort((a, b) => Number(b.price ?? 0) - Number(a.price ?? 0));
-  const map = new Map();
-  sorted.forEach((t, i) => map.set(t.id, i));
-  return map;
-}
-
-const TIER = {
-  free:     { label:"Free",       icon:"🎁", accent:"#10b981", dark:"#022c22", bg:"linear-gradient(145deg,#022c22,#064e3b)", border:"rgba(16,185,129,0.25)",  muted:"rgba(167,243,208,0.65)",  shimmer:false },
-  early:    { label:"Early Bird", icon:"⚡", accent:"#f59e0b", dark:"#1c1002", bg:"linear-gradient(145deg,#1c1002,#451a03)", border:"rgba(245,158,11,0.3)",   muted:"rgba(253,230,138,0.65)",  shimmer:false },
-  standard: { label:"Standard",   icon:"🎟️",accent:"#6366f1", dark:"#0f0f1f", bg:"linear-gradient(145deg,#0f0f1f,#1e1b4b)", border:"rgba(99,102,241,0.28)",  muted:"rgba(199,210,254,0.65)",  shimmer:false },
-  discount: { label:"Discount",   icon:"🏷️",accent:"#06b6d4", dark:"#0a1520", bg:"linear-gradient(145deg,#0a1520,#0e4a5a)", border:"rgba(6,182,212,0.25)",   muted:"rgba(165,243,252,0.65)",  shimmer:false },
-  vip:      { label:"VIP",        icon:"👑", accent:"#C9A96E", dark:"#0f0b00", bg:"linear-gradient(145deg,#0f0b00,#2d1f00)", border:"rgba(201,169,110,0.35)", muted:"rgba(253,230,138,0.6)",   shimmer:true  },
-  pro:      { label:"Premium",    icon:"💎", accent:"#a78bfa", dark:"#0d0718", bg:"linear-gradient(145deg,#0d0718,#1e0a3c)", border:"rgba(167,139,250,0.35)", muted:"rgba(221,214,254,0.6)",   shimmer:true  },
+const colors = {
+  background: "var(--t-bg)",
+  surface: "var(--t-bg-alt)",
+  soft: "color-mix(in srgb, var(--t-accent) 8%, var(--t-bg))",
+  border: "var(--t-border)",
+  text: "var(--t-text)",
+  muted: "var(--t-text-muted)",
+  accent: "var(--t-accent)",
+  accentLight: "color-mix(in srgb, var(--t-accent) 16%, var(--t-bg-alt))",
 };
 
 function fmtPrice(price, currency = "USD") {
-  if (!price || price === 0) return "Free";
-  return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(price);
+  if (!price || Number(price) === 0) return "Free";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(Number(price));
 }
 
-// ── Checkout Modal ────────────────────────────────────────────────────────────
-function CheckoutModal({ ticket, event, onClose }) {
-  const tierKey = resolveTier(ticket);
-  const cfg     = TIER[tierKey];
+function ticketLabel(ticket) {
+  const name = String(ticket?.name ?? "").toLowerCase();
+  if (ticket?.kind === "FREE") return "Free access";
+  if (name.includes("vip") || name.includes("premium") || name.includes("platinum")) return "Premium access";
+  if (name.includes("early") || name.includes("bird")) return "Early access";
+  return "Event ticket";
+}
 
-  const [step,          setStep]          = useState("form"); // form | success | redirecting
-  const [qty,           setQty]           = useState(1);
-  const [form,          setForm]          = useState({ name: "", email: "", phone: "" });
-  const [submitting,    setSubmitting]    = useState(false);
-  const [error,         setError]         = useState("");
-  const [result,        setResult]        = useState(null);
-  const [termsChecked,  setTermsChecked]  = useState(false);
-  const [termsTouched,  setTermsTouched]  = useState(false);
-  const [legalSlug,     setLegalSlug]     = useState(null);
-  const paymentRequestKey = useRef(createPaymentRequestKey("ticket"));
+function EventMeta({ event, compact = false }) {
+  const date = event?.starts_at_local
+    ? new Date(event.starts_at_local).toLocaleDateString("en-US", {
+        weekday: compact ? "short" : "long",
+        month: "long",
+        day: "numeric",
+        year: compact ? undefined : "numeric",
+      })
+    : null;
 
+  return (
+    <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold" style={{ color: compact ? "var(--t-text-muted)" : "rgba(255,255,255,0.9)" }}>
+      {date && <span className="flex items-center gap-2"><CalendarDays size={15} /> {date}</span>}
+      {event?.venue_name && <span className="flex items-center gap-2"><MapPin size={15} /> {event.venue_name}{event.city ? `, ${event.city}` : ""}</span>}
+    </div>
+  );
+}
+
+function TicketChoice({ ticket, event, featured, onChoose }) {
   const available = ticket.quantity_total != null
     ? ticket.quantity_total - (ticket.quantity_sold ?? 0)
-    : 99;
-  const maxQty   = Math.min(available, 10);
+    : null;
+  const soldOut = available !== null && available <= 0;
+  const urgent = available !== null && available > 0 && available <= 20;
+  const filled = ticket.quantity_total
+    ? Math.min(((ticket.quantity_sold ?? 0) / ticket.quantity_total) * 100, 100)
+    : 0;
+
+  return (
+    <motion.article
+      layout
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -4, boxShadow: "0 24px 46px var(--t-accent-dim)" }}
+      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      className="relative flex flex-col overflow-hidden rounded-[26px] border"
+      style={{
+        background: colors.surface,
+        borderColor: featured ? colors.accent : colors.border,
+        boxShadow: featured ? "0 18px 42px var(--t-accent-dim)" : "0 8px 22px rgba(20,52,37,0.06)",
+      }}
+    >
+      {featured && (
+        <div className="px-5 py-2 text-center text-[10px] font-black uppercase tracking-[0.18em]" style={{ background: colors.accent, color: "var(--t-dark)" }}>
+          Most popular
+        </div>
+      )}
+      <div className="flex flex-1 flex-col gap-5 p-6 sm:p-7">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-3.5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl" style={{ background: colors.accentLight, color: colors.accent }}>
+              <Ticket size={20} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: colors.muted }}>{ticketLabel(ticket)}</p>
+              <h2 className="mt-1 text-xl font-black leading-tight" style={{ color: colors.text }}>{ticket.name}</h2>
+            </div>
+          </div>
+          {soldOut ? (
+            <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider" style={{ background: "#fff0ef", color: "#bc3c37" }}>Sold out</span>
+          ) : urgent ? (
+            <span className="flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black" style={{ background: "#fff7e7", color: "#ad6c00" }}><Zap size={11} /> {available} left</span>
+          ) : null}
+        </div>
+
+        {ticket.description && <p className="min-h-10 text-sm leading-relaxed" style={{ color: colors.muted }}>{ticket.description}</p>}
+
+        <div className="rounded-2xl px-5 py-4" style={{ background: colors.soft, border: "1px solid var(--t-border)" }}>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: colors.muted }}>Price per ticket</p>
+          <div className="mt-1 flex items-end justify-between gap-4">
+            <p className="font-black leading-none" style={{ fontFamily: "'Playfair Display', Georgia, serif", color: colors.text, fontSize: "clamp(2.35rem, 5vw, 3.1rem)", letterSpacing: "-0.04em" }}>
+              {fmtPrice(ticket.price, ticket.currency)}
+            </p>
+            {ticket.kind !== "FREE" && <span className="pb-1 text-xs font-semibold" style={{ color: colors.muted }}>{ticket.currency}</span>}
+          </div>
+        </div>
+
+        <EventMeta event={event} compact />
+
+        {ticket.quantity_total != null && !soldOut && (
+          <div className="pt-1">
+            <div className="mb-2 flex items-center justify-between text-[11px] font-bold" style={{ color: colors.muted }}>
+              <span>{urgent ? `${available} spots remaining` : `${available} available`}</span>
+              <span style={{ color: colors.accent }}>{filled.toFixed(0)}% claimed</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "color-mix(in srgb, var(--t-text) 10%, transparent)" }}>
+              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${filled}%`, background: urgent ? "#dd8b31" : colors.accent }} />
+            </div>
+          </div>
+        )}
+
+        <button
+          onClick={() => !soldOut && onChoose(ticket)}
+          disabled={soldOut}
+          className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl py-4 text-sm font-black transition-all hover:scale-[1.015] active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-45"
+          style={{ background: soldOut ? "color-mix(in srgb, var(--t-text) 12%, var(--t-bg))" : colors.accent, color: soldOut ? colors.muted : "var(--t-dark)", boxShadow: soldOut ? "none" : "0 8px 20px var(--t-accent-dim)" }}
+        >
+          {soldOut ? "Sold out" : ticket.kind === "FREE" ? "Reserve your free spot" : "Choose this ticket"}
+          {!soldOut && <ArrowRight size={16} />}
+        </button>
+      </div>
+    </motion.article>
+  );
+}
+
+function CheckoutModal({ ticket, event, onClose }) {
+  const [step, setStep] = useState("form");
+  const [qty, setQty] = useState(1);
+  const [form, setForm] = useState({ name: "", email: "", phone: "" });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState(null);
+  const [termsChecked, setTermsChecked] = useState(false);
+  const [termsTouched, setTermsTouched] = useState(false);
+  const [legalSlug, setLegalSlug] = useState(null);
+  const paymentRequestKey = useRef(createPaymentRequestKey("ticket"));
+
+  const available = ticket.quantity_total != null ? ticket.quantity_total - (ticket.quantity_sold ?? 0) : 10;
+  const maxQty = Math.max(1, Math.min(available, 10));
   const priceEach = ticket.kind === "FREE" ? 0 : Number(ticket.price);
-  const total     = priceEach * qty;
-  const fmt       = (n) => fmtPrice(n, ticket.currency);
+  const total = priceEach * qty;
+  const fee = priceEach > 0 ? Math.round((total * 0.035 + qty * 0.49) * 100) / 100 : 0;
+  const inputStyle = { background: "var(--t-bg)", border: "1.5px solid var(--t-border)", color: colors.text };
 
   async function submit() {
     setTermsTouched(true);
-    if (!form.name.trim())  return setError("Full name is required");
+    if (!form.name.trim()) return setError("Full name is required");
     if (!form.email.trim()) return setError("Email is required");
     if (!/\S+@\S+\.\S+/.test(form.email)) return setError("Enter a valid email");
     if (!termsChecked) return setError("Please accept the terms to continue.");
+
     setError("");
     setSubmitting(true);
     try {
       const res = await fetch(`${API}/public/events/${event.id}/orders`, {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          buyer_name:  form.name.trim(),
+          buyer_name: form.name.trim(),
           buyer_email: form.email.trim().toLowerCase(),
           buyer_phone: form.phone.trim() || undefined,
           items: [{ ticket_type_id: ticket.id, quantity: qty }],
@@ -97,687 +207,192 @@ function CheckoutModal({ ticket, event, onClose }) {
       } else {
         setStep("success");
       }
-    } catch (e) {
-      setError(e.message);
+    } catch (err) {
+      setError(err.message || "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.8)", backdropFilter: "blur(8px)" }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <motion.div
-        initial={{ opacity: 0, y: 50, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 50 }}
-        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full max-w-md overflow-hidden rounded-t-3xl sm:rounded-3xl shadow-2xl"
-        style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}
-      >
-        {/* Top accent */}
-        <div style={{ height: 3, background: `linear-gradient(90deg,${cfg.accent},${cfg.accent}60,transparent)` }} />
-
-        {/* Header */}
-        <div className="flex items-start justify-between p-6 pb-4">
-          <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest"
-              style={{ background: `${cfg.accent}20`, color: cfg.accent, border: `1px solid ${cfg.accent}35` }}>
-              {cfg.icon} {cfg.label}
-            </span>
-            <h3 className="mt-2 text-xl font-bold text-white">{ticket.name}</h3>
-            <p className="text-xs mt-0.5" style={{ color: cfg.muted }}>{event?.title}</p>
+    <div className="fixed inset-0 z-[9999] flex items-end justify-center p-0 sm:items-center sm:p-4" style={{ background: "color-mix(in srgb, var(--t-dark) 68%, transparent)", backdropFilter: "blur(10px)" }} onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <motion.div initial={{ opacity: 0, y: 36, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 36, scale: 0.98 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+        className="max-h-[94dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] sm:rounded-[28px]" style={{ background: colors.surface, boxShadow: "0 28px 80px color-mix(in srgb, var(--t-dark) 38%, transparent)" }}>
+        <div className="sticky top-0 z-10 flex items-start justify-between border-b px-6 py-5" style={{ background: "color-mix(in srgb, var(--t-bg-alt) 95%, transparent)", borderColor: "var(--t-border)", backdropFilter: "blur(12px)" }}>
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl" style={{ background: colors.accentLight, color: colors.accent }}><Ticket size={18} /></div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: colors.muted }}>{ticketLabel(ticket)}</p>
+              <h2 className="mt-0.5 text-lg font-black" style={{ color: colors.text }}>{ticket.name}</h2>
+              <p className="mt-0.5 text-xs" style={{ color: colors.muted }}>{event?.title}</p>
+            </div>
           </div>
-          <button onClick={onClose} className="rounded-xl p-2 transition" style={{ color: "rgba(255,255,255,0.4)" }}
-            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}
-            onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 6L6 18M6 6l12 12"/>
-            </svg>
-          </button>
+          <button onClick={onClose} className="rounded-xl p-2 transition" style={{ color: colors.muted }} onMouseEnter={(event) => { event.currentTarget.style.background = colors.soft; }} onMouseLeave={(event) => { event.currentTarget.style.background = "transparent"; }} aria-label="Close checkout"><X size={18} /></button>
         </div>
 
-        {/* Divider */}
-        <div className="mx-6 flex items-center gap-1.5">
-          <div className="flex-1 h-px" style={{ background: `${cfg.accent}20` }} />
-          {[...Array(5)].map((_, i) => <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: `${cfg.accent}20` }} />)}
-          <div className="flex-1 h-px" style={{ background: `${cfg.accent}20` }} />
-        </div>
-
-        <AnimatePresence mode="wait">
-
-          {/* ── FORM STEP ── */}
-          {step === "form" && (
-            <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-
-              {/* Quantity */}
+        {step === "form" && (
+          <div className="space-y-5 px-6 py-6">
+            <div className="rounded-2xl p-4" style={{ background: colors.soft, border: "1px solid var(--t-border)" }}>
+              <div className="flex items-center justify-between gap-4"><span className="text-sm font-bold" style={{ color: colors.text }}>Your ticket</span><span className="text-lg font-black" style={{ color: colors.accent }}>{fmtPrice(priceEach, ticket.currency)}</span></div>
               {ticket.kind !== "FREE" && (
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "rgba(255,255,255,0.4)" }}>Quantity</label>
+                <div className="mt-4 flex items-center justify-between border-t pt-4" style={{ borderColor: "var(--t-border)" }}>
+                  <span className="text-sm font-semibold" style={{ color: colors.muted }}>Quantity</span>
                   <div className="flex items-center gap-3">
-                    <button onClick={() => setQty(q => Math.max(1, q - 1))}
-                      className="w-9 h-9 rounded-xl font-bold text-white flex items-center justify-center transition"
-                      style={{ background: "rgba(255,255,255,0.08)", border: `1px solid rgba(255,255,255,0.12)` }}>−</button>
-                    <span className="text-xl font-bold text-white w-8 text-center">{qty}</span>
-                    <button onClick={() => setQty(q => Math.min(maxQty, q + 1))}
-                      className="w-9 h-9 rounded-xl font-bold text-white flex items-center justify-center transition"
-                      style={{ background: "rgba(255,255,255,0.08)", border: `1px solid rgba(255,255,255,0.12)` }}>+</button>
-                    <span className="text-sm ml-2 font-bold" style={{ color: cfg.accent }}>{fmt(total)}</span>
+                    <button onClick={() => setQty((value) => Math.max(1, value - 1))} className="flex h-9 w-9 items-center justify-center rounded-xl border" style={{ borderColor: "var(--t-border)", color: colors.accent }} aria-label="Decrease quantity"><Minus size={15} /></button>
+                    <span className="w-5 text-center text-base font-black" style={{ color: colors.text }}>{qty}</span>
+                    <button onClick={() => setQty((value) => Math.min(maxQty, value + 1))} className="flex h-9 w-9 items-center justify-center rounded-xl border" style={{ borderColor: "var(--t-border)", color: colors.accent }} aria-label="Increase quantity"><Plus size={15} /></button>
                   </div>
                 </div>
               )}
+            </div>
 
-              {/* Name */}
-              {[
-                { key: "name",  label: "Full Name",  type: "text",  placeholder: "Your full name" },
-                { key: "email", label: "Email",       type: "email", placeholder: "your@email.com" },
-                { key: "phone", label: "Phone (opt)", type: "tel",   placeholder: "+1 234 567 8900" },
-              ].map(({ key, label, type, placeholder }) => (
-                <div key={key}>
-                  <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: "rgba(255,255,255,0.4)" }}>{label}</label>
-                  <input
-                    type={type}
-                    value={form[key]}
-                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                    placeholder={placeholder}
-                    className="w-full rounded-xl px-4 py-3 text-sm text-white outline-none transition"
-                    style={{
-                      background: "rgba(255,255,255,0.07)",
-                      border: `1px solid rgba(255,255,255,0.12)`,
-                    }}
-                    onFocus={e => e.target.style.borderColor = cfg.accent + "80"}
-                    onBlur={e  => e.target.style.borderColor = "rgba(255,255,255,0.12)"}
-                  />
-                </div>
+            <div className="space-y-3.5">
+              {[{ key: "name", label: "Full name", type: "text", placeholder: "Your full name" }, { key: "email", label: "Email", type: "email", placeholder: "you@example.com" }, { key: "phone", label: "Phone (optional)", type: "tel", placeholder: "+1 234 567 8900" }].map(({ key, label, type, placeholder }) => (
+                <label key={key} className="block text-xs font-bold" style={{ color: colors.text }}>
+                  {label}
+                  <input type={type} value={form[key]} placeholder={placeholder} onChange={(e) => setForm((value) => ({ ...value, [key]: e.target.value }))} className="mt-1.5 w-full rounded-xl px-4 py-3 text-sm outline-none transition focus:border-[#2f6b52]" style={inputStyle} />
+                </label>
               ))}
+            </div>
 
-              {/* Note about ticket number */}
-              <div className="rounded-xl p-3 text-xs" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }}>
-                📧 Your ticket number will be emailed to you. Use it with your email to access your ticket profile.
-              </div>
+            <div className="rounded-xl px-4 py-3 text-xs leading-relaxed" style={{ background: "var(--t-bg)", color: colors.muted, border: "1px solid var(--t-border)" }}>
+              Your ticket number and QR code will be sent to this email after checkout.
+            </div>
 
-              {/* Terms acceptance */}
-              <div className="flex items-start gap-2.5 select-none">
-                <button
-                  type="button"
-                  onClick={() => { setTermsChecked(v => !v); setTermsTouched(true); }}
-                  className="mt-0.5 shrink-0 flex items-center justify-center rounded-[5px] border-2 transition-all"
-                  style={{ width: 16, height: 16,
-                    background: termsChecked ? cfg.accent : "rgba(255,255,255,0.04)",
-                    borderColor: termsTouched && !termsChecked ? "#f43f5e" : termsChecked ? cfg.accent : "rgba(255,255,255,0.2)" }}>
-                  {termsChecked && (
-                    <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-                      <path d="M1 3.5L3 5.5L8 1" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  )}
-                </button>
-                <span className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>
-                  I agree to the{" "}
-                  <button type="button" onClick={() => setLegalSlug("terms")}
-                    className="underline underline-offset-2 transition-colors hover:text-white" style={{ color: cfg.accent }}>
-                    Terms of Service
-                  </button>
-                  {" "}and{" "}
-                  <button type="button" onClick={() => setLegalSlug("privacy-policy")}
-                    className="underline underline-offset-2 transition-colors hover:text-white" style={{ color: cfg.accent }}>
-                    Privacy Policy
-                  </button>
-                </span>
-              </div>
-              <LegalModal slug={legalSlug} onClose={() => setLegalSlug(null)} />
+            <div className="space-y-2 border-y py-4" style={{ borderColor: "var(--t-border)" }}>
+              <div className="flex items-center justify-between text-sm" style={{ color: colors.muted }}><span>Tickets subtotal</span><span className="font-semibold">{fmtPrice(total, ticket.currency)}</span></div>
+              {priceEach > 0 && <div className="flex items-center justify-between text-sm" style={{ color: colors.muted }}><span>Service fee</span><span className="font-semibold">{fmtPrice(fee, ticket.currency)}</span></div>}
+              <div className="flex items-center justify-between pt-2"><span className="text-sm font-black" style={{ color: colors.text }}>Total</span><span className="text-xl font-black" style={{ color: colors.accent }}>{fmtPrice(total, ticket.currency)}</span></div>
+            </div>
 
-              {error && (
-                <p className="text-sm text-rose-400 flex items-center gap-2">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                  {error}
-                </p>
-              )}
-
-              {/* Order summary with fee breakdown */}
-              <div className="py-3 border-t space-y-1.5" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Tickets subtotal</span>
-                  <span className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.5)" }}>{fmt(priceEach * qty)}</span>
-                </div>
-                {priceEach > 0 && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Service fee</span>
-                    <span className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.5)" }}>
-                      {fmt(Math.round((priceEach * qty * 0.035 + qty * 0.49) * 100) / 100)}
-                    </span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between pt-1 border-t" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-                  <span className="text-sm font-bold" style={{ color: "rgba(255,255,255,0.5)" }}>Total charged</span>
-                  <span className="text-xl font-bold" style={{ color: cfg.accent }}>{fmt(total)}</span>
-                </div>
-              </div>
-
-              <button onClick={submit} disabled={submitting}
-                className="w-full py-4 rounded-xl text-sm font-black transition-all active:scale-[0.98] disabled:opacity-50"
-                style={{
-                  background: `linear-gradient(135deg,${cfg.accent},${cfg.accent}cc)`,
-                  color: cfg.dark,
-                  boxShadow: `0 4px 20px ${cfg.accent}40`,
-                }}>
-                {submitting
-                  ? "Processing…"
-                  : ticket.kind === "FREE"
-                  ? "Reserve My Free Spot →"
-                  : `Pay ${fmt(total)} →`}
+            <div className="flex items-start gap-2.5">
+              <button type="button" onClick={() => { setTermsChecked((value) => !value); setTermsTouched(true); }} className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] border-2" style={{ background: termsChecked ? colors.accent : "transparent", borderColor: termsTouched && !termsChecked ? "#c64941" : termsChecked ? colors.accent : "var(--t-border)" }} aria-label="Accept terms">
+                {termsChecked && <CheckCircle size={11} color="var(--t-dark)" strokeWidth={3} />}
               </button>
-            </motion.div>
-          )}
+              <p className="text-xs leading-relaxed" style={{ color: colors.muted }}>I agree to the <button type="button" onClick={() => setLegalSlug("terms")} className="underline" style={{ color: colors.accent }}>Terms of Service</button> and <button type="button" onClick={() => setLegalSlug("privacy-policy")} className="underline" style={{ color: colors.accent }}>Privacy Policy</button>.</p>
+            </div>
+            <LegalModal slug={legalSlug} onClose={() => setLegalSlug(null)} />
 
-          {/* ── SUCCESS (free ticket) ── */}
-          {step === "success" && (
-            <motion.div key="success" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-              className="p-8 text-center space-y-5">
-              <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center" style={{ background: `${cfg.accent}20` }}>
-                <CheckCircle size={32} style={{ color: cfg.accent }} />
-              </div>
-              <div>
-                <h3 className="text-2xl font-black text-white">You&apos;re in! 🎉</h3>
-                <p className="text-sm mt-1" style={{ color: cfg.muted }}>Your ticket is confirmed and active.</p>
-              </div>
-              {result?.issued_tickets?.[0] && (
-                <div className="rounded-2xl p-4 space-y-3" style={{ background: "rgba(255,255,255,0.06)", border: `1px solid ${cfg.border}` }}>
-                  <p className="text-xs font-bold uppercase tracking-widest" style={{ color: cfg.accent }}>Your Ticket</p>
-                  <div className="w-40 h-40 mx-auto rounded-xl overflow-hidden bg-white p-2">
-                    <img src={`${API}/public/tickets/qr/${result.issued_tickets[0].qr_token}`} alt="QR" className="w-full h-full" />
-                  </div>
-                </div>
-              )}
-              <p className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>
-                Confirmation & ticket number sent to <strong style={{ color: "rgba(255,255,255,0.6)" }}>{form.email}</strong>
-              </p>
-              <a href={`/my-tickets?email=${encodeURIComponent(form.email)}`}
-                className="block w-full py-3 rounded-xl text-sm font-bold transition"
-                style={{ background: `${cfg.accent}20`, color: cfg.accent, border: `1px solid ${cfg.border}` }}>
-                View My Ticket Profile →
-              </a>
-              <button onClick={onClose} className="block w-full py-3 rounded-xl text-sm font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>
-                Close
-              </button>
-            </motion.div>
-          )}
+            {error && <p className="rounded-xl px-3 py-2 text-sm font-semibold" style={{ background: "#fff1ef", color: "#ae4238" }}>{error}</p>}
 
-          {/* ── REDIRECTING to Stripe Checkout ── */}
-          {step === "redirecting" && (
-            <motion.div key="redirecting" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-              className="p-8 text-center space-y-4">
-              <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center" style={{ background: `${cfg.accent}20` }}>
-                <svg className="animate-spin" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: cfg.accent }}>
-                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-white">Redirecting to payment…</h3>
-                <p className="text-sm mt-1" style={{ color: cfg.muted }}>You&apos;re being sent to Stripe&apos;s secure checkout.</p>
-              </div>
-            </motion.div>
-          )}
+            <button onClick={submit} disabled={submitting} className="flex w-full items-center justify-center gap-2 rounded-xl py-4 text-sm font-black transition-all hover:scale-[1.01] active:scale-[0.985] disabled:opacity-55" style={{ background: colors.accent, color: "var(--t-dark)", boxShadow: "0 8px 20px var(--t-accent-dim)" }}>
+              {submitting ? <><Loader2 size={17} className="animate-spin" /> Processing…</> : <>{ticket.kind === "FREE" ? "Reserve my free spot" : `Pay ${fmtPrice(total, ticket.currency)}`} <ArrowRight size={16} /></>}
+            </button>
+            <p className="flex items-center justify-center gap-1.5 text-center text-[10px] font-semibold" style={{ color: colors.muted }}><ShieldCheck size={13} /> Secure checkout powered by Stripe</p>
+          </div>
+        )}
 
-        </AnimatePresence>
+        {step === "success" && (
+          <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="space-y-5 px-7 py-10 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl" style={{ background: colors.accentLight, color: colors.accent }}><CheckCircle size={32} /></div>
+            <div><h2 className="text-2xl font-black" style={{ color: colors.text }}>You&apos;re in!</h2><p className="mt-1 text-sm" style={{ color: colors.muted }}>Your ticket is confirmed and active.</p></div>
+            {result?.issued_tickets?.[0] && <div className="rounded-2xl p-4" style={{ background: colors.soft, border: "1px solid var(--t-border)" }}><p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: colors.muted }}>Your QR ticket</p><img src={`${API}/public/tickets/qr/${result.issued_tickets[0].qr_token}`} alt="Your ticket QR code" className="mx-auto h-40 w-40 rounded-xl bg-white p-2" /></div>}
+            <p className="text-xs" style={{ color: colors.muted }}>Confirmation sent to <strong style={{ color: colors.text }}>{form.email}</strong></p>
+            <a href={`/my-tickets?email=${encodeURIComponent(form.email)}`} className="block w-full rounded-xl py-3.5 text-sm font-black" style={{ background: colors.accent, color: "var(--t-dark)" }}>View my tickets</a>
+            <button onClick={onClose} className="w-full py-2 text-sm font-semibold" style={{ color: colors.muted }}>Close</button>
+          </motion.div>
+        )}
+
+        {step === "redirecting" && <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4 px-7 py-12 text-center"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl" style={{ background: colors.accentLight, color: colors.accent }}><Loader2 size={30} className="animate-spin" /></div><div><h2 className="text-xl font-black" style={{ color: colors.text }}>Opening secure checkout…</h2><p className="mt-1 text-sm" style={{ color: colors.muted }}>You&apos;re being sent to Stripe to complete payment.</p></div></motion.div>}
       </motion.div>
     </div>
   );
 }
 
-// ── Tier short codes ──────────────────────────────────────────────────────────
-function tierCode(ticket, priceRank = 0) {
-  const n = (ticket.name ?? "").toLowerCase();
-  if (ticket.kind === "FREE")                                               return "FREE";
-  if (n.includes("vip") || n.includes("platinum"))                         return "VIP";
-  if (n.includes("early") || n.includes("bird"))                           return "EB";
-  if (n.includes("pro") || n.includes("premium") || n.includes("diamond")) return "PRO";
-  if (n.includes("student") || n.includes("concession"))                   return "STU";
-  // Fallback codes by rank
-  return ["GA", "T2", "T3", "T4", "T5"][priceRank] ?? "GA";
-}
-
-// ── Marketing headline generator ──────────────────────────────────────────────
-function marketingLine(event) {
-  const t = String(event?.event_type ?? event?.dashboard_mode ?? "").toUpperCase();
-  const map = {
-    CONCERT:    ["Feel Every Beat.", "Live Every Note."],
-    FESTIVAL:   ["Where Moments", "Become Legends."],
-    LIVE_SHOW:  ["The Stage Is Set.", "Your Seat Awaits."],
-    NIGHTCLUB:  ["The Night Is Young.", "Make It Unforgettable."],
-    THEATER:    ["The Curtain Rises.", "Claim Your Seat."],
-    COMEDY:     ["Laughter Guaranteed.", "Your Night to Remember."],
-    SPORTS:     ["Be There.", "Be Part of History."],
-    EXHIBITION: ["Discover the", "Extraordinary."],
-    CONFERENCE: ["Ideas That", "Shape Tomorrow."],
-    WEDDING:    ["Celebrate Love.", "Cherish Every Moment."],
-    BIRTHDAY:   ["The Party of", "a Lifetime."],
-    GALA:       ["An Evening", "Unlike Any Other."],
-    NETWORKING: ["Connections That", "Change Everything."],
-  };
-  return map[t] ?? ["Your Night", "Begins Here."];
-}
-
-// ── Ticket Card — editorial cream + dark header ────────────────────────────────
-function TicketCard({ ticket, event, isFeatured, onBuy, priceRank = 0 }) {
-  const tierKey  = resolveTier(ticket, priceRank);
-  const cfg      = TIER[tierKey];
-  const available = ticket.quantity_total != null
-    ? ticket.quantity_total - (ticket.quantity_sold ?? 0)
-    : null;
-  const isSoldOut = available !== null && available <= 0;
-  const pct       = ticket.quantity_total
-    ? Math.min(((ticket.quantity_sold ?? 0) / ticket.quantity_total) * 100, 100)
-    : 0;
-  const isUrgent  = available !== null && available > 0 && available <= 20;
-
-  const code     = tierCode(ticket, priceRank);
-  const dateStr  = event?.starts_at_local
-    ? new Date(event.starts_at_local).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
-    : null;
-  const timeStr  = event?.starts_at_local
-    ? new Date(event.starts_at_local).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
-    : null;
-
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -6, boxShadow: "0 32px 80px rgba(0,0,0,0.60)" }}
-      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-      className="relative flex flex-col overflow-hidden rounded-2xl"
-      style={{
-        boxShadow: "0 16px 48px rgba(0,0,0,0.45)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        transform: isFeatured ? "scale(1.03)" : undefined,
-      }}
-    >
-      {/* ── DARK HEADER BAR ── */}
-      <div className="relative flex items-center justify-between px-5 py-4"
-        style={{ background: "#0c0c12", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-        {/* left: tier code badge */}
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xs font-black tracking-wider"
-            style={{ background: `${cfg.accent}18`, border: `1.5px solid ${cfg.accent}40`, color: cfg.accent }}>
-            {code}
-          </div>
-          <div>
-            <p className="text-[9px] font-black uppercase tracking-[0.22em]" style={{ color: cfg.accent }}>
-              {cfg.label} Access
-            </p>
-            <p className="text-sm font-bold text-white leading-tight">{ticket.name}</p>
-          </div>
-        </div>
-        {/* right: status */}
-        {isSoldOut ? (
-          <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full"
-            style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)" }}>
-            Sold Out
-          </span>
-        ) : isUrgent ? (
-          <span className="flex items-center gap-1 text-[10px] font-black text-amber-400">
-            <Zap size={10} /> {available} left
-          </span>
-        ) : isFeatured ? (
-          <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full"
-            style={{ background: `${cfg.accent}20`, color: cfg.accent, border: `1px solid ${cfg.accent}35` }}>
-            Popular
-          </span>
-        ) : null}
-      </div>
-
-      {/* ── CREAM BODY ── */}
-      <div className="flex flex-col flex-1 px-6 pt-7 pb-6 gap-5" style={{ background: "#f0ebe0" }}>
-
-        {/* Large centered price */}
-        <div className="text-center">
-          <p className="text-[10px] font-bold uppercase tracking-[0.25em] mb-1" style={{ color: "#7a6e5f" }}>
-            per person
-          </p>
-          <p className="leading-none font-black" style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "clamp(3rem,8vw,4.5rem)", color: "#0f0d0a", letterSpacing: "-0.02em" }}>
-            {ticket.kind === "FREE" ? "Free" : fmtPrice(Number(ticket.price), ticket.currency)}
-          </p>
-          {ticket.kind !== "FREE" && (
-            <p className="text-xs mt-1.5 font-semibold" style={{ color: "#9a8c7e" }}>
-              {ticket.currency} · incl. fees
-            </p>
-          )}
-        </div>
-
-        {/* Divider */}
-        <div className="flex items-center gap-2">
-          <div className="flex-1 h-px" style={{ background: "rgba(0,0,0,0.08)" }} />
-          <div className="w-1.5 h-1.5 rounded-full" style={{ background: "rgba(0,0,0,0.12)" }} />
-          <div className="flex-1 h-px" style={{ background: "rgba(0,0,0,0.08)" }} />
-        </div>
-
-        {/* Metadata */}
-        <div className="space-y-2">
-          {(dateStr || timeStr) && (
-            <div className="flex items-center gap-2.5 text-sm font-semibold" style={{ color: "#4a3f30" }}>
-              <Clock size={14} style={{ color: cfg.accent, flexShrink: 0 }} />
-              {dateStr}{timeStr ? ` · ${timeStr}` : ""}
-            </div>
-          )}
-          {event?.venue_name && (
-            <div className="flex items-center gap-2.5 text-sm font-semibold" style={{ color: "#4a3f30" }}>
-              <span style={{ color: cfg.accent, flexShrink: 0, fontSize: 14 }}>📍</span>
-              {event.venue_name}{event.city ? `, ${event.city}` : ""}
-            </div>
-          )}
-          {ticket.description && (
-            <p className="text-xs leading-relaxed pt-1" style={{ color: "#7a6e5f" }}>{ticket.description}</p>
-          )}
-        </div>
-
-        {/* Capacity bar */}
-        {ticket.quantity_total != null && !isSoldOut && (
-          <div>
-            <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#9a8c7e" }}>
-              <span>{isUrgent ? `⚠ ${available} spots left` : `${available} available`}</span>
-              <span style={{ color: cfg.accent }}>{pct.toFixed(0)}% filled</span>
-            </div>
-            <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.10)" }}>
-              <div className="h-full rounded-full transition-all duration-700"
-                style={{ width: `${pct}%`, background: isUrgent ? "#ef4444" : cfg.accent }} />
-            </div>
-          </div>
-        )}
-
-        {/* Dual CTA buttons */}
-        <div className="flex flex-col gap-2 mt-auto">
-          {/* Primary — dark filled */}
-          <button
-            onClick={() => !isSoldOut && onBuy(ticket)}
-            disabled={isSoldOut}
-            className="w-full py-3.5 text-sm font-black uppercase tracking-widest transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl"
-            style={{
-              background: isSoldOut ? "rgba(0,0,0,0.12)" : "#0f0d0a",
-              color: isSoldOut ? "#9a8c7e" : "#f0ebe0",
-              letterSpacing: "0.08em",
-            }}>
-            {isSoldOut ? "Sold Out" : ticket.kind === "FREE" ? "Reserve Free Spot" : "Buy Now →"}
-          </button>
-          {/* Secondary — outlined */}
-          {!isSoldOut && (
-            <button
-              onClick={() => onBuy(ticket)}
-              className="w-full py-3 text-xs font-bold uppercase tracking-widest transition-all active:scale-[0.98] rounded-xl"
-              style={{
-                background: "transparent",
-                color: "#4a3f30",
-                border: "1.5px solid rgba(0,0,0,0.18)",
-                letterSpacing: "0.10em",
-              }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = cfg.accent}
-              onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.18)"}
-            >
-              {ticket.kind === "FREE" ? "Learn More" : "Reserve a Spot"}
-            </button>
-          )}
-        </div>
-
-      </div>
-    </motion.div>
-  );
-}
-
-// ── Page ──────────────────────────────────────────────────────────────────────
 export default function EventTicketsPage() {
-  const { slug }               = useParams();
-  const router                 = useRouter();
-  const [event,    setEvent]   = useState(null);
-  const [tickets,  setTickets] = useState([]);
-  const [loading,  setLoading] = useState(true);
-  const [checkout, setCheckout]= useState(null);
-  const [banner, setBanner] = useState(null);
+  const { slug } = useParams();
+  const router = useRouter();
+  const [event, setEvent] = useState(null);
+  const [theme, setTheme] = useState(() => resolveThemeFromSections([]));
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [checkout, setCheckout] = useState(null);
+  const [banner, setBanner] = useState(() => {
+    if (typeof window === "undefined") return null;
+    const payment = new URLSearchParams(window.location.search).get("payment");
+    return payment === "success" || payment === "cancelled" ? payment : null;
+  });
 
   useEffect(() => {
-    const p       = new URLSearchParams(window.location.search).get("payment");
-    const orderId = new URLSearchParams(window.location.search).get("order_id");
-    if (p === "success" || p === "cancelled") {
-      setBanner(p);
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-    if (p === "success" && orderId) {
-      fetch(`/api/public/orders/${orderId}/confirm`, { method: "POST" }).catch(() => {});
-    }
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get("payment");
+    const orderId = params.get("order_id");
+    if (payment === "success" || payment === "cancelled") window.history.replaceState({}, "", window.location.pathname);
+    if (payment === "success" && orderId) fetch(`/api/public/orders/${orderId}/confirm`, { method: "POST" }).catch(() => {});
   }, []);
 
   useEffect(() => {
     if (!slug) return;
-
-    // Use relative paths so Next.js rewrite proxy handles the target host —
-    // avoids "localhost" resolving to the device's own loopback on mobile browsers.
     Promise.all([
-      fetch(`/api/public/pages/${slug}`)
-        .then(r => r.json()).then(d => d.data?.event ?? null).catch(() => null),
-      fetch(`/api/public/events/${slug}/tickets`)
-        .then(r => r.json()).then(d => d.tickets ?? []).catch(() => []),
-    ]).then(([evt, tix]) => {
-      if (evt?.id && tix.length === 0) {
-        return fetch(`/api/public/events/${evt.id}/tickets`)
-          .then(r => r.json())
-          .then(d => { setEvent(evt); setTickets(d.tickets ?? []); });
+      fetch(`/api/public/pages/${slug}`).then((response) => response.json()).then((data) => {
+        setTheme(resolveThemeFromSections(data.data?.sections));
+        return data.data?.event ?? null;
+      }).catch(() => null),
+      fetch(`/api/public/events/${slug}/tickets`).then((response) => response.json()).then((data) => data.tickets ?? []).catch(() => []),
+    ]).then(([evt, foundTickets]) => {
+      if (evt?.id && foundTickets.length === 0) {
+        return fetch(`/api/public/events/${evt.id}/tickets`).then((response) => response.json()).then((data) => {
+          setEvent(evt);
+          setTickets(data.tickets ?? []);
+        });
       }
       setEvent(evt);
-      setTickets(tix);
+      setTickets(foundTickets);
     }).finally(() => setLoading(false));
   }, [slug]);
 
-  const maxPrice   = tickets.length ? Math.max(...tickets.map(t => Number(t.price ?? 0))) : 0;
-  const priceRanks = buildPriceRanks(tickets);
-
-  const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-US", {
-    weekday: "short", month: "long", day: "numeric", year: "numeric",
-  }) : null;
+  const maxPrice = tickets.length ? Math.max(...tickets.map((ticket) => Number(ticket.price ?? 0))) : 0;
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden"
-      style={{ background: "linear-gradient(160deg, #1a0533 0%, #0d0a1e 28%, #061428 60%, #020a18 100%)" }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap');
-        @keyframes shimmer{0%{background-position:200% center}100%{background-position:-200% center}}
-      `}</style>
+    <div className="relative min-h-screen overflow-x-hidden" style={{ ...theme, background: colors.background, color: colors.text, fontFamily: "var(--t-font-body)" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap');`}</style>
 
-      {/* Fixed gradient layers — always visible behind everything */}
-      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0,
-        background: "linear-gradient(160deg, #1a0533 0%, #0d0a1e 28%, #061428 60%, #020a18 100%)" }} />
-      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0,
-        background: "radial-gradient(ellipse 70% 55% at 15% 10%, rgba(120,40,200,0.18) 0%, transparent 55%), radial-gradient(ellipse 60% 50% at 85% 80%, rgba(6,50,100,0.20) 0%, transparent 55%)" }} />
-
-      {/* Top bar */}
-      <div className="sticky top-0 z-40 border-b" style={{ background: "rgba(14,5,28,0.90)", backdropFilter: "blur(22px)", borderColor: "rgba(255,255,255,0.07)" }}>
-        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-          <button onClick={() => router.back()}
-            className="flex items-center gap-2 text-sm font-medium transition"
-            style={{ color: "rgba(255,255,255,0.4)" }}
-            onMouseEnter={e => e.currentTarget.style.color = "#fff"}
-            onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.4)"}>
-            <ArrowLeft size={15} /> Back
-          </button>
-          <p className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: "rgba(201,169,110,0.55)" }}>
-            Curated Events & Ticket Première
-          </p>
-          <a href="/my-tickets" className="text-xs font-semibold px-3 py-1.5 rounded-lg transition"
-            style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.08)" }}>
-            My Tickets
-          </a>
+      <nav className="sticky top-0 z-40 border-b" style={{ background: "color-mix(in srgb, var(--t-bg-alt) 88%, transparent)", backdropFilter: "blur(22px)", borderColor: colors.border }}>
+        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
+          <button onClick={() => router.back()} className="flex items-center gap-2 text-sm font-medium transition" style={{ color: colors.muted }} onMouseEnter={(event) => { event.currentTarget.style.color = colors.accent; }} onMouseLeave={(event) => { event.currentTarget.style.color = colors.muted; }}><ArrowLeft size={15} /> Back to event</button>
+          <p className="text-[9px] font-black uppercase tracking-[0.3em]" style={{ color: colors.accent }}>Event tickets</p>
+          <a href="/my-tickets" className="rounded-lg px-3 py-1.5 text-xs font-semibold" style={{ background: colors.soft, color: colors.text, border: `1px solid ${colors.border}` }}>My Tickets</a>
         </div>
-      </div>
+      </nav>
 
-      {/* ── Cover image hero — top half ───────────────────────── */}
-      {event?.cover_image_url && (
-        <div className="absolute inset-x-0 top-0 pointer-events-none" style={{ height: "60vh", zIndex: 1 }}>
-          <img
-            src={event.cover_image_url}
-            alt=""
-            className="w-full h-full object-cover object-center"
-            style={{ filter: "brightness(0.45) saturate(0.8)" }}
-          />
-          {/* fade to gradient bg at bottom */}
-          <div className="absolute inset-x-0 bottom-0" style={{ height: "55%", background: "linear-gradient(to bottom,transparent,#080d1a)" }} />
-          {/* subtle dark vignette on sides */}
-          <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 100% 100% at 50% 0%,transparent 40%,rgba(7,7,15,0.55) 100%)" }} />
-        </div>
-      )}
+      <main className="relative w-full" style={{ zIndex: 2 }}>
+        <AnimatePresence>
+          {banner === "success" && <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mx-auto mt-5 flex max-w-5xl items-center justify-between gap-4 rounded-2xl px-5 py-4" style={{ background: "color-mix(in srgb, var(--t-accent) 12%, var(--t-bg-alt))", border: `1px solid ${colors.border}` }}><div className="flex items-center gap-3"><CheckCircle size={20} style={{ color: colors.accent, flexShrink: 0 }} /><div><p className="text-sm font-bold" style={{ color: colors.text }}>Payment successful!</p><p className="text-xs" style={{ color: colors.muted }}>Your ticket is being issued — check your email for the QR code.</p></div></div><button onClick={() => setBanner(null)} style={{ color: colors.muted }} aria-label="Dismiss message"><X size={16} /></button></motion.div>}
+          {banner === "cancelled" && <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mx-auto mt-5 flex max-w-5xl items-center justify-between gap-4 rounded-2xl px-5 py-4" style={{ background: "#fff4f1", border: "1px solid #f1d1c9" }}><p className="text-sm font-medium" style={{ color: "#914d3e" }}>Payment was cancelled — your order has not been charged.</p><button onClick={() => setBanner(null)} style={{ color: "#9b675b" }} aria-label="Dismiss message"><X size={16} /></button></motion.div>}
+        </AnimatePresence>
 
-      <div className="relative max-w-5xl mx-auto px-4 space-y-12" style={{ paddingTop: event?.cover_image_url ? "min(44vh, 380px)" : "3.5rem", zIndex: 2 }}>
-
-        {/* Payment result banner */}
-        {banner === "success" && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-between gap-4 rounded-2xl px-5 py-4"
-            style={{ background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.3)" }}>
-            <div className="flex items-center gap-3">
-              <CheckCircle size={20} style={{ color: "#10b981", flexShrink: 0 }} />
-              <div>
-                <p className="text-sm font-bold text-white">Payment successful!</p>
-                <p className="text-xs" style={{ color: "rgba(167,243,208,0.7)" }}>Your ticket is being issued — check your email for the QR code.</p>
+        {loading ? (
+          <div className="mx-auto max-w-5xl px-4 py-8"><div className="overflow-hidden rounded-2xl"><div className="h-64 animate-pulse" style={{ background: "#dfeadf" }} /><div className="space-y-4 p-7"><div className="h-4 w-32 animate-pulse rounded" style={{ background: "#e4ece5" }} /><div className="h-11 w-4/5 animate-pulse rounded" style={{ background: "#edf3ee" }} /><div className="h-4 w-56 animate-pulse rounded" style={{ background: "#e4ece5" }} /></div></div></div>
+        ) : event ? (
+          <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }} style={{ background: colors.surface }}>
+            <div className="relative min-h-[250px] overflow-hidden sm:min-h-[310px]" style={{ background: "linear-gradient(135deg,var(--t-dark),var(--t-dark-surface))" }}>
+              {event.cover_image_url && <img src={event.cover_image_url} alt="" className="absolute inset-0 h-full w-full object-cover" style={{ filter: "brightness(0.62) saturate(0.9)" }} />}
+              <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, color-mix(in srgb, var(--t-dark) 84%, transparent) 0%, color-mix(in srgb, var(--t-dark) 48%, transparent) 58%, color-mix(in srgb, var(--t-dark) 18%, transparent) 100%)" }} />
+              <div className="relative flex min-h-[250px] flex-col justify-end px-6 pb-7 pt-12 sm:min-h-[310px] sm:px-10 sm:pb-10">
+                <span className="mb-4 inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em]" style={{ background: "rgba(255,255,255,0.16)", color: "#ffffff", border: "1px solid rgba(255,255,255,0.22)", backdropFilter: "blur(10px)" }}><Ticket size={13} /> Tickets for this event</span>
+                <h1 className="max-w-2xl text-4xl font-black leading-[0.98] text-white sm:text-5xl" style={{ fontFamily: "var(--t-font-heading)", letterSpacing: "-0.035em" }}>{event.title}</h1>
+                <div className="mt-5"><EventMeta event={event} /></div>
               </div>
             </div>
-            <button onClick={() => setBanner(null)} style={{ color: "rgba(255,255,255,0.3)" }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-            </button>
-          </motion.div>
-        )}
-        {banner === "cancelled" && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-between gap-4 rounded-2xl px-5 py-4"
-            style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)" }}>
-            <p className="text-sm" style={{ color: "rgba(252,165,165,0.9)" }}>Payment was cancelled — your order has not been charged.</p>
-            <button onClick={() => setBanner(null)} style={{ color: "rgba(255,255,255,0.3)" }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-            </button>
-          </motion.div>
-        )}
 
-        {/* Editorial headline */}
-        {loading ? (
-          <div className="space-y-4">
-            <div className="h-4 w-32 rounded animate-pulse" style={{ background: "rgba(255,255,255,0.06)" }} />
-            <div className="h-14 w-4/5 rounded-xl animate-pulse" style={{ background: "rgba(255,255,255,0.05)" }} />
-            <div className="h-4 w-56 rounded animate-pulse" style={{ background: "rgba(255,255,255,0.04)" }} />
-          </div>
-        ) : event ? (
-          <motion.div initial={{ opacity: 0, y: -14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
+            <div className="mx-auto max-w-5xl px-6 py-8 sm:px-10 sm:py-10">
+              <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: colors.muted }}>Your place is waiting</p><h2 className="mt-1 text-2xl font-black sm:text-3xl" style={{ color: colors.text, fontFamily: "var(--t-font-heading)" }}>Choose your ticket</h2><p className="mt-2 text-sm" style={{ color: colors.muted }}>Select an option below. Your secure ticket and QR code will arrive by email.</p></div>{tickets.length > 0 && <span className="flex w-fit items-center gap-2 rounded-full px-3 py-2 text-xs font-bold" style={{ background: colors.soft, color: colors.text }}><Users size={14} /> {tickets.length} {tickets.length === 1 ? "ticket type" : "ticket types"}</span>}</div>
 
-            {/* eyebrow */}
-            <p className="text-[9px] font-black uppercase tracking-[0.32em] mb-5"
-              style={{ color: "rgba(201,169,110,0.60)", letterSpacing: "0.30em" }}>
-              ✦ Curated Events &amp; Ticket Première
-            </p>
-
-            {/* Two-line marketing headline — serif, large */}
-            {(() => {
-              const [line1, line2] = marketingLine(event);
-              return (
-                <h1 className="leading-[0.95] mb-6"
-                  style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 900, color: "#f5f0e8" }}>
-                  <span className="block" style={{ fontSize: "clamp(2.8rem,6.5vw,5.5rem)", letterSpacing: "-0.025em" }}>
-                    {line1}
-                  </span>
-                  <span className="block italic" style={{ fontSize: "clamp(2.8rem,6.5vw,5.5rem)", letterSpacing: "-0.025em", color: "rgba(201,169,110,0.90)" }}>
-                    {line2}
-                  </span>
-                </h1>
-              );
-            })()}
-
-            {/* Event name — supporting, smaller */}
-            <div className="flex items-center gap-3 mb-5">
-              <div className="h-px w-6 shrink-0" style={{ background: "rgba(201,169,110,0.45)" }} />
-              <p className="text-sm font-bold tracking-wide" style={{ color: "rgba(255,255,255,0.55)", letterSpacing: "0.04em" }}>
-                {event.title}
-              </p>
-            </div>
-
-            {/* Metadata row */}
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-              {fmtDate(event.starts_at_local) && (
-                <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: "rgba(255,255,255,0.40)" }}>
-                  <Clock size={13} style={{ color: "rgba(201,169,110,0.55)" }} />
-                  {fmtDate(event.starts_at_local)}
-                </span>
-              )}
-              {event.venue_name && (
-                <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: "rgba(255,255,255,0.40)" }}>
-                  <span style={{ color: "rgba(201,169,110,0.55)", fontSize: 13 }}>📍</span>
-                  {event.venue_name}{event.city ? `, ${event.city}` : ""}
-                </span>
-              )}
-              {tickets.length > 0 && (
-                <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full"
-                  style={{ background: "rgba(201,169,110,0.08)", color: "rgba(201,169,110,0.65)", border: "1px solid rgba(201,169,110,0.18)" }}>
-                  {tickets.length} {tickets.length === 1 ? "Ticket Type" : "Ticket Types"} Available
-                </span>
+              {tickets.length === 0 ? (
+                <div className="rounded-[22px] px-6 py-16 text-center" style={{ background: colors.soft, border: "1px solid var(--t-border)" }}><div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: colors.accentLight, color: colors.accent }}><Ticket size={25} /></div><p className="text-xl font-black" style={{ color: colors.text }}>Tickets coming soon</p><p className="mt-2 text-sm" style={{ color: colors.muted }}>Check back closer to the event date.</p></div>
+              ) : (
+                <div className={`grid w-full gap-5 ${tickets.length === 1 ? "max-w-xl" : tickets.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"}`}>
+                  {tickets.map((ticket) => <TicketChoice key={ticket.id} ticket={ticket} event={event} featured={Number(ticket.price ?? 0) === maxPrice && maxPrice > 0} onChoose={setCheckout} />)}
+                </div>
               )}
             </div>
+          </motion.section>
+        ) : <div className="px-6 py-20 text-center" style={{ background: colors.surface }}><p className="text-lg font-bold" style={{ color: colors.text }}>This event could not be found.</p></div>}
 
-            {/* Gold rule */}
-            <div className="mt-8 h-px" style={{ background: "linear-gradient(90deg,rgba(201,169,110,0.35),transparent 70%)" }} />
-          </motion.div>
-        ) : null}
+        {!loading && tickets.length > 0 && <div className="flex flex-wrap items-center justify-center gap-x-7 gap-y-3 px-4 py-9 sm:py-11">{[[ShieldCheck, "Secure checkout"], [Ticket, "Instant e-ticket"], [CheckCircle, "QR code entry"], [CreditCard, "Powered by Stripe"]].map(([Icon, label]) => <span key={label} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: colors.muted }}><Icon size={15} style={{ color: colors.accent }} /> {label}</span>)}</div>}
+      </main>
 
-        {/* Ticket grid */}
-        {loading ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-80 rounded-2xl animate-pulse" style={{ background: "rgba(255,255,255,0.04)" }} />
-            ))}
-          </div>
-        ) : tickets.length === 0 ? (
-          <div className="text-center py-24 rounded-2xl border" style={{ borderColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.3)" }}>
-            <p className="text-4xl mb-3">🎟</p>
-            <p className="text-lg font-semibold text-white">Tickets coming soon</p>
-            <p className="text-sm mt-1">Check back closer to the event date.</p>
-          </div>
-        ) : (
-          <div className={`grid gap-5 mx-auto w-full ${
-            tickets.length === 1 ? "max-w-sm" :
-            tickets.length === 2 ? "sm:grid-cols-2 max-w-2xl" :
-            "sm:grid-cols-2 lg:grid-cols-3 max-w-5xl"
-          }`}>
-            {tickets.map((t) => (
-              <TicketCard
-                key={t.id}
-                ticket={t}
-                event={event}
-                isFeatured={Number(t.price ?? 0) === maxPrice && maxPrice > 0}
-                priceRank={priceRanks.get(t.id) ?? 0}
-                onBuy={setCheckout}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Trust bar */}
-        {tickets.length > 0 && (
-          <div>
-            <div className="h-px mb-8" style={{ background: "linear-gradient(90deg,transparent,rgba(201,169,110,0.20),transparent)" }} />
-            <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-              {[["🔒","Secure checkout"],["✉️","Instant e-ticket"],["📲","QR code entry"],["💳","Powered by Stripe"]].map(([icon, label]) => (
-                <span key={label} className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest"
-                  style={{ color: "rgba(201,169,110,0.35)", letterSpacing: "0.12em" }}>
-                  {icon} {label}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-      </div>
-
-      {/* Checkout modal */}
-      <AnimatePresence>
-        {checkout && (
-          <CheckoutModal ticket={checkout} event={event} onClose={() => setCheckout(null)} />
-        )}
-      </AnimatePresence>
+      <AnimatePresence>{checkout && <CheckoutModal ticket={checkout} event={event} onClose={() => setCheckout(null)} />}</AnimatePresence>
     </div>
   );
 }

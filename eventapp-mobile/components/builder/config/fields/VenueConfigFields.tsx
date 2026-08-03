@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TextInput, ScrollView, StyleSheet, Switch } from 'react-native';
 import { useBuilderStore } from '@/store/builder.store';
 import type { BuilderSection } from '@/types';
 
@@ -27,7 +27,7 @@ export default function VenueConfigFields({ section, eventId, iosKeyboardInsets 
     zip_code:      (cfg.zip_code      ?? builderEvent?.zip_code      ?? '') as string,
     country:       (cfg.country       ?? builderEvent?.country       ?? '') as string,
     directions:    (cfg.directions    ?? '') as string,
-    map_url:       (cfg.map_url       ?? '') as string,
+    show_map:      (cfg.show_map      ?? true) as boolean,
     ...cfg,
   });
 
@@ -38,7 +38,7 @@ export default function VenueConfigFields({ section, eventId, iosKeyboardInsets 
   const [zipCode,    setZipCode]    = useState('');
   const [country,    setCountry]    = useState('');
   const [directions, setDirections] = useState('');
-  const [mapUrl,     setMapUrl]     = useState('');
+  const [showMap,    setShowMap]    = useState(true);
 
   useEffect(() => {
     const merged = mergeConfig(section.config ?? {});
@@ -50,7 +50,7 @@ export default function VenueConfigFields({ section, eventId, iosKeyboardInsets 
     setZipCode(merged.zip_code);
     setCountry(merged.country);
     setDirections(merged.directions);
-    setMapUrl(merged.map_url);
+    setShowMap(merged.show_map);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section.id]);
 
@@ -151,16 +151,18 @@ export default function VenueConfigFields({ section, eventId, iosKeyboardInsets 
         />
       </Field>
 
-      <Field label="Google Maps URL">
-        <TextInput
-          style={s.input} value={mapUrl}
-          onChangeText={v => { setMapUrl(v); saveField('map_url', v); }}
-          placeholder="https://maps.google.com/..."
-          placeholderTextColor={MT}
-          autoCapitalize="none"
-          keyboardType="url"
+      <View style={s.toggleRow}>
+        <View style={{ flex: 1, gap: 3 }}>
+          <Text style={s.label}>Show Map</Text>
+          <Text style={s.toggleHint}>Show the map built from your venue address.</Text>
+        </View>
+        <Switch
+          value={showMap}
+          onValueChange={value => { setShowMap(value); saveField('show_map', value); }}
+          trackColor={{ false: 'rgba(255,255,255,0.16)', true: 'rgba(108,111,238,0.55)' }}
+          thumbColor={showMap ? '#8f91ff' : '#a0a5b1'}
         />
-      </Field>
+      </View>
     </ScrollView>
   );
 }
@@ -185,4 +187,10 @@ const s = StyleSheet.create({
     fontSize: 14, color: TX,
   },
   textarea: { minHeight: 72, textAlignVertical: 'top' },
+  toggleRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    padding: 13, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1, borderColor: BD,
+  },
+  toggleHint: { fontSize: 11, color: MT, lineHeight: 16 },
 });

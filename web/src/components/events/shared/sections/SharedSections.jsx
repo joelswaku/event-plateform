@@ -925,6 +925,7 @@ export function VenueSection({ section, event, isEditor = false, onEdit }) {
   };
   const theme  = raw._theme || "CLASSIC";
   const pad    = getThemePad(theme);
+  const showMap = raw.show_map !== false;
   const [copied, setCopied] = useState(false);
 
   const locationLine  = [config.city, config.state, config.zip_code, config.country].filter(Boolean).join(", ");
@@ -956,7 +957,7 @@ export function VenueSection({ section, event, isEditor = false, onEdit }) {
           </FadeUp>
 
           {/* Map full-width */}
-          {hasLocation && (
+          {showMap && hasLocation && (
             <FadeUp delay={0.1} className="mb-8 overflow-hidden" style={{ height: 320, border: "1px solid var(--t-border)" }}>
               <iframe title="Event location" src={embedUrl} width="100%" height="100%" style={{ border: 0, display: "block", filter: mapFilter }} allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
             </FadeUp>
@@ -994,7 +995,7 @@ export function VenueSection({ section, event, isEditor = false, onEdit }) {
   if (theme === "MINIMAL") {
     return (
       <section className={`relative overflow-hidden ${isEditor ? "cursor-pointer ring-inset hover:ring-2 hover:ring-indigo-400/60" : ""}`} style={{ background: "var(--t-bg)" }} onClick={isEditor ? onEdit : undefined}>
-        {hasLocation && (
+        {showMap && hasLocation && (
           <div style={{ height: 400 }}>
             <iframe title="Event location" src={embedUrl} width="100%" height="100%" style={{ border: 0, display: "block", filter: mapFilter }} allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
           </div>
@@ -1032,8 +1033,8 @@ export function VenueSection({ section, event, isEditor = false, onEdit }) {
           {theme !== "MINIMAL" && theme !== "MODERN" && <Ornament center />}
         </FadeUp>
 
-        <div className="grid gap-8 md:grid-cols-2 md:items-start lg:grid-cols-5 lg:gap-12">
-          <FadeUp delay={0.1} className="flex flex-col gap-4 lg:col-span-2">
+        <div className={showMap ? "grid gap-8 md:grid-cols-2 md:items-start lg:grid-cols-5 lg:gap-12" : "mx-auto max-w-xl"}>
+          <FadeUp delay={0.1} className={`flex flex-col gap-4 ${showMap ? "lg:col-span-2" : ""}`}>
             {config.venue_name && (
               <div className="flex items-start gap-4 p-5"
                 style={{ border: theme === "LUXURY" ? `1px solid var(--t-border)` : "1px solid var(--t-border)", borderLeft: theme === "LUXURY" ? "3px solid var(--t-accent)" : undefined, background: "var(--t-bg)" }}>
@@ -1086,7 +1087,7 @@ export function VenueSection({ section, event, isEditor = false, onEdit }) {
             )}
           </FadeUp>
 
-          <FadeUp delay={0.2} className="lg:col-span-3">
+          {showMap && <FadeUp delay={0.2} className="lg:col-span-3">
             {hasLocation ? (
               <div className="relative overflow-hidden border shadow-sm h-[260px] md:h-[400px]" style={{ borderColor: "var(--t-border)" }}>
                 <iframe title="Event location" src={embedUrl} width="100%" height="100%" style={{ border: 0, display: "block", height: "100%", filter: mapFilter }} allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
@@ -1100,7 +1101,7 @@ export function VenueSection({ section, event, isEditor = false, onEdit }) {
                 <p className="text-sm" style={{ color: "var(--t-text-muted)" }}>{isEditor ? "Add an address to show the map" : "Location coming soon"}</p>
               </div>
             )}
-          </FadeUp>
+          </FadeUp>}
         </div>
       </div>
       {isEditor && <EditorBadge label="VENUE" />}
@@ -2079,7 +2080,7 @@ export function DonationsSection({ section, event, isEditor = false, onEdit }) {
   const [name,       setName]       = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error,      setError]      = useState("");
-  const [donConfig,  setDonConfig]  = useState({ amounts: [], message: "" });
+  const [donConfig,  setDonConfig]  = useState({ amounts: [], message: "", title: "", cover_image: "" });
   const donationRequestKey = useRef(createPaymentRequestKey("donation"));
   const [donated,    setDonated]    = useState(() => {
     if (typeof window === "undefined") return false;
@@ -2098,8 +2099,10 @@ export function DonationsSection({ section, event, isEditor = false, onEdit }) {
       .catch(() => {});
   }, [event?.id]);
 
-  const presets = donConfig.amounts?.length === 3 ? donConfig.amounts : DONATION_PRESET_DEFAULT;
+  const presets = donConfig.amounts?.length ? donConfig.amounts : DONATION_PRESET_DEFAULT;
   const amount  = preset === "custom" ? Number(custom) : (preset ?? 0);
+  const fundraiserTitle = donConfig.title || section.title || "Support this event";
+  const fundraiserMessage = donConfig.message || section.body || "Every contribution makes a difference.";
 
   async function handleDonate(e) {
     e.preventDefault();
@@ -2157,13 +2160,12 @@ export function DonationsSection({ section, event, isEditor = false, onEdit }) {
           </FadeUp>
         )}
 
-        {/* Donation card — matches hero card design */}
+        {/* Fundraiser card — the detailed giving experience belongs below the hero. */}
         {(!donated || isEditor) && (
           <FadeUp>
-            {/* Section heading above the card */}
             <div className="text-center mb-8">
               <SectionEyebrow center>Give</SectionEyebrow>
-              <SectionHeading center light>{section.title || "Make a Donation"}</SectionHeading>
+              <SectionHeading center light>{fundraiserTitle}</SectionHeading>
             </div>
 
             <div
@@ -2173,10 +2175,31 @@ export function DonationsSection({ section, event, isEditor = false, onEdit }) {
               {/* top accent bar */}
               <div className="h-1 w-full" style={{ background: "linear-gradient(90deg,#be185d,#f43f5e,#fb923c)" }} />
 
-              {/* header */}
+              {donConfig.cover_image && (
+                <div className="relative h-48 sm:h-56 overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={donConfig.cover_image} alt="" className="h-full w-full object-cover" />
+                  <div className="absolute inset-0" style={{ background: "linear-gradient(to top,rgba(8,8,18,0.88),rgba(8,8,18,0.05))" }} />
+                  <div className="absolute inset-x-0 bottom-0 p-6">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/55">Fundraiser</p>
+                    <h3 className="mt-1 text-xl font-black text-white leading-tight">{fundraiserTitle}</h3>
+                  </div>
+                  <svg className="absolute inset-x-0 bottom-0 h-10 w-full" viewBox="0 0 1440 110" preserveAspectRatio="none" aria-hidden="true">
+                    <path d="M0 110V78C360 28 1080 28 1440 78V110H0Z" fill="rgba(10,10,20,0.72)" />
+                  </svg>
+                </div>
+              )}
+
+              {/* Fundraiser information */}
               <div className="px-7 pt-6 pb-4">
-                <p className="text-base sm:text-lg font-bold text-white leading-snug">
-                  {donConfig.message || section.body || "Every contribution makes a difference."}
+                {!donConfig.cover_image && (
+                  <>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-300/80">Fundraiser</p>
+                    <h3 className="mt-1 text-xl font-black text-white leading-tight">{fundraiserTitle}</h3>
+                  </>
+                )}
+                <p className={`${donConfig.cover_image ? "" : "mt-3"} text-sm sm:text-base font-medium text-white/70 leading-relaxed`}>
+                  {fundraiserMessage}
                 </p>
               </div>
 
@@ -2204,7 +2227,7 @@ export function DonationsSection({ section, event, isEditor = false, onEdit }) {
                 </div>
 
                 {/* Amount presets */}
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(presets.length, 3)}, minmax(0, 1fr))` }}>
                   {presets.map((a) => (
                     <button key={a} type="button"
                       onClick={isEditor ? undefined : () => { setPreset(a); setCustom(""); setError(""); }}
@@ -2503,7 +2526,7 @@ function DonationCheckoutCard({ event, isEditor }) {
   const [submitting, setSubmitting] = useState(false);
   const [done,       setDone]       = useState(false);
   const [error,      setError]      = useState("");
-  const [donConfig,  setDonConfig]  = useState({ amounts: [], message: "" });
+  const [donConfig,  setDonConfig]  = useState({ amounts: [], message: "", title: "" });
   const donationRequestKey = useRef(createPaymentRequestKey("donation"));
 
   useEffect(() => {
@@ -2512,14 +2535,20 @@ function DonationCheckoutCard({ event, isEditor }) {
       .then(r => r.json())
       .then(d => { if (d?.data) setDonConfig(d.data); })
       .catch(() => {});
-  }, [event?.id]);
+  }, [event?.id, API]);
 
-  const presets = donConfig.amounts?.length === 3 ? donConfig.amounts : DONATION_CTA_DEFAULTS;
+  const presets = donConfig.amounts?.length ? donConfig.amounts : DONATION_CTA_DEFAULTS;
   const amount  = preset === "custom" ? Number(custom) : (preset ?? 0);
 
-  const inputStyle = {
-    background: "rgba(255,255,255,0.07)",
-    border: "1px solid rgba(255,255,255,0.13)",
+  // Match the embedded checkout to the event template instead of showing a
+  // separate dark/pink card design. Fallbacks keep it readable everywhere.
+  const colors = {
+    background: "var(--t-bg-alt, #FFFFFF)",
+    surface: "var(--t-bg, #FAF9F6)",
+    text: "var(--t-text, #1C1917)",
+    muted: "var(--t-text-muted, #78716C)",
+    accent: "var(--t-accent, #C9A96E)",
+    border: "var(--t-border, #E7E5E4)",
   };
 
   async function handleDonate(e) {
@@ -2543,23 +2572,21 @@ function DonationCheckoutCard({ event, isEditor }) {
     }
   }
 
-  const ROSE = "#f43f5e";
-
   if (done) {
     return (
-      <div className="mx-auto mt-10 w-full overflow-hidden rounded-2xl text-center"
-        style={{ boxShadow: "0 24px 60px rgba(0,0,0,0.50)" }}>
-        <div className="h-1 w-full" style={{ background: `linear-gradient(90deg,#be185d,${ROSE},#fb923c)` }} />
-        <div className="px-8 py-12" style={{ background: "#f0ebe0" }}>
+      <div className="mx-auto mt-8 w-full max-w-xl overflow-hidden rounded-[22px] text-center"
+        style={{ background: colors.background, border: `1px solid ${colors.border}`, boxShadow: "0 18px 42px rgba(0,0,0,0.14)" }}>
+        <div className="h-1.5 w-full" style={{ background: colors.accent }} />
+        <div className="px-7 py-10">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl"
-            style={{ background: "rgba(244,63,94,0.10)", border: "1px solid rgba(244,63,94,0.20)" }}>
-            <Heart className="h-7 w-7" fill={ROSE} stroke={ROSE} />
+            style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
+            <Heart className="h-7 w-7" fill={colors.accent} stroke={colors.accent} />
           </div>
-          <p style={{ fontFamily: "var(--t-font-heading,'Playfair Display',Georgia,serif)", fontSize: "1.6rem", fontWeight: 900, color: "#0f0d0a", marginBottom: 6 }}>
-            Thank you! 💝
+          <p style={{ fontFamily: "var(--t-font-heading,'Playfair Display',Georgia,serif)", fontSize: "1.6rem", fontWeight: 900, color: colors.text, marginBottom: 6 }}>
+            Thank you
           </p>
-          <p className="text-sm font-semibold" style={{ color: "#7a6e5f" }}>
-            Your {freq === "monthly" ? "monthly " : ""}donation of <strong style={{ color: ROSE }}>${amount}</strong> means a lot.
+          <p className="text-sm font-medium" style={{ color: colors.muted }}>
+            Your {freq === "monthly" ? "monthly " : ""}contribution of <strong style={{ color: colors.text }}>${amount}</strong> means a lot.
           </p>
         </div>
       </div>
@@ -2567,46 +2594,47 @@ function DonationCheckoutCard({ event, isEditor }) {
   }
 
   return (
-    <div className="mx-auto mt-10 w-full overflow-hidden rounded-2xl"
-      style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.06)" }}>
+    <div className="mx-auto mt-8 w-full max-w-xl overflow-hidden rounded-[22px]"
+      style={{ background: colors.background, border: `1px solid ${colors.border}`, boxShadow: "0 18px 42px rgba(0,0,0,0.14)" }}>
 
-      {/* ── Dark header ── */}
-      <div className="flex items-center gap-3 px-5 py-4"
-        style={{ background: "#0c0814", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
-          style={{ background: "rgba(244,63,94,0.15)", border: "1px solid rgba(244,63,94,0.28)" }}>
-          <Heart className="h-4 w-4" fill={ROSE} stroke={ROSE} />
+      <div className="flex items-center gap-3 px-5 py-4 sm:px-6"
+        style={{ background: colors.surface, borderBottom: `1px solid ${colors.border}` }}>
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+          style={{ background: colors.background, border: `1px solid ${colors.border}` }}>
+          <Heart className="h-4 w-4" fill={colors.accent} stroke={colors.accent} />
         </div>
         <div>
-          <p className="text-[9px] font-black uppercase tracking-[0.20em]" style={{ color: "rgba(244,63,94,0.70)" }}>
+          <p className="text-[9px] font-black uppercase tracking-[0.20em]" style={{ color: colors.muted }}>
             Support this event
           </p>
-          <p className="text-sm font-bold text-white leading-tight">
-            {donConfig.message || "Every contribution makes a difference."}
+          <p className="text-sm font-bold leading-tight" style={{ color: colors.text }}>
+            {donConfig.title || "Choose an amount to contribute"}
           </p>
         </div>
       </div>
 
-      {/* ── Cream body ── */}
       <form onSubmit={isEditor ? (e) => e.preventDefault() : handleDonate}
-        className="flex flex-col gap-4 px-5 sm:px-6 pt-5 pb-5 sm:pb-6"
-        style={{ background: "#f0ebe0" }}>
+        className="flex flex-col gap-4 px-5 pb-5 pt-5 sm:px-6 sm:pb-6">
+
+        {donConfig.message && (
+          <p className="text-sm leading-6" style={{ color: colors.muted }}>{donConfig.message}</p>
+        )}
 
         {/* One Time / Monthly */}
         <div className="flex rounded-xl p-1 gap-1"
-          style={{ background: "rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.10)" }}>
+          style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
           {[["once", "One Time"], ["monthly", "Monthly"]].map(([val, label]) => (
             <button key={val} type="button"
               onClick={isEditor ? undefined : () => setFreq(val)}
               className="flex-1 rounded-lg py-2 text-xs font-black tracking-wide transition-all"
-              style={freq === val ? { background: "#0f0d0a", color: "#f0ebe0" } : { color: "#7a6e5f" }}>
+              style={freq === val ? { background: colors.accent, color: "#111111" } : { color: colors.muted }}>
               {label}
             </button>
           ))}
         </div>
 
         {/* Preset amounts */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(3, Math.max(1, presets.length))}, minmax(0, 1fr))` }}>
           {presets.map((a) => (
             <button key={a} type="button"
               onClick={isEditor ? undefined : () => { setPreset(a); setCustom(""); setError(""); }}
@@ -2615,10 +2643,10 @@ function DonationCheckoutCard({ event, isEditor }) {
                 borderRadius: 14,
                 fontFamily: "var(--t-font-heading,'Playfair Display',Georgia,serif)",
                 fontSize: "clamp(1.2rem,2.5vw,1.6rem)",
-                border: preset === a ? `2px solid ${ROSE}` : "1.5px solid rgba(0,0,0,0.12)",
-                background: preset === a ? ROSE : "rgba(0,0,0,0.05)",
-                color: preset === a ? "#fff" : "#0f0d0a",
-                boxShadow: preset === a ? `0 6px 20px rgba(244,63,94,0.28)` : "none",
+                border: preset === a ? `2px solid ${colors.accent}` : `1.5px solid ${colors.border}`,
+                background: preset === a ? colors.accent : colors.surface,
+                color: colors.text,
+                boxShadow: preset === a ? "0 6px 18px rgba(0,0,0,0.12)" : "none",
               }}>
               ${a}
             </button>
@@ -2627,53 +2655,41 @@ function DonationCheckoutCard({ event, isEditor }) {
 
         {/* Custom amount */}
         <div className="flex items-center gap-2 rounded-xl px-4 py-3"
-          style={{ background: "rgba(0,0,0,0.05)", border: preset === "custom" ? `1.5px solid ${ROSE}` : "1.5px solid rgba(0,0,0,0.12)" }}>
-          <span className="text-sm font-bold" style={{ color: "#9a8c7e" }}>$</span>
+          style={{ background: colors.surface, border: preset === "custom" ? `1.5px solid ${colors.accent}` : `1.5px solid ${colors.border}` }}>
+          <span className="text-sm font-bold" style={{ color: colors.muted }}>$</span>
           <input type="number" min="1"
             value={preset === "custom" ? custom : ""}
             placeholder="Other amount"
             onFocus={isEditor ? undefined : () => setPreset("custom")}
             onChange={(e) => { setPreset("custom"); setCustom(e.target.value); setError(""); }}
-            className="flex-1 bg-transparent text-sm font-semibold outline-none placeholder-[#b0a89a]"
-            style={{ color: "#0f0d0a" }}
+            className="flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-stone-400"
+            style={{ color: colors.text }}
           />
         </div>
 
         {/* Name */}
         <input type="text" value={name} placeholder="Your name (optional)"
           onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-xl px-4 py-3 text-sm font-medium outline-none placeholder-[#b0a89a]"
-          style={{ background: "rgba(0,0,0,0.05)", border: "1.5px solid rgba(0,0,0,0.12)", color: "#0f0d0a" }}
-          onFocus={e => e.target.style.borderColor = ROSE}
-          onBlur={e => e.target.style.borderColor = "rgba(0,0,0,0.12)"}
+          className="w-full rounded-xl px-4 py-3 text-sm font-medium outline-none placeholder:text-stone-400"
+          style={{ background: colors.surface, border: `1.5px solid ${colors.border}`, color: colors.text }}
+          onFocus={e => e.target.style.borderColor = colors.accent}
+          onBlur={e => e.target.style.borderColor = colors.border}
         />
 
-        {error && <p className="text-xs font-semibold" style={{ color: ROSE }}>{error}</p>}
+        {error && <p className="text-xs font-semibold text-red-600">{error}</p>}
 
-        {/* Dual CTA */}
-        <div className="flex flex-col gap-2">
-          <button type="submit" disabled={submitting || isEditor}
-            className="w-full rounded-xl py-3.5 text-sm font-black uppercase tracking-widest transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
-            style={{ background: "#0f0d0a", color: "#f0ebe0", letterSpacing: "0.08em" }}>
-            {submitting
-              ? "Processing…"
-              : <><Heart className="h-3.5 w-3.5" fill="#f0ebe0" stroke="#f0ebe0" />
-                  {freq === "monthly" ? "Give Monthly" : "Donate"}{amount > 0 ? ` — $${amount}` : ""}</>
-            }
-          </button>
-          {!isEditor && !submitting && (
-            <button type="button" onClick={handleDonate}
-              className="w-full rounded-xl py-2.5 text-xs font-bold uppercase transition-all active:scale-[0.98]"
-              style={{ background: "transparent", color: "#4a3f30", border: "1.5px solid rgba(0,0,0,0.18)", letterSpacing: "0.10em" }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = ROSE}
-              onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.18)"}>
-              Reserve Contribution
-            </button>
-          )}
-        </div>
+        <button type="submit" disabled={submitting || isEditor}
+          className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-black uppercase tracking-widest transition-all active:scale-[0.98] disabled:opacity-50"
+          style={{ background: colors.accent, color: "#111111", letterSpacing: "0.08em" }}>
+          {submitting
+            ? "Processing…"
+            : <><Heart className="h-3.5 w-3.5" fill="#111111" stroke="#111111" />
+                {freq === "monthly" ? "Give Monthly" : "Donate"}{amount > 0 ? ` — $${amount}` : ""}</>
+          }
+        </button>
 
         <p className="text-center text-[10px] font-semibold uppercase tracking-widest"
-          style={{ color: "rgba(0,0,0,0.22)", letterSpacing: "0.12em" }}>
+          style={{ color: colors.muted, letterSpacing: "0.12em" }}>
           Secure payment via Stripe
         </p>
       </form>

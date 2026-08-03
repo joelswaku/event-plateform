@@ -7,6 +7,35 @@ import { authSync } from "@/lib/auth-sync";
 import { sessionMonitor } from "@/lib/session-monitor";
 import { useSubscriptionStore } from "@/store/subscription.store";
 
+const LOGOUT_MARKER_KEY = "liteevent:logout";
+
+function markLoggedOut() {
+  try {
+    window.localStorage.setItem(LOGOUT_MARKER_KEY, "1");
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+function clearLogoutMarker() {
+  try {
+    window.localStorage.removeItem(LOGOUT_MARKER_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+export function hasLogoutMarker() {
+  try {
+    return (
+      typeof window !== "undefined" &&
+      window.localStorage.getItem(LOGOUT_MARKER_KEY) === "1"
+    );
+  } catch {
+    return false;
+  }
+}
+
 export const useAuthStore = create(
   persist(
     (set, get) => ({
@@ -19,23 +48,23 @@ export const useAuthStore = create(
       _syncUnsubscribe: null,
 
       setHydrated: () => set({ isHydrated: true }),
-      clearError:  () => set({ error: null }),
-      setUser:     (user) => set({ user }),
+      clearError: () => set({ error: null }),
+      setUser: (user) => set({ user }),
 
       // Initialize cross-tab sync
       initSync: () => {
-        if (typeof window === 'undefined') return;
+        if (typeof window === "undefined") return;
 
         const unsubscribe = authSync.subscribe((event) => {
           const state = get();
 
           switch (event.type) {
-            case 'logout':
+            case "logout":
               // Another tab logged out - logout this tab too
               if (state.isAuthenticated) {
-                console.log('Logout detected from another tab');
+                console.log("Logout detected from another tab");
                 sessionMonitor.stop();
-                clearInMemoryToken();
+                markLoggedOut();
                 set({
                   user: null,
                   accessToken: null,
@@ -43,15 +72,16 @@ export const useAuthStore = create(
                   isLoading: false,
                   error: null,
                 });
-                // Force navigation to homepage
-                window.location.href = '/';
+                // Replace the protected history entry in every open tab.
+                window.location.replace("/");
               }
               break;
 
-            case 'login':
+            case "login":
               // Another tab logged in - sync user data and navigate
               if (!state.isAuthenticated && event.payload?.user) {
-                console.log('Login detected from another tab');
+                console.log("Login detected from another tab");
+                clearLogoutMarker();
                 set({
                   user: event.payload.user,
                   isAuthenticated: true,
@@ -59,16 +89,24 @@ export const useAuthStore = create(
 
                 // Navigate to dashboard if on homepage or auth pages
                 const currentPath = window.location.pathname;
-                const REDIRECT_PATHS = ['/', '/login', '/register', '/forgot-password'];
+                const REDIRECT_PATHS = [
+                  "/",
+                  "/login",
+                  "/register",
+                  "/forgot-password",
+                ];
 
                 if (REDIRECT_PATHS.includes(currentPath)) {
-                  console.log('Redirecting to dashboard after login sync from path:', currentPath);
-                  window.location.href = '/dashboard';
+                  console.log(
+                    "Redirecting to dashboard after login sync from path:",
+                    currentPath,
+                  );
+                  window.location.href = "/dashboard";
                 }
               }
               break;
 
-            case 'token_refresh':
+            case "token_refresh":
               // Token refreshed in another tab
               sessionMonitor.reset();
               break;
@@ -108,10 +146,11 @@ export const useAuthStore = create(
           if (!user) throw new Error("Invalid login response");
 
           // Tokens are in httpOnly cookies - no client-side storage needed
+          clearLogoutMarker();
           set({ user, isAuthenticated: true, isLoading: false });
 
           // Broadcast login to other tabs
-          authSync.broadcast('login', { user });
+          authSync.broadcast("login", { user });
 
           // Start session monitoring
           sessionMonitor.start(async (reason) => {
@@ -121,7 +160,20 @@ export const useAuthStore = create(
 
           return { success: true };
         } catch (err) {
-          const message = err.response?.data?.message || err.message || "Login failed";
+          const verification = err.response?.data;
+          if (verification?.requiresVerification && verification?.verificationToken) {
+            const message = verification.message || "Please verify your email before logging in.";
+            set({ error: message, isLoading: false });
+            return {
+              success: false,
+              requiresVerification: true,
+              verificationToken: verification.verificationToken,
+              message,
+            };
+          }
+
+          const message =
+            err.response?.data?.message || err.message || "Login failed";
           set({ error: message, isLoading: false });
           return { success: false, message };
         }
@@ -138,9 +190,14 @@ export const useAuthStore = create(
           }
 
           set({ isLoading: false });
-          return { success: true, data: res.data, message: res.data?.message || "Account created" };
+          return {
+            success: true,
+            data: res.data,
+            message: res.data?.message || "Account created",
+          };
         } catch (err) {
-          const message = err.response?.data?.message || err.message || "Register failed";
+          const message =
+            err.response?.data?.message || err.message || "Register failed";
           set({ error: message, isLoading: false });
           return { success: false, message };
         }
@@ -156,10 +213,11 @@ export const useAuthStore = create(
           }
 
           // New cookies set by backend - no client-side storage needed
+          clearLogoutMarker();
           set({ isAuthenticated: true });
 
           // Broadcast token refresh to reset activity timers in other tabs
-          authSync.broadcast('token_refresh');
+          authSync.broadcast("token_refresh");
 
           // Reset activity timer
           sessionMonitor.reset();
@@ -180,6 +238,7 @@ export const useAuthStore = create(
 
           if (!user) throw new Error("Invalid user data");
 
+          clearLogoutMarker();
           set({ user, isAuthenticated: true });
           return user;
         } catch (err) {
@@ -203,9 +262,15 @@ export const useAuthStore = create(
           }
 
           set({ isLoading: false });
-          return { success: true, message: res.data?.message || "Reset link sent" };
+          return {
+            success: true,
+            message: res.data?.message || "Reset link sent",
+          };
         } catch (err) {
-          const message = err.response?.data?.message || err.message || "Failed to send reset link";
+          const message =
+            err.response?.data?.message ||
+            err.message ||
+            "Failed to send reset link";
           set({ error: message, isLoading: false });
           return { success: false, message };
         }
@@ -215,18 +280,28 @@ export const useAuthStore = create(
         try {
           set({ isLoading: true, error: null });
 
-          if (!token || !newPassword) throw new Error("Token and password required");
+          if (!token || !newPassword)
+            throw new Error("Token and password required");
 
-          const res = await api.post("/auth/reset-password", { token, password: newPassword });
+          const res = await api.post("/auth/reset-password", {
+            token,
+            password: newPassword,
+          });
 
           if (res.data?.success === false) {
             throw new Error(res.data.message || "Reset failed");
           }
 
           set({ isLoading: false });
-          return { success: true, message: res.data?.message || "Password updated" };
+          return {
+            success: true,
+            message: res.data?.message || "Password updated",
+          };
         } catch (err) {
-          const message = err.response?.data?.message || err.message || "Reset password failed";
+          const message =
+            err.response?.data?.message ||
+            err.message ||
+            "Reset password failed";
           set({ error: message, isLoading: false });
           return { success: false, message };
         }
@@ -239,7 +314,8 @@ export const useAuthStore = create(
           set({ isLoading: false });
           return { success: true, data: res.data };
         } catch (err) {
-          const message = err.response?.data?.message || "Email verification failed";
+          const message =
+            err.response?.data?.message || "Email verification failed";
           set({ error: message, isLoading: false });
           return { success: false, message };
         }
@@ -256,11 +332,13 @@ export const useAuthStore = create(
           if (!user) throw new Error("Invalid Google login response");
 
           // Tokens are in httpOnly cookies - no client-side storage needed
+          clearLogoutMarker();
           set({ user, isAuthenticated: true, isLoading: false });
 
           return { success: true };
         } catch (err) {
-          const message = err.response?.data?.message || err.message || "Google login failed";
+          const message =
+            err.response?.data?.message || err.message || "Google login failed";
           set({ error: message, isLoading: false });
           return { success: false, message };
         }
@@ -273,7 +351,10 @@ export const useAuthStore = create(
           if (user) set({ user });
           return { success: true };
         } catch (err) {
-          return { success: false, message: err?.response?.data?.message || "Update failed" };
+          return {
+            success: false,
+            message: err?.response?.data?.message || "Update failed",
+          };
         }
       },
 
@@ -282,7 +363,11 @@ export const useAuthStore = create(
           await api.patch("/auth/password", { currentPassword, newPassword });
           return { success: true };
         } catch (err) {
-          return { success: false, message: err?.response?.data?.message || "Failed to change password" };
+          return {
+            success: false,
+            message:
+              err?.response?.data?.message || "Failed to change password",
+          };
         }
       },
 
@@ -295,11 +380,16 @@ export const useAuthStore = create(
           });
           const avatarUrl = res.data?.data?.avatar_url;
           if (avatarUrl) {
-            set((s) => ({ user: s.user ? { ...s.user, avatar_url: avatarUrl } : s.user }));
+            set((s) => ({
+              user: s.user ? { ...s.user, avatar_url: avatarUrl } : s.user,
+            }));
           }
           return { success: true, avatar_url: avatarUrl };
         } catch (err) {
-          return { success: false, message: err?.response?.data?.message || "Upload failed" };
+          return {
+            success: false,
+            message: err?.response?.data?.message || "Upload failed",
+          };
         }
       },
 
@@ -312,8 +402,12 @@ export const useAuthStore = create(
           // Stop session monitoring
           sessionMonitor.stop();
 
+          // This durable marker protects browser history entries restored from
+          // iOS/Android back-forward cache after the server session is revoked.
+          markLoggedOut();
+
           // Broadcast logout to other tabs
-          authSync.broadcast('logout');
+          authSync.broadcast("logout");
 
           // Cookies cleared by backend - just clear local state
           set({
@@ -327,9 +421,11 @@ export const useAuthStore = create(
           // into the next login.
           useSubscriptionStore.getState().setUnsubscribed();
 
-          // Redirect to homepage after logout
+          // Replace the protected history entry. Using href leaves the previous
+          // dashboard page available to the browser Back button and can restore
+          // its stale in-memory state from the back-forward cache.
           if (typeof window !== "undefined") {
-            window.location.href = "/";
+            window.location.replace("/");
           }
         }
       },
@@ -337,7 +433,7 @@ export const useAuthStore = create(
     {
       name: "auth-storage",
       storage: createJSONStorage(() =>
-        typeof window !== "undefined" ? localStorage : undefined
+        typeof window !== "undefined" ? localStorage : undefined,
       ),
       // accessToken intentionally excluded — stored in memory only, never localStorage
       partialize: (state) => ({
@@ -347,6 +443,6 @@ export const useAuthStore = create(
       onRehydrateStorage: () => (state) => {
         state?.setHydrated();
       },
-    }
-  )
+    },
+  ),
 );

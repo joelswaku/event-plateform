@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { useAuthStore } from "@/store/auth.store";
+import { hasLogoutMarker, useAuthStore } from "@/store/auth.store";
 import { useSubscriptionStore } from "@/store/subscription.store";
 
 // Public routes that don't need auth checking
@@ -47,7 +47,7 @@ export default function AuthProvider({ children }) {
       pathname === "/forgot-password"
     );
 
-    if (shouldRedirectToDashboard && isAuthenticated) {
+    if (shouldRedirectToDashboard && isAuthenticated && !hasLogoutMarker()) {
       console.log('Authenticated user on public page, redirecting to dashboard');
       window.location.href = "/dashboard";
       return;
@@ -60,19 +60,50 @@ export default function AuthProvider({ children }) {
     });
   }, [pathname, isHydrated, isAuthenticated, fetchMe, fetchSubscription]);
 
-  // Keep subscription state fresh whenever the tab becomes visible again.
-  // This catches the common case: user pays in another tab / Stripe redirects
-  // back, webhook fires while the dashboard tab was backgrounded.
+  // Revalidate a protected page when it becomes visible again or is restored
+  // from the browser back-forward cache. A restored dashboard can otherwise
+  // briefly show stale Zustand state after the user has logged out.
   useEffect(() => {
+    const isProtectedPage = () => {
+      const currentPath = window.location.pathname;
+      return !PUBLIC_ROUTES.includes(currentPath) && !currentPath.startsWith("/e/");
+    };
+
+    const revalidateSession = () => {
+      // If logout marker is set, immediately redirect to homepage
+      // This handles bfcache restoration after logout on mobile browsers
+      if (hasLogoutMarker()) {
+        console.log('Logout marker detected on protected page, redirecting to homepage');
+        window.location.replace("/");
+        return;
+      }
+
+      if (!isProtectedPage() || !useAuthStore.getState().isAuthenticated) return;
+
+      void fetchMe().then((user) => {
+        if (user) fetchSubscription({ force: true });
+      });
+    };
+
     const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
-        const isAuth = useAuthStore.getState().isAuthenticated;
-        if (isAuth) fetchSubscription({ force: true });
+      if (document.visibilityState === "visible") revalidateSession();
+    };
+
+    const handlePageShow = (event) => {
+      // event.persisted means the page was restored from bfcache
+      // This is critical for mobile browsers (especially iOS Safari)
+      if (event.persisted) {
+        revalidateSession();
       }
     };
+
     document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [fetchSubscription]);
+    window.addEventListener("pageshow", handlePageShow);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("pageshow", handlePageShow);
+    };
+  }, [fetchMe, fetchSubscription]);
 
   return children;
 }

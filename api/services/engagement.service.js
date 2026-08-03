@@ -672,18 +672,23 @@ export async function deleteDonationService({ eventId, donationId, organizationI
   }
 }
 
-/* Donation preset amounts config — auto-creates a simple settings table */
+/* Donation fundraiser configuration — auto-creates a simple settings table */
 async function ensureDonationConfigTable(client) {
   await client.query(`
     CREATE TABLE IF NOT EXISTS event_donation_config (
       event_id  UUID PRIMARY KEY,
       amounts   JSONB NOT NULL DEFAULT '[]',
       message   TEXT,
+      title     TEXT,
+      cover_image TEXT,
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )`);
-  // Add message column if table existed without it
+  // Add columns when upgrading an existing installation.
   await client.query(`
-    ALTER TABLE event_donation_config ADD COLUMN IF NOT EXISTS message TEXT
+    ALTER TABLE event_donation_config
+      ADD COLUMN IF NOT EXISTS message TEXT,
+      ADD COLUMN IF NOT EXISTS title TEXT,
+      ADD COLUMN IF NOT EXISTS cover_image TEXT
   `).catch(() => {});
 }
 
@@ -692,29 +697,54 @@ export async function getDonationConfigService({ eventId }) {
   try {
     await ensureDonationConfigTable(client);
     const res = await client.query(
-      `SELECT amounts, message FROM event_donation_config WHERE event_id = $1`, [eventId]);
-    return { amounts: res.rows[0]?.amounts ?? [], message: res.rows[0]?.message ?? "" };
+      `SELECT amounts, message, title, cover_image FROM event_donation_config WHERE event_id = $1`, [eventId]);
+    return {
+      amounts: res.rows[0]?.amounts ?? [],
+      message: res.rows[0]?.message ?? "",
+      title: res.rows[0]?.title ?? "",
+      cover_image: res.rows[0]?.cover_image ?? "",
+    };
   } finally {
     client.release();
   }
 }
 
-export async function saveDonationConfigService({ eventId, organizationId, userId, amounts, message }) {
+export async function saveDonationConfigService({ eventId, organizationId, userId, amounts, message, title, coverImage }) {
   const sanitized = (Array.isArray(amounts) ? amounts : [])
     .map(Number).filter(n => n > 0 && n < 100000).slice(0, 3);
-  const msg = typeof message === "string" ? message.trim().slice(0, 280) : "";
+  if (sanitized.length === 0) {
+    throw new AppError("Add at least one suggested donation amount.", 400);
+  }
+  const msg = typeof message === "string" ? message.trim().slice(0, 1200) : "";
+  const hasTitle = typeof title === "string";
+  const fundraiserTitle = hasTitle ? title.trim().slice(0, 140) : null;
+  const hasCoverImage = typeof coverImage === "string";
+  const fundraiserCoverImage = hasCoverImage ? coverImage.trim().slice(0, 2048) : null;
   const client = await db.connect();
   try {
     await assertOrganizationEventPermission(client, organizationId, userId, eventId);
     await ensureDonationConfigTable(client);
     await client.query(
-      `INSERT INTO event_donation_config (event_id, amounts, message, updated_at)
-       VALUES ($1, $2::jsonb, $3, NOW())
+      `INSERT INTO event_donation_config (event_id, amounts, message, title, cover_image, updated_at)
+       VALUES ($1, $2::jsonb, $3, $4, $5, NOW())
        ON CONFLICT (event_id) DO UPDATE
-         SET amounts = EXCLUDED.amounts, message = EXCLUDED.message, updated_at = NOW()`,
-      [eventId, JSON.stringify(sanitized), msg || null]
+         SET amounts = EXCLUDED.amounts,
+             message = EXCLUDED.message,
+             title = CASE WHEN $6 THEN EXCLUDED.title ELSE event_donation_config.title END,
+             cover_image = CASE WHEN $7 THEN EXCLUDED.cover_image ELSE event_donation_config.cover_image END,
+             updated_at = NOW()`,
+      [eventId, JSON.stringify(sanitized), msg || null, fundraiserTitle || null, fundraiserCoverImage || null, hasTitle, hasCoverImage]
     );
-    return { amounts: sanitized, message: msg };
+    const saved = await client.query(
+      `SELECT amounts, message, title, cover_image FROM event_donation_config WHERE event_id = $1`,
+      [eventId]
+    );
+    return {
+      amounts: saved.rows[0]?.amounts ?? sanitized,
+      message: saved.rows[0]?.message ?? msg,
+      title: saved.rows[0]?.title ?? "",
+      cover_image: saved.rows[0]?.cover_image ?? "",
+    };
   } finally {
     client.release();
   }

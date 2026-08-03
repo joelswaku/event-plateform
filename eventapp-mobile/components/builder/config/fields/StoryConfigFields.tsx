@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, Image } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { useBuilderStore } from '@/store/builder.store';
+import { pickAndUploadImage } from '@/lib/imageUpload';
 import type { BuilderSection } from '@/types';
 
 const BG   = '#1a1b1f';
@@ -26,6 +28,7 @@ export default function StoryConfigFields({ section, eventId, iosKeyboardInsets 
 
   const [title,    setTitle]    = useState(section.title ?? '');
   const [body,     setBody]     = useState(section.body  ?? '');
+  const [storyImage, setStoryImage] = useState<string>(String((section.config ?? {}).story_image ?? ''));
   const [quote,    setQuote]    = useState<string>(String((section.config ?? {}).quote ?? ''));
   const [imgPos,   setImgPos]   = useState<string>(String((section.config ?? {}).image_position ?? 'left'));
 
@@ -34,6 +37,7 @@ export default function StoryConfigFields({ section, eventId, iosKeyboardInsets 
     cfgRef.current = { ...(section.config ?? {}) };
     setTitle(section.title ?? '');
     setBody(section.body   ?? '');
+    setStoryImage(String(cfgRef.current.story_image ?? ''));
     setQuote(String(cfgRef.current.quote ?? ''));
     setImgPos(String(cfgRef.current.image_position ?? 'left'));
   }, [section.id, section.config, section.title, section.body]);
@@ -60,6 +64,13 @@ export default function StoryConfigFields({ section, eventId, iosKeyboardInsets 
     cfgRef.current = next;
     updateSection(eventId, sectionIdRef.current, { config: next });
   }, [eventId, updateSection]);
+
+  const pickStoryImage = useCallback(async () => {
+    const url = await pickAndUploadImage(eventId);
+    if (!url) return;
+    setStoryImage(url);
+    saveConfig('story_image', url);
+  }, [eventId, saveConfig]);
 
   return (
     <ScrollView
@@ -93,6 +104,19 @@ export default function StoryConfigFields({ section, eventId, iosKeyboardInsets 
           multiline
           numberOfLines={5}
         />
+      </View>
+
+      <View style={s.fieldGroup}>
+        <Text style={s.fieldLabel}>Story Image</Text>
+        <Pressable style={s.imagePicker} onPress={pickStoryImage}>
+          {storyImage
+            ? <Image source={{ uri: storyImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            : <View style={s.imageEmpty}>
+                <Feather name="image" size={22} color={MT} />
+                <Text style={s.imageHint}>Tap to upload a photo</Text>
+              </View>}
+          <View style={s.imageOverlay}><Feather name="camera" size={13} color="#fff" /></View>
+        </Pressable>
       </View>
 
       <View style={s.fieldGroup}>
@@ -145,6 +169,16 @@ const s = StyleSheet.create({
     color: TX,
   },
   inputMulti:   { minHeight: 100, textAlignVertical: 'top' },
+  imagePicker: {
+    height: 148, borderRadius: 12, overflow: 'hidden',
+    backgroundColor: CARD, borderWidth: 1, borderColor: BD,
+  },
+  imageEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 7 },
+  imageHint: { fontSize: 12, color: MT },
+  imageOverlay: {
+    position: 'absolute', right: 9, bottom: 9, width: 30, height: 30, borderRadius: 15,
+    backgroundColor: 'rgba(0,0,0,0.66)', alignItems: 'center', justifyContent: 'center',
+  },
   optionCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     padding: 14, borderRadius: 12,

@@ -210,6 +210,7 @@ interface SuperAdminState {
   fetchOrgs:       (params?: { search?: string; q?: string; page?: number }) => Promise<void>;
   fetchUsers:      (params?: { search?: string; q?: string; page?: number }) => Promise<void>;
   updateUser:      (id: string, data: Partial<SAUser>) => Promise<void>;
+  updateUserPlan:  (id: string, plan: 'free' | 'starter' | 'pro') => Promise<{ success: boolean; plan?: string; message?: string }>;
   updateEvent:     (id: string, data: Partial<SAEvent>) => Promise<void>;
   deleteEvent:     (id: string) => Promise<void>;
   fetchActivity:   () => Promise<void>;
@@ -364,6 +365,23 @@ export const useSuperAdminStore = create<SuperAdminState>((set) => ({
       await api.patch(`/super-admin/users/${id}`, data);
       set(state => ({ users: state.users.map(u => u.id === id ? { ...u, ...data } : u) }));
     } catch { /* silent */ }
+  },
+
+  updateUserPlan: async (id, plan) => {
+    try {
+      const res = await api.patch(`/super-admin/users/${id}/plan`, { plan });
+      const updated = res.data?.data;
+      if (!updated?.id) throw new Error('The plan update returned no user data.');
+
+      set(state => ({
+        users: state.users.map(user => user.id === id ? { ...user, ...updated } : user),
+      }));
+      return { success: true, plan: updated.plan };
+    } catch (error: unknown) {
+      const message = (error as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message ?? 'Could not update this user\'s plan.';
+      return { success: false, message };
+    }
   },
 
   updateEvent: async (id, data) => {

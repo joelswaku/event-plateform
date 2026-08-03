@@ -115,6 +115,8 @@ export async function saveDonationConfig(req, res) {
       userId: req.user?.id,
       amounts: req.body.amounts,
       message: req.body.message,
+      title: req.body.title,
+      coverImage: req.body.cover_image,
     });
     return res.json({ success: true, data: result });
   } catch (error) {

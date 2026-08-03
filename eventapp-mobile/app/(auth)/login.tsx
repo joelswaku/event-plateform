@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable,
-  KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,7 +15,6 @@ import { useAuthStore } from '@/store/auth.store';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/colors';
-import { API_URL } from '@/constants/config';
 
 const schema = z.object({
   email:    z.string().email('Enter a valid email'),
@@ -33,40 +32,13 @@ export default function LoginScreen() {
     defaultValues: { email: '', password: '' },
   });
 
-  const handleResendVerification = async (token: string) => {
-    try {
-      const res = await fetch(`${API_URL}/auth/resend-verification-code`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
-      });
-      const data = await res.json();
-      notify.success(data.message || 'Verification code sent! Check your email.');
-    } catch {
-      notify.error('Failed to resend code. Please try again.');
-    }
-  };
-
   const onSubmit = async (data: Form) => {
     const result = await login(data.email, data.password);
 
-    // Check if email verification is required
+    // Unverified accounts go directly to the only page that accepts or resends
+    // verification codes; they never remain on the login screen.
     if (result.requiresVerification && result.verificationToken) {
-      Alert.alert(
-        'Email Verification Required',
-        result.message || 'Please verify your email before logging in. Check your inbox for the verification code.',
-        [
-          {
-            text: 'Resend Code',
-            onPress: () => handleResendVerification(result.verificationToken),
-          },
-          {
-            text: 'Verify Now',
-            onPress: () => router.replace(`/(auth)/verify-email?token=${result.verificationToken}`),
-          },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
+      router.replace(`/(auth)/verify-email?token=${encodeURIComponent(result.verificationToken)}` as never);
       return;
     }
 

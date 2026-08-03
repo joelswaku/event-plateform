@@ -8,9 +8,15 @@ const ACCENT: Record<string, string> = {
   TICKETS: '#22c55e', COUPLE: '#ec4899', STORY: '#f97316', SCHEDULE: '#64748b',
 };
 
-interface Props { eventId: string; section: any; onDeselect: () => void }
+interface Props {
+  eventId: string;
+  section: any;
+  onDeselect: () => void;
+  onOverlayPreviewChange?: (opacity: number) => void;
+  onOverlayPreviewCommit?: (opacity: number) => void;
+}
 
-export default function EditPanel({ eventId, section, onDeselect }: Props) {
+export default function EditPanel({ eventId, section, onDeselect, onOverlayPreviewChange, onOverlayPreviewCommit }: Props) {
   if (!section) {
     return (
       <View style={s.empty}>
@@ -41,6 +47,8 @@ export default function EditPanel({ eventId, section, onDeselect }: Props) {
           section={section}
           eventId={eventId}
           iosKeyboardInsets={Platform.OS === 'ios'}
+          onOverlayPreviewChange={onOverlayPreviewChange}
+          onOverlayPreviewCommit={onOverlayPreviewCommit}
         />
       </View>
     </View>

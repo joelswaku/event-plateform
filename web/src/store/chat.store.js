@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 
-const API = process.env.NEXT_PUBLIC_API_URL;
+// Always use Next's same-origin API proxy. It keeps the browser request on the
+// current web origin, avoiding cross-domain fetch/CORS failures in production,
+// local development, and LAN/mobile browser sessions.
+const API = "/api";
 
 async function apiCall(endpoint, options = {}) {
   // Web uses httpOnly cookies - no Authorization header needed

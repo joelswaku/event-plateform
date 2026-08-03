@@ -28,6 +28,13 @@ export interface CreateDonationPayload {
   is_anonymous?: boolean;
 }
 
+export interface DonationConfig {
+  amounts: number[];
+  message: string;
+  title: string;
+  cover_image: string;
+}
+
 interface DonationState {
   donations: Donation[];
   loading: boolean;
@@ -35,12 +42,13 @@ interface DonationState {
   totalRaised: number;
   confirmedCount: number;
   donationAmounts: number[];
+  donationConfig: DonationConfig;
 
   fetchDonations: (eventId: string) => Promise<void>;
   createDonation: (eventId: string, payload: CreateDonationPayload) => Promise<Donation>;
   deleteDonation: (eventId: string, donationId: string) => Promise<void>;
   fetchDonationConfig: (eventId: string) => Promise<void>;
-  saveDonationConfig: (eventId: string, amounts: number[], message?: string) => Promise<void>;
+  saveDonationConfig: (eventId: string, amounts: number[], message?: string, title?: string, coverImage?: string) => Promise<void>;
 }
 
 export const useDonationStore = create<DonationState>((set, get) => ({
@@ -50,6 +58,7 @@ export const useDonationStore = create<DonationState>((set, get) => ({
   totalRaised: 0,
   confirmedCount: 0,
   donationAmounts: [],
+  donationConfig: { amounts: [], message: '', title: '', cover_image: '' },
 
   fetchDonations: async (eventId) => {
     set({ loading: true });
@@ -101,12 +110,26 @@ export const useDonationStore = create<DonationState>((set, get) => ({
   fetchDonationConfig: async (eventId) => {
     try {
       const res = await api.get(`/engagement/events/${eventId}/donation-config`);
-      set({ donationAmounts: res.data?.data?.amounts ?? [] });
+      const config: DonationConfig = {
+        amounts: res.data?.data?.amounts ?? [],
+        message: res.data?.data?.message ?? '',
+        title: res.data?.data?.title ?? '',
+        cover_image: res.data?.data?.cover_image ?? '',
+      };
+      set({ donationAmounts: config.amounts, donationConfig: config });
     } catch { /* non-critical */ }
   },
 
-  saveDonationConfig: async (eventId, amounts, message) => {
-    const res = await api.patch(`/engagement/events/${eventId}/donation-config`, { amounts, message });
-    set({ donationAmounts: res.data?.data?.amounts ?? amounts });
+  saveDonationConfig: async (eventId, amounts, message, title, coverImage) => {
+    const res = await api.patch(`/engagement/events/${eventId}/donation-config`, {
+      amounts, message, title, cover_image: coverImage,
+    });
+    const config: DonationConfig = {
+      amounts: res.data?.data?.amounts ?? amounts,
+      message: res.data?.data?.message ?? message ?? '',
+      title: res.data?.data?.title ?? title ?? '',
+      cover_image: res.data?.data?.cover_image ?? coverImage ?? '',
+    };
+    set({ donationAmounts: config.amounts, donationConfig: config });
   },
 }));

@@ -23,8 +23,10 @@ export default function GalleryConfigFields({ section, eventId, iosKeyboardInset
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const c = section.config ?? {};
-  const [title,  setTitle]  = useState(String(c.title  ?? ''));
-  const [body,   setBody]   = useState(String(c.body   ?? ''));
+  // The public event renderer reads the section title, not config.title.
+  // Older Expo builds stored this one field in config, so preserve it as a
+  // fallback until the first automatic migration below completes.
+  const [title,  setTitle]  = useState(String(section.title ?? c.title ?? ''));
   const [layout, setLayout] = useState<'grid' | 'carousel'>((c.layout as 'grid' | 'carousel') ?? 'grid');
   const [images, setImages] = useState<string[]>((c.images as string[]) ?? []);
   const { confirm, confirmProps } = useConfirm();
@@ -32,17 +34,34 @@ export default function GalleryConfigFields({ section, eventId, iosKeyboardInset
   useEffect(() => {
     const cfg = section.config ?? {};
     cfgRef.current = cfg;
-    setTitle(String(cfg.title ?? ''));
-    setBody(String(cfg.body ?? ''));
+    const legacyTitle = typeof cfg.title === 'string' ? cfg.title : '';
+    setTitle(String(section.title ?? legacyTitle));
     setLayout((cfg.layout as 'grid' | 'carousel') ?? 'grid');
     setImages((cfg.images as string[]) ?? []);
-  }, [section.id]);
+
+    // A previous Expo editor version used config.title. Copy any saved value
+    // into the canonical field the web event page actually renders.
+    if (legacyTitle && section.title !== legacyTitle) {
+      void updateSection(eventId, section.id, { title: legacyTitle });
+    }
+  }, [eventId, section.id, section.title, updateSection]);
+
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
 
   const save = (patch: Record<string, unknown>) => {
     cfgRef.current = { ...cfgRef.current, ...patch };
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       updateSection(eventId, section.id, { config: cfgRef.current });
+    }, 400);
+  };
+
+  const saveTitle = (value: string) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      void updateSection(eventId, section.id, { title: value });
     }, 400);
   };
 
@@ -92,23 +111,9 @@ export default function GalleryConfigFields({ section, eventId, iosKeyboardInset
         <TextInput
           style={s.input}
           value={title}
-          onChangeText={v => { setTitle(v); save({ title: v }); }}
+          onChangeText={v => { setTitle(v); saveTitle(v); }}
           placeholder="Gallery"
           placeholderTextColor={MT}
-        />
-      </View>
-
-      {/* Body Text */}
-      <View style={s.field}>
-        <Text style={s.label}>BODY TEXT</Text>
-        <TextInput
-          style={[s.input, s.textarea]}
-          value={body}
-          onChangeText={v => { setBody(v); save({ body: v }); }}
-          placeholder="Supporting text…"
-          placeholderTextColor={MT}
-          multiline
-          numberOfLines={3}
         />
       </View>
 

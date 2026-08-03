@@ -1,14 +1,16 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, Pressable, StyleSheet, StatusBar,
-  Animated, Alert, SafeAreaView, ActivityIndicator,
+  Animated, Alert, ActivityIndicator,
   Keyboard, Platform,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useBuilderStore }      from '@/store/builder.store';
+import { useEventStore }        from '@/store/event.store';
 import { useSubscriptionStore } from '@/store/subscription.store';
 import { getTemplatesForEventType } from '@/constants/templates';
 import { getToken }             from '@/lib/api';
@@ -30,9 +32,16 @@ const SHEET_H = 560;
 const INJECTED_JS = `
 (function() {
   function wire() {
+    var wired = window.__liteeventRnWiredSections;
+    if (!wired) {
+      wired = new WeakSet();
+      window.__liteeventRnWiredSections = wired;
+    }
     document.querySelectorAll('[id^="s-"]').forEach(function(el) {
-      if (el.dataset.rnWired) return;
-      el.dataset.rnWired = '1';
+      // Do not write a data attribute onto server-rendered elements. Next.js
+      // compares those attributes while hydrating and warns on the mismatch.
+      if (wired.has(el)) return;
+      wired.add(el);
       el.addEventListener('click', function(e) {
         var id = el.id.slice(2);
         window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'section', id: id }));
@@ -50,8 +59,10 @@ const INJECTED_JS = `
 `;
 
 export default function BuilderScreen() {
-  const { id: eventId } = useLocalSearchParams<{ id: string }>();
+  const { id: routeEventId } = useLocalSearchParams<{ id: string }>();
+  const eventId = Array.isArray(routeEventId) ? routeEventId[0] : routeEventId;
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const builder          = useBuilderStore(s => s.builder);
   const isLoading        = useBuilderStore(s => s.isLoading);
@@ -64,6 +75,15 @@ export default function BuilderScreen() {
   const updateSection    = useBuilderStore(s => s.updateSection);
   const undo             = useBuilderStore(s => s.undo);
   const redo             = useBuilderStore(s => s.redo);
+
+  // The event list/detail payload is a reliable local fallback for the slug.
+  // This keeps the preview available even while the builder request is being
+  // refreshed or if an older API payload omits the event object.
+  const fallbackEvent = useEventStore((state) => {
+    if (state.currentEvent?.id === eventId) return state.currentEvent;
+    return state.events.find((event) => event.id === eventId) ?? null;
+  });
+  const fetchEventById = useEventStore(s => s.fetchEventById);
 
   const { isSubscribed, plan } = useSubscriptionStore();
   const isPremium = isSubscribed && plan !== 'free';
@@ -81,6 +101,9 @@ export default function BuilderScreen() {
   const defaultApplied = useRef(false);
   const webviewRef     = useRef<WebView>(null);
   const prevSaveStatus = useRef(saveStatus);
+  const skipNextPreviewReload = useRef(false);
+  const overlayPreviewFrame = useRef<ReturnType<typeof requestAnimationFrame> | null>(null);
+  const pendingOverlayOpacity = useRef<number | null>(null);
 
   /* Push the bottom sheet above the keyboard */
   useEffect(() => {
@@ -100,6 +123,12 @@ export default function BuilderScreen() {
   useEffect(() => {
     if (eventId) fetchBuilder(eventId);
   }, [eventId]);
+
+  useEffect(() => {
+    if (eventId && !fallbackEvent?.slug) {
+      void fetchEventById(eventId);
+    }
+  }, [eventId, fallbackEvent?.slug, fetchEventById]);
 
   // Auto-apply first template when builder loads with no sections
   useEffect(() => {
@@ -122,9 +151,15 @@ export default function BuilderScreen() {
   }, [isLoading, builder?.sections.length]);
 
   // ── Derived values (non-hooks) ────────────────────────────────────────────────
-  const slug       = builder?.event?.slug ?? null;
+  const previewEvent = builder?.event ?? fallbackEvent;
+  const slug         = previewEvent?.slug ?? null;
+  const token        = getToken();
+  // Match the event screen's "See Your Website" behavior. A published event
+  // is public and must not go through the authenticated draft-preview route.
   const previewUrl = slug
-    ? `${Config.WEB_URL}/e/${slug}?preview=1&ptoken=${getToken() ?? ''}`
+    ? previewEvent?.status === 'PUBLISHED'
+      ? `${Config.WEB_URL}/e/${slug}`
+      : `${Config.WEB_URL}/e/${slug}?preview=1${token ? `&ptoken=${encodeURIComponent(token)}` : ''}`
     : null;
 
   // ── Hooks that depend on builder data ─────────────────────────────────────────
@@ -153,6 +188,49 @@ export default function BuilderScreen() {
       toValue: SHEET_H, useNativeDriver: true, damping: 20, stiffness: 200,
     }).start(() => setActiveTab(null));
   };
+
+  // The preview page is a WebView. Changing overlay opacity should feel like a
+  // native range control, not cause the entire preview to reload on every drag.
+  const applyOverlayPreview = useCallback((opacity: number) => {
+    const safeOpacity = Math.round(Math.max(0, Math.min(100, opacity))) / 100;
+    const topOpacity = Number((safeOpacity * 0.6).toFixed(3));
+    webviewRef.current?.injectJavaScript(`
+      (function() {
+        var gradient = 'linear-gradient(to bottom, rgba(0,0,0,${topOpacity}) 0%, rgba(0,0,0,${safeOpacity}) 100%)';
+        document.querySelectorAll('[data-liteevent-hero-overlay="true"]').forEach(function(overlay) {
+          overlay.style.background = gradient;
+        });
+        true;
+      })();
+    `);
+  }, []);
+
+  const handleOverlayPreviewChange = useCallback((opacity: number) => {
+    pendingOverlayOpacity.current = opacity;
+    if (overlayPreviewFrame.current !== null) return;
+    overlayPreviewFrame.current = requestAnimationFrame(() => {
+      overlayPreviewFrame.current = null;
+      if (pendingOverlayOpacity.current !== null) {
+        applyOverlayPreview(pendingOverlayOpacity.current);
+      }
+    });
+  }, [applyOverlayPreview]);
+
+  const handleOverlayPreviewCommit = useCallback((opacity: number) => {
+    if (overlayPreviewFrame.current !== null) {
+      cancelAnimationFrame(overlayPreviewFrame.current);
+      overlayPreviewFrame.current = null;
+    }
+    pendingOverlayOpacity.current = null;
+    applyOverlayPreview(opacity);
+    // The displayed DOM already has the final value, so retain it when the
+    // debounced save completes instead of remounting the whole WebView.
+    skipNextPreviewReload.current = true;
+  }, [applyOverlayPreview]);
+
+  useEffect(() => () => {
+    if (overlayPreviewFrame.current !== null) cancelAnimationFrame(overlayPreviewFrame.current);
+  }, []);
 
   // ── Callbacks ─────────────────────────────────────────────────────────────────
   const handleTabChange = useCallback((tab: TabKey) => {
@@ -206,7 +284,11 @@ export default function BuilderScreen() {
   /* Reload the WebView when a save completes (saving → saved transition) */
   useEffect(() => {
     if (prevSaveStatus.current === 'saving' && saveStatus === 'saved') {
-      setReloadKey(k => k + 1);
+      if (skipNextPreviewReload.current) {
+        skipNextPreviewReload.current = false;
+      } else {
+        setReloadKey(k => k + 1);
+      }
     }
     prevSaveStatus.current = saveStatus;
   }, [saveStatus]);
@@ -239,7 +321,7 @@ export default function BuilderScreen() {
     <View style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor="#16181c" />
 
-      <SafeAreaView style={{ backgroundColor: '#16181c' }}>
+      <SafeAreaView edges={['top']} style={{ backgroundColor: '#16181c' }}>
         <BuilderTopBar
           eventId={eventId}
           saveStatus={saveStatus}
@@ -358,7 +440,10 @@ export default function BuilderScreen() {
         )}
       </View>
 
-      <SafeAreaView style={{ backgroundColor: '#16181c' }}>
+      <SafeAreaView
+        edges={['bottom']}
+        style={{ backgroundColor: '#16181c', position: 'relative', zIndex: 30, elevation: 30 }}
+      >
         <BottomSheetTabs
           activeTab={activeTab}
           onTabChange={handleTabChange}
@@ -373,7 +458,10 @@ export default function BuilderScreen() {
       {activeTab !== null && <Pressable style={s.backdrop} onPress={closeSheet} />}
 
       {activeTab !== null && (
-        <Animated.View style={[s.sheet, { transform: [{ translateY: sheetAnim }], bottom: kbOffset }]}>
+        <Animated.View style={[
+          s.sheet,
+          { transform: [{ translateY: sheetAnim }], bottom: 64 + insets.bottom + kbOffset },
+        ]}>
           <Pressable style={s.handleWrap} onPress={closeSheet}>
             <View style={s.handle} />
           </Pressable>
@@ -403,6 +491,8 @@ export default function BuilderScreen() {
                 eventId={eventId}
                 section={selectedSection}
                 onDeselect={() => { setSelectedSectionId(null); closeSheet(); }}
+                onOverlayPreviewChange={handleOverlayPreviewChange}
+                onOverlayPreviewCommit={handleOverlayPreviewCommit}
               />
             )}
           </View>

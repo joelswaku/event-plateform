@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Lock, Zap, QrCode, Ticket, CheckCircle, CreditCard, Shield, Timer, Heart, ArrowRight, Loader2 } from "lucide-react";
+import { Lock, Zap, QrCode, Ticket, CheckCircle, CreditCard, Shield, Timer, Clock, Heart, ArrowRight, Loader2, Share2, Link as LinkIcon } from "lucide-react";
 import { createPaymentRequestKey } from "@/lib/payment-idempotency";
 
 const EASE = [0.22, 1, 0.36, 1];
@@ -1055,7 +1055,7 @@ function HeroDonationCard({ event, isEditor, delay, centered, fullWidth }) {
     return () => clearInterval(id);
   }, []);
 
-  const presets = donConfig.amounts?.length === 3 ? donConfig.amounts : DONATION_PRESETS_DEFAULT;
+  const presets = donConfig.amounts?.length ? donConfig.amounts : DONATION_PRESETS_DEFAULT;
   const amount  = preset === "custom" ? Number(custom) : (preset ?? 0);
 
   async function handleDonate(e) {
@@ -1408,7 +1408,262 @@ function HeroDonationCard({ event, isEditor, delay, centered, fullWidth }) {
 
 // ─── Combined CTA area: renders all enabled features independently ─────────────
 
-function CtaArea({ showTicketBlock, showRsvpBlock, showDonationBlock, centered, delay, event, isEditor, ctaText, priceLabel, spotsLeft, hasLimit, ticketCount, isSoldOut, isUrgent, onRsvp, onBuyTickets }) {
+function HeroDonationAction({ event, isEditor, delay, centered, displayStyle = "button" }) {
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const openDonation = () => {
+    if (isEditor) return;
+    const donationSection = document.getElementById("donations");
+    if (donationSection) {
+      donationSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    if (event?.slug) window.location.href = `/e/${event.slug}/donate`;
+  };
+
+  const shareEvent = async () => {
+    if (isEditor || typeof window === "undefined") return;
+
+    const url = window.location.href;
+    const shareData = {
+      title: event?.title || "This event",
+      text: `Support ${event?.title || "this event"}`,
+      url,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        return;
+      }
+      await navigator.clipboard?.writeText(url);
+      setLinkCopied(true);
+      window.setTimeout(() => setLinkCopied(false), 2200);
+    } catch (error) {
+      // Closing the native share sheet is not an error the guest needs to see.
+      if (error?.name !== "AbortError") {
+        setLinkCopied(false);
+      }
+    }
+  };
+
+  if (displayStyle === "full") {
+    return <HeroDonationCard event={event} isEditor={isEditor} delay={delay} centered={centered} fullWidth={false} />;
+  }
+
+  const isSummary = displayStyle === "summary";
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: EASE, delay }}
+      className="relative left-1/2 mt-12 w-screen -translate-x-1/2 overflow-hidden pt-16 sm:mt-16 sm:pt-20"
+    >
+      <svg
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 h-16 w-full sm:h-20"
+        viewBox="0 0 1440 160"
+        preserveAspectRatio="none"
+      >
+        <path
+          d="M0 160V116C340 35 1100 35 1440 116V160H0Z"
+          fill="var(--t-bg)"
+        />
+      </svg>
+      <div
+        className="relative flex min-h-[150px] items-center py-7 sm:min-h-[175px] sm:py-9"
+        style={{ background: "var(--t-bg)", color: "var(--t-text)" }}
+      >
+        <div className={`mx-auto flex w-full max-w-5xl flex-col gap-5 px-5 sm:px-8 ${centered ? "items-center text-center" : "items-start text-left"} md:flex-row md:items-center md:justify-between md:gap-8`}>
+          <div className="max-w-xl">
+            <p
+              className="text-[10px] font-black uppercase tracking-[0.2em]"
+              style={{ color: "var(--t-accent)" }}
+            >
+              Support this event
+            </p>
+            <p className="mt-1 text-base font-bold sm:text-lg" style={{ color: "var(--t-text)" }}>
+              {isSummary ? "Help make this event possible." : "Make a difference and share it with others."}
+            </p>
+          </div>
+
+          <div className={`flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row ${centered ? "justify-center" : "justify-start"}`}>
+            <button
+              type="button"
+              onClick={openDonation}
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-black uppercase tracking-[0.1em] transition hover:brightness-105 active:scale-[0.98]"
+              style={{
+                background: "var(--t-accent)", color: "var(--t-accent-fg,#000)",
+                boxShadow: "0 10px 26px rgba(0,0,0,0.16)",
+              }}
+            >
+              <Heart size={16} fill="currentColor" stroke="currentColor" /> Donate <ArrowRight size={15} strokeWidth={2.5} />
+            </button>
+            <button
+              type="button"
+              onClick={shareEvent}
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border px-6 py-3.5 text-sm font-black uppercase tracking-[0.1em] transition hover:brightness-110 active:scale-[0.98]"
+              style={{
+                borderColor: "var(--t-border,rgba(127,127,127,0.35))",
+                background: "var(--t-bg-alt,rgba(127,127,127,0.10))",
+                color: "var(--t-text)",
+              }}
+            >
+              {linkCopied ? <LinkIcon size={16} /> : <Share2 size={16} />}
+              {linkCopied ? "Link copied" : "Share"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function getTicketCountdown(isoDate) {
+  if (!isoDate) return null;
+  const difference = new Date(isoDate).getTime() - Date.now();
+  if (!Number.isFinite(difference) || difference <= 0) return null;
+  return {
+    days: Math.floor(difference / 86400000),
+    hours: Math.floor((difference % 86400000) / 3600000),
+    minutes: Math.floor((difference % 3600000) / 60000),
+  };
+}
+
+function HeroTicketCard({ event, ctaText, isEditor, priceLabel, spotsLeft, hasLimit, ticketCount, isSoldOut, isUrgent, delay, centered, onBuyTickets }) {
+  const eventStart = event?.starts_at_utc || event?.starts_at || null;
+  const [countdown, setCountdown] = useState(() => getTicketCountdown(eventStart));
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCountdown(getTicketCountdown(eventStart)), 60000);
+    return () => window.clearInterval(timer);
+  }, [eventStart]);
+
+  const availability = isSoldOut
+    ? "Sold out"
+    : hasLimit
+      ? `${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} available`
+      : "Tickets available";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.65, ease: EASE, delay }}
+      className={centered ? "mx-auto" : ""}
+      style={{ width: "100%", maxWidth: 840 }}
+    >
+      <div
+        className="relative isolate overflow-hidden rounded-[24px] border"
+        style={{ background: "var(--t-bg-alt)", borderColor: "var(--t-border)", boxShadow: "0 20px 48px rgba(0,0,0,0.14)" }}
+      >
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+          <motion.div
+            className="absolute -right-20 -top-24 h-60 w-60 rounded-full blur-3xl"
+            style={{ background: "var(--t-accent)", opacity: 0.16 }}
+            animate={{ x: [0, -22, 6, 0], y: [0, 18, -8, 0], scale: [1, 1.1, 0.96, 1] }}
+            transition={{ duration: 12, ease: "easeInOut", repeat: Infinity }}
+          />
+          <motion.div
+            className="absolute -bottom-28 -left-20 h-52 w-52 rounded-full blur-3xl"
+            style={{ background: "var(--t-accent)", opacity: 0.10 }}
+            animate={{ x: [0, 18, -6, 0], y: [0, -16, 8, 0], scale: [0.95, 1.08, 1, 0.95] }}
+            transition={{ duration: 14, ease: "easeInOut", repeat: Infinity }}
+          />
+        </div>
+
+        <div className="relative">
+          <div className="flex items-center gap-3 border-b px-5 py-4 sm:px-6" style={{ background: "var(--t-bg)", borderColor: "var(--t-border)" }}>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: "var(--t-bg-alt)", border: "1px solid var(--t-border)", color: "var(--t-accent)" }}>
+              <Ticket size={18} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: "var(--t-text-muted)" }}>Tickets for this event</p>
+              <p className="mt-0.5 truncate text-base font-bold" style={{ color: "var(--t-text)" }}>{event?.title || "Choose your ticket"}</p>
+            </div>
+            <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide" style={{ background: "var(--t-accent)", color: "var(--t-accent-fg,#111)" }}>
+              {ticketCount || 1} type{ticketCount === 1 ? "" : "s"}
+            </span>
+          </div>
+
+          <div className="grid gap-5 px-5 py-5 sm:px-6 md:grid-cols-[1fr_auto] md:items-center">
+            <div>
+              <p className="text-xl font-black leading-tight sm:text-2xl" style={{ color: "var(--t-text)" }}>
+                {isSoldOut ? "This event is currently full." : "Your place is waiting."}
+              </p>
+              <p className="mt-2 text-sm leading-6" style={{ color: "var(--t-text-muted)" }}>
+                Choose a ticket and receive your e-ticket and QR entry code by email.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border)", color: "var(--t-text-muted)" }}><QrCode size={12} /> QR entry</span>
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border)", color: "var(--t-text-muted)" }}><Lock size={11} /> Secure checkout</span>
+                {countdown && <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border)", color: "var(--t-text-muted)" }}><Clock size={12} /> {countdown.days}d {countdown.hours}h {countdown.minutes}m</span>}
+              </div>
+            </div>
+
+            <div className="min-w-[180px] rounded-2xl p-4 text-left md:text-right" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border)" }}>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: "var(--t-text-muted)" }}>From</p>
+              <p className="mt-1 text-3xl font-black leading-none" style={{ color: "var(--t-text)" }}>{isSoldOut ? "—" : (priceLabel || "Free")}</p>
+              <p className="mt-2 text-xs font-bold" style={{ color: isUrgent ? "#DC2626" : "var(--t-text-muted)" }}>{availability}</p>
+            </div>
+          </div>
+
+          <div className="border-t px-5 pb-5 pt-4 sm:px-6 sm:pb-6" style={{ borderColor: "var(--t-border)" }}>
+            <button
+              type="button"
+              onClick={isEditor ? undefined : onBuyTickets}
+              disabled={isSoldOut}
+              className="flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-black uppercase tracking-[0.1em] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
+              style={{ background: "var(--t-accent)", color: "var(--t-accent-fg,#111)", boxShadow: "0 8px 22px rgba(0,0,0,0.14)" }}
+            >
+              <Ticket size={16} /> {isSoldOut ? "Sold Out" : (ctaText || "Choose your ticket")} <ArrowRight size={15} strokeWidth={2.6} />
+            </button>
+            {!isSoldOut && <p className="mt-3 text-center text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--t-text-muted)" }}>Instant e-ticket · QR code entry · Stripe checkout</p>}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function HeroTicketAction({ event, ctaText, isEditor, priceLabel, spotsLeft, hasLimit, ticketCount, isSoldOut, isUrgent, delay, centered, onBuyTickets }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.65, ease: EASE, delay }}
+      className="relative left-1/2 mt-12 w-screen -translate-x-1/2 overflow-hidden pt-16 sm:mt-16 sm:pt-20"
+    >
+      <svg
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 h-16 w-full sm:h-20"
+        viewBox="0 0 1440 160"
+        preserveAspectRatio="none"
+      >
+        <path d="M0 160V116C340 35 1100 35 1440 116V160H0Z" fill="color-mix(in srgb, var(--t-bg) 68%, transparent)" />
+      </svg>
+      <div className="relative flex items-center py-7 sm:py-9" style={{ background: "color-mix(in srgb, var(--t-bg) 68%, transparent)", backdropFilter: "blur(12px)" }}>
+        <div className="mx-auto w-full max-w-5xl px-5 sm:px-8">
+          <HeroTicketCard
+            event={event}
+            ctaText={ctaText}
+            isEditor={isEditor}
+            priceLabel={priceLabel}
+            spotsLeft={spotsLeft}
+            hasLimit={hasLimit}
+            ticketCount={ticketCount}
+            isSoldOut={isSoldOut}
+            isUrgent={isUrgent}
+            delay={0}
+            centered={centered}
+            onBuyTickets={onBuyTickets}
+          />
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function CtaArea({ showTicketBlock, showRsvpBlock, showDonationBlock, donationStyle, centered, delay, event, isEditor, ctaText, priceLabel, spotsLeft, hasLimit, ticketCount, isSoldOut, isUrgent, onRsvp, onBuyTickets }) {
   if (!showTicketBlock && !showRsvpBlock && !showDonationBlock) return null;
 
   const donationOnly = showDonationBlock && !showTicketBlock && !showRsvpBlock;
@@ -1416,7 +1671,7 @@ function CtaArea({ showTicketBlock, showRsvpBlock, showDonationBlock, centered, 
   return (
     <div className={`flex flex-col gap-4 ${donationOnly ? "w-full" : centered ? "items-center" : "items-start"}`}>
       {showTicketBlock && (
-        <TicketBlock
+        <HeroTicketAction
           ctaText={ctaText}
           event={event}
           isEditor={isEditor}
@@ -1426,7 +1681,7 @@ function CtaArea({ showTicketBlock, showRsvpBlock, showDonationBlock, centered, 
           ticketCount={ticketCount}
           isSoldOut={isSoldOut}
           isUrgent={isUrgent}
-          delay={delay}
+          delay={delay + 0.05}
           centered={centered}
           onBuyTickets={onBuyTickets}
         />
@@ -1441,12 +1696,12 @@ function CtaArea({ showTicketBlock, showRsvpBlock, showDonationBlock, centered, 
         />
       )}
       {showDonationBlock && (
-        <HeroDonationCard
+        <HeroDonationAction
           event={event}
           isEditor={isEditor}
           delay={delay + 0.1}
           centered={centered}
-          fullWidth={donationOnly}
+          displayStyle={donationStyle}
         />
       )}
     </div>
@@ -1520,7 +1775,8 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
   // Independent show flags â€" each feature is separate
   const showTicketBlock   = isEditor ? !!event?.allow_ticketing : isTicketed;
   const showRsvpBlock     = false; // RSVP is handled exclusively by the sticky panel
-  const showDonationBlock = !!event?.allow_donations;
+  const donationStyle = config.hero_donation_style ?? "button";
+  const showDonationBlock = !!event?.allow_donations && donationStyle !== "none";
 
   function handleRsvp() {
     window.dispatchEvent(new CustomEvent("open-rsvp-panel"));
@@ -1543,6 +1799,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
     showTicketBlock,
     showRsvpBlock,
     showDonationBlock,
+    donationStyle,
     centered: isCentered,
     event,
     isEditor,
@@ -1579,7 +1836,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
         ) : (
           <div className="absolute inset-0" style={{ background: bg }} aria-hidden="true" />
         )}
-        <div className="absolute inset-0" style={{ background: overlayGrad }} aria-hidden="true" />
+        <div className="absolute inset-0" data-liteevent-hero-overlay="true" style={{ background: overlayGrad }} aria-hidden="true" />
         <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.6) 100%)" }} aria-hidden="true" />
         <div className="absolute inset-x-0 top-0 h-px" style={{ background: "var(--t-accent)", opacity: 0.35 }} aria-hidden="true" />
         <div className="absolute inset-x-0 bottom-0 h-px" style={{ background: "var(--t-accent)", opacity: 0.25 }} aria-hidden="true" />
@@ -1626,7 +1883,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
         {bgImg && (
           <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${bgImg})` }} aria-hidden="true" />
         )}
-        <div className="absolute inset-0" style={{ background: overlayGrad }} aria-hidden="true" />
+        <div className="absolute inset-0" data-liteevent-hero-overlay="true" style={{ background: overlayGrad }} aria-hidden="true" />
 
         {config.eyebrow && (
           <div className="absolute top-8 left-8 z-10">
@@ -1675,7 +1932,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
         {bgImg && (
           <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${bgImg})` }} aria-hidden="true" />
         )}
-        <div className="absolute inset-0" style={{ background: overlayGrad }} aria-hidden="true" />
+        <div className="absolute inset-0" data-liteevent-hero-overlay="true" style={{ background: overlayGrad }} aria-hidden="true" />
 
         <div className={`relative z-10 mx-auto w-full max-w-4xl px-8 pt-20 pb-16 flex flex-col gap-8 sm:pt-28 sm:pb-24 ${textAlignClass}`}>
           {config.eyebrow && (
@@ -1717,7 +1974,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
         {bgImg && (
           <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${bgImg})` }} aria-hidden="true" />
         )}
-        <div className="absolute inset-0" style={{ background: overlayGrad }} aria-hidden="true" />
+        <div className="absolute inset-0" data-liteevent-hero-overlay="true" style={{ background: overlayGrad }} aria-hidden="true" />
 
         <div className={`relative z-10 mx-auto w-full max-w-5xl px-6 pt-20 pb-16 flex flex-col gap-6 sm:pt-28 sm:pb-24 ${textAlignClass}`}>
           {config.eyebrow && (
@@ -1758,7 +2015,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
       {bgImg && (
         <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${bgImg})` }} aria-hidden="true" />
       )}
-      <div className="absolute inset-0" style={{ background: overlayGrad }} aria-hidden="true" />
+      <div className="absolute inset-0" data-liteevent-hero-overlay="true" style={{ background: overlayGrad }} aria-hidden="true" />
       {showOrnament && (
         <div className="absolute inset-x-0 top-0 h-px" style={{ background: "var(--t-accent)", opacity: 0.3 }} aria-hidden="true" />
       )}

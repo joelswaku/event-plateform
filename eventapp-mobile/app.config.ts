@@ -114,8 +114,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       CFBundleURLTypes: [
         {
           CFBundleURLSchemes: [
-           
-             "com.googleusercontent.apps.728056596746-44c4q2vgaiojan8imrs50ikkjmg3e8d0",
+            "com.googleusercontent.apps.728056596746-44c4q2vgaiojan8imrs50ikkjmg3e8d0",
           ],
         },
       ],
@@ -145,7 +144,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
 
     // ✅ Google Sign-In plugin
     "@react-native-google-signin/google-signin",
-  
+
     [
       "expo-camera",
       {
