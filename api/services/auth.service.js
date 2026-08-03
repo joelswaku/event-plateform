@@ -650,10 +650,22 @@ export async function loginUser({
 
     // Check if email is verified
     if (!user.email_verified) {
+      // Older unverified accounts may predate the verification-token column.
+      // Generate and persist a token here so they can always reach the code and
+      // resend screen after entering their valid password.
+      let verificationToken = user.verification_token;
+      if (!verificationToken) {
+        verificationToken = crypto.randomUUID();
+        await client.query(
+          `UPDATE users SET verification_token = $1, updated_at = NOW() WHERE id = $2`,
+          [verificationToken, user.id]
+        );
+      }
+
       const error = new Error("Please verify your email before logging in. Check your inbox for the verification code.");
       error.statusCode = 403;
       error.requiresVerification = true;
-      error.verificationToken = user.verification_token;
+      error.verificationToken = verificationToken;
       throw error;
     }
 
