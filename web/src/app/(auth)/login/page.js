@@ -50,9 +50,18 @@ function LoginForm() {
   // Single redirect point — fires when auth state becomes true
   useEffect(() => {
     if (isHydrated && isAuthenticated) {
-      router.replace(searchParams.get("redirect") || "/dashboard");
+      const redirectPath = searchParams.get("redirect") || "/dashboard";
+      // Try Next.js router first
+      router.replace(redirectPath);
+
+      // Fallback for mobile browsers - force redirect after 100ms if still on login page
+      setTimeout(() => {
+        if (window.location.pathname === "/login") {
+          window.location.href = redirectPath;
+        }
+      }, 100);
     }
-  }, [isHydrated, isAuthenticated]);
+  }, [isHydrated, isAuthenticated, router, searchParams]);
 
   const errors = validate(form);
   const touch  = (f) => setTouched((t) => ({ ...t, [f]: true }));
@@ -67,12 +76,37 @@ function LoginForm() {
     const res = await login(form);
 
     // Check if email verification is required
-    if (res.requiresVerification && res.verificationToken) {
-      router.replace(`/verify-email?token=${encodeURIComponent(res.verificationToken)}`);
+    if (res.requiresVerification) {
+      // The API guarantees this token for all unverified accounts, including
+      // accounts created before email verification was introduced.
+      const verifyUrl = `/verify-email?token=${encodeURIComponent(res.verificationToken)}`;
+
+      // Try Next.js router first
+      router.replace(verifyUrl);
+
+      // Fallback for mobile browsers - force redirect after 100ms
+      setTimeout(() => {
+        if (window.location.pathname === "/login") {
+          window.location.href = verifyUrl;
+        }
+      }, 100);
+
       return;
     }
 
-    // Redirect is handled by the useEffect above when isAuthenticated flips to true
+    // Navigate immediately after a successful login as well as through the
+    // auth-state effect above. This avoids mobile browser timing differences.
+    if (res.success) {
+      const redirectPath = searchParams.get("redirect") || "/dashboard";
+      router.replace(redirectPath);
+      setTimeout(() => {
+        if (window.location.pathname === "/login") {
+          window.location.replace(redirectPath);
+        }
+      }, 100);
+      return;
+    }
+
     if (!res.success) {
       setServerError(res.message || "Invalid credentials. Please try again.");
     }
