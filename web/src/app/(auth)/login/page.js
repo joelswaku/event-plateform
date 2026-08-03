@@ -47,21 +47,8 @@ function LoginForm() {
   const [showPass,    setShowPass]    = useState(false);
   const [serverError, setServerError] = useState("");
 
-  // Single redirect point — fires when auth state becomes true
-  useEffect(() => {
-    if (isHydrated && isAuthenticated) {
-      const redirectPath = searchParams.get("redirect") || "/dashboard";
-      // Try Next.js router first
-      router.replace(redirectPath);
-
-      // Fallback for mobile browsers - force redirect after 100ms if still on login page
-      setTimeout(() => {
-        if (window.location.pathname === "/login") {
-          window.location.href = redirectPath;
-        }
-      }, 100);
-    }
-  }, [isHydrated, isAuthenticated, router, searchParams]);
+  // Redirect is handled by AuthProvider to avoid conflicts
+  // AuthProvider automatically redirects authenticated users from /login to /dashboard
 
   const errors = validate(form);
   const touch  = (f) => setTouched((t) => ({ ...t, [f]: true }));
@@ -81,31 +68,13 @@ function LoginForm() {
       // accounts created before email verification was introduced.
       const verifyUrl = `/verify-email?token=${encodeURIComponent(res.verificationToken)}`;
 
-      // Try Next.js router first
-      router.replace(verifyUrl);
-
-      // Fallback for mobile browsers - force redirect after 100ms
-      setTimeout(() => {
-        if (window.location.pathname === "/login") {
-          window.location.href = verifyUrl;
-        }
-      }, 100);
-
+      // Use window.location.href for immediate, reliable redirect
+      window.location.href = verifyUrl;
       return;
     }
 
-    // Navigate immediately after a successful login as well as through the
-    // auth-state effect above. This avoids mobile browser timing differences.
-    if (res.success) {
-      const redirectPath = searchParams.get("redirect") || "/dashboard";
-      router.replace(redirectPath);
-      setTimeout(() => {
-        if (window.location.pathname === "/login") {
-          window.location.replace(redirectPath);
-        }
-      }, 100);
-      return;
-    }
+    // For successful login, let the useEffect handle redirect based on isAuthenticated
+    // This prevents double redirects and refresh loops
 
     if (!res.success) {
       setServerError(res.message || "Invalid credentials. Please try again.");

@@ -132,7 +132,14 @@ export const useAuthStore = create(
 
           // Check if email verification is required
           if (res.data?.requiresVerification) {
-            set({ isLoading: false });
+            sessionMonitor.stop();
+            set({
+              user: null,
+              accessToken: null,
+              isAuthenticated: false,
+              isLoading: false,
+              error: res.data.message || null,
+            });
             return {
               success: false,
               requiresVerification: true,
@@ -163,7 +170,14 @@ export const useAuthStore = create(
           const verification = err.response?.data;
           if (verification?.requiresVerification && verification?.verificationToken) {
             const message = verification.message || "Please verify your email before logging in.";
-            set({ error: message, isLoading: false });
+            sessionMonitor.stop();
+            set({
+              user: null,
+              accessToken: null,
+              isAuthenticated: false,
+              error: message,
+              isLoading: false,
+            });
             return {
               success: false,
               requiresVerification: true,
@@ -311,7 +325,20 @@ export const useAuthStore = create(
         try {
           set({ isLoading: true, error: null });
           const res = await api.post("/auth/verify-email", data);
-          set({ isLoading: false });
+
+          const user = res.data?.data?.user || res.data?.user;
+          if (!user) throw new Error("Invalid verification response");
+
+          // Email verification also starts a session. Store that state before
+          // navigating so mobile browsers do not bounce back to /login.
+          clearLogoutMarker();
+          set({ user, isAuthenticated: true, isLoading: false, error: null });
+          authSync.broadcast("login", { user });
+
+          sessionMonitor.start(async (reason) => {
+            await get().logout();
+          });
+
           return { success: true, data: res.data };
         } catch (err) {
           const message =
