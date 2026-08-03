@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { hasLogoutMarker, useAuthStore } from "@/store/auth.store";
 import { useSubscriptionStore } from "@/store/subscription.store";
@@ -15,6 +15,7 @@ export default function AuthProvider({ children }) {
   const isHydrated         = useAuthStore((s) => s.isHydrated);
   const isAuthenticated    = useAuthStore((s) => s.isAuthenticated);
   const fetchSubscription  = useSubscriptionStore((s) => s.fetchSubscription);
+  const redirectingRef     = useRef(false);
 
   // Initialize cross-tab sync on mount
   useEffect(() => {
@@ -26,13 +27,17 @@ export default function AuthProvider({ children }) {
     // Skip auth check if pathname not ready yet or auth state not hydrated
     if (!pathname || !isHydrated) return;
 
-    // Allow /verify-email only if token parameter exists
+    // Allow /verify-email if token in URL OR sessionStorage
     if (pathname === "/verify-email") {
-      const hasToken = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("token");
-      if (!hasToken) {
-        // No token parameter - redirect to register
-        window.location.href = "/register";
-        return;
+      if (typeof window !== "undefined") {
+        const hasUrlToken = new URLSearchParams(window.location.search).has("token");
+        const hasStoredToken = window.sessionStorage.getItem("verify_token");
+
+        if (!hasUrlToken && !hasStoredToken) {
+          // No token in URL or storage - redirect to register
+          window.location.href = "/register";
+          return;
+        }
       }
       return; // Valid verification page access
     }
@@ -48,8 +53,32 @@ export default function AuthProvider({ children }) {
     );
 
     if (shouldRedirectToDashboard && isAuthenticated && !hasLogoutMarker()) {
+      // Prevent multiple simultaneous redirects
+      if (redirectingRef.current) return;
+
       console.log('Authenticated user on public page, redirecting to dashboard');
-      window.location.href = "/dashboard";
+      redirectingRef.current = true;
+
+      // Detect mobile browsers
+      const isMobile = typeof window !== "undefined" && /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+      if (isMobile) {
+        // Mobile: Small delay to ensure auth state is fully settled
+        // Re-check auth state when timeout fires to avoid stale redirects
+        setTimeout(() => {
+          if (useAuthStore.getState().isAuthenticated && !hasLogoutMarker()) {
+            console.log('Mobile redirect executing to dashboard');
+            window.location.replace("/dashboard");
+          } else {
+            console.log('Mobile redirect cancelled - auth state changed');
+            redirectingRef.current = false;
+          }
+        }, 250);
+      } else {
+        // Desktop: Immediate redirect
+        console.log('Desktop redirect executing to dashboard');
+        window.location.replace("/dashboard");
+      }
       return;
     }
 
@@ -66,6 +95,8 @@ export default function AuthProvider({ children }) {
   useEffect(() => {
     const isProtectedPage = () => {
       const currentPath = window.location.pathname;
+      // Exclude verify-email from revalidation - it has its own token management
+      if (currentPath === "/verify-email") return false;
       return !PUBLIC_ROUTES.includes(currentPath) && !currentPath.startsWith("/e/");
     };
 

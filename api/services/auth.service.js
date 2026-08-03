@@ -650,6 +650,10 @@ export async function loginUser({
 
     // Check if email is verified
     if (!user.email_verified) {
+      // This account cannot receive a session until verification is complete.
+      // Clear any previous account's browser cookies before showing its code page.
+      clearAuthCookies(res);
+
       // Older unverified accounts may predate the verification-token column.
       // Generate and persist a token here so they can always reach the code and
       // resend screen after entering their valid password.
@@ -877,6 +881,10 @@ export async function googleLogin({
       throw new Error("Invalid Google token");
     }
 
+    if (!googleUser.emailVerified) {
+      throw new Error("Google did not confirm this email address");
+    }
+
     let user;
 
     /* =========================
@@ -943,6 +951,23 @@ export async function googleLogin({
         `,
         [user.id, googleUser.googleId]
       );
+    }
+
+    // Google has confirmed ownership of this address. If this is an account
+    // originally created with email/password, complete its pending LiteEvent
+    // verification and invalidate the now-unneeded email code.
+    if (!user.email_verified) {
+      const verifiedUser = await client.query(
+        `UPDATE users
+         SET email_verified = true,
+             verification_code = NULL,
+             verification_code_expires = NULL,
+             verification_token = NULL
+         WHERE id = $1
+         RETURNING *`,
+        [user.id]
+      );
+      user = verifiedUser.rows[0];
     }
 
     /* =========================

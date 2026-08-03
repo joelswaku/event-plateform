@@ -11,6 +11,7 @@ export async function verifyGoogleToken(idToken) {
   return {
     googleId: payload.sub,
     email:    payload.email,
+    emailVerified: payload.email_verified === true || payload.email_verified === "true",
     name:     payload.name,
     picture:  payload.picture,
   };
@@ -25,6 +26,7 @@ export async function verifyGoogleAccessToken(accessToken) {
   return {
     googleId: payload.sub,
     email:    payload.email,
+    emailVerified: payload.email_verified === true || payload.email_verified === "true",
     name:     payload.name,
     picture:  payload.picture,
   };

@@ -1,17 +1,20 @@
 "use client";
 
-import { Suspense, useState, useRef, useEffect } from "react";
+import { Suspense, useState, useRef, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import AuthShell from "@/components/auth/AuthShell";
+import { useAuthStore } from "@/store/auth.store";
+import { api } from "@/lib/api";
 
 const INPUT_CLASS = "w-16 h-16 text-center text-2xl font-bold rounded-xl bg-[#0a0a14] border border-white/10 focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/20 text-white outline-none transition-all";
 
 function VerifyEmailForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get("token") || "";
+  const urlToken = searchParams.get("token") || "";
+  const verifyEmail = useAuthStore((state) => state.verifyEmail);
 
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [isLoading, setIsLoading] = useState(false);
@@ -19,14 +22,25 @@ function VerifyEmailForm() {
   const [success, setSuccess] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState("");
+  const [token] = useState(() => {
+    if (typeof window === "undefined") return urlToken;
+    if (urlToken) {
+      window.sessionStorage.setItem("verify_token", urlToken);
+      return urlToken;
+    }
+    return window.sessionStorage.getItem("verify_token") || "";
+  });
 
   const inputRefs = [useRef(), useRef(), useRef(), useRef(), useRef(), useRef()];
+  const lastAutoSubmittedCode = useRef("");
 
-  // Redirect if no token
-  if (!token) {
-    router.replace("/register");
-    return null;
-  }
+  // Return safely to registration only if neither the URL nor this browser tab
+  // has the verification token.
+  useEffect(() => {
+    if (token) return;
+    const redirectTimer = window.setTimeout(() => router.replace("/register"), 0);
+    return () => window.clearTimeout(redirectTimer);
+  }, [router, token]);
 
   const handleChange = (index, value) => {
     if (!/^\d*$/.test(value)) return;
@@ -53,15 +67,7 @@ function VerifyEmailForm() {
     setCode(newCode);
   };
 
-  // Auto-verify when all 6 digits are filled
-  useEffect(() => {
-    const verificationCode = code.join("");
-    if (verificationCode.length === 6 && !isLoading && !success) {
-      handleSubmit({ preventDefault: () => {} });
-    }
-  }, [code]);
-
-  const handleSubmit = async (e) => {
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     const verificationCode = code.join("");
     
@@ -74,28 +80,50 @@ function VerifyEmailForm() {
     setIsLoading(true);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ token, code: verificationCode }),
-      });
+      const result = await verifyEmail({ token, code: verificationCode });
 
-      const data = await res.json();
-
-      if (!data.success) {
-        setError(data.message || "Verification failed");
+      if (!result.success) {
+        setError(result.message || "Verification failed");
         setIsLoading(false);
         return;
       }
 
       setSuccess(true);
-      setTimeout(() => router.push("/dashboard"), 2000);
+      // Clear token from sessionStorage after successful verification
+      sessionStorage.removeItem("verify_token");
+
+      // Single reliable redirect after showing success message
+      setTimeout(() => {
+        window.location.href = "/dashboard";
+      }, 1000);
     } catch (err) {
       setError("Something went wrong");
       setIsLoading(false);
     }
-  };
+  }, [code, token, verifyEmail]);
+
+  // Auto-verify when all 6 digits are filled.
+  useEffect(() => {
+    const verificationCode = code.join("");
+    if (verificationCode.length < 6) {
+      lastAutoSubmittedCode.current = "";
+      return;
+    }
+
+    if (
+      token &&
+      verificationCode !== lastAutoSubmittedCode.current &&
+      !isLoading &&
+      !success
+    ) {
+      const submitTimer = window.setTimeout(() => {
+        if (lastAutoSubmittedCode.current === verificationCode) return;
+        lastAutoSubmittedCode.current = verificationCode;
+        void handleSubmit({ preventDefault: () => {} });
+      }, 0);
+      return () => window.clearTimeout(submitTimer);
+    }
+  }, [code, handleSubmit, isLoading, success, token]);
 
   const handleResend = async () => {
     setResendLoading(true);
@@ -103,19 +131,15 @@ function VerifyEmailForm() {
     setError("");
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/resend-verification-code`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
-      });
-
-      const data = await res.json();
-      setResendMessage(data.message);
+      const res = await api.post("/auth/resend-verification-code", { token });
+      setResendMessage(res.data?.message || "Verification code sent.");
     } catch (err) {
       setError("Failed to resend code");
     }
     setResendLoading(false);
   };
+
+  if (!token) return null;
 
   if (success) {
     return (

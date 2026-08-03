@@ -1,7 +1,13 @@
 import axios from "axios";
 
+// Use Next.js' same-origin rewrite in the browser. It keeps the session cookie
+// first-party on desktop and mobile browsers; server-side rendering keeps the
+// configured absolute API URL.
+const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const apiBaseUrl = typeof window === "undefined" ? configuredApiUrl : "/api";
+
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api",
+  baseURL: apiBaseUrl,
   withCredentials: true, // Send httpOnly cookies automatically
   timeout: 10000,
 });
