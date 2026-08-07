@@ -20,18 +20,18 @@ import { CSS } from "@dnd-kit/utilities";
 // ── Constants ──────────────────────────────────────────────────────────────
 
 const COLS = [
-  { id: "TODO",        label: "To Do",       dot: "#6b7280", accent: "border-gray-500/30",   bg: "bg-gray-500/5",   head: "text-gray-400"   },
-  { id: "IN_PROGRESS", label: "In Progress",  dot: "#6366f1", accent: "border-indigo-500/30", bg: "bg-indigo-500/5", head: "text-indigo-400" },
-  { id: "DONE",        label: "Done",         dot: "#10b981", accent: "border-emerald-500/30",bg: "bg-emerald-500/5",head: "text-emerald-400"},
-  { id: "BLOCKED",     label: "Blocked",      dot: "#ef4444", accent: "border-red-500/30",    bg: "bg-red-500/5",    head: "text-red-400"    },
+  { id: "TODO",        label: "To Do",       dot: "#6b7280", accent: "border-gray-500/30",   bg: "bg-gray-500/5",   head: "text-gray-700 dark:text-gray-400"   },
+  { id: "IN_PROGRESS", label: "In Progress",  dot: "#6366f1", accent: "border-indigo-500/30", bg: "bg-indigo-500/5", head: "text-indigo-600 dark:text-indigo-400" },
+  { id: "DONE",        label: "Done",         dot: "#10b981", accent: "border-emerald-500/30",bg: "bg-emerald-500/5",head: "text-emerald-600 dark:text-emerald-400"},
+  { id: "BLOCKED",     label: "Blocked",      dot: "#ef4444", accent: "border-red-500/30",    bg: "bg-red-500/5",    head: "text-red-600 dark:text-red-400"    },
 ];
 
 const COL_MAP = Object.fromEntries(COLS.map(c => [c.id, c]));
 
 const PRIORITY = {
-  HIGH:   { label: "High",   color: "#ef4444", cls: "text-red-400",   bg: "bg-red-500/15",   border: "border-l-red-500"    },
-  MEDIUM: { label: "Medium", color: "#f59e0b", cls: "text-amber-400", bg: "bg-amber-500/15", border: "border-l-amber-500"  },
-  LOW:    { label: "Low",    color: "#6b7280", cls: "text-gray-400",  bg: "bg-gray-500/15",  border: "border-l-gray-500"   },
+  HIGH:   { label: "High",   color: "#ef4444", cls: "text-red-600 dark:text-red-400",   bg: "bg-red-100 dark:bg-red-500/15",   border: "border-l-red-500"    },
+  MEDIUM: { label: "Medium", color: "#f59e0b", cls: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-500/15", border: "border-l-amber-500"  },
+  LOW:    { label: "Low",    color: "#6b7280", cls: "text-gray-700 dark:text-gray-400",  bg: "bg-gray-100 dark:bg-gray-500/15",  border: "border-l-gray-500"   },
 };
 
 const PHASES = [
@@ -99,13 +99,13 @@ function PageSkeleton() {
   return (
     <div className="flex h-full flex-col animate-pulse p-5 gap-5">
       <div className="grid grid-cols-4 gap-3">
-        {[...Array(4)].map((_, i) => <div key={i} className="h-20 rounded-2xl bg-white/4" />)}
+        {[...Array(4)].map((_, i) => <div key={i} className="h-20 rounded-2xl bg-gray-100 dark:bg-white/4" />)}
       </div>
       <div className="flex gap-4 overflow-hidden flex-1">
         {[...Array(4)].map((_, i) => (
           <div key={i} className="flex-1 min-w-52 space-y-2">
-            <div className="h-10 rounded-xl bg-white/4" />
-            {[...Array(5)].map((_, j) => <div key={j} className="h-7 rounded-lg bg-white/3" />)}
+            <div className="h-10 rounded-xl bg-gray-100 dark:bg-white/4" />
+            {[...Array(5)].map((_, j) => <div key={j} className="h-7 rounded-lg bg-gray-50 dark:bg-white/3" />)}
           </div>
         ))}
       </div>
@@ -120,7 +120,7 @@ function EmptyBoard({ onAI, onAdd, loading }) {
     <div className="flex-1 flex flex-col items-center justify-center text-center py-20">
       <div className="relative mb-6">
         <div className="w-20 h-20 rounded-3xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-          <CheckCircle2 className="w-9 h-9 text-indigo-400" />
+          <CheckCircle2 className="w-9 h-9 text-indigo-600 dark:text-indigo-400" />
         </div>
         <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center">
           <Sparkles className="w-3 h-3 text-white" />
@@ -176,11 +176,11 @@ function CompactCard({ task, onClick, onDelete }) {
         className="w-1.5 h-1.5 rounded-full shrink-0"
         style={{ backgroundColor: pm.color, boxShadow: `0 0 5px ${pm.color}50` }}
       />
-      <p className={`flex-1 text-[12px] font-medium leading-tight truncate min-w-0 ${overdue ? "text-red-400" : "text-foreground/80"}`}>
+      <p className={`flex-1 text-[12px] font-medium leading-tight truncate min-w-0 ${overdue ? "text-red-600 dark:text-red-400" : "text-foreground/80"}`}>
         {task.title}
       </p>
       {task.due_date && (
-        <span className={`text-[10px] tabular-nums shrink-0 font-semibold ${overdue ? "text-red-400" : "text-muted-foreground"}`}>
+        <span className={`text-[10px] tabular-nums shrink-0 font-semibold ${overdue ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}`}>
           {dueFmt(task.due_date)}
         </span>
       )}
@@ -209,7 +209,7 @@ function SortableCard({ task, onDelete, onClick }) {
     <div
       ref={setNodeRef} style={style}
       onClick={() => onClick(task)}
-      className={`group relative bg-[#0e0e1f] border border-white/8 hover:border-white/20 rounded-xl overflow-hidden cursor-pointer transition-all duration-150 hover:shadow-lg hover:shadow-black/30 border-l-2 ${pm.border}`}
+      className={`group relative bg-white dark:bg-[#0e0e1f] border border-gray-200 dark:border-white/8 hover:border-gray-300 dark:hover:border-white/20 rounded-xl overflow-hidden cursor-pointer transition-all duration-150 hover:shadow-lg hover:shadow-black/10 dark:hover:shadow-black/30 border-l-2 ${pm.border}`}
     >
       <div className="p-3.5">
         <div className="flex items-start gap-2 mb-2.5">
@@ -237,7 +237,7 @@ function SortableCard({ task, onDelete, onClick }) {
         )}
         <div className="flex items-center gap-1.5 flex-wrap ml-5">
           {task.category && (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-500/12 text-indigo-400 border border-indigo-500/15 uppercase tracking-wide">
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-500/12 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/15 uppercase tracking-wide">
               {task.category}
             </span>
           )}
@@ -246,7 +246,7 @@ function SortableCard({ task, onDelete, onClick }) {
           </span>
           {task.due_date && (
             <span className={`flex items-center gap-0.5 text-[10px] font-semibold ${
-              overdue ? "text-red-400" : days !== null && days <= 3 ? "text-amber-400" : "text-muted-foreground"
+              overdue ? "text-red-600 dark:text-red-400" : days !== null && days <= 3 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"
             }`}>
               <Calendar className="w-2.5 h-2.5" />
               {dueFmt(task.due_date)}
@@ -261,7 +261,7 @@ function SortableCard({ task, onDelete, onClick }) {
         </div>
       </div>
       {task.progress > 0 && (
-        <div className="h-0.5 bg-white/6">
+        <div className="h-0.5 bg-gray-200 dark:bg-white/6">
           <div className="h-full bg-indigo-500 transition-all duration-500" style={{ width: `${task.progress}%` }} />
         </div>
       )}
@@ -281,7 +281,7 @@ function PhaseGroup({ phase, tasks, density, onCardClick, onDelete }) {
   const remaining = tasks.length - shown;
 
   return (
-    <div className="rounded-xl border border-white/5 overflow-hidden" style={{ backgroundColor: `${phase.color}04` }}>
+    <div className="rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden bg-gray-50/50 dark:bg-transparent" style={{ backgroundColor: `${phase.color}04` }}>
       {/* Accordion header */}
       <button
         onClick={() => setOpen(o => !o)}
@@ -385,21 +385,21 @@ function SmartBacklogColumn({ tasks, onDelete, onCardClick, addingCol, setAdding
           </div>
           <div className="flex items-center gap-0.5">
             {/* Muted count badge */}
-            <span className="text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md bg-white/5 text-gray-600 mr-1">
+            <span className="text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-500 mr-1">
               {tasks.length}
             </span>
             {/* Density toggle */}
             <button
               onClick={() => setDensity(d => d === "compact" ? "comfortable" : "compact")}
               title={density === "compact" ? "Switch to comfortable view" : "Switch to compact view"}
-              className="p-1 rounded-md text-gray-600 hover:text-gray-200 hover:bg-white/8 transition-colors"
+              className="p-1 rounded-md text-gray-600 dark:text-gray-600 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-white/8 transition-colors"
             >
               {density === "compact" ? <LayoutGrid className="w-3 h-3" /> : <List className="w-3 h-3" />}
             </button>
             {/* Collapse/expand */}
             <button
               onClick={() => setCollapsed(c => !c)}
-              className="p-1 rounded-md text-gray-600 hover:text-gray-200 hover:bg-white/8 transition-colors"
+              className="p-1 rounded-md text-gray-600 dark:text-gray-600 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-white/8 transition-colors"
             >
               <ChevronDown
                 className="w-3.5 h-3.5 transition-transform duration-200"
@@ -418,35 +418,35 @@ function SmartBacklogColumn({ tasks, onDelete, onCardClick, addingCol, setAdding
 
         {/* In-column controls */}
         {!collapsed && (
-          <div className="px-2.5 pb-2.5 border-t border-white/5 pt-2.5 space-y-2">
+          <div className="px-2.5 pb-2.5 border-t border-gray-200 dark:border-white/5 pt-2.5 space-y-2">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-600 pointer-events-none" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500 dark:text-gray-600 pointer-events-none" />
               <input
                 value={colSearch}
                 onChange={e => setColSearch(e.target.value)}
                 placeholder="Filter backlog…"
-                className="w-full pl-7 pr-6 py-1.5 rounded-lg bg-black/30 border border-white/6 text-[11px] text-white placeholder:text-gray-700 outline-none focus:border-gray-500/40 transition-colors"
+                className="w-full pl-7 pr-6 py-1.5 rounded-lg bg-white dark:bg-black/30 border border-gray-300 dark:border-white/6 text-[11px] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-700 outline-none focus:border-gray-400 dark:focus:border-gray-500/40 transition-colors"
               />
               {colSearch && (
                 <button
                   onClick={() => setColSearch("")}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-white"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-600 hover:text-gray-900 dark:hover:text-white"
                 >
                   <X className="w-2.5 h-2.5" />
                 </button>
               )}
             </div>
             {/* Group by pills */}
-            <div className="flex gap-px p-0.5 rounded-lg bg-black/20 border border-white/5">
+            <div className="flex gap-px p-0.5 rounded-lg bg-gray-100 dark:bg-black/20 border border-gray-200 dark:border-white/5">
               {[["phase", "Phase"], ["priority", "Priority"], ["none", "Flat"]].map(([v, l]) => (
                 <button
                   key={v}
                   onClick={() => setGroupBy(v)}
                   className={`flex-1 py-1 rounded-md text-[10px] font-bold transition-all ${
                     groupBy === v
-                      ? "bg-white/10 text-white shadow-sm"
-                      : "text-gray-600 hover:text-gray-300"
+                      ? "bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm"
+                      : "text-gray-600 dark:text-gray-600 hover:text-gray-900 dark:hover:text-gray-300"
                   }`}
                 >
                   {l}
@@ -461,9 +461,9 @@ function SmartBacklogColumn({ tasks, onDelete, onCardClick, addingCol, setAdding
       {collapsed && (
         <button
           onClick={() => setCollapsed(false)}
-          className="shrink-0 px-3 py-2 rounded-xl bg-white/2 border border-white/5 hover:bg-white/4 transition-colors"
+          className="shrink-0 px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/2 border border-gray-200 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/4 transition-colors"
         >
-          <p className="text-[10px] text-gray-600 text-center">
+          <p className="text-[10px] text-gray-600 dark:text-gray-600 text-center">
             {tasks.length} tasks — click to expand
           </p>
         </button>
@@ -491,7 +491,7 @@ function SmartBacklogColumn({ tasks, onDelete, onCardClick, addingCol, setAdding
             ))}
             {filtered.length === 0 && (
               <div className="py-10 text-center">
-                <p className="text-[11px] text-gray-600">
+                <p className="text-[11px] text-gray-600 dark:text-gray-600">
                   {colSearch ? "No tasks match your filter" : "No tasks yet"}
                 </p>
               </div>
@@ -513,7 +513,7 @@ function SmartBacklogColumn({ tasks, onDelete, onCardClick, addingCol, setAdding
                 if (e.key === "Escape") setAddingCol(null);
               }}
               placeholder="Task name… (Enter to add)"
-              className="w-full bg-[#0e0e1f] border border-gray-500/30 rounded-xl px-3 py-2 text-sm text-white placeholder:text-gray-600 outline-none resize-none leading-snug"
+              className="w-full bg-white dark:bg-[#0e0e1f] border border-gray-300 dark:border-gray-500/30 rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none resize-none leading-snug"
             />
             <div className="flex gap-1.5">
               <button
@@ -524,7 +524,7 @@ function SmartBacklogColumn({ tasks, onDelete, onCardClick, addingCol, setAdding
               </button>
               <button
                 onClick={() => { setAddingCol(null); setNewTitle(""); }}
-                className="px-3 py-1.5 rounded-lg bg-white/6 text-gray-400 text-xs hover:bg-white/10 transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/6 text-gray-600 dark:text-gray-400 text-xs hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -533,7 +533,7 @@ function SmartBacklogColumn({ tasks, onDelete, onCardClick, addingCol, setAdding
         ) : (
           <button
             onClick={() => { setCollapsed(false); setAddingCol(col.id); }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-gray-600 hover:text-gray-300 hover:bg-white/4 text-xs font-medium transition-colors w-full"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-gray-600 dark:text-gray-600 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/4 text-xs font-medium transition-colors w-full"
           >
             <Plus className="w-3.5 h-3.5" /> Add task
           </button>
@@ -559,13 +559,13 @@ function KanbanCol({ col, tasks, onDelete, onCardClick, addingCol, setAddingCol,
         </div>
         <div className="flex items-center gap-1.5">
           {tasks.length > 0 && (
-            <span className="text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md bg-white/5 text-gray-500">
+            <span className="text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-500">
               {tasks.length}
             </span>
           )}
           <button
             onClick={() => setAddingCol(col.id)}
-            className={`p-0.5 rounded-md ${col.head} hover:bg-white/10 transition-colors`}
+            className={`p-0.5 rounded-md ${col.head} hover:bg-gray-200 dark:hover:bg-white/10 transition-colors`}
           >
             <Plus className="w-3.5 h-3.5" />
           </button>
@@ -625,7 +625,7 @@ function KanbanCol({ col, tasks, onDelete, onCardClick, addingCol, setAddingCol,
                 if (e.key === "Escape") setAddingCol(null);
               }}
               placeholder="Task name… (Enter to add)"
-              className="w-full bg-[#0e0e1f] border border-indigo-500/40 rounded-xl px-3 py-2 text-sm text-white placeholder:text-gray-600 outline-none resize-none leading-snug"
+              className="w-full bg-white dark:bg-[#0e0e1f] border border-indigo-400 dark:border-indigo-500/40 rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none resize-none leading-snug"
             />
             <div className="flex gap-1.5">
               <button
@@ -636,7 +636,7 @@ function KanbanCol({ col, tasks, onDelete, onCardClick, addingCol, setAddingCol,
               </button>
               <button
                 onClick={() => { setAddingCol(null); setNewTitle(""); }}
-                className="px-3 py-1.5 rounded-lg bg-white/6 text-gray-400 text-xs hover:bg-white/10 transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/6 text-gray-600 dark:text-gray-400 text-xs hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -645,7 +645,7 @@ function KanbanCol({ col, tasks, onDelete, onCardClick, addingCol, setAddingCol,
         ) : (
           <button
             onClick={() => setAddingCol(col.id)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-gray-600 hover:text-gray-300 hover:bg-white/4 text-xs font-medium transition-colors w-full"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-gray-600 dark:text-gray-600 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/4 text-xs font-medium transition-colors w-full"
           >
             <Plus className="w-3.5 h-3.5" /> Add task
           </button>
@@ -668,18 +668,18 @@ function ListRow({ task, onDelete, onClick, onToggleDone }) {
       {/* Mobile card — shown below sm */}
       <div
         onClick={() => onClick(task)}
-        className={`sm:hidden flex items-start gap-3 px-3 py-3 border-b border-white/5 last:border-0 cursor-pointer active:bg-white/4 transition-colors ${done ? "opacity-60" : ""}`}
+        className={`sm:hidden flex items-start gap-3 px-3 py-3 border-b border-gray-200 dark:border-white/5 last:border-0 cursor-pointer active:bg-gray-100 dark:active:bg-white/4 transition-colors ${done ? "opacity-60" : ""}`}
       >
         <button
           onClick={e => { e.stopPropagation(); onToggleDone(task); }}
           className={`mt-0.5 shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all active:scale-90 ${
-            done ? "bg-emerald-500 border-emerald-500" : "border-white/25 hover:border-emerald-500/60"
+            done ? "bg-emerald-500 border-emerald-500" : "border-gray-300 dark:border-white/25 hover:border-emerald-500/60"
           }`}
         >
           {done && <Check className="w-3 h-3 text-white" />}
         </button>
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-semibold leading-snug ${done ? "line-through text-gray-500" : "text-white"}`}>
+          <p className={`text-sm font-semibold leading-snug ${done ? "line-through text-gray-500" : "text-gray-900 dark:text-white"}`}>
             {task.title}
           </p>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -693,41 +693,41 @@ function ListRow({ task, onDelete, onClick, onToggleDone }) {
               {pm.label}
             </span>
             {task.due_date && (
-              <span className={`flex items-center gap-0.5 text-[10px] font-semibold ${overdue ? "text-red-400" : "text-gray-500"}`}>
+              <span className={`flex items-center gap-0.5 text-[10px] font-semibold ${overdue ? "text-red-600 dark:text-red-400" : "text-gray-600 dark:text-gray-500"}`}>
                 {overdue && <AlertTriangle className="w-2.5 h-2.5" />}
                 {dueFmt(task.due_date)}
               </span>
             )}
           </div>
         </div>
-        <ChevronRight className="w-4 h-4 text-gray-600 shrink-0 mt-1" />
+        <ChevronRight className="w-4 h-4 text-gray-500 dark:text-gray-600 shrink-0 mt-1" />
       </div>
 
       {/* Desktop table row — hidden below sm */}
       <div
         onClick={() => onClick(task)}
-        className="hidden sm:flex items-center gap-3 px-4 py-3 border-b border-white/5 last:border-0 hover:bg-white/2 cursor-pointer group transition-colors"
+        className="hidden sm:flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-white/5 last:border-0 hover:bg-gray-50 dark:hover:bg-white/2 cursor-pointer group transition-colors"
       >
         <button
           onClick={e => { e.stopPropagation(); onToggleDone(task); }}
           className={`shrink-0 w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
-            done ? "bg-emerald-500 border-emerald-500" : "border-white/20 hover:border-emerald-500/60"
+            done ? "bg-emerald-500 border-emerald-500" : "border-gray-300 dark:border-white/20 hover:border-emerald-500/60"
           }`}
         >
           {done && <Check className="w-2.5 h-2.5 text-white" />}
         </button>
         <div className="w-1 h-8 rounded-full shrink-0" style={{ backgroundColor: pm.color }} />
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-medium leading-tight ${done ? "line-through text-gray-500" : "text-white"}`}>
+          <p className={`text-sm font-medium leading-tight ${done ? "line-through text-gray-500" : "text-gray-900 dark:text-white"}`}>
             {task.title}
           </p>
           {task.description && (
-            <p className="text-[11px] text-gray-600 truncate mt-0.5">{task.description}</p>
+            <p className="text-[11px] text-gray-600 dark:text-gray-600 truncate mt-0.5">{task.description}</p>
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {task.category && (
-            <span className="hidden lg:block text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-500/12 text-indigo-400 border border-indigo-500/15 uppercase">
+            <span className="hidden lg:block text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-500/12 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/15 uppercase">
               {task.category}
             </span>
           )}
@@ -741,7 +741,7 @@ function ListRow({ task, onDelete, onClick, onToggleDone }) {
             {col.label}
           </span>
           {task.due_date && (
-            <span className={`flex items-center gap-1 text-[11px] font-semibold ${overdue ? "text-red-400" : "text-gray-500"}`}>
+            <span className={`flex items-center gap-1 text-[11px] font-semibold ${overdue ? "text-red-600 dark:text-red-400" : "text-gray-600 dark:text-gray-500"}`}>
               {overdue && <AlertTriangle className="w-3 h-3" />}
               <Calendar className="w-3 h-3" />
               {dueFmt(task.due_date)}
@@ -749,7 +749,7 @@ function ListRow({ task, onDelete, onClick, onToggleDone }) {
           )}
           <button
             onClick={e => { e.stopPropagation(); onDelete(task.id); }}
-            className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/8 transition-all"
+            className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-gray-500 dark:text-gray-600 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/8 transition-all"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -761,7 +761,7 @@ function ListRow({ task, onDelete, onClick, onToggleDone }) {
 
 // ── Task Detail Panel ──────────────────────────────────────────────────────
 
-const FIELD_CLS = "w-full bg-white/4 border border-white/8 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-600 outline-none focus:border-indigo-500/40 transition-colors";
+const FIELD_CLS = "w-full bg-white dark:bg-white/4 border border-gray-300 dark:border-white/8 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none focus:border-indigo-500 dark:focus:border-indigo-500/40 transition-colors";
 
 function DetailPanel({ task, projectId, onClose, onDelete }) {
   const { updateTask } = usePlannerStore();
@@ -800,19 +800,19 @@ function DetailPanel({ task, projectId, onClose, onDelete }) {
   const overdue = isOverdue(task);
 
   return (
-    <div className="fixed inset-0 z-50 sm:relative sm:inset-auto sm:z-auto w-full sm:w-80 shrink-0 border-0 sm:border-l border-white/8 bg-[#0b0b18] flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
+    <div className="fixed inset-0 z-50 sm:relative sm:inset-auto sm:z-auto w-full sm:w-80 shrink-0 border-0 sm:border-l border-gray-200 dark:border-white/8 bg-white dark:bg-[#0b0b18] flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-white/8">
         <div className="flex items-center gap-2">
-          <Edit3 className="w-3.5 h-3.5 text-gray-500" />
-          <p className="text-sm font-bold text-white">Task Details</p>
+          <Edit3 className="w-3.5 h-3.5 text-gray-600 dark:text-gray-500" />
+          <p className="text-sm font-bold text-gray-900 dark:text-white">Task Details</p>
         </div>
         <div className="flex items-center gap-1">
           {overdue && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/20">
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-500/15 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20">
               Overdue
             </span>
           )}
-          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/8 transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/8 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -820,40 +820,40 @@ function DetailPanel({ task, projectId, onClose, onDelete }) {
 
       <div className="flex-1 overflow-y-auto p-5 space-y-4">
         <div>
-          <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">Title</label>
+          <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-500 uppercase tracking-wide mb-1.5">Title</label>
           <textarea className={`${FIELD_CLS} resize-none leading-snug`} rows={2} value={form.title} onChange={f("title")} placeholder="Task title" />
         </div>
         <div>
-          <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+          <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-500 uppercase tracking-wide mb-1.5">
             <span className="flex items-center gap-1"><AlignLeft className="w-3 h-3" /> Description</span>
           </label>
           <textarea className={`${FIELD_CLS} resize-none`} rows={3} value={form.description} onChange={f("description")} placeholder="Add a description…" />
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">Status</label>
+            <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-500 uppercase tracking-wide mb-1.5">Status</label>
             <select className={FIELD_CLS} value={form.status} onChange={f("status")}>
-              {COLS.map(c => <option key={c.id} value={c.id} className="bg-[#0b0b18]">{c.label}</option>)}
+              {COLS.map(c => <option key={c.id} value={c.id} className="bg-white dark:bg-[#0b0b18]">{c.label}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+            <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-500 uppercase tracking-wide mb-1.5">
               <span className="flex items-center gap-1"><Flag className="w-3 h-3" /> Priority</span>
             </label>
             <select className={FIELD_CLS} value={form.priority} onChange={f("priority")}>
-              {Object.entries(PRIORITY).map(([k, v]) => <option key={k} value={k} className="bg-[#0b0b18]">{v.label}</option>)}
+              {Object.entries(PRIORITY).map(([k, v]) => <option key={k} value={k} className="bg-white dark:bg-[#0b0b18]">{v.label}</option>)}
             </select>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+            <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-500 uppercase tracking-wide mb-1.5">
               <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> Due Date</span>
             </label>
             <input type="date" className={FIELD_CLS} value={form.due_date} onChange={f("due_date")} />
           </div>
           <div>
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+            <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-500 uppercase tracking-wide mb-1.5">
               <span className="flex items-center gap-1"><User className="w-3 h-3" /> Assignee</span>
             </label>
             <input className={FIELD_CLS} value={form.assignee_name} onChange={f("assignee_name")} placeholder="Name" />
@@ -861,37 +861,37 @@ function DetailPanel({ task, projectId, onClose, onDelete }) {
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+            <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-500 uppercase tracking-wide mb-1.5">
               <span className="flex items-center gap-1"><Tag className="w-3 h-3" /> Category</span>
             </label>
             <input className={FIELD_CLS} value={form.category} onChange={f("category")} placeholder="e.g. Venue" />
           </div>
           <div>
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+            <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-500 uppercase tracking-wide mb-1.5">
               <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" /> Est. Cost</span>
             </label>
             <input type="number" className={FIELD_CLS} value={form.estimated_cost} onChange={f("estimated_cost")} placeholder="0.00" />
           </div>
         </div>
         {task.ai_generated && (
-          <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-violet-500/8 border border-violet-500/15">
-            <Sparkles className="w-3 h-3 text-violet-400" />
-            <span className="text-[11px] text-violet-400 font-semibold">AI generated task</span>
+          <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-violet-100 dark:bg-violet-500/8 border border-violet-200 dark:border-violet-500/15">
+            <Sparkles className="w-3 h-3 text-violet-600 dark:text-violet-400" />
+            <span className="text-[11px] text-violet-700 dark:text-violet-400 font-semibold">AI generated task</span>
           </div>
         )}
-        <div className="pt-1 space-y-1 border-t border-white/6">
-          <p className="text-[10px] text-gray-600">
+        <div className="pt-1 space-y-1 border-t border-gray-200 dark:border-white/6">
+          <p className="text-[10px] text-gray-600 dark:text-gray-600">
             Created {new Date(task.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
           </p>
           {task.completed_at && (
-            <p className="text-[10px] text-emerald-600">
+            <p className="text-[10px] text-emerald-600 dark:text-emerald-600">
               Completed {new Date(task.completed_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
             </p>
           )}
         </div>
       </div>
 
-      <div className="p-4 border-t border-white/8 space-y-2">
+      <div className="p-4 border-t border-gray-200 dark:border-white/8 space-y-2">
         <button
           onClick={save} disabled={saving}
           className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold disabled:opacity-60 transition-all active:scale-[0.97] flex items-center justify-center gap-2"
@@ -1035,16 +1035,16 @@ export default function TasksPage() {
       <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
 
         {/* ── Stats strip ── */}
-        <div className="px-3 sm:px-5 pt-3 sm:pt-5 pb-0 shrink-0">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-5">
-            <div className="col-span-2 md:col-span-1 bg-white/3 border border-white/8 rounded-2xl px-4 py-3 flex items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-2xl font-black text-white leading-none">{donePct}%</p>
-                <p className="text-[11px] text-gray-500 mt-0.5 font-semibold">Complete</p>
+        <div className="px-2 sm:px-5 pt-1.5 sm:pt-5 pb-0 shrink-0">
+          <div className="grid grid-cols-4 gap-1 sm:gap-3 mb-1.5 sm:mb-5">
+            <div className="bg-white dark:bg-white/3 border border-gray-200 dark:border-white/8 rounded-lg sm:rounded-2xl px-1.5 py-1.5 sm:px-4 sm:py-3 flex flex-col sm:flex-row items-center sm:gap-3">
+              <div className="flex-1 min-w-0 text-center sm:text-left">
+                <p className="text-sm sm:text-2xl font-black text-gray-900 dark:text-white leading-none">{donePct}%</p>
+                <p className="text-[8px] sm:text-[11px] text-gray-600 dark:text-gray-500 mt-0.5 font-semibold leading-tight">Complete</p>
               </div>
-              <div className="relative w-10 h-10 shrink-0">
+              <div className="relative w-5 h-5 sm:w-10 sm:h-10 shrink-0 hidden sm:block">
                 <svg className="-rotate-90 w-10 h-10">
-                  <circle cx="20" cy="20" r="15" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="4" />
+                  <circle cx="20" cy="20" r="15" fill="none" className="stroke-gray-200 dark:stroke-white/6" strokeWidth="4" />
                   <circle cx="20" cy="20" r="15" fill="none" stroke="#6366f1" strokeWidth="4"
                     strokeDasharray={`${(donePct / 100) * 94.2} 94.2`} strokeLinecap="round"
                     style={{ transition: "stroke-dasharray 0.7s ease" }} />
@@ -1052,20 +1052,20 @@ export default function TasksPage() {
               </div>
             </div>
             {[
-              { label: "Total Tasks",  value: totalTasks,                     color: "text-white"       },
-              { label: "In Progress",  value: tasks.IN_PROGRESS?.length ?? 0, color: "text-indigo-400"  },
-              { label: "Overdue",      value: overdue,                        color: overdue > 0 ? "text-red-400" : "text-gray-600" },
+              { label: "Total Tasks",  value: totalTasks,                     color: "text-gray-900 dark:text-white"       },
+              { label: "In Progress",  value: tasks.IN_PROGRESS?.length ?? 0, color: "text-indigo-600 dark:text-indigo-400"  },
+              { label: "Overdue",      value: overdue,                        color: overdue > 0 ? "text-red-600 dark:text-red-400" : "text-gray-600 dark:text-gray-600" },
             ].map(s => (
-              <div key={s.label} className="bg-white/3 border border-white/8 rounded-2xl px-4 py-3">
-                <p className={`text-2xl font-black leading-none ${s.color}`}>{s.value}</p>
-                <p className="text-[11px] text-gray-500 mt-0.5 font-semibold">{s.label}</p>
+              <div key={s.label} className="bg-white dark:bg-white/3 border border-gray-200 dark:border-white/8 rounded-lg sm:rounded-2xl px-1.5 py-1.5 sm:px-4 sm:py-3 text-center sm:text-left">
+                <p className={`text-sm sm:text-2xl font-black leading-none ${s.color}`}>{s.value}</p>
+                <p className="text-[8px] sm:text-[11px] text-gray-600 dark:text-gray-500 mt-0.5 font-semibold leading-tight">{s.label}</p>
               </div>
             ))}
           </div>
 
           {totalTasks > 0 && (
-            <div className="mb-4">
-              <div className="flex h-1.5 rounded-full overflow-hidden gap-px mb-2 bg-white/5">
+            <div className="mb-2 sm:mb-4">
+              <div className="flex h-1 sm:h-1.5 rounded-full overflow-hidden gap-px mb-1.5 sm:mb-2 bg-gray-200 dark:bg-white/5">
                 {COLS.map(col => {
                   const count = tasks[col.id]?.length ?? 0;
                   const pct   = Math.round((count / totalTasks) * 100);
@@ -1075,15 +1075,15 @@ export default function TasksPage() {
                   ) : null;
                 })}
               </div>
-              <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
                 {COLS.map(col => {
                   const count = tasks[col.id]?.length ?? 0;
                   if (!count) return null;
                   return (
-                    <div key={col.id} className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: col.dot }} />
-                      <span className="text-[10px] text-gray-500 font-semibold">{col.label}</span>
-                      <span className="text-[10px] text-white font-bold">{count}</span>
+                    <div key={col.id} className="flex items-center gap-1 sm:gap-1.5">
+                      <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full" style={{ backgroundColor: col.dot }} />
+                      <span className="text-[9px] sm:text-[10px] text-gray-600 dark:text-gray-500 font-semibold">{col.label}</span>
+                      <span className="text-[9px] sm:text-[10px] text-gray-900 dark:text-white font-bold">{count}</span>
                     </div>
                   );
                 })}
@@ -1134,12 +1134,12 @@ export default function TasksPage() {
           {view === "list" && (
             <select
               value={sortBy} onChange={e => setSortBy(e.target.value)}
-              className="text-xs bg-white/5 border border-white/8 rounded-lg px-2.5 py-2 text-gray-400 outline-none focus:border-indigo-500/40 cursor-pointer"
+              className="text-xs bg-white dark:bg-white/5 border border-gray-300 dark:border-white/8 rounded-lg px-2.5 py-2 text-gray-700 dark:text-gray-400 outline-none focus:border-indigo-500 dark:focus:border-indigo-500/40 cursor-pointer"
             >
-              <option value="default"  className="bg-[#0b0b18]">Default</option>
-              <option value="priority" className="bg-[#0b0b18]">Priority</option>
-              <option value="due"      className="bg-[#0b0b18]">Due date</option>
-              <option value="status"   className="bg-[#0b0b18]">Status</option>
+              <option value="default"  className="bg-white dark:bg-[#0b0b18]">Default</option>
+              <option value="priority" className="bg-white dark:bg-[#0b0b18]">Priority</option>
+              <option value="due"      className="bg-white dark:bg-[#0b0b18]">Due date</option>
+              <option value="status"   className="bg-white dark:bg-[#0b0b18]">Status</option>
             </select>
           )}
           <div className="flex items-center gap-2 ml-auto">

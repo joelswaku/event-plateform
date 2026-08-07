@@ -23,7 +23,7 @@ import {
   sendNewUserWelcomeEmail,
 } from "../utils/sendEmail.js";
 
-import { verifyGoogleAccessToken } from "./google.service.js";
+import { verifyGoogleAccessToken, verifyGoogleToken } from "./google.service.js";
 
 /* ------------------------------------------------ */
 /* REGISTER USER */
@@ -865,6 +865,7 @@ export async function loginUser({
 // }
 export async function googleLogin({
   accessToken,
+  idToken,
   ip,
   userAgent,
   deviceName,
@@ -875,7 +876,11 @@ export async function googleLogin({
   try {
     await client.query("BEGIN");
 
-    const googleUser = await verifyGoogleAccessToken(accessToken);
+    // The native Google button returns a signed ID token. Keep accepting the
+    // existing access-token path for desktop/backward compatibility.
+    const googleUser = idToken
+      ? await verifyGoogleToken(idToken)
+      : await verifyGoogleAccessToken(accessToken);
 
     if (!googleUser?.email || !googleUser?.googleId) {
       throw new Error("Invalid Google token");

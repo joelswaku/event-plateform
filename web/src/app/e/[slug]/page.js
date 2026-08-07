@@ -51,6 +51,8 @@ export async function generateMetadata({ params }) {
   if (!event) return { title: "Event" };
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://liteevent.com";
+  const eventName = String(event.title || "").trim();
+  const eventCity = String(event.city || "").trim();
 
   // Build description with rating if available
   let description = event.short_description || event.description || "Join this event";
@@ -63,12 +65,16 @@ export async function generateMetadata({ params }) {
     description,
     keywords: [
       event.event_type,
-      event.title,
-      event.city,
+      eventName,
+      eventName && `${eventName} event`,
+      eventCity && `${eventName} ${eventCity}`,
+      eventCity,
       event.country,
       "event",
-      "tickets",
-      "registration",
+      event.allow_ticketing && `${eventName} tickets`,
+      event.allow_ticketing && `${eventName} ticket registration`,
+      event.allow_rsvp && `${eventName} RSVP`,
+      event.allow_rsvp && `${eventName} registration`,
       event.average_rating && "top rated event",
       event.average_rating && "highly reviewed",
     ].filter(Boolean),

@@ -48,22 +48,24 @@ export default function ForgotPasswordPage() {
       {/* Back link */}
       <Link
         href="/login"
-        className="inline-flex items-center gap-1.5 text-[13px] text-[#6366f1] hover:text-[#818cf8] transition-colors mb-8 font-semibold"
+        className="inline-flex items-center gap-1.5 text-[13px] text-[#6366f1] hover:text-[#818cf8] transition-colors mb-6 font-semibold"
       >
         <ArrowLeft className="w-3.5 h-3.5" />
         Back to sign in
       </Link>
 
-      {!sent ? (
-        <>
-          <div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Forgot password?</h1>
-            <p className="text-gray-500 text-sm mt-1.5">
-              Enter your email and we&apos;ll send you a reset link.
-            </p>
-          </div>
+      {/* Glass card container - compact on mobile */}
+      <div className="bg-white/5 backdrop-blur-sm border border-white/8 rounded-3xl p-4 sm:p-6">
+        {!sent ? (
+          <div className="space-y-4 sm:space-y-6">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Forgot password?</h1>
+              <p className="text-white/45 text-xs sm:text-sm mt-1">
+                Enter your email and we&apos;ll send you a reset link.
+              </p>
+            </div>
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-5" noValidate>
+            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4" noValidate>
             <div>
               <label htmlFor="email" className="block text-xs font-semibold text-white/45 tracking-wide mb-1.5">
                 Email address
@@ -93,28 +95,28 @@ export default function ForgotPasswordPage() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#6366f1] hover:bg-[#818cf8] active:scale-[0.99] text-white text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#6366f1]/20"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Sending…
-                </>
-              ) : (
-                <>
-                  <Mail className="w-4 h-4" />
-                  Send Reset Link
-                </>
-              )}
-            </button>
-          </form>
-        </>
-      ) : (
-        /* ── Sent state ─────────────────────────────────────────── */
-        <div className="text-center">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#6366f1] hover:bg-[#818cf8] active:scale-[0.99] text-white text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#6366f1]/20"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Sending…
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-4 h-4" />
+                    Send Reset Link
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        ) : (
+          /* ── Sent state ─────────────────────────────────────────── */
+          <div className="text-center">
           <div className="mx-auto mb-5 w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
             <CheckCircle className="w-7 h-7 text-emerald-400" />
           </div>
@@ -127,22 +129,23 @@ export default function ForgotPasswordPage() {
             It may take a minute to arrive.
           </p>
 
-          <div className="mt-8 space-y-3">
-            <button
-              onClick={() => { setSent(false); setTouched(false); setServerError(""); }}
-              className="w-full py-3 rounded-xl border border-white/10 text-white/45 hover:text-white hover:border-white/20 text-sm font-semibold transition-all"
-            >
-              Try a different email
-            </button>
-            <Link
-              href="/login"
-              className="block w-full py-3.5 rounded-xl bg-[#6366f1] hover:bg-[#818cf8] text-white text-sm font-bold text-center transition-colors shadow-lg shadow-[#6366f1]/20"
-            >
-              Back to Sign In
-            </Link>
+            <div className="mt-8 space-y-3">
+              <button
+                onClick={() => { setSent(false); setTouched(false); setServerError(""); }}
+                className="w-full py-3 rounded-xl border border-white/10 text-white/45 hover:text-white hover:border-white/20 text-sm font-semibold transition-all"
+              >
+                Try a different email
+              </button>
+              <Link
+                href="/login"
+                className="block w-full py-3.5 rounded-xl bg-[#6366f1] hover:bg-[#818cf8] text-white text-sm font-bold text-center transition-colors shadow-lg shadow-[#6366f1]/20"
+              >
+                Back to Sign In
+              </Link>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </AuthShell>
   );
 }

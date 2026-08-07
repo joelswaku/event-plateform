@@ -921,7 +921,7 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
   const requestPlannerAccess = useSubscriptionStore(s => s.requestPlannerAccess);
   const status   = (event.status ?? "DRAFT").toUpperCase();
   const countdown = useMobileCountdown(event.starts_at_utc);
-  const { updateEvent, publishEvent, unpublishEvent, archiveEvent, restoreEvent, deleteEvent } = useEventStore();
+  const { updateEvent, publishEvent, unpublishEvent, archiveEvent, restoreEvent, deleteEvent, fetchEventDashboard } = useEventStore();
   const [loading,    setLoading]   = useState(false);
   const [modal,      setModal]     = useState(null);
   const [menuOpen,   setMenuOpen]  = useState(false);
@@ -984,8 +984,16 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
 
   const run = useCallback(async (fn) => {
     setLoading(true);
-    try { await fn(); } finally { setLoading(false); }
-  }, []);
+    try {
+      await fn();
+      // Refetch event data to show updated status (for mobile)
+      if (fetchEventDashboard && eventId) {
+        await fetchEventDashboard(eventId);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [eventId, fetchEventDashboard]);
 
   const handleShare = useCallback(async () => {
     if (!event.slug) return;

@@ -11,6 +11,7 @@ const LOGOUT_MARKER_KEY = "liteevent:logout";
 
 function markLoggedOut() {
   try {
+    console.log('[Auth] Setting logout marker');
     window.localStorage.setItem(LOGOUT_MARKER_KEY, "1");
   } catch {
     /* storage unavailable */
@@ -19,6 +20,7 @@ function markLoggedOut() {
 
 function clearLogoutMarker() {
   try {
+    console.log('[Auth] Clearing logout marker');
     window.localStorage.removeItem(LOGOUT_MARKER_KEY);
   } catch {
     /* storage unavailable */
@@ -50,6 +52,14 @@ export const useAuthStore = create(
       setHydrated: () => set({ isHydrated: true }),
       clearError: () => set({ error: null }),
       setUser: (user) => set({ user }),
+      clearPersistedAuth: () =>
+        set({
+          user: null,
+          accessToken: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: null,
+        }),
 
       // Initialize cross-tab sync
       initSync: () => {
@@ -348,11 +358,11 @@ export const useAuthStore = create(
         }
       },
 
-      googleLogin: async ({ access_token }) => {
+      googleLogin: async ({ access_token, id_token }) => {
         try {
           set({ isLoading: true, error: null });
 
-          const res = await api.post("/auth/google", { access_token });
+          const res = await api.post("/auth/google", id_token ? { id_token } : { access_token });
 
           const user = res.data?.data?.user || res.data?.user;
 
@@ -468,6 +478,12 @@ export const useAuthStore = create(
         isAuthenticated: state.isAuthenticated,
       }),
       onRehydrateStorage: () => (state) => {
+        // If logout marker is set, immediately clear persisted auth state
+        // This handles the case where user logged out but persisted storage still has auth data
+        if (hasLogoutMarker()) {
+          console.log('Logout marker found during rehydration, clearing auth state');
+          state?.clearPersistedAuth?.();
+        }
         state?.setHydrated();
       },
     },

@@ -19,8 +19,12 @@ class SessionMonitor {
    */
   start(onTimeout) {
     if (typeof window === 'undefined') return;
-    if (this.isMonitoring) return;
+    if (this.isMonitoring) {
+      console.log('[SessionMonitor] Already monitoring, skipping start');
+      return;
+    }
 
+    console.log('[SessionMonitor] Starting session monitoring');
     this.onTimeout = onTimeout;
     this.lastActivity = Date.now();
     this.isMonitoring = true;
@@ -35,9 +39,14 @@ class SessionMonitor {
     this.checkInterval = setInterval(() => {
       const now = Date.now();
       const timeSinceActivity = now - this.lastActivity;
+      const minutesInactive = Math.floor(timeSinceActivity / 60000);
+
+      if (minutesInactive >= 1) {
+        console.log(`[SessionMonitor] Periodic check - inactive for ${minutesInactive} minutes`);
+      }
 
       if (timeSinceActivity >= INACTIVITY_TIMEOUT) {
-        console.log('Session timeout due to inactivity');
+        console.log(`[SessionMonitor] Session timeout due to inactivity (${Math.floor(INACTIVITY_TIMEOUT / 60000)} minutes)`);
         this.stop();
         if (this.onTimeout) {
           this.onTimeout('inactivity');
@@ -56,6 +65,9 @@ class SessionMonitor {
   handleVisibilityChange = () => {
     if (document.visibilityState === 'visible') {
       const timeSinceActivity = Date.now() - this.lastActivity;
+      const minutesInactive = Math.floor(timeSinceActivity / 60000);
+
+      console.log(`[SessionMonitor] Tab visible - inactive for ${minutesInactive} minutes`);
 
       // If user was inactive for too long while tab was hidden
       if (timeSinceActivity >= INACTIVITY_TIMEOUT) {
@@ -66,6 +78,7 @@ class SessionMonitor {
         }
       } else {
         // Update activity when tab becomes visible
+        console.log('[SessionMonitor] Session still valid, updating activity');
         this.updateActivity();
       }
     }

@@ -2108,6 +2108,12 @@ function VendorDiscovery({ projectId, project, projectVendorNames, realVendors =
   const [state,            setState]            = useState("");
   const [country,          setCountry]          = useState(project?.country || "");
   const [category,         setCategory]         = useState("All");
+
+  // Auto-sync location when project loads
+  useEffect(() => {
+    if (project?.city && !city) setCity(project.city);
+    if (project?.country && !country) setCountry(project.country);
+  }, [project?.city, project?.country, city, country]);
   const [showAllYourVendors, setShowAllYourVendors] = useState(false);
   const YOUR_VENDORS_PREVIEW = 4;
   const [places,        setPlaces]        = useState([]);
@@ -2155,7 +2161,12 @@ function VendorDiscovery({ projectId, project, projectVendorNames, realVendors =
 
   async function runSearch(cat) {
     const q   = GPLACES_CAT_QUERIES[cat] || cat.toLowerCase();
-    const loc = [city, state, country].filter(Boolean).join(", ");
+    // Use current state or fall back to project location
+    const currentCity = city || project?.city || "";
+    const currentState = state || "";
+    const currentCountry = country || project?.country || "";
+    const loc = [currentCity, currentState, currentCountry].filter(Boolean).join(", ");
+
     setLoading(true);
     setPlaces([]);
     setSearchError("");
@@ -2192,7 +2203,15 @@ function VendorDiscovery({ projectId, project, projectVendorNames, realVendors =
     setCategory(cat);
     setPlaces([]);
     setPortalVendors([]);
-    if (cat !== "All") runSearch(cat);
+
+    // Auto-set project location if not already set
+    if (project?.city && !city) setCity(project.city);
+    if (project?.country && !country) setCountry(project.country);
+
+    if (cat !== "All") {
+      // Small delay to ensure state is updated
+      setTimeout(() => runSearch(cat), 100);
+    }
   }
 
   async function handleAddPlace(place) {

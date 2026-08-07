@@ -1,7 +1,7 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, AlertCircle } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
@@ -38,8 +38,7 @@ function Field({ label, id, error, touched, children }) {
 }
 
 function LoginForm() {
-  const { login, isLoading, isAuthenticated, isHydrated } = useAuthStore();
-  const router       = useRouter();
+  const { login, isLoading } = useAuthStore();
   const searchParams = useSearchParams();
 
   const [form,        setForm]        = useState({ email: "", password: "" });
@@ -88,12 +87,14 @@ function LoginForm() {
       headline="Manage your events like a pro."
       subline="Create, sell tickets, track guests, and grow your events effortlessly."
     >
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white tracking-tight">Welcome back</h1>
-        <p className="text-gray-500 text-sm mt-1">Sign in to continue</p>
-      </div>
+      {/* Glass card container - compact on mobile */}
+      <div className="bg-white/5 backdrop-blur-sm border border-white/8 rounded-3xl p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Welcome back</h1>
+          <p className="text-white/45 text-xs sm:text-sm mt-1">Sign in to continue</p>
+        </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4" noValidate>
         <Field label="Email" id="email" error={errors.email} touched={touched.email}>
           <input
             id="email"
@@ -149,37 +150,38 @@ function LoginForm() {
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#6366f1] hover:bg-[#818cf8] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-bold transition-all shadow-lg shadow-[#6366f1]/20"
-          suppressHydrationWarning
-        >
-          {isLoading ? (
-            <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> Signing in…</>
-          ) : "Sign In"}
-        </button>
-      </form>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#6366f1] hover:bg-[#818cf8] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-bold transition-all shadow-lg shadow-[#6366f1]/20"
+            suppressHydrationWarning
+          >
+            {isLoading ? (
+              <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> Signing in…</>
+            ) : "Sign In"}
+          </button>
+        </form>
 
-      {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID &&
-       process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID_HERE' && (
-        <>
-          <div className="flex items-center gap-3 my-6">
-            <div className="h-px flex-1 bg-white/8" />
-            <span className="text-gray-600 text-xs font-medium uppercase tracking-wider">or</span>
-            <div className="h-px flex-1 bg-white/8" />
-          </div>
+        {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID &&
+         process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID_HERE' && (
+          <>
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-white/8" />
+              <span className="text-white/30 text-xs font-medium uppercase tracking-wider">or</span>
+              <div className="h-px flex-1 bg-white/8" />
+            </div>
 
-          <GoogleLoginButton redirectTo={redirectTo} />
-        </>
-      )}
+            <GoogleLoginButton redirectTo={redirectTo} />
+          </>
+        )}
 
-      <p className="text-center text-sm text-white/40 mt-6">
-        Don&apos;t have an account?{" "}
-        <Link href="/register" className="text-[#6366f1] font-bold hover:text-[#818cf8] transition-colors">
-          Sign up
-        </Link>
-      </p>
+        <p className="text-center text-sm text-white/40">
+          Don&apos;t have an account?{" "}
+          <Link href="/register" className="text-[#6366f1] font-bold hover:text-[#818cf8] transition-colors">
+            Sign up
+          </Link>
+        </p>
+      </div>
     </AuthShell>
   );
 }

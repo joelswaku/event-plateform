@@ -1074,16 +1074,9 @@ function TasksSection({ project, projectId, onGenerate, generating }: { project:
 
       {/* ── 4-KPI strip ── */}
       <View style={s.taskKpiGrid}>
-        <View style={[s.taskKpiCard, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.taskKpiVal}>{donePct}%</Text>
-            <Text style={s.taskKpiLabel}>Complete</Text>
-          </View>
-          <Svg width={40} height={40} style={{ transform: [{ rotate: '-90deg' }] }}>
-            <Circle cx={20} cy={20} r={R} stroke="rgba(255,255,255,0.06)" strokeWidth={4} fill="none" />
-            <Circle cx={20} cy={20} r={R} stroke={Colors.accent.indigo} strokeWidth={4} fill="none"
-              strokeDasharray={`${dash} ${C}`} strokeLinecap="round" />
-          </Svg>
+        <View style={[s.taskKpiCard, { alignItems: 'center', justifyContent: 'center' }]}>
+          <Text style={s.taskKpiVal}>{donePct}%</Text>
+          <Text style={s.taskKpiLabel}>Complete</Text>
         </View>
         <View style={s.taskKpiCard}>
           <Text style={s.taskKpiVal}>{allTasks.length}</Text>
@@ -3212,10 +3205,10 @@ const s = StyleSheet.create({
   statChipLabel: { fontSize: 10, color: 'rgba(255,255,255,0.4)', fontWeight: '600', marginTop: 2 },
 
   /* Task section — web-parity */
-  taskKpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  taskKpiCard: { width: '47.5%', backgroundColor: Colors.bg.card, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 18, paddingHorizontal: 14, paddingVertical: 12 },
-  taskKpiVal:   { fontSize: 22, fontWeight: '900', color: '#fff', letterSpacing: -0.5, lineHeight: 28 },
-  taskKpiLabel: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.4)', marginTop: 2 },
+  taskKpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  taskKpiCard: { width: '24%', backgroundColor: Colors.bg.card, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 8 },
+  taskKpiVal:   { fontSize: 16, fontWeight: '900', color: '#fff', letterSpacing: -0.5, lineHeight: 20 },
+  taskKpiLabel: { fontSize: 8, fontWeight: '700', color: 'rgba(255,255,255,0.4)', marginTop: 2, lineHeight: 10 },
 
   taskSearchWrap:  { flexDirection: 'row', alignItems: 'center', position: 'relative' },
   taskSearchInput: { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 12, paddingLeft: 36, paddingRight: 36, paddingVertical: 10, fontSize: 13, color: '#fff' },

@@ -11,6 +11,8 @@ import { verifyEmail, resendCode } from "../controllers/auth/verifyEmail.control
 import { forgotPassword } from "../controllers/auth/forgotPassword.controller.js";
 import { resetPassword } from "../controllers/auth/resetPassword.controller.js";
 import { googleLogin } from "../controllers/auth/googleLogin.controller.js";
+import { googleRedirect } from "../controllers/auth/googleRedirect.controller.js";
+import { googleCallback } from "../controllers/auth/googleCallback.controller.js";
 import { me }             from "../controllers/auth/me.controller.js";
 import { uploadAvatar }   from "../controllers/auth/uploadAvatar.controller.js";
 import { updateProfile }  from "../controllers/auth/updateProfile.controller.js";
@@ -36,8 +38,12 @@ router.post("/register", registerLimiter, register);
 // Login user
 router.post("/login", loginLimiter, login);
 
-// Google OAuth login
+// Google OAuth login (POST - for mobile apps)
 router.post("/google", googleAuthLimiter, googleLogin);
+
+// Google OAuth redirect flow (for web browsers to fix mobile cookie issues)
+router.get("/google/redirect", googleRedirect);
+router.get("/google/callback", googleCallback);
 
 // Refresh access token
 router.post("/refresh-token", refreshToken);

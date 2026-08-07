@@ -23,7 +23,7 @@ const navItems = [
   { label: "Create Event", href: "/events/create", icon: PlusSquare },
 ];
 
-function SidebarItem({ item, showExpanded, badge, onClick }) {
+function SidebarItem({ item, showExpanded, badge, onClick, onNavigate }) {
   const pathname = usePathname();
   const Icon     = item.icon;
   const active   = pathname === item.href || pathname.startsWith(item.href + "/");
@@ -84,6 +84,7 @@ function SidebarItem({ item, showExpanded, badge, onClick }) {
   return (
     <Link
       href={item.href}
+      onClick={onNavigate}
       title={!showExpanded ? item.label : undefined}
       className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 border-l-3 ${
         !showExpanded ? "justify-center" : ""
@@ -167,7 +168,17 @@ export default function DashboardSidebar() {
   }
 
   async function handlePlannerNavigation() {
-    if (await requestPlannerAccess()) router.push("/planner");
+    if (await requestPlannerAccess()) {
+      setMobileOpen(false);
+      router.push("/planner");
+    }
+  }
+
+  // The sidebar is shared between routes. Close its mobile drawer before a
+  // normal navigation so it cannot remain open when a user returns via the
+  // fixed bottom navigation.
+  function closeMobileSidebar() {
+    setMobileOpen(false);
   }
 
   return (
@@ -232,6 +243,7 @@ export default function DashboardSidebar() {
                 item={item}
                 showExpanded={showExpanded}
                 badge={item.href === "/support" && !isSuperAdmin ? unreadTotal : 0}
+                onNavigate={closeMobileSidebar}
               />
             );
           })}
@@ -263,6 +275,7 @@ export default function DashboardSidebar() {
           <div className="shrink-0 mx-3 mb-2">
             <Link
               href="/super-admin"
+              onClick={closeMobileSidebar}
               className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition-all border ${!showExpanded ? "justify-center" : ""}`}
               style={{
                 background: "rgba(201,169,110,0.10)",
@@ -281,6 +294,7 @@ export default function DashboardSidebar() {
         <div className="shrink-0 border-t border-gray-200 dark:border-white/8 p-3 space-y-1">
           <Link
             href="/settings/billing"
+            onClick={closeMobileSidebar}
             className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white transition-colors ${!showExpanded ? "justify-center" : ""}`}
             title={!showExpanded ? "Settings" : undefined}
           >

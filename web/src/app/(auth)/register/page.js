@@ -126,25 +126,27 @@ function RegisterForm() {
       headline="Start your event journey today."
       subline="Create events, invite guests, and grow your audience with powerful tools."
     >
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white tracking-tight">Create account</h1>
-        <p className="text-gray-500 text-sm mt-1">Join thousands of event organizers</p>
-      </div>
+      {/* Glass card container - compact on mobile */}
+      <div className="bg-white/5 backdrop-blur-sm border border-white/8 rounded-3xl p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Create account</h1>
+          <p className="text-white/45 text-xs sm:text-sm mt-1">Join thousands of event organizers</p>
+        </div>
 
-      {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID &&
-       process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID_HERE' && (
-        <>
-          <GoogleLoginButton />
+        {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID &&
+         process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID_HERE' && (
+          <>
+            <GoogleLoginButton />
 
-          <div className="flex items-center gap-3 my-6">
-            <div className="h-px flex-1 bg-white/8" />
-            <span className="text-gray-600 text-xs font-medium uppercase tracking-wider">or</span>
-            <div className="h-px flex-1 bg-white/8" />
-          </div>
-        </>
-      )}
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-white/8" />
+              <span className="text-white/30 text-xs font-medium uppercase tracking-wider">or</span>
+              <div className="h-px flex-1 bg-white/8" />
+            </div>
+          </>
+        )}
 
-      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4" noValidate>
         <Field label="Full Name" id="full_name" error={errors.full_name} touched={touched.full_name}>
           <input
             id="full_name"
@@ -267,7 +269,8 @@ function RegisterForm() {
           )}
         </div>
 
-        <LegalModal slug={legalSlug} onClose={() => setLegalSlug(null)} />
+          <LegalModal slug={legalSlug} onClose={() => setLegalSlug(null)} />
+        </form>
 
         <p className="text-center text-sm text-white/40">
           Already have an account?{" "}
@@ -275,7 +278,7 @@ function RegisterForm() {
             Sign in
           </Link>
         </p>
-      </form>
+      </div>
     </AuthShell>
   );
 }

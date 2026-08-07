@@ -1,5 +1,4 @@
 import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
-import { GoogleOAuthProvider } from "@react-oauth/google";
 import { Toaster } from "react-hot-toast";
 
 import AuthProvider from "@/providers/AuthProvider";
@@ -123,27 +122,25 @@ export default function RootLayout({ children }) {
         {/* Google Analytics */}
         <GoogleAnalytics measurementId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
 
-        <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}>
-          <ThemeProvider>
-            <AuthProvider>
-              {children}
+        <ThemeProvider>
+          <AuthProvider>
+            {children}
 
-              <UpgradeModal />
-              <BillingModal />
+            <UpgradeModal />
+            <BillingModal />
 
-              <Toaster
-                position="top-right"
-                toastOptions={{
-                  style: {
-                    borderRadius: "12px",
-                    background: "#111827",
-                    color: "#fff",
-                  },
-                }}
-              />
-            </AuthProvider>
-          </ThemeProvider>
-        </GoogleOAuthProvider>
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                style: {
+                  borderRadius: "12px",
+                  background: "#111827",
+                  color: "#fff",
+                },
+              }}
+            />
+          </AuthProvider>
+        </ThemeProvider>
 
       </body>
     </html>
