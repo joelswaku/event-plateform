@@ -629,6 +629,22 @@ export default function EventPageClient({ event, sections, token }) {
       if ('scrollRestoration' in window.history) {
         window.history.scrollRestoration = 'manual';
       }
+
+      // Prevent auto-focus/auto-scroll to elements with IDs (like id="tickets")
+      // This stops the browser from scrolling to the ticket section on page load
+      const preventAutoScroll = () => {
+        window.scrollTo(0, 0);
+      };
+
+      // Run multiple times to catch delayed auto-scrolls
+      const timeouts = [
+        setTimeout(preventAutoScroll, 0),
+        setTimeout(preventAutoScroll, 100),
+        setTimeout(preventAutoScroll, 300),
+        setTimeout(preventAutoScroll, 500),
+      ];
+
+      return () => timeouts.forEach(clearTimeout);
     }
   }, []);
 
