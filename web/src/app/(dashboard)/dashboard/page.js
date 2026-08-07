@@ -463,7 +463,13 @@ function MobileBottomNav() {
   const pathname  = usePathname();
   const router    = useRouter();
   const logoutFn  = useAuthStore(s => s.logout);
+  const events    = useEventStore(s => s.events);
+  const activeEventId = useEventStore(s => s.activeEventId);
   const requestPlannerAccess = useSubscriptionStore(s => s.requestPlannerAccess);
+  // The dashboard Scan button needs a concrete event ID. Falling back to the
+  // Events page is intentional only when the user has no available event.
+  const scannerEvent = events.find(event => event.id === activeEventId) ?? events[0] ?? null;
+  const scanHref = scannerEvent ? `/events/${scannerEvent.id}/scanner` : "/events";
 
   async function handleLogout() {
     router.replace("/login");
@@ -495,7 +501,7 @@ function MobileBottomNav() {
         {tabs.map((tab, i) => {
           if (!tab) {
             return (
-              <Link key="scan" href="/events" className="relative z-10 -mt-2.5 flex flex-1 flex-col items-center justify-center gap-px transition-transform active:scale-95">
+              <Link key="scan" href={scanHref} className="relative z-10 -mt-2.5 flex flex-1 flex-col items-center justify-center gap-px transition-transform active:scale-95">
                 <div
                   className="flex h-[54px] w-[54px] items-center justify-center rounded-[16px]"
                   style={{
