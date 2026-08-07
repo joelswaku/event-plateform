@@ -615,37 +615,63 @@ export default function EventPageClient({ event, sections, token }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, [showStickyBar]);
 
-  // Prevent automatic scroll on Android WebView load
+  // Android Custom Tabs can restore a previous document position after the
+  // ticket requests finish. Keep an initial visit at the Hero, but release the
+  // guard as soon as the visitor intentionally interacts with the page.
   useEffect(() => {
-    // Detect if running in WebView (React Native)
-    const isWebView = typeof navigator !== 'undefined' &&
-      (navigator.userAgent.includes('wv') || window.ReactNativeWebView);
+    const isAndroid = typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
+    if (!isAndroid) return;
 
-    if (isWebView) {
-      // Force scroll to top on mount to prevent auto-scroll jump
+    let visitorInteracted = false;
+    let resetFrame = null;
+    const previousScrollRestoration = window.history.scrollRestoration;
+
+    const resetToTop = () => {
+      if (visitorInteracted) return;
       window.scrollTo(0, 0);
+    };
 
-      // Prevent scroll restoration
-      if ('scrollRestoration' in window.history) {
-        window.history.scrollRestoration = 'manual';
-      }
+    const scheduleTopReset = () => {
+      if (visitorInteracted || window.scrollY === 0 || resetFrame !== null) return;
+      resetFrame = window.requestAnimationFrame(() => {
+        resetFrame = null;
+        resetToTop();
+      });
+    };
 
-      // Prevent auto-focus/auto-scroll to elements with IDs (like id="tickets")
-      // This stops the browser from scrolling to the ticket section on page load
-      const preventAutoScroll = () => {
-        window.scrollTo(0, 0);
-      };
+    const releaseInitialScrollGuard = () => {
+      visitorInteracted = true;
+    };
 
-      // Run multiple times to catch delayed auto-scrolls
-      const timeouts = [
-        setTimeout(preventAutoScroll, 0),
-        setTimeout(preventAutoScroll, 100),
-        setTimeout(preventAutoScroll, 300),
-        setTimeout(preventAutoScroll, 500),
-      ];
-
-      return () => timeouts.forEach(clearTimeout);
+    // Disable browser scroll restoration before the ticket section updates its
+    // layout. The scroll listener catches late restoration from Android Custom
+    // Tabs; it is removed from control on the visitor's first real gesture.
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
     }
+    resetToTop();
+    const initialFrame = window.requestAnimationFrame(resetToTop);
+    const delayedReset = window.setTimeout(resetToTop, 0);
+
+    window.addEventListener("scroll", scheduleTopReset, { passive: true });
+    window.addEventListener("pageshow", resetToTop);
+    ["pointerdown", "touchstart", "wheel", "keydown"].forEach((eventName) => {
+      window.addEventListener(eventName, releaseInitialScrollGuard, { passive: true, capture: true });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(initialFrame);
+      window.clearTimeout(delayedReset);
+      if (resetFrame !== null) window.cancelAnimationFrame(resetFrame);
+      window.removeEventListener("scroll", scheduleTopReset);
+      window.removeEventListener("pageshow", resetToTop);
+      ["pointerdown", "touchstart", "wheel", "keydown"].forEach((eventName) => {
+        window.removeEventListener(eventName, releaseInitialScrollGuard, true);
+      });
+      if ("scrollRestoration" in window.history) {
+        window.history.scrollRestoration = previousScrollRestoration;
+      }
+    };
   }, []);
 
   useEffect(() => {
