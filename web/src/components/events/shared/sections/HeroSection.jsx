@@ -1819,7 +1819,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
     return (
       <section aria-label="Event hero"
         className={`relative flex min-h-screen flex-col justify-start overflow-visible ${textAlignClass} ${isEditor ? "cursor-pointer" : ""}`}
-        style={{ background: bg, minHeight: '100svh' }}
+        style={{ background: bg }}
         onClick={isEditor ? onEdit : undefined}
       >
         {bgImg && (
@@ -1872,7 +1872,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
     return (
       <section aria-label="Event hero"
         className={`relative flex min-h-screen flex-col justify-start overflow-visible ${isEditor ? "cursor-pointer" : ""}`}
-        style={{ background: bg, minHeight: '100svh' }}
+        style={{ background: bg }}
         onClick={isEditor ? onEdit : undefined}
       >
         {bgImg && (
@@ -1921,7 +1921,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
     return (
       <section aria-label="Event hero"
         className={`relative flex min-h-screen flex-col justify-start overflow-visible ${textAlignClass} ${isEditor ? "cursor-pointer" : ""}`}
-        style={{ background: bg, minHeight: '100svh' }}
+        style={{ background: bg }}
         onClick={isEditor ? onEdit : undefined}
       >
         {bgImg && (
@@ -1963,7 +1963,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
     return (
       <section aria-label="Event hero"
         className={`relative flex min-h-screen flex-col justify-start overflow-visible ${textAlignClass} ${isEditor ? "cursor-pointer" : ""}`}
-        style={{ background: bg, minHeight: '100svh' }}
+        style={{ background: bg }}
         onClick={isEditor ? onEdit : undefined}
       >
         {bgImg && (
@@ -2004,7 +2004,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
   return (
     <section aria-label="Event hero"
       className={`relative flex min-h-screen flex-col justify-start overflow-visible ${textAlignClass} ${isEditor ? "cursor-pointer" : ""}`}
-      style={{ background: bg, minHeight: '100svh' }}
+      style={{ background: bg }}
       onClick={isEditor ? onEdit : undefined}
     >
       {bgImg && (
