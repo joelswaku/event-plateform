@@ -353,7 +353,7 @@ export default function CreateEventScreen() {
     if (!form.city.trim()) return showWarning('City required', 'Enter the city where your event takes place.');
 
     // Validate date range
-    if (form.starts_at && form.ends_at && form.ends_at < form.starts_at) {
+    if (form.starts_at && form.ends_at && form.ends_at <= form.starts_at) {
       return showWarning('Invalid dates', 'Event end date/time must be after the start date/time');
     }
 

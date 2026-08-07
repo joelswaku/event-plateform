@@ -119,7 +119,7 @@ export default function EventEditor() {
         const startDate = new Date(startsAt);
         const endDate = new Date(endsAt);
 
-        if (endDate < startDate) {
+        if (endDate <= startDate) {
           setError("Event end date/time must be after the start date/time");
           setSaving(false);
           return;
@@ -272,11 +272,13 @@ export default function EventEditor() {
               onChange={(v) => handleChange("ends_at", v)}
               placeholder="Pick end date & time"
               minValue={form.starts_at}
+              minExclusive
+              minErrorMessage="Event end must be after the event start."
             />
           </div>
         </div>
 
-        {form.starts_at && form.ends_at && new Date(form.ends_at) < new Date(form.starts_at) && (
+        {form.starts_at && form.ends_at && new Date(form.ends_at) <= new Date(form.starts_at) && (
           <p className="text-xs text-red-500">End date must be after start date</p>
         )}
 

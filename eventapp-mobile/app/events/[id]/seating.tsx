@@ -110,36 +110,26 @@ function RNTableShape({ shape, w, h, cx, cy }: {
 
 // ── SVG seat element ──────────────────────────────────────────────────────────────
 
-function RNSeatEl({ pos, idx, guest, selectedGuest, onRemove, onTapEmpty }: {
+function RNSeatEl({ pos, idx, guest, selectedGuest }: {
   pos: { x: number; y: number };
   idx: number;
   guest: { full_name: string; is_vip?: boolean } | null;
   selectedGuest: Guest | null;
-  onRemove: () => void;
-  onTapEmpty: (idx: number) => void;
 }) {
-  const [isPressed, setIsPressed] = useState(false);
   const bg = guest ? avatarBg(guest.full_name) : undefined;
   const displayName = guest ? (guest.full_name.length > 12 ? guest.full_name.slice(0, 10) + '…' : guest.full_name) : '';
   const isSelected = selectedGuest && !guest;
-  const showHover = isPressed || isSelected;
+  const showHover = Boolean(isSelected);
 
   return (
-    <SvgG x={pos.x} y={pos.y}>
-      {/* Main seat circle - pressable */}
+    <SvgG transform={`translate(${pos.x} ${pos.y})`}>
+      {/* Touch handling is intentionally rendered as native Pressables above this SVG.
+          Android WebView/ScrollView combinations do not reliably dispatch SVG press events. */}
       <SvgCircle
         r={24}
         fill={guest ? bg : showHover ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.06)'}
         stroke={guest ? bg : showHover ? '#10b981' : 'rgba(255,255,255,0.14)'}
         strokeWidth={showHover ? 2.5 : 1.5}
-        onPressIn={() => setIsPressed(true)}
-        onPressOut={() => setIsPressed(false)}
-        onPress={() => {
-          setIsPressed(false);
-          if (!guest && selectedGuest) {
-            onTapEmpty(idx);
-          }
-        }}
       />
       {guest ? (
         <>
@@ -156,31 +146,6 @@ function RNSeatEl({ pos, idx, guest, selectedGuest, onRemove, onTapEmpty }: {
           <SvgText x={0} y={48} textAnchor="middle" fontSize={9} fontWeight="600" fill="rgba(255,255,255,0.55)">
             {displayName}
           </SvgText>
-          {/* X button - separate pressable area for removal */}
-          <SvgCircle
-            r={12}
-            cx={18}
-            cy={-18}
-            fill="#ef4444"
-            stroke={Colors.bg.card}
-            strokeWidth={1.5}
-            onPress={(e) => {
-              e.stopPropagation?.();
-              onRemove();
-            }}
-          />
-          <SvgText
-            x={18}
-            y={-14}
-            textAnchor="middle"
-            fontSize={11}
-            fontWeight="700"
-            fill="white"
-            onPress={(e) => {
-              e.stopPropagation?.();
-              onRemove();
-            }}
-          >×</SvgText>
         </>
       ) : (
         <>
@@ -214,6 +179,7 @@ function TableDetailSheet({
 
   const { width: W } = useWindowDimensions();
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [assigningSeat, setAssigningSeat] = useState<number | null>(null);
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [seatedExpanded, setSeatedExpanded] = useState(true);
 
@@ -222,7 +188,12 @@ function TableDetailSheet({
   if (loc) cachedLoc.current = loc;
   const activeLoc = cachedLoc.current;
 
-  useEffect(() => { if (open) setRemovingId(null); }, [open]);
+  useEffect(() => {
+    if (open) {
+      setRemovingId(null);
+      setAssigningSeat(null);
+    }
+  }, [open]);
 
   // Derive this table's assignments — recomputes only when assignments or table changes
   const assigns = useMemo(
@@ -266,33 +237,46 @@ function TableDetailSheet({
 
   const removeSeat = useCallback(async (seatIdx: number) => {
     const entry = seatMap[seatIdx];
-    if (!entry) return;
+    if (!entry || removingId) return;
     setRemovingId(entry.assignment.id);
-    await removeAssignment(eventId, entry.assignment.id);
-    setRemovingId(null);
-  }, [seatMap, removeAssignment, eventId]);
+    try {
+      const result = await removeAssignment(eventId, entry.assignment.id);
+      if (!result.success) {
+        showError('Could not remove guest', result.message ?? 'Please try again.');
+      }
+    } finally {
+      setRemovingId(null);
+    }
+  }, [seatMap, removingId, removeAssignment, eventId]);
 
   const handleTapEmpty = useCallback(async (seatIdx: number) => {
-    if (!selectedGuest || !activeLoc) return;
+    if (!selectedGuest || !activeLoc || assigningSeat !== null) return;
     if (seatMap[seatIdx]) {
-      alert('Seat already taken');
+      showError('Seat already taken', 'Choose a different seat.');
       return;
     }
     if (filled >= capacity) {
-      alert('Table is full');
+      showError('Table is full', 'Remove a guest before adding another one.');
       return;
     }
 
-    const result = await assignGuest(eventId, {
-      guest_id: selectedGuest.id,
-      seating_table_id: activeLoc.id,
-      seat_number: String(seatIdx + 1),
-    });
+    setAssigningSeat(seatIdx);
+    try {
+      const result = await assignGuest(eventId, {
+        guest_id: selectedGuest.id,
+        seating_table_id: activeLoc.id,
+        seat_number: String(seatIdx + 1),
+      });
 
-    if (result.success) {
-      setSelectedGuest(null);
+      if (result.success) {
+        setSelectedGuest(null);
+      } else {
+        showError('Could not assign guest', result.message ?? 'Please try again.');
+      }
+    } finally {
+      setAssigningSeat(null);
     }
-  }, [selectedGuest, activeLoc, seatMap, filled, capacity, assignGuest, eventId]);
+  }, [selectedGuest, activeLoc, assigningSeat, seatMap, filled, capacity, assignGuest, eventId]);
 
   // Return null AFTER all hooks (Rules of Hooks: hooks must be called in the same order every render)
   if (!activeLoc) return null;
@@ -355,22 +339,67 @@ function TableDetailSheet({
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
             {/* SVG diagram */}
             <View style={[dts.svgWrap, { backgroundColor: accent + '06' }]}>
-              <Svg viewBox={`0 0 ${SW} ${SH}`} width={svgW} height={svgH}>
-                <RNTableShape shape={shape} w={tableW} h={tableH} cx={CX} cy={CY} />
-                <SvgText x={CX} y={CY - 8}  textAnchor="middle" fontSize={14} fontWeight="700" fill="rgba(255,255,255,0.55)">{activeLoc.location_name}</SvgText>
-                <SvgText x={CX} y={CY + 14} textAnchor="middle" fontSize={11} fill="rgba(255,255,255,0.28)">{filled}/{capacity}</SvgText>
-                {seatPositions.map((pos, idx) => (
-                  <RNSeatEl
-                    key={idx}
-                    pos={pos}
-                    idx={idx}
-                    guest={seatMap[idx]?.guest ?? null}
-                    selectedGuest={selectedGuest}
-                    onRemove={() => removeSeat(idx)}
-                    onTapEmpty={handleTapEmpty}
-                  />
-                ))}
-              </Svg>
+              <View style={[dts.svgCanvas, { width: svgW, height: svgH }]}>
+                <Svg viewBox={`0 0 ${SW} ${SH}`} width={svgW} height={svgH}>
+                  <RNTableShape shape={shape} w={tableW} h={tableH} cx={CX} cy={CY} />
+                  <SvgText x={CX} y={CY - 8}  textAnchor="middle" fontSize={14} fontWeight="700" fill="rgba(255,255,255,0.55)">{activeLoc.location_name}</SvgText>
+                  <SvgText x={CX} y={CY + 14} textAnchor="middle" fontSize={11} fill="rgba(255,255,255,0.28)">{filled}/{capacity}</SvgText>
+                  {seatPositions.map((pos, idx) => (
+                    <RNSeatEl
+                      key={idx}
+                      pos={pos}
+                      idx={idx}
+                      guest={seatMap[idx]?.guest ?? null}
+                      selectedGuest={selectedGuest}
+                    />
+                  ))}
+                </Svg>
+
+                {/* Native touch layer: reliable on Android inside a scrolling modal. */}
+                <View pointerEvents="box-none" style={dts.seatTapLayer}>
+                  {seatPositions.map((pos, idx) => {
+                    const entry = seatMap[idx];
+                    const hasAction = Boolean(entry || selectedGuest);
+                    const isBusy = assigningSeat !== null || removingId === entry?.assignment.id;
+                    const scale = svgW / SW;
+
+                    return (
+                      <Pressable
+                        key={`seat-action-${idx}`}
+                        accessibilityRole="button"
+                        accessibilityLabel={entry
+                          ? `Remove ${entry.guest?.full_name ?? 'guest'} from seat ${idx + 1}`
+                          : selectedGuest
+                            ? `Assign ${selectedGuest.full_name} to seat ${idx + 1}`
+                            : `Seat ${idx + 1}`}
+                        accessibilityHint={entry
+                          ? 'Removes this guest from the seat'
+                          : selectedGuest
+                            ? 'Assigns the selected guest to this seat'
+                            : 'Select a guest first to assign this seat'}
+                        disabled={!hasAction || isBusy}
+                        onPress={() => entry ? removeSeat(idx) : handleTapEmpty(idx)}
+                        style={[
+                          dts.seatTapTarget,
+                          {
+                            left: pos.x * scale - 27,
+                            top: pos.y * scale - 27,
+                          },
+                        ]}
+                      >
+                        {entry && (
+                          <View style={dts.seatRemoveBadge} pointerEvents="none">
+                            {removingId === entry.assignment.id
+                              ? <ActivityIndicator size="small" color="#fff" />
+                              : <Feather name="x" size={13} color="#fff" />
+                            }
+                          </View>
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
 
               {/* Legend */}
               <View style={dts.legend}>
@@ -523,6 +552,10 @@ const dts = StyleSheet.create({
   fillBar:      { height: 3, borderRadius: 2 },
   fillLabel:    { fontSize: 10, color: 'rgba(255,255,255,0.25)', marginTop: 5 },
   svgWrap:      { alignItems: 'center', paddingVertical: 8, paddingHorizontal: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.04)' },
+  svgCanvas:    { position: 'relative' },
+  seatTapLayer: { ...StyleSheet.absoluteFillObject, zIndex: 2, elevation: 2 },
+  seatTapTarget:{ position: 'absolute', width: 54, height: 54, borderRadius: 27, alignItems: 'flex-end', justifyContent: 'flex-start' },
+  seatRemoveBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#ef4444', borderWidth: 2, borderColor: Colors.bg.card, alignItems: 'center', justifyContent: 'center', marginTop: -2, marginRight: -2 },
   legend:       { flexDirection: 'row', gap: 18, marginTop: 6, paddingBottom: 4 },
   legendItem:   { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot:    { width: 8, height: 8, borderRadius: 4 },

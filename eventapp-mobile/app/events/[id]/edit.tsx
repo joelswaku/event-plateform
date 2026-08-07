@@ -79,7 +79,7 @@ export default function EditEventScreen() {
 
       // Validate date range before saving
       if (form.starts_at instanceof Date && form.ends_at instanceof Date) {
-        if (form.ends_at < form.starts_at) {
+        if (form.ends_at <= form.starts_at) {
           setSaving(false);
           setSaveErr('Invalid dates: end must be after start');
           return;
@@ -119,7 +119,8 @@ export default function EditEventScreen() {
 
   const changeModule = (key: 'allow_rsvp' | 'allow_ticketing' | 'allow_donations', enabled: boolean) => {
     const labels = { allow_rsvp: 'RSVP', allow_ticketing: 'Ticketing', allow_donations: 'Donations' };
-    const exclusiveModules = ['allow_rsvp', 'allow_ticketing', 'allow_donations'] as const;
+    // RSVP is guest access, not a competing payment module.
+    const exclusiveModules = ['allow_ticketing', 'allow_donations'] as const;
     const conflicts = enabled
       ? exclusiveModules
           .filter(moduleKey => moduleKey !== key && form[moduleKey])
@@ -127,13 +128,11 @@ export default function EditEventScreen() {
       : [];
     const applyChange = () => {
       setFormState(prev => enabled
-        ? {
+        ? exclusiveModules.includes(key as typeof exclusiveModules[number]) ? {
             ...prev,
-            allow_rsvp: key === 'allow_rsvp',
             allow_ticketing: key === 'allow_ticketing',
             allow_donations: key === 'allow_donations',
-            open_rsvp: false,
-          }
+          } : { ...prev, [key]: true }
         : {
             ...prev,
             [key]: false,

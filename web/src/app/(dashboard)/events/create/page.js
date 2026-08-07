@@ -393,6 +393,9 @@ function StepDetails({ subcategory, features, formData, setFormData, onBack, onN
     const e = {};
     if (!formData.title.trim()) e.title = "Title is required";
     if (!formData.starts_at) e.starts_at = "Start date is required";
+    if (formData.starts_at && formData.ends_at && new Date(formData.ends_at) <= new Date(formData.starts_at)) {
+      e.ends_at = "Event end must be after the event start";
+    }
     if (!formData.venue_name.trim()) e.venue_name = "Venue name is required";
     if (!formData.city.trim()) e.city = "City is required";
     return e;
@@ -442,6 +445,8 @@ function StepDetails({ subcategory, features, formData, setFormData, onBack, onN
             onChange={(v) => set("ends_at", v)}
             placeholder="Pick end date & time"
             minValue={formData.starts_at}
+            minExclusive
+            minErrorMessage="Event end must be after the event start."
             error={errors.ends_at}
           />
         </Field>

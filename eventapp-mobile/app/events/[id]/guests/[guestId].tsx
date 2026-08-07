@@ -545,7 +545,7 @@ export default function GuestDetailScreen() {
             <Pressable onPress={(e) => e.stopPropagation()} style={inviteModalStyles.content}>
               <Text style={inviteModalStyles.title}>Send QR Code</Text>
               <Text style={inviteModalStyles.subtitle}>
-                Send check-in QR code to {guest.full_name}
+                Choose how to send the QR code to {guest.full_name}
               </Text>
 
               <View style={inviteModalStyles.options}>
