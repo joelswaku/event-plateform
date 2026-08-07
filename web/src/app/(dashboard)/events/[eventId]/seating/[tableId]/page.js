@@ -58,8 +58,9 @@ function SeatEl({ pos, idx, guest, isOver, isMobile, selectedGuest, onDragOver, 
   const [hovered, setHovered] = useState(false);
   const bg = guest ? avatarBg(guest.full_name) : null;
   const isSelected = selectedGuest && !guest;
-  const strokeColor = isOver ? "#6366f1" : isSelected ? "#10b981" : guest ? bg : "var(--svg-stroke)";
-  const fillColor = guest ? bg : isOver ? "rgba(99,102,241,0.2)" : isSelected ? "rgba(16,185,129,0.2)" : "var(--svg-fill-subtle)";
+  const showHover = !guest && (hovered || isSelected);
+  const strokeColor = isOver ? "#6366f1" : showHover ? "#10b981" : guest ? bg : "var(--svg-stroke)";
+  const fillColor = guest ? bg : isOver ? "rgba(99,102,241,0.2)" : showHover ? "rgba(16,185,129,0.3)" : "var(--svg-fill-subtle)";
   const showTooltip = guest && hovered && !isOver && !isMobile;
   const showName = guest && isMobile;
   const displayName = guest ? (guest.full_name.length > 14 ? guest.full_name.slice(0, 12) + "…" : guest.full_name) : "";
@@ -81,7 +82,7 @@ function SeatEl({ pos, idx, guest, isOver, isMobile, selectedGuest, onDragOver, 
       style={{ cursor: guest || selectedGuest ? "pointer" : "default" }}>
 
       <circle r={24}
-        style={{ fill: fillColor, stroke: strokeColor, strokeWidth: isOver || isSelected ? 2 : 1.5, transition: "all 0.15s" }} />
+        style={{ fill: fillColor, stroke: strokeColor, strokeWidth: isOver || showHover ? 2.5 : 1.5, transition: "all 0.15s" }} />
 
       {guest ? (
         <>
@@ -127,9 +128,9 @@ function SeatEl({ pos, idx, guest, isOver, isMobile, selectedGuest, onDragOver, 
       ) : (
         <>
           <text textAnchor="middle" dominantBaseline="central" fontSize="16"
-            style={{ fill: isSelected ? "#10b981" : "var(--svg-text-placeholder)", pointerEvents: "none" }}>+</text>
+            style={{ fill: showHover ? "#10b981" : "var(--svg-text-placeholder)", pointerEvents: "none" }}>+</text>
           <text textAnchor="middle" y={34} fontSize="9" fontWeight="600"
-            style={{ fill: isOver ? "#6366f1" : isSelected ? "#10b981" : "var(--svg-text-placeholder)", pointerEvents: "none" }}>
+            style={{ fill: isOver ? "#6366f1" : showHover ? "#10b981" : "var(--svg-text-placeholder)", pointerEvents: "none" }}>
             {isOver ? "Drop" : `#${idx + 1}`}
           </text>
         </>
