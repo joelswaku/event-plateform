@@ -9,10 +9,11 @@ import {
   CheckSquare, Square, LogIn, X, ScanLine, Send,
   ChevronDown, ChevronUp, Search, Home, User,
   CalendarDays, Ticket, ChevronLeft, ChevronRight,
-  CheckCheck, Lock, Zap, Copy, Check,
+  CheckCheck, Lock, Zap,
 } from "lucide-react";
 import { useGuestStore }         from "@/store/guest.store";
 import { useSeatingStore }       from "@/store/seating.store";
+import { useEventStore }         from "@/store/event.store";
 import { useSubscriptionStore }  from "@/store/subscription.store";
 import ConfirmModal, { useConfirm } from "@/components/ui/confirm-modal";
 import { trackConversion } from "@/lib/analytics";
@@ -41,6 +42,38 @@ function attendanceBadge(status) {
     LATE:       "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
   };
   return map[status] || "bg-gray-100 text-gray-500";
+}
+
+function getRsvpAccessStatus(event) {
+  if (!event) return null;
+  if (!event.allow_rsvp) {
+    return {
+      mode: "disabled",
+      label: "RSVP not accepting responses",
+      detail: "Guests cannot submit a new RSVP from the event page.",
+      color: "#6b7280",
+      background: "rgba(107,114,128,0.10)",
+      border: "rgba(107,114,128,0.24)",
+    };
+  }
+  if (event.open_rsvp) {
+    return {
+      mode: "open",
+      label: "RSVP open to everyone",
+      detail: "Anyone with the event link can RSVP.",
+      color: "#10b981",
+      background: "rgba(16,185,129,0.10)",
+      border: "rgba(16,185,129,0.26)",
+    };
+  }
+  return {
+    mode: "invitation",
+    label: "RSVP for invited guests only",
+    detail: "Only people added by email can RSVP.",
+    color: "#f59e0b",
+    background: "rgba(245,158,11,0.10)",
+    border: "rgba(245,158,11,0.26)",
+  };
 }
 
 /* ── Guest card (desktop expandable) ─────────────────────────── */
@@ -303,6 +336,7 @@ const MOBILE_FILTERS = [
 
 function MobileGuestsPage({
   eventId, guests, filteredGuests, rsvpMap, attendanceMap, seatMap,
+  rsvpAccess,
   isLoading, query, setQuery, mobileFilter, setMobileFilter,
   onAddGuest, onEditGuest,
   onBulkDelete, onBulkInvite, onBulkRsvp,
@@ -395,6 +429,20 @@ function MobileGuestsPage({
               <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
                 {guests.length} total · {checkinCount} checked in
               </p>
+              {rsvpAccess && (
+                <div
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1"
+                  style={{ background: rsvpAccess.background, borderColor: rsvpAccess.border }}
+                  title={rsvpAccess.detail}
+                >
+                  {rsvpAccess.mode === "open"
+                    ? <Users size={11} style={{ color: rsvpAccess.color }} />
+                    : rsvpAccess.mode === "invitation"
+                      ? <Mail size={11} style={{ color: rsvpAccess.color }} />
+                      : <Lock size={11} style={{ color: rsvpAccess.color }} />}
+                  <span className="text-[10px] font-bold" style={{ color: rsvpAccess.color }}>{rsvpAccess.label}</span>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -630,7 +678,6 @@ function MobileGuestsPage({
 /* ── SendQrModal (Multi-Channel) ────────────────────────────── */
 function SendQrModal({ open, onClose, guest, eventId, sendQrEmail }) {
   const [sending, setSending] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   const handleSendEmail = async () => {
     if (!guest?.email) {
@@ -648,49 +695,9 @@ function SendQrModal({ open, onClose, guest, eventId, sendQrEmail }) {
     }
   };
 
-  const handleWhatsApp = () => {
-    const phone = guest?.phone?.replace(/[^0-9]/g, '');
-    const qrUrl = `${window.location.origin}/qr/${guest.id}`;
-    const message = `Check-in QR Code for ${guest.full_name}\n\n${qrUrl}`;
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
-    onClose();
-  };
-
-  const handleShare = async () => {
-    const qrUrl = `${window.location.origin}/qr/${guest.id}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'Check-in QR Code',
-          text: `Check-in QR Code for ${guest.full_name}`,
-          url: qrUrl,
-        });
-        onClose();
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          handleCopyLink();
-        }
-      }
-    } else {
-      handleCopyLink();
-    }
-  };
-
-  const handleCopyLink = async () => {
-    const qrUrl = `${window.location.origin}/qr/${guest.id}`;
-    await navigator.clipboard.writeText(qrUrl);
-    toast.success('QR link copied!');
-    setCopied(true);
-    setTimeout(() => {
-      setCopied(false);
-      onClose();
-    }, 1500);
-  };
-
   if (!open) return null;
 
   const hasEmail = guest?.email;
-  const hasPhone = guest?.phone;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -699,67 +706,14 @@ function SendQrModal({ open, onClose, guest, eventId, sendQrEmail }) {
         style={{ background: '#0e0e16', border: '1px solid rgba(255,255,255,0.08)' }}>
         {/* Header */}
         <div className="px-6 pt-6 pb-4">
-          <h2 className="text-[20px] font-black text-white">Share QR Code</h2>
+          <h2 className="text-[20px] font-black text-white">Send QR Code</h2>
           <p className="text-[13px] mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>
-            Share check-in QR code for {guest?.full_name}
+            Choose how to send the QR code to {guest?.full_name}
           </p>
         </div>
 
         {/* Options */}
         <div className="px-4 pb-4 space-y-2">
-          {/* Share */}
-          <button
-            onClick={handleShare}
-            className="w-full flex items-center gap-3 p-4 rounded-[16px] border transition-all hover:bg-opacity-20"
-            style={{
-              background: 'rgba(139,92,246,0.08)',
-              borderColor: 'rgba(139,92,246,0.3)',
-            }}
-          >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]"
-              style={{ background: 'rgba(139,92,246,0.15)' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2">
-                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
-                <polyline points="16 6 12 2 8 6"></polyline>
-                <line x1="12" y1="2" x2="12" y2="15"></line>
-              </svg>
-            </div>
-            <div className="flex-1 text-left">
-              <p className="text-sm font-bold text-white">Share QR Code</p>
-              <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                Share via any app
-              </p>
-            </div>
-            <ChevronRight size={16} style={{ color: '#8b5cf6' }} />
-          </button>
-
-          {/* WhatsApp */}
-          {hasPhone && (
-            <button
-              onClick={handleWhatsApp}
-              disabled={sending}
-              className="w-full flex items-center gap-3 p-4 rounded-[16px] border transition-all disabled:opacity-50 hover:bg-opacity-20"
-              style={{
-                background: 'rgba(37,211,102,0.08)',
-                borderColor: 'rgba(37,211,102,0.3)',
-              }}
-            >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]"
-                style={{ background: 'rgba(37,211,102,0.15)' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" fill="#25D366"/>
-                </svg>
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-sm font-bold text-white">Send via WhatsApp</p>
-                <p className="text-[11px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                  {guest?.phone}
-                </p>
-              </div>
-              <ChevronRight size={16} style={{ color: '#25D366' }} />
-            </button>
-          )}
-
           {/* Email */}
           {hasEmail && (
             <button
@@ -785,33 +739,11 @@ function SendQrModal({ open, onClose, guest, eventId, sendQrEmail }) {
             </button>
           )}
 
-          {/* Copy Link */}
-          <button
-            onClick={handleCopyLink}
-            className="w-full flex items-center gap-3 p-4 rounded-[16px] border transition-all hover:bg-opacity-20"
-            style={{
-              background: 'rgba(245,158,11,0.08)',
-              borderColor: 'rgba(245,158,11,0.3)',
-            }}
-          >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]"
-              style={{ background: 'rgba(245,158,11,0.15)' }}>
-              {copied ? (
-                <Check size={18} style={{ color: '#f59e0b' }} />
-              ) : (
-                <Copy size={18} style={{ color: '#f59e0b' }} />
-              )}
+          {!hasEmail && (
+            <div className="px-4 py-5 text-center text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
+              No email address is saved for this guest.
             </div>
-            <div className="flex-1 text-left">
-              <p className="text-sm font-bold text-white">
-                {copied ? 'Link Copied!' : 'Copy QR Link'}
-              </p>
-              <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                {copied ? 'Ready to paste' : 'Copy to clipboard'}
-              </p>
-            </div>
-            {!copied && <ChevronRight size={16} style={{ color: '#f59e0b' }} />}
-          </button>
+          )}
         </div>
 
         {/* Cancel */}
@@ -838,6 +770,8 @@ export default function GuestsPage() {
   const router = useRouter();
   const prices = useSubscriptionStore(s => s.prices);
   const plan   = useSubscriptionStore(s => s.plan);
+  const currentEvent = useEventStore(s => s.currentEvent);
+  const fetchEventDashboard = useEventStore(s => s.fetchEventDashboard);
 
   const {
     guests, rsvps, attendance, selectedGuestIds,
@@ -872,6 +806,13 @@ export default function GuestsPage() {
   const [inviteChannelModal, setInviteChannelModal] = useState(null);
   const [qrChannelModal, setQrChannelModal] = useState(null);
   const [filterStatus, setFilterStatus] = useState("ALL"); // ALL, GOING, MAYBE, DECLINED, PENDING
+
+  useEffect(() => {
+    if (!eventId || currentEvent?.id === eventId) return;
+    fetchEventDashboard(eventId).catch(() => {});
+  }, [eventId, currentEvent?.id, fetchEventDashboard]);
+
+  const rsvpAccess = getRsvpAccessStatus(currentEvent?.id === eventId ? currentEvent : null);
 
   useEffect(() => {
     if (!eventId) return;
@@ -1124,6 +1065,7 @@ export default function GuestsPage() {
           rsvpMap={rsvpMap}
           attendanceMap={attendanceMap}
           seatMap={seatMap}
+          rsvpAccess={rsvpAccess}
           isLoading={isLoading}
           query={query}
           setQuery={setQuery}
@@ -1163,6 +1105,20 @@ export default function GuestsPage() {
             <div>
               <h1 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-100 sm:text-2xl">Guests</h1>
               <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage attendees, invitations, RSVP, and check-in.</p>
+              {rsvpAccess && (
+                <div
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1"
+                  style={{ background: rsvpAccess.background, borderColor: rsvpAccess.border }}
+                  title={rsvpAccess.detail}
+                >
+                  {rsvpAccess.mode === "open"
+                    ? <Users className="h-3.5 w-3.5" style={{ color: rsvpAccess.color }} />
+                    : rsvpAccess.mode === "invitation"
+                      ? <Mail className="h-3.5 w-3.5" style={{ color: rsvpAccess.color }} />
+                      : <Lock className="h-3.5 w-3.5" style={{ color: rsvpAccess.color }} />}
+                  <span className="text-xs font-semibold" style={{ color: rsvpAccess.color }}>{rsvpAccess.label}</span>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">

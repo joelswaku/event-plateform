@@ -97,8 +97,8 @@ function validateCreatePayload(payload = {}) {
   const startsAt = ensureValidDate(payload.starts_at, "starts_at");
   const endsAt = ensureValidDate(payload.ends_at, "ends_at");
 
-  if (endsAt < startsAt) {
-    throw new AppError("ends_at must be after or equal to starts_at", 400);
+  if (endsAt <= startsAt) {
+    throw new AppError("ends_at must be after starts_at", 400);
   }
 }
 
@@ -140,8 +140,8 @@ function validateUpdatePayload(payload = {}) {
     const startsAt = new Date(payload.starts_at);
     const endsAt = new Date(payload.ends_at);
 
-    if (endsAt < startsAt) {
-      throw new AppError("ends_at must be after or equal to starts_at", 400);
+    if (endsAt <= startsAt) {
+      throw new AppError("ends_at must be after starts_at", 400);
     }
   }
 }
@@ -761,9 +761,9 @@ export async function updateEventService({
     if (
       endsAtUTC &&
       startsAtUTC &&
-      new Date(endsAtUTC) < new Date(startsAtUTC)
+      new Date(endsAtUTC) <= new Date(startsAtUTC)
     ) {
-      throw new AppError("ends_at must be after or equal to starts_at", 400);
+      throw new AppError("ends_at must be after starts_at", 400);
     }
 
     /* -------------------------------

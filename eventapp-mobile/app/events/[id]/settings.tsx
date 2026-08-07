@@ -15,8 +15,7 @@ import { Colors } from '@/constants/colors';
    TYPES & CONSTANTS
 ────────────────────────────────────────────────────────────────────────────── */
 
-type ModuleKey = 'allow_rsvp' | 'open_rsvp' | 'allow_ticketing' | 'allow_qr_checkin' | 'allow_donations';
-type SettingKey = ModuleKey | 'visibility';
+type ModuleKey = 'allow_rsvp' | 'open_rsvp' | 'allow_ticketing' | 'allow_donations';
 
 const TIMEZONES = [
   'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
@@ -139,6 +138,79 @@ function Toggle({ icon, label, description, checked, onChange, color, saving }: 
         />
       )}
     </Pressable>
+  );
+}
+
+function RsvpModuleControl({ enabled, openToEveryone, onToggleEnabled, onToggleAccess, saving }: {
+  enabled: boolean;
+  openToEveryone: boolean;
+  onToggleEnabled: () => void;
+  onToggleAccess: () => void;
+  saving?: boolean;
+}) {
+  const accessDescription = openToEveryone
+    ? 'Open to everyone · Anyone with your event link can RSVP.'
+    : 'Invitation only · Only guests you invite can RSVP.';
+
+  return (
+    <View style={[s.rsvpModule, enabled && s.rsvpModuleEnabled]}>
+      <Pressable
+        onPress={onToggleEnabled}
+        disabled={saving}
+        style={s.rsvpPrimaryRow}
+      >
+        <View style={[s.toggleIcon, { backgroundColor: `${Colors.accent.emerald}15` }]}>
+          <Feather name="users" size={18} color={Colors.accent.emerald} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.toggleLabel}>RSVP</Text>
+          <Text style={s.toggleDesc}>
+            {enabled ? 'Guests can respond from your event page.' : 'Let guests confirm their attendance.'}
+          </Text>
+        </View>
+        {saving ? (
+          <ActivityIndicator size="small" color={Colors.accent.emerald} />
+        ) : (
+          <Switch
+            value={enabled}
+            onValueChange={onToggleEnabled}
+            trackColor={{ false: 'rgba(255,255,255,0.1)', true: Colors.accent.emerald }}
+            thumbColor="#fff"
+            ios_backgroundColor="rgba(255,255,255,0.1)"
+          />
+        )}
+      </Pressable>
+
+      {enabled && (
+        <>
+          <View style={s.rsvpSubDivider} />
+          <Pressable
+            onPress={onToggleAccess}
+            disabled={saving}
+            style={s.rsvpAccessRow}
+          >
+            <View style={[s.rsvpAccessIcon, { backgroundColor: `${Colors.accent.emerald}12` }]}>
+              <Feather name={openToEveryone ? 'unlock' : 'lock'} size={15} color={Colors.accent.emerald} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.rsvpAccessLabel}>RSVP access</Text>
+              <Text style={s.rsvpAccessDesc}>{accessDescription}</Text>
+            </View>
+            {saving ? (
+              <ActivityIndicator size="small" color={Colors.accent.emerald} />
+            ) : (
+              <Switch
+                value={openToEveryone}
+                onValueChange={onToggleAccess}
+                trackColor={{ false: 'rgba(255,255,255,0.1)', true: Colors.accent.emerald }}
+                thumbColor="#fff"
+                ios_backgroundColor="rgba(255,255,255,0.1)"
+              />
+            )}
+          </Pressable>
+        </>
+      )}
+    </View>
   );
 }
 
@@ -404,9 +476,11 @@ export default function EventSettingsScreen() {
   }
 
   function requestToggleModule(key: ModuleKey, nextValue: boolean, icon: keyof typeof Feather.glyphMap, color: string, title: string, message: string, label: string) {
-    const exclusiveModules: ModuleKey[] = ['allow_rsvp', 'allow_ticketing', 'allow_donations'];
+    // RSVP manages guest access and can be used alongside Ticketing or Donations.
+    // Only the two payment modules are mutually exclusive.
+    const exclusiveModules: ModuleKey[] = ['allow_ticketing', 'allow_donations'];
     const labels: Partial<Record<ModuleKey, string>> = {
-      allow_rsvp: 'RSVP', allow_ticketing: 'Ticketing', allow_donations: 'Donations',
+      allow_ticketing: 'Ticketing', allow_donations: 'Donations',
     };
     const conflicts = nextValue && exclusiveModules.includes(key)
       ? exclusiveModules
@@ -429,10 +503,8 @@ export default function EventSettingsScreen() {
         setSaving(true);
         const payload = nextValue && exclusiveModules.includes(key)
           ? {
-              allow_rsvp: key === 'allow_rsvp',
               allow_ticketing: key === 'allow_ticketing',
               allow_donations: key === 'allow_donations',
-              open_rsvp: false,
             }
           : key === 'allow_rsvp' && !nextValue
           ? { allow_rsvp: false, open_rsvp: false }
@@ -677,12 +749,10 @@ export default function EventSettingsScreen() {
           <View style={s.divider} />
 
           {/* RSVP */}
-          <Toggle
-            icon="users"
-            label="RSVP"
-            description="Allow guests to RSVP"
-            checked={!!currentEvent.allow_rsvp}
-            onChange={() => requestToggleModule(
+          <RsvpModuleControl
+            enabled={!!currentEvent.allow_rsvp}
+            openToEveryone={!!currentEvent.open_rsvp}
+            onToggleEnabled={() => requestToggleModule(
               'allow_rsvp',
               !currentEvent.allow_rsvp,
               'users',
@@ -693,34 +763,19 @@ export default function EventSettingsScreen() {
                 : 'Guests will be able to RSVP to your event.',
               currentEvent.allow_rsvp ? 'Disable RSVP' : 'Enable RSVP'
             )}
-            color={Colors.accent.emerald}
+            onToggleAccess={() => requestToggleModule(
+              'open_rsvp',
+              !currentEvent.open_rsvp,
+              'unlock',
+              Colors.accent.emerald,
+              currentEvent.open_rsvp ? 'Switch to invitation-only?' : 'Open RSVP to everyone?',
+              currentEvent.open_rsvp
+                ? 'Only invited guests can RSVP.'
+                : 'Anyone who visits can RSVP from the event page.',
+              currentEvent.open_rsvp ? 'Invitation Only' : 'Open to Everyone'
+            )}
             saving={saving}
           />
-
-          {currentEvent.allow_rsvp && (
-            <>
-              <View style={s.divider} />
-              <Toggle
-                icon="unlock"
-                label="Open RSVP"
-                description="Anyone can RSVP (no invitation needed)"
-                checked={!!currentEvent.open_rsvp}
-                onChange={() => requestToggleModule(
-                  'open_rsvp',
-                  !currentEvent.open_rsvp,
-                  'unlock',
-                  Colors.accent.emerald,
-                  currentEvent.open_rsvp ? 'Switch to invitation-only?' : 'Open RSVP to everyone?',
-                  currentEvent.open_rsvp
-                    ? 'Only invited guests can RSVP.'
-                    : 'Anyone who visits can RSVP.',
-                  currentEvent.open_rsvp ? 'Invitation Only' : 'Open to Everyone'
-                )}
-                color={Colors.accent.emerald}
-                saving={saving}
-              />
-            </>
-          )}
 
           <View style={s.divider} />
 
@@ -742,29 +797,6 @@ export default function EventSettingsScreen() {
               currentEvent.allow_ticketing ? 'Disable Ticketing' : 'Enable Ticketing'
             )}
             color={Colors.accent.amber}
-            saving={saving}
-          />
-
-          <View style={s.divider} />
-
-          {/* QR Check-in */}
-          <Toggle
-            icon="camera"
-            label="QR Check-in"
-            description="Scan QR codes at the door"
-            checked={!!currentEvent.allow_qr_checkin}
-            onChange={() => requestToggleModule(
-              'allow_qr_checkin',
-              !currentEvent.allow_qr_checkin,
-              'camera',
-              Colors.accent.indigo,
-              currentEvent.allow_qr_checkin ? 'Disable QR check-in?' : 'Enable QR check-in?',
-              currentEvent.allow_qr_checkin
-                ? 'Scanner will no longer accept QR codes.'
-                : 'Scan guest QR codes to mark attendance.',
-              currentEvent.allow_qr_checkin ? 'Disable QR' : 'Enable QR'
-            )}
-            color={Colors.accent.indigo}
             saving={saving}
           />
 
@@ -967,6 +999,21 @@ const s = StyleSheet.create({
   toggleIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   toggleLabel: { fontSize: 15, fontWeight: '700', color: '#fff' },
   toggleDesc: { fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
+
+  rsvpModule: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.02)',
+    overflow: 'hidden',
+  },
+  rsvpModuleEnabled: { backgroundColor: `${Colors.accent.emerald}08`, borderColor: `${Colors.accent.emerald}30` },
+  rsvpPrimaryRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
+  rsvpSubDivider: { height: 1, backgroundColor: 'rgba(16,185,129,0.16)', marginLeft: 66 },
+  rsvpAccessRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 12, paddingRight: 14, paddingBottom: 12, paddingLeft: 28 },
+  rsvpAccessIcon: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  rsvpAccessLabel: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.86)' },
+  rsvpAccessDesc: { fontSize: 11, lineHeight: 16, color: 'rgba(255,255,255,0.45)', marginTop: 2 },
 
   divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.04)', marginVertical: 4 },
 

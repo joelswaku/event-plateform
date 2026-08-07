@@ -226,12 +226,10 @@ function EventPlannerCard({ eventId, project, loading }) {
 
 // ── Feature modules with toggles (desktop) ───────────────────────────────────
 const MODULE_CFG = {
-  allow_rsvp:      { icon: Users,  label: "RSVP",            desc: "Guest list & tracking", activeBg: "bg-indigo-50 dark:bg-indigo-900/20", activeIcon: "text-indigo-600 dark:text-indigo-400" },
   allow_ticketing: { icon: Ticket, label: "Stripe Ticketing", desc: "Paid ticket sales",    activeBg: "bg-amber-50 dark:bg-amber-900/20",   activeIcon: "text-amber-600 dark:text-amber-400"   },
   allow_donations: { icon: Heart,  label: "Donations",        desc: "Accept contributions", activeBg: "bg-pink-50 dark:bg-pink-900/20",     activeIcon: "text-pink-600 dark:text-pink-400"     },
 };
 const MODULE_HREFS = (eventId) => ({
-  allow_rsvp:      `/events/${eventId}/guests`,
   allow_ticketing: `/events/${eventId}/tickets`,
   allow_donations: `/events/${eventId}/donations`,
 });
@@ -246,7 +244,7 @@ function FeatureModules({ event, eventId, readOnly = false }) {
   const [saving, setSaving] = useState({});
   const [confirmModal, setConfirmModal] = useState(null); // { key, label, desc, otherModules }
 
-  const EXCLUSIVE = ['allow_rsvp', 'allow_ticketing', 'allow_donations'];
+  const EXCLUSIVE = ['allow_ticketing', 'allow_donations'];
 
   const toggle = async (e, key) => {
     e.preventDefault(); e.stopPropagation();
@@ -257,15 +255,10 @@ function FeatureModules({ event, eventId, readOnly = false }) {
     let newLocal;
     if (next && EXCLUSIVE.includes(key)) {
       payload = {
-        allow_rsvp:      key === 'allow_rsvp',
         allow_ticketing: key === 'allow_ticketing',
         allow_donations: key === 'allow_donations',
-        open_rsvp:       false,
       };
       newLocal = { ...local, ...payload };
-    } else if (!next && key === 'allow_rsvp') {
-      payload = { allow_rsvp: false, open_rsvp: false };
-      newLocal = { ...local, allow_rsvp: false, open_rsvp: false };
     } else {
       payload = { [key]: next };
       newLocal = { ...local, [key]: next };
@@ -332,7 +325,7 @@ function FeatureModules({ event, eventId, readOnly = false }) {
             </Link>
           )}
         </div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {Object.entries(MODULE_CFG).map(([key, cfg]) => {
           const active = local[key];
           const busy   = !!saving[key];
@@ -387,8 +380,7 @@ function FeatureModules({ event, eventId, readOnly = false }) {
           >
             <div className="mb-4 flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-900/30">
-                {confirmModal.key === 'allow_rsvp' ? <Users className="h-6 w-6 text-indigo-600 dark:text-indigo-400" /> :
-                 confirmModal.key === 'allow_ticketing' ? <Ticket className="h-6 w-6 text-amber-600 dark:text-amber-400" /> :
+                {confirmModal.key === 'allow_ticketing' ? <Ticket className="h-6 w-6 text-amber-600 dark:text-amber-400" /> :
                  <Heart className="h-6 w-6 text-pink-600 dark:text-pink-400" />}
               </div>
               <div className="flex-1">
@@ -929,7 +921,6 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
 
   /* ── Module toggle state ── */
   const [modLocal, setModLocal] = useState({
-    allow_rsvp:      !!event.allow_rsvp,
     allow_ticketing: !!event.allow_ticketing,
     allow_donations: !!event.allow_donations,
   });
@@ -937,11 +928,10 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
   const [pendingMod, setPendingMod] = useState(null);
 
   const MOD_ROWS = [
-    { key: 'allow_rsvp',      Icon: Users,       label: 'RSVP',       desc: 'Guest list & RSVP',   color: '#6366f1' },
     { key: 'allow_ticketing', Icon: CreditCard,  label: 'Ticketing',  desc: 'Sell tickets',         color: '#f59e0b' },
     { key: 'allow_donations', Icon: Heart,       label: 'Donations',  desc: 'Accept contributions', color: '#f43f5e' },
   ];
-  const EXCL_MOD = ['allow_rsvp', 'allow_ticketing', 'allow_donations'];
+  const EXCL_MOD = ['allow_ticketing', 'allow_donations'];
 
   const requestMod = useCallback((key, afterConfirm) => {
     if (modSaving[key]) return;
@@ -965,11 +955,8 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
     setPendingMod(null);
     let payload, newLocal;
     if (next && EXCL_MOD.includes(key)) {
-      payload  = { allow_rsvp: key === 'allow_rsvp', allow_ticketing: key === 'allow_ticketing', allow_donations: key === 'allow_donations', open_rsvp: false };
+      payload  = { allow_ticketing: key === 'allow_ticketing', allow_donations: key === 'allow_donations' };
       newLocal = { ...modLocal, ...payload };
-    } else if (!next && key === 'allow_rsvp') {
-      payload  = { allow_rsvp: false, open_rsvp: false };
-      newLocal = { ...modLocal, allow_rsvp: false };
     } else {
       payload  = { [key]: next };
       newLocal = { ...modLocal, [key]: next };
@@ -1392,10 +1379,6 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
                     return;
                   }
                   // Check if module needs to be enabled first
-                  if (label === 'Guests' && !modLocal.allow_rsvp) {
-                    requestMod('allow_rsvp', () => router.push(href));
-                    return;
-                  }
                   if (label === 'Tickets' && !modLocal.allow_ticketing) {
                     requestMod('allow_ticketing', () => router.push(href));
                     return;

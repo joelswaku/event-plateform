@@ -86,7 +86,7 @@ function YearPicker({ currentYear, onSelect }) {
 }
 
 // ── CalendarPopover ───────────────────────────────────────────────────────────
-function CalendarPopover({ value, onChange, minValue, onClose }) {
+function CalendarPopover({ value, onChange, minValue, minExclusive = false, minErrorMessage, onClose, openUp = false }) {
   const parsed   = parse(value);
   const today    = new Date();
   const minP     = parse(minValue);
@@ -148,7 +148,19 @@ function CalendarPopover({ value, onChange, minValue, onClose }) {
   const isSelected = (day) => sel.year === view.year && sel.month === view.month && sel.day === day;
   const isToday    = (day) => today.getFullYear() === view.year && today.getMonth() === view.month && today.getDate() === day;
 
-  const apply = () => { onChange(compose(sel)); onClose(); };
+  const selectedAt = new Date(sel.year, sel.month, sel.day, sel.hour, sel.minute).getTime();
+  const minimumAt = minP
+    ? new Date(minP.year, minP.month, minP.day, minP.hour, minP.minute).getTime()
+    : null;
+  const isBeforeMinimum = minimumAt !== null && (
+    minExclusive ? selectedAt <= minimumAt : selectedAt < minimumAt
+  );
+
+  const apply = () => {
+    if (isBeforeMinimum) return;
+    onChange(compose(sel));
+    onClose();
+  };
 
   const totalDays = daysInMonth(view.year, view.month);
   const startDay  = firstDayOfMonth(view.year, view.month);
@@ -159,14 +171,15 @@ function CalendarPopover({ value, onChange, minValue, onClose }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 6, scale: 0.97 }}
       transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-      className="absolute left-0 top-full z-50 mt-2 w-78 rounded-2xl"
+      className={`absolute left-0 z-50 w-78 rounded-2xl ${openUp ? "bottom-full mb-2" : "top-full mt-2"}`}
       style={{
         background: BG_CARD,
         border: `1px solid ${BORDER}`,
         boxShadow: "0 24px 64px rgba(0,0,0,0.55), 0 4px 20px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.04)",
         display: "flex",
         flexDirection: "column",
-        maxHeight: "min(90vh, 600px)",
+        // Keep the footer (including Confirm) visible even for six-row months.
+        maxHeight: "min(80vh, 520px)",
       }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -415,6 +428,11 @@ function CalendarPopover({ value, onChange, minValue, onClose }) {
                 {hour12}:{pad(sel.minute)} {isPM ? "PM" : "AM"}
               </span>
             </div>
+            {isBeforeMinimum && (
+              <p className="px-1 text-[11px] font-semibold" style={{ color: "#fca5a5" }}>
+                {minErrorMessage || "Choose a date and time after the minimum allowed time."}
+              </p>
+            )}
           </motion.div>
         )}
         </AnimatePresence>
@@ -436,7 +454,7 @@ function CalendarPopover({ value, onChange, minValue, onClose }) {
         <button
           type="button"
           onClick={apply}
-          disabled={!sel?.day}
+          disabled={!sel?.day || isBeforeMinimum}
           className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3.5 text-[15px] font-bold text-white transition-all disabled:opacity-40 hover:scale-[1.02] active:scale-[0.98]"
           style={{
             background: GRAD,
@@ -458,10 +476,13 @@ export default function DateTimePicker({
   onChange,
   placeholder = "Pick date & time",
   minValue,
+  minExclusive = false,
+  minErrorMessage,
   error,
   disabled = false,
 }) {
   const [open, setOpen] = useState(false);
+  const [openUp, setOpenUp] = useState(false);
   const ref   = useRef(null);
   const label = formatLabel(value);
 
@@ -478,6 +499,24 @@ export default function DateTimePicker({
     setOpen(false);
   }, [onChange]);
 
+  const toggle = useCallback(() => {
+    if (disabled) return;
+    if (open) {
+      setOpen(false);
+      return;
+    }
+
+    const rect = ref.current?.getBoundingClientRect();
+    if (rect) {
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      // A six-row calendar is the tallest view. When it cannot fit below,
+      // open toward the side with more room so the Confirm button is reachable.
+      setOpenUp(spaceBelow < 520 && spaceAbove > spaceBelow);
+    }
+    setOpen(true);
+  }, [disabled, open]);
+
   return (
     <div ref={ref} className="relative w-full">
 
@@ -485,7 +524,7 @@ export default function DateTimePicker({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => !disabled && setOpen((o) => !o)}
+        onClick={toggle}
         className="group flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm transition-all duration-200 focus:outline-none bg-white dark:bg-transparent"
         style={{
           border:      `2px solid ${error ? "#f87171" : open ? INDIGO : "rgb(209, 213, 219)"}`,
@@ -548,11 +587,14 @@ export default function DateTimePicker({
       {/* ── Popover ── */}
       <AnimatePresence>
         {open && (
-          <CalendarPopover
-            value={value}
-            onChange={onChange}
-            minValue={minValue}
-            onClose={() => setOpen(false)}
+        <CalendarPopover
+          value={value}
+          onChange={onChange}
+          minValue={minValue}
+          minExclusive={minExclusive}
+          minErrorMessage={minErrorMessage}
+          openUp={openUp}
+          onClose={() => setOpen(false)}
           />
         )}
       </AnimatePresence>
