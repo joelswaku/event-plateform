@@ -118,23 +118,28 @@ function RNSeatEl({ pos, idx, guest, selectedGuest, onRemove, onTapEmpty }: {
   onRemove: () => void;
   onTapEmpty: (idx: number) => void;
 }) {
+  const [isPressed, setIsPressed] = useState(false);
   const bg = guest ? avatarBg(guest.full_name) : undefined;
   const displayName = guest ? (guest.full_name.length > 12 ? guest.full_name.slice(0, 10) + '…' : guest.full_name) : '';
   const isSelected = selectedGuest && !guest;
+  const showHover = isPressed || isSelected;
 
   return (
-    <SvgG x={pos.x} y={pos.y} onPress={() => {
-      if (guest) {
-        onRemove();
-      } else if (selectedGuest) {
-        onTapEmpty(idx);
-      }
-    }}>
+    <SvgG x={pos.x} y={pos.y}>
+      {/* Main seat circle - pressable */}
       <SvgCircle
         r={24}
-        fill={guest ? bg : isSelected ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.06)'}
-        stroke={guest ? bg : isSelected ? '#10b981' : 'rgba(255,255,255,0.14)'}
-        strokeWidth={isSelected ? 2 : 1.5}
+        fill={guest ? bg : showHover ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.06)'}
+        stroke={guest ? bg : showHover ? '#10b981' : 'rgba(255,255,255,0.14)'}
+        strokeWidth={showHover ? 2.5 : 1.5}
+        onPressIn={() => setIsPressed(true)}
+        onPressOut={() => setIsPressed(false)}
+        onPress={() => {
+          setIsPressed(false);
+          if (!guest && selectedGuest) {
+            onTapEmpty(idx);
+          }
+        }}
       />
       {guest ? (
         <>
@@ -151,14 +156,36 @@ function RNSeatEl({ pos, idx, guest, selectedGuest, onRemove, onTapEmpty }: {
           <SvgText x={0} y={48} textAnchor="middle" fontSize={9} fontWeight="600" fill="rgba(255,255,255,0.55)">
             {displayName}
           </SvgText>
-          {/* X button - red circle with white X to indicate removable */}
-          <SvgCircle r={8} cx={18} cy={-18} fill="#ef4444" stroke={Colors.bg.card} strokeWidth={1.5} />
-          <SvgText x={18} y={-14} textAnchor="middle" fontSize={11} fontWeight="700" fill="white">×</SvgText>
+          {/* X button - separate pressable area for removal */}
+          <SvgCircle
+            r={12}
+            cx={18}
+            cy={-18}
+            fill="#ef4444"
+            stroke={Colors.bg.card}
+            strokeWidth={1.5}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              onRemove();
+            }}
+          />
+          <SvgText
+            x={18}
+            y={-14}
+            textAnchor="middle"
+            fontSize={11}
+            fontWeight="700"
+            fill="white"
+            onPress={(e) => {
+              e.stopPropagation?.();
+              onRemove();
+            }}
+          >×</SvgText>
         </>
       ) : (
         <>
-          <SvgText x={0} y={6} textAnchor="middle" fontSize={16} fill={isSelected ? '#10b981' : 'rgba(255,255,255,0.18)'}>+</SvgText>
-          <SvgText x={0} y={34} textAnchor="middle" fontSize={8} fill={isSelected ? '#10b981' : 'rgba(255,255,255,0.18)'}>#{idx + 1}</SvgText>
+          <SvgText x={0} y={6} textAnchor="middle" fontSize={16} fill={showHover ? '#10b981' : 'rgba(255,255,255,0.18)'}>+</SvgText>
+          <SvgText x={0} y={34} textAnchor="middle" fontSize={8} fill={showHover ? '#10b981' : 'rgba(255,255,255,0.18)'}>#{idx + 1}</SvgText>
         </>
       )}
     </SvgG>
