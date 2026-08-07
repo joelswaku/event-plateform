@@ -468,15 +468,15 @@ function ClassicDesktopNav({ event, links, scrolled, visible, mobileBtn, isEdito
       </div>
 
       {/* Links row (desktop) + hamburger (mobile) */}
-      <div className="flex items-center justify-between px-5 pb-2.5 sm:justify-center sm:gap-0">
+      <div className="flex items-center justify-between px-5 pb-2.5 lg:justify-center lg:gap-0">
         {/* Mobile hamburger */}
-        <div className="sm:hidden">
+        <div className="lg:hidden">
           {mobileBtn(scrolled ? "var(--t-text-muted)" : "rgba(255,255,255,0.85)")}
         </div>
 
         {/* Desktop links */}
         {links.length > 0 && (
-          <nav className="hidden items-center sm:flex flex-wrap justify-center gap-0">
+          <nav className="hidden items-center lg:flex justify-center gap-0">
             {links.map((link, i) => (
               <span key={link.id} className="flex items-center">
                 {i > 0 && (
@@ -537,7 +537,7 @@ function ElegantDesktopNav({ event, links, scrolled, visible, mobileBtn, isEdito
 
         {/* Desktop links */}
         {links.length > 0 && (
-          <nav className="hidden items-center gap-8 sm:flex">
+          <nav className="hidden items-center gap-8 lg:flex">
             {links.map((link) => (
               <button
                 key={link.id}
@@ -555,7 +555,7 @@ function ElegantDesktopNav({ event, links, scrolled, visible, mobileBtn, isEdito
         )}
 
         {/* Mobile hamburger */}
-        <div className="sm:hidden">
+        <div className="lg:hidden">
           {mobileBtn(scrolled ? "var(--t-text)" : "rgba(255,255,255,0.85)")}
         </div>
       </div>
@@ -583,7 +583,7 @@ function ModernDesktopNav({ event, links, mobileBtn, isEditor }) {
 
         {/* Desktop links */}
         {links.length > 0 && (
-          <nav className="hidden items-center sm:flex">
+          <nav className="hidden items-center lg:flex">
             {links.map((link) => (
               <button
                 key={link.id}
@@ -601,7 +601,7 @@ function ModernDesktopNav({ event, links, mobileBtn, isEditor }) {
         )}
 
         {/* Mobile hamburger */}
-        <div className="sm:hidden">
+        <div className="lg:hidden">
           {mobileBtn("rgba(255,255,255,0.7)")}
         </div>
       </div>
@@ -633,7 +633,7 @@ function MinimalDesktopNav({ event, links, scrolled, mobileBtn, isEditor }) {
 
         {/* Desktop links */}
         {links.length > 0 && (
-          <nav className="hidden items-center gap-7 sm:flex">
+          <nav className="hidden items-center gap-7 lg:flex">
             {links.map((link) => (
               <button
                 key={link.id}
@@ -648,7 +648,7 @@ function MinimalDesktopNav({ event, links, scrolled, mobileBtn, isEditor }) {
         )}
 
         {/* Mobile hamburger */}
-        <div className="sm:hidden">
+        <div className="lg:hidden">
           {mobileBtn("var(--t-text-muted)")}
         </div>
       </div>
@@ -780,7 +780,7 @@ function FunDesktopNav({ event, links, scrolled, visible, mobileBtn, isEditor })
 
         {/* Desktop pills */}
         {links.length > 0 && (
-          <nav className="hidden items-center gap-2 sm:flex flex-wrap">
+          <nav className="hidden items-center gap-2 lg:flex">
             {links.map((link, i) => {
               const color = FUN_COLORS[i % FUN_COLORS.length];
               return (
@@ -816,7 +816,7 @@ function FunDesktopNav({ event, links, scrolled, visible, mobileBtn, isEditor })
         )}
 
         {/* Mobile hamburger */}
-        <div className="sm:hidden">
+        <div className="lg:hidden">
           {mobileBtn(scrolled ? "#1a1a1a" : "#fff")}
         </div>
       </div>
