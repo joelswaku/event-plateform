@@ -1,6 +1,13 @@
 "use client";
 
-import { Suspense, useState, useRef, useEffect, useCallback } from "react";
+import {
+  Suspense,
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useSyncExternalStore,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
@@ -9,6 +16,18 @@ import { useAuthStore } from "@/store/auth.store";
 import { api } from "@/lib/api";
 
 const INPUT_CLASS = "w-16 h-16 text-center text-2xl font-bold rounded-xl bg-[#0a0a14] border border-white/10 focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/20 text-white outline-none transition-all";
+
+const subscribeToStorage = () => () => {};
+
+function getStoredVerificationToken() {
+  try {
+    return window.localStorage.getItem("verify_token") || "";
+  } catch {
+    return "";
+  }
+}
+
+const getServerTokenSnapshot = () => null;
 
 function VerifyEmailForm() {
   const router = useRouter();
@@ -22,25 +41,47 @@ function VerifyEmailForm() {
   const [success, setSuccess] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState("");
-  const [token] = useState(() => {
-    if (typeof window === "undefined") return urlToken;
+  // Keep the server and first client render identical, then safely read a
+  // saved token after hydration if the browser restored this page without its
+  // original query string.
+  const storedToken = useSyncExternalStore(
+    subscribeToStorage,
+    getStoredVerificationToken,
+    getServerTokenSnapshot,
+  );
+  const token = urlToken || storedToken;
+  const tokenLoaded = Boolean(urlToken) || storedToken !== null;
+
+  useEffect(() => {
     if (urlToken) {
-      window.sessionStorage.setItem("verify_token", urlToken);
-      return urlToken;
+      try {
+        window.localStorage.setItem("verify_token", urlToken);
+      } catch {
+        // The URL token remains usable if storage is unavailable.
+      }
     }
-    return window.sessionStorage.getItem("verify_token") || "";
-  });
+  }, [urlToken]);
 
   const inputRefs = [useRef(), useRef(), useRef(), useRef(), useRef(), useRef()];
   const lastAutoSubmittedCode = useRef("");
 
-  // Return safely to registration only if neither the URL nor this browser tab
-  // has the verification token.
+  const startOver = () => {
+    try {
+      window.sessionStorage.removeItem("verify_token");
+      window.localStorage.removeItem("verify_token");
+    } catch {
+      // Navigation to registration should still work if storage is unavailable.
+    }
+  };
+
+  // Return safely to registration only after storage has been checked and no
+  // URL or saved verification token is available.
   useEffect(() => {
-    if (token) return;
-    const redirectTimer = window.setTimeout(() => router.replace("/register"), 0);
+    if (!tokenLoaded || token) return;
+
+    const redirectTimer = window.setTimeout(() => router.replace("/register"), 100);
     return () => window.clearTimeout(redirectTimer);
-  }, [router, token]);
+  }, [router, token, tokenLoaded]);
 
   const handleChange = (index, value) => {
     if (!/^\d*$/.test(value)) return;
@@ -89,8 +130,8 @@ function VerifyEmailForm() {
       }
 
       setSuccess(true);
-      // Clear token from sessionStorage after successful verification
-      sessionStorage.removeItem("verify_token");
+      // Clear token from localStorage after successful verification
+      localStorage.removeItem("verify_token");
 
       // Single reliable redirect after showing success message
       setTimeout(() => {
@@ -139,17 +180,21 @@ function VerifyEmailForm() {
     setResendLoading(false);
   };
 
-  if (!token) return null;
+  // Don't render until we've checked for a token
+  if (!tokenLoaded || !token) return null;
 
   if (success) {
     return (
       <AuthShell headline="Email verified!" subline="Your account is ready.">
-        <div className="text-center py-8">
+        {/* Glass card container - matches mobile app */}
+        <div className="bg-white/5 backdrop-blur-sm border border-white/8 rounded-3xl p-6">
+          <div className="text-center py-8">
           <div className="mx-auto mb-6 w-16 h-16 rounded-full bg-[#10b981]/10 border border-[#10b981]/20 flex items-center justify-center">
             <CheckCircle className="w-8 h-8 text-[#10b981]" />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Email Verified!</h1>
-          <p className="text-white/45 text-sm">Redirecting to dashboard...</p>
+            <h1 className="text-2xl font-bold text-white mb-2">Email Verified!</h1>
+            <p className="text-white/45 text-sm">Redirecting to dashboard...</p>
+          </div>
         </div>
       </AuthShell>
     );
@@ -157,14 +202,16 @@ function VerifyEmailForm() {
 
   return (
     <AuthShell headline="Verify your email" subline="Enter the code we sent to your inbox.">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">Check your email</h1>
-        <p className="text-white/45 text-sm mt-1">
-          Enter the 6-digit code we sent to your email
-        </p>
-      </div>
+      {/* Glass card container - compact on mobile */}
+      <div className="bg-white/5 backdrop-blur-sm border border-white/8 rounded-3xl p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-white">Check your email</h1>
+          <p className="text-white/45 text-xs sm:text-sm mt-1">
+            Enter the 6-digit code we sent to your email
+          </p>
+        </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
         <div className="flex gap-2 justify-center">
           {code.map((digit, i) => (
             <input
@@ -213,13 +260,14 @@ function VerifyEmailForm() {
             className="text-sm text-[#6366f1] hover:text-[#818cf8] font-semibold disabled:opacity-50"
           >
             {resendLoading ? "Sending..." : "Resend code"}
-          </button>
-        </div>
-      </form>
+            </button>
+          </div>
+        </form>
 
-      <p className="text-center text-sm text-white/40 mt-6">
-        Wrong email? <Link href="/register" className="text-[#6366f1] font-bold">Start over</Link>
-      </p>
+        <p className="text-center text-sm text-white/40">
+          Wrong email? <Link href="/register" onClick={startOver} className="text-[#6366f1] font-bold">Start over</Link>
+        </p>
+      </div>
     </AuthShell>
   );
 }

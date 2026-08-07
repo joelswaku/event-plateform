@@ -8,7 +8,7 @@ import {
   PlusCircle, CalendarDays, Ticket, User, Plus,
   Home, Calendar, MapPin, ChevronRight, Check,
   Activity, Users, Search, X, Star, ArrowRight,
-  UserCheck, Camera, ClipboardList, Layout, QrCode,
+  UserCheck, Camera, ClipboardList, Clipboard, Layout, Maximize,
 } from "lucide-react";
 
 import BillingModal from "@/components/layout/BillingModal";
@@ -472,37 +472,41 @@ function MobileBottomNav() {
 
   const tabs = [
     { href: "/dashboard", label: "Home",    Icon: Home,          active: pathname === "/dashboard" },
-    { href: "/events",    label: "Events",  Icon: CalendarDays,  active: pathname.startsWith("/events") && !pathname.includes("create") },
+    { href: "/events",    label: "Events",  Icon: Calendar,      active: pathname.startsWith("/events") && !pathname.includes("create") },
     null, // center Scan FAB
-    { href: "/planner",   label: "Planner", Icon: ClipboardList, active: pathname.startsWith("/planner"), requiresPaid: true },
+    { href: "/planner",   label: "Planner", Icon: Clipboard,     active: pathname.startsWith("/planner"), requiresPaid: true },
     { href: "/settings",  label: "Profile", Icon: User,          active: pathname === "/settings" },
   ];
 
   return (
     <div
-      className="shrink-0 border-t px-1 pt-2"
+      className="shrink-0 border-t"
       style={{
-        background: "#0e0e16",
+        background: "rgba(14,14,22,0.88)",
         borderColor: "rgba(255,255,255,0.08)",
-        paddingBottom: "max(10px, env(safe-area-inset-bottom))",
+        backdropFilter: "blur(18px)",
+        WebkitBackdropFilter: "blur(18px)",
+        minHeight: 64,
+        paddingTop: 4,
+        paddingBottom: "max(6px, env(safe-area-inset-bottom))",
       }}
     >
-      <div className="flex items-end justify-around">
+      <div className="flex items-center justify-around">
         {tabs.map((tab, i) => {
           if (!tab) {
             return (
-              <Link key="scan" href="/events" className="relative z-10 -mt-5 flex flex-col items-center gap-1 transition-transform active:scale-95">
+              <Link key="scan" href="/events" className="relative z-10 -mt-2.5 flex flex-1 flex-col items-center justify-center gap-px transition-transform active:scale-95">
                 <div
-                  className="flex h-14 w-14 items-center justify-center rounded-[18px]"
+                  className="flex h-[54px] w-[54px] items-center justify-center rounded-[16px]"
                   style={{
-                    background: "linear-gradient(135deg, #059669, #10b981)",
-                    boxShadow: "0 4px 20px rgba(16,185,129,0.50)",
+                    background: "#059669",
+                    boxShadow: "0 4px 12px rgba(16,185,129,0.45)",
                   }}
                 >
-                  <QrCode size={22} className="text-white" />
+                  <Maximize size={20} className="text-white" />
                 </div>
                 <span
-                  className="mt-0.5 text-[10px] font-extrabold uppercase tracking-wide"
+                  className="mt-0.5 text-[10px] font-bold"
                   style={{ color: "rgba(255,255,255,0.40)" }}
                 >
                   Scan
@@ -521,12 +525,14 @@ function MobileBottomNav() {
                   if (await requestPlannerAccess()) router.push(href);
                 }
               }}
-              className="flex flex-col items-center gap-1 px-3 py-1"
+              className="flex min-w-0 flex-1 flex-col items-center justify-center gap-px py-0.5"
             >
-              <Icon size={22} style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }} />
+              <span className="flex h-[38px] w-[38px] items-center justify-center">
+                <Icon size={17} style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }} />
+              </span>
               <span
-                className="text-[10px] font-extrabold uppercase tracking-wide"
-                style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }}
+                className="text-[10px] font-bold"
+                style={{ color: "rgba(255,255,255,0.40)" }}
               >
                 {label}
               </span>

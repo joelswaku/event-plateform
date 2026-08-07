@@ -123,16 +123,18 @@ function ResetPasswordContent() {
       headline="Secure your account."
       subline="Set a new password and get back to managing your events."
     >
-      {!success ? (
-        <>
-          <div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Set new password</h1>
-            <p className="text-gray-500 text-sm mt-1.5">
-              Choose a strong password to protect your account.
-            </p>
-          </div>
+      {/* Glass card container - compact on mobile */}
+      <div className="bg-white/5 backdrop-blur-sm border border-white/8 rounded-3xl p-4 sm:p-6">
+        {!success ? (
+          <div className="space-y-4 sm:space-y-6">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Set new password</h1>
+              <p className="text-white/45 text-xs sm:text-sm mt-1">
+                Choose a strong password to protect your account.
+              </p>
+            </div>
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-5" noValidate>
+            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4" noValidate suppressHydrationWarning>
             <div>
               <Field label="New password" id="password" error={errors.password} touched={touched.password}>
                 <div className="relative">
@@ -145,6 +147,7 @@ function ResetPasswordContent() {
                     onChange={(e) => setForm({ ...form, password: e.target.value })}
                     onBlur={() => touch("password")}
                     className={`${cls("password")} pr-11`}
+                    suppressHydrationWarning
                   />
                   <button
                     type="button"
@@ -174,6 +177,7 @@ function ResetPasswordContent() {
                 onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
                 onBlur={() => touch("confirmPassword")}
                 className={cls("confirmPassword")}
+                suppressHydrationWarning
               />
             </Field>
 
@@ -184,25 +188,25 @@ function ResetPasswordContent() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.99] text-white text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Updating…
-                </>
-              ) : (
-                "Update password"
-              )}
-            </button>
-          </form>
-        </>
-      ) : (
-        /* ── Success state ──────────────────────────────────────── */
-        <div className="text-center">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.99] text-white text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Updating…
+                  </>
+                ) : (
+                  "Update password"
+                )}
+              </button>
+            </form>
+          </div>
+        ) : (
+          /* ── Success state ──────────────────────────────────────── */
+          <div className="text-center">
           <div className="mx-auto mb-5 w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
             <CheckCircle className="w-7 h-7 text-emerald-400" />
           </div>
@@ -214,14 +218,15 @@ function ResetPasswordContent() {
             You can now sign in with your new credentials.
           </p>
 
-          <Link
-            href="/login"
-            className="mt-8 flex items-center justify-center w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-colors"
-          >
-            Continue to sign in
-          </Link>
-        </div>
-      )}
+            <Link
+              href="/login"
+              className="mt-8 flex items-center justify-center w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-colors"
+            >
+              Continue to sign in
+            </Link>
+          </div>
+        )}
+      </div>
     </AuthShell>
   );
 }

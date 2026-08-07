@@ -466,13 +466,15 @@ export default function HeroSection() {
             >
               ✕
             </button>
-            <iframe
+            <video
               className="w-full h-full"
-              src="https://www.youtube.com/embed/dQw4w9WgXcQ"
-              title="Product Demo"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
+              controls
+              autoPlay
+              onClick={(e) => e.stopPropagation()}
+            >
+              <source src="/LITEEVENT_—_PRODUCT_DEMO_VIDEO.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
           </div>
         </div>
       )}

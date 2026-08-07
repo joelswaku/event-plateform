@@ -615,6 +615,23 @@ export default function EventPageClient({ event, sections, token }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, [showStickyBar]);
 
+  // Prevent automatic scroll on Android WebView load
+  useEffect(() => {
+    // Detect if running in WebView (React Native)
+    const isWebView = typeof navigator !== 'undefined' &&
+      (navigator.userAgent.includes('wv') || window.ReactNativeWebView);
+
+    if (isWebView) {
+      // Force scroll to top on mount to prevent auto-scroll jump
+      window.scrollTo(0, 0);
+
+      // Prevent scroll restoration
+      if ('scrollRestoration' in window.history) {
+        window.history.scrollRestoration = 'manual';
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (!enrichedEvent.id) return;
     if (showDonate) {

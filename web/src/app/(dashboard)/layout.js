@@ -13,7 +13,13 @@ export default function DashboardLayout({ children }) {
   // after logout. The marker is necessary on iOS/Android, where Back may
   // revive an older dashboard without re-running the normal app bootstrap.
   useEffect(() => {
-    if (isHydrated && (hasLogoutMarker() || !isAuthenticated)) {
+    if (!isHydrated) return;
+
+    const marker = hasLogoutMarker();
+    console.log('[Dashboard Layout] Auth check:', { isAuthenticated, hasMarker: marker });
+
+    if (marker || !isAuthenticated) {
+      console.log('[Dashboard Layout] Redirecting to login');
       window.location.replace("/login");
     }
   }, [isHydrated, isAuthenticated]);
@@ -41,7 +47,9 @@ export default function DashboardLayout({ children }) {
   }, [fetchMe]);
 
   // Don't render protected content if not authenticated
-  if (!isHydrated || !isAuthenticated || hasLogoutMarker()) {
+  const marker = hasLogoutMarker();
+  if (!isHydrated || !isAuthenticated || marker) {
+    console.log('[Dashboard Layout] Blocking render:', { isHydrated, isAuthenticated, hasMarker: marker });
     return null;
   }
 

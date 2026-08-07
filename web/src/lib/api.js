@@ -80,12 +80,20 @@ api.interceptors.response.use(
 
       try {
         const { useAuthStore } = await import("@/store/auth.store");
-        await useAuthStore.getState().refreshToken();
+        const result = await useAuthStore.getState().refreshToken();
 
-        // Cookies refreshed automatically - retry request
-        onRefreshed();
-        return api(originalRequest);
+        if (result) {
+          console.log('[API] Token refresh successful, retrying request');
+          // Cookies refreshed automatically - retry request
+          onRefreshed();
+          return api(originalRequest);
+        } else {
+          console.log('[API] Token refresh returned null - session invalid');
+          throw new Error('Token refresh failed');
+        }
       } catch (refreshError) {
+        console.log('[API] Token refresh failed:', refreshError.message);
+
         // Release the queue FIRST so any pending requests don't deadlock.
         onRefreshed();
 
@@ -95,25 +103,26 @@ api.interceptors.response.use(
           const pathname = window.location.pathname;
 
           // Public pages that should NOT redirect to login on 401
-          const PUBLIC_ROUTES = ["/", "/features", "/pricing", "/templates", "/about", "/contact", "/faq", "/terms", "/privacy-policy", "/cookies-policy", "/acceptable-use"];
+          const PUBLIC_ROUTES = ["/", "/features", "/pricing", "/templates", "/about", "/contact", "/faq", "/terms", "/privacy-policy", "/cookies-policy", "/acceptable-use", "/verify-email"];
           const isPublicPage = PUBLIC_ROUTES.includes(pathname) || pathname.startsWith("/e/");
 
           const isAuthPage = pathname.startsWith("/login") ||
                             pathname.startsWith("/register") ||
-                            pathname.startsWith("/forgot-password");
+                            pathname.startsWith("/forgot-password") ||
+                            pathname.startsWith("/reset-password");
 
           // Only logout and redirect if NOT on public page or auth page
           if (!isAuthPage && !isPublicPage) {
+            console.log('[API] Session expired on protected page, logging out');
             try {
               const { useAuthStore } = await import("@/store/auth.store");
               await useAuthStore.getState().logout();
-              // Navigate to login after logout
-              if (typeof window !== "undefined") {
-                window.location.href = "/login";
-              }
+              // logout() already redirects to "/" - don't redirect again here
             } catch {
               // ignore
             }
+          } else {
+            console.log('[API] Session expired on public/auth page, skipping logout');
           }
         }
 

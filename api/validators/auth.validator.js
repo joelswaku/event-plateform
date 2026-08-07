@@ -31,8 +31,12 @@ export const appleLoginSchema = z.object({
 });
 
 export const googleLoginSchema = z.object({
-  access_token: z.string().min(10),
-});
+  access_token: z.string().min(10).optional(),
+  id_token: z.string().min(10).optional(),
+}).refine(
+  ({ access_token, id_token }) => Boolean(access_token || id_token),
+  { message: "Google token is required" },
+);
 
 
 

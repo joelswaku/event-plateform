@@ -6,7 +6,21 @@ import { hasLogoutMarker, useAuthStore } from "@/store/auth.store";
 import { useSubscriptionStore } from "@/store/subscription.store";
 
 // Public routes that don't need auth checking
-const PUBLIC_ROUTES = ["/", "/login", "/register", "/signup", "/forgot-password", "/reset-password", "/features", "/pricing", "/templates", "/about", "/contact", "/faq", "/terms", "/privacy-policy", "/cookies-policy", "/acceptable-use", "/reviews"];
+const PUBLIC_ROUTES = ["/", "/login", "/register", "/signup", "/forgot-password", "/reset-password", "/verify-email", "/features", "/pricing", "/templates", "/about", "/contact", "/faq", "/terms", "/privacy-policy", "/cookies-policy", "/acceptable-use", "/reviews"];
+
+function getPendingVerificationToken() {
+  if (typeof window === "undefined") return "";
+
+  try {
+    return (
+      window.sessionStorage.getItem("verify_token") ||
+      window.localStorage.getItem("verify_token") ||
+      ""
+    );
+  } catch {
+    return "";
+  }
+}
 
 export default function AuthProvider({ children }) {
   const pathname           = usePathname();
@@ -27,11 +41,13 @@ export default function AuthProvider({ children }) {
     // Skip auth check if pathname not ready yet or auth state not hydrated
     if (!pathname || !isHydrated) return;
 
-    // Allow /verify-email if token in URL OR sessionStorage
+    // Keep verification open when mobile browsers restore this page after the
+    // user switches to their email app. The verification screen persists its
+    // short-lived token in localStorage, while older tabs may use sessionStorage.
     if (pathname === "/verify-email") {
       if (typeof window !== "undefined") {
         const hasUrlToken = new URLSearchParams(window.location.search).has("token");
-        const hasStoredToken = window.sessionStorage.getItem("verify_token");
+        const hasStoredToken = getPendingVerificationToken();
 
         if (!hasUrlToken && !hasStoredToken) {
           // No token in URL or storage - redirect to register
@@ -101,6 +117,9 @@ export default function AuthProvider({ children }) {
     };
 
     const revalidateSession = () => {
+      // Skip revalidation entirely on public pages
+      if (!isProtectedPage()) return;
+
       // If logout marker is set, immediately redirect to homepage
       // This handles bfcache restoration after logout on mobile browsers
       if (hasLogoutMarker()) {
@@ -109,7 +128,8 @@ export default function AuthProvider({ children }) {
         return;
       }
 
-      if (!isProtectedPage() || !useAuthStore.getState().isAuthenticated) return;
+      // Only revalidate if currently authenticated
+      if (!useAuthStore.getState().isAuthenticated) return;
 
       void fetchMe().then((user) => {
         if (user) fetchSubscription({ force: true });
@@ -117,7 +137,10 @@ export default function AuthProvider({ children }) {
     };
 
     const handleVisibility = () => {
-      if (document.visibilityState === "visible") revalidateSession();
+      if (document.visibilityState === "visible") {
+        console.log('[AuthProvider] Tab became visible, checking session...');
+        revalidateSession();
+      }
     };
 
     const handlePageShow = (event) => {

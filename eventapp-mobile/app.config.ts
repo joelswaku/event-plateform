@@ -85,8 +85,9 @@ import { ExpoConfig, ConfigContext } from "expo/config";
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
+  owner: "okapiapp",
   name: "LiteEvent",
-  slug: "liteevent",
+  slug: "event-app",
   version: "1.0.0",
   orientation: "portrait",
   scheme: "liteevent",
@@ -102,6 +103,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
 
   assetBundlePatterns: ["**/*"],
 
+  // EAS Update configuration
+  updates: {
+    url: "https://u.expo.dev/d03571a3-0dee-483c-9a4f-0706b2d9e07d",
+  },
+  runtimeVersion: {
+    policy: "appVersion",
+  },
+
   ios: {
     bundleIdentifier: "com.liteevent.mobile",
     supportsTablet: false,
@@ -110,6 +119,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         "LiteEvent uses your camera to scan QR codes at event check-in.",
       NSContactsUsageDescription:
         "LiteEvent uses your contacts to quickly add guests to your events.",
+      // Declare that app does not use encryption requiring export compliance
+      ITSAppUsesNonExemptEncryption: false,
       // Google OAuth reverse client ID
       CFBundleURLTypes: [
         {
@@ -183,6 +194,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
 
   extra: {
     apiUrl: process.env.EXPO_PUBLIC_API_URL ?? "https://api.liteevent.com/api",
+    webUrl: process.env.EXPO_PUBLIC_WEB_URL ?? "https://liteevent.com",
+    googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "",
+    googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? "",
+    googleAndroidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? "",
+    stripePublishableKey: process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "",
+    environment: process.env.NODE_ENV ?? "production",
     eas: {
       projectId: "d03571a3-0dee-483c-9a4f-0706b2d9e07d",
     },

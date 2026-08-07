@@ -1219,6 +1219,7 @@ export async function restoreEventService({ eventId, organizationId, userId }) {
       `
       UPDATE events
       SET
+        status = 'DRAFT',
         deleted_at = NULL,
         updated_at = NOW()
       WHERE id = $1

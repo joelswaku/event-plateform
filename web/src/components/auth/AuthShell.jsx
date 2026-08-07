@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Zap, CalendarCheck, Ticket, Users } from "lucide-react";
+import "@/styles/auth-animations.css";
 
 const STATS = [
   { icon: CalendarCheck, label: "Events created",    value: "12,400+" },
@@ -19,7 +20,7 @@ const AVATARS = [
 
 export default function AuthShell({ children, headline, subline }) {
   return (
-    <div className="min-h-screen flex bg-[#09090E]">
+    <div className="min-h-screen flex bg-[#09090E] overflow-x-hidden">
 
       {/* ── Left panel ──────────────────────────────────────────── */}
       <div className="hidden lg:flex lg:w-[48%] relative overflow-hidden flex-shrink-0">
@@ -31,10 +32,10 @@ export default function AuthShell({ children, headline, subline }) {
         <div className="absolute inset-0 bg-gradient-to-t from-indigo-950/60 via-transparent to-violet-950/40" />
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/10 via-transparent to-pink-600/5" />
 
-        {/* Decorative glows */}
-        <div className="absolute -top-20 -left-20 w-96 h-96 bg-indigo-600/25 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 -right-24 w-80 h-80 bg-violet-600/20 rounded-full blur-3xl" />
-        <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-pink-600/15 rounded-full blur-3xl" />
+        {/* Decorative glows with floating animations */}
+        <div className="absolute -top-20 -left-20 w-96 h-96 bg-indigo-600/25 rounded-full blur-3xl animate-float-slow" />
+        <div className="absolute top-1/2 -right-24 w-80 h-80 bg-violet-600/20 rounded-full blur-3xl animate-float-medium" />
+        <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-pink-600/15 rounded-full blur-3xl animate-float-fast" />
 
         {/* Grid pattern overlay */}
         <div
@@ -137,15 +138,15 @@ export default function AuthShell({ children, headline, subline }) {
       </div>
 
       {/* ── Right panel ─────────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 lg:px-14 overflow-y-auto relative">
+      <div className="flex flex-1 flex-col items-center justify-center px-4 py-6 sm:px-6 sm:py-12 lg:px-14 overflow-y-auto overflow-x-hidden relative w-full min-w-0">
 
         {/* Gradient background - same as mobile app */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#0f0c29] via-[#1a1040] to-[#24243e]" />
 
-        {/* Glow orbs - same as mobile app */}
-        <div className="absolute -top-20 -right-16 w-72 h-72 bg-[#4f46e5]/18 rounded-full blur-3xl" />
-        <div className="absolute top-1/3 -left-16 w-56 h-56 bg-[#7c3aed]/18 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/3 w-48 h-48 bg-[#db2777]/18 rounded-full blur-3xl" />
+        {/* Animated glow orbs - same as mobile app with floating animations */}
+        <div className="absolute -top-20 -right-16 w-72 h-72 bg-[#4f46e5]/18 rounded-full blur-3xl animate-float-slow" />
+        <div className="absolute top-1/3 -left-16 w-56 h-56 bg-[#7c3aed]/18 rounded-full blur-3xl animate-float-medium" />
+        <div className="absolute bottom-0 right-1/3 w-48 h-48 bg-[#db2777]/18 rounded-full blur-3xl animate-float-fast" />
 
         {/* Grid overlay - same as mobile app */}
         <div
@@ -156,15 +157,35 @@ export default function AuthShell({ children, headline, subline }) {
           }}
         />
 
-        {/* Mobile brand */}
-        <Link href="/" className="relative z-10 flex items-center gap-2 mb-10 lg:hidden self-start">
-          <div className="w-10 h-10 rounded-2xl bg-[#6366f1] flex items-center justify-center shadow-lg shadow-[#6366f1]/50">
-            <Zap className="w-5 h-5 text-white" fill="white" />
+        {/* Mobile brand - compact */}
+        <Link href="/" className="relative z-10 flex items-center gap-2 mb-3 sm:mb-4 lg:hidden self-start">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#6366f1] flex items-center justify-center shadow-lg shadow-[#6366f1]/50">
+            <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="white" />
           </div>
-          <span className="text-white font-black text-base tracking-tight">LiteEvent</span>
+          <span className="text-white font-black text-sm sm:text-base tracking-tight">LiteEvent</span>
         </Link>
 
-        <div className="relative z-10 w-full max-w-100">{children}</div>
+        {/* Floating stat card - compact on mobile */}
+        <div className="relative z-10 w-full max-w-md mb-3 sm:mb-5 lg:hidden animate-slide-up">
+          <div className="bg-white/5 backdrop-blur-sm border border-white/8 rounded-xl sm:rounded-2xl p-3 sm:p-4 flex justify-around items-center shadow-xl">
+            <div className="flex flex-col items-center flex-1">
+              <span className="text-base sm:text-lg font-extrabold text-white">12K+</span>
+              <span className="text-[9px] sm:text-[10px] text-white/40 font-semibold mt-0.5">Events</span>
+            </div>
+            <div className="w-px h-6 sm:h-8 bg-white/8" />
+            <div className="flex flex-col items-center flex-1">
+              <span className="text-base sm:text-lg font-extrabold text-white">890K</span>
+              <span className="text-[9px] sm:text-[10px] text-white/40 font-semibold mt-0.5">Tickets sold</span>
+            </div>
+            <div className="w-px h-6 sm:h-8 bg-white/8" />
+            <div className="flex flex-col items-center flex-1">
+              <span className="text-base sm:text-lg font-extrabold text-white">2.4K</span>
+              <span className="text-[9px] sm:text-[10px] text-white/40 font-semibold mt-0.5">Organizers</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative z-10 w-full max-w-md min-w-0">{children}</div>
       </div>
     </div>
   );

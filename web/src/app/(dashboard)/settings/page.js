@@ -6,9 +6,9 @@ import { useRouter, usePathname } from "next/navigation";
 import {
   CreditCard, User, Bell, Shield, ChevronRight,
   Calendar, Ticket, HelpCircle, LogOut, Layers,
-  Zap, Home, Plus, Star, ExternalLink, Loader2,
+  Zap, Home, Star, ExternalLink, Loader2,
   Check, ArrowRight, BarChart2, Globe, Scale,
-  FileText, Lock, BookOpen,
+  FileText, Lock, BookOpen, Clipboard, Maximize,
 } from "lucide-react";
 import { useAuthStore }         from "@/store/auth.store";
 import { useSubscriptionStore } from "@/store/subscription.store";
@@ -21,46 +21,63 @@ import LegalModal               from "@/components/legal/LegalModal";
 ───────────────────────────────────────────────────────────────────── */
 function MobileBottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const requestPlannerAccess = useSubscriptionStore((s) => s.requestPlannerAccess);
   const tabs = [
     { href: "/dashboard", label: "Home",    Icon: Home,         active: pathname === "/dashboard" },
     { href: "/events",    label: "Events",  Icon: Calendar,     active: pathname.startsWith("/events") },
     null,
-    { href: "/tickets",   label: "Tickets", Icon: Ticket,       active: pathname === "/tickets" },
-    { href: "/settings",  label: "Account", Icon: User,         active: pathname.startsWith("/settings") },
+    { href: "/planner",   label: "Planner", Icon: Clipboard,    active: pathname.startsWith("/planner"), requiresPaid: true },
+    { href: "/settings",  label: "Profile", Icon: User,         active: pathname.startsWith("/settings") },
   ];
 
   return (
     <div
-      className="shrink-0 border-t px-1 pt-2"
+      className="shrink-0 border-t"
       style={{
-        background: "#0e0e16",
+        background: "rgba(14,14,22,0.88)",
         borderColor: "rgba(255,255,255,0.08)",
-        paddingBottom: "max(10px, env(safe-area-inset-bottom))",
+        backdropFilter: "blur(18px)",
+        WebkitBackdropFilter: "blur(18px)",
+        minHeight: 64,
+        paddingTop: 4,
+        paddingBottom: "max(6px, env(safe-area-inset-bottom))",
       }}
     >
-      <div className="flex items-end justify-around">
+      <div className="flex items-center justify-around">
         {tabs.map((tab, i) => {
           if (!tab) {
             return (
-              <Link key="create" href="/events/create" className="-mt-5 flex flex-col items-center gap-1">
+              <Link key="scan" href="/events" className="relative z-10 -mt-2.5 flex flex-1 flex-col items-center justify-center gap-px transition-transform active:scale-95">
                 <div
-                  className="flex h-14 w-14 items-center justify-center rounded-[18px]"
-                  style={{ background: "linear-gradient(135deg, #4f46e5, #6366f1)", boxShadow: "0 4px 20px rgba(99,102,241,0.45)" }}
+                  className="flex h-[54px] w-[54px] items-center justify-center rounded-[16px]"
+                  style={{ background: "#059669", boxShadow: "0 4px 12px rgba(16,185,129,0.45)" }}
                 >
-                  <Plus size={24} className="text-white" />
+                  <Maximize size={20} className="text-white" />
                 </div>
-                <span className="mt-0.5 text-[10px] font-extrabold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.40)" }}>
-                  Create
+                <span className="mt-0.5 text-[10px] font-bold" style={{ color: "rgba(255,255,255,0.40)" }}>
+                  Scan
                 </span>
               </Link>
             );
           }
           const { href, label, Icon, active } = tab;
           return (
-            <Link key={href} href={href} className="flex flex-col items-center gap-1 px-3 py-1">
-              <Icon size={22} style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }} />
-              <span className="text-[10px] font-extrabold uppercase tracking-wide"
-                style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }}>
+            <Link
+              key={href}
+              href={href}
+              onClick={async (event) => {
+                if (tab.requiresPaid) {
+                  event.preventDefault();
+                  if (await requestPlannerAccess()) router.push(href);
+                }
+              }}
+              className="flex min-w-0 flex-1 flex-col items-center justify-center gap-px py-0.5"
+            >
+              <span className="flex h-[38px] w-[38px] items-center justify-center">
+                <Icon size={17} style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }} />
+              </span>
+              <span className="text-[10px] font-bold" style={{ color: "rgba(255,255,255,0.40)" }}>
                 {label}
               </span>
             </Link>
@@ -101,8 +118,9 @@ function MobileSettings() {
 
   const isPremium = isSubscribed && plan !== "free";
 
-  const initials = user?.name
-    ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+  const displayName = user?.name || user?.full_name || "—";
+  const initials = displayName !== "—"
+    ? displayName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
     : user?.email?.slice(0, 2).toUpperCase() ?? "?";
 
   const PLAN_DISPLAY = { free: "Free", starter: "Starter", pro: "Pro", premium: "Pro", enterprise: "Enterprise" };
@@ -164,13 +182,13 @@ function MobileSettings() {
               <div
                 style={{
                   width: 96, height: 96, borderRadius: 48, padding: 3,
-                  background: "linear-gradient(135deg, rgba(99,102,241,0.55), rgba(167,139,250,0.35))",
+                  background: "linear-gradient(135deg, rgba(79,70,229,0.25), rgba(124,58,237,0.19))",
                 }}
               >
                 <div
                   style={{
                     width: "100%", height: "100%", borderRadius: 48,
-                    background: "linear-gradient(135deg, #4f46e5, #7c3aed)",
+                    background: "#0e0e16",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     overflow: "hidden",
                     position: "relative",
@@ -180,7 +198,7 @@ function MobileSettings() {
                     <img src={user.avatar_url} alt="avatar"
                       style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   ) : (
-                    <span style={{ fontSize: 28, fontWeight: 900, color: "#fff" }}>
+                    <span style={{ fontSize: 28, fontWeight: 900, color: "#6366f1" }}>
                       {initials}
                     </span>
                   )}
@@ -209,7 +227,7 @@ function MobileSettings() {
             </button>
 
             <p style={{ fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: -0.3, marginTop: 8 }}>
-              {user?.name ?? "—"}
+              {displayName}
             </p>
             <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
               {user?.email ?? "—"}
@@ -220,8 +238,9 @@ function MobileSettings() {
           <div
             className="relative overflow-hidden rounded-2xl p-4"
             style={{
-              backgroundColor: "#14141f",
+              backgroundColor: "#0e0e16",
               border: `1px solid ${isPremium ? "rgba(201,169,110,0.40)" : "rgba(255,255,255,0.10)"}`,
+              minHeight: 104,
             }}
           >
             {isPremium && (
@@ -230,7 +249,7 @@ function MobileSettings() {
                 style={{ background: "linear-gradient(135deg, rgba(201,169,110,0.10) 0%, rgba(245,158,11,0.04) 100%)" }}
               />
             )}
-            <div className="relative flex items-center justify-between gap-3">
+            <div className="relative flex min-h-[34px] items-center justify-between gap-3">
               <div>
                 <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.35)", letterSpacing: 0.8, textTransform: "uppercase" }}>
                   Current Plan
@@ -253,7 +272,7 @@ function MobileSettings() {
                 </Link>
               )}
             </div>
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginTop: 6 }}>
+            <p className="flex min-h-[28px] items-end" style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginTop: 6 }}>
               {planLimits}
             </p>
           </div>
@@ -279,26 +298,35 @@ function MobileSettings() {
             )}
 
             <MobileMenuItem Icon={HelpCircle} label="Help & Support"  href="/settings/support" />
+          </div>
 
-            {/* Legal section */}
-            <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-              <p style={{ fontSize: 9, fontWeight: 800, color: "rgba(255,255,255,0.22)", textTransform: "uppercase", letterSpacing: "0.12em", paddingLeft: 4, marginBottom: 4 }}>
-                Legal
-              </p>
-              <MobileMenuItem Icon={FileText} label="Terms of Service" onPress={() => setLegalSlug("terms")}           iconColor="#f59e0b" iconBg="rgba(245,158,11,0.12)" />
-              <MobileMenuItem Icon={Lock}     label="Privacy Policy"  onPress={() => setLegalSlug("privacy-policy")} iconColor="#6366f1" iconBg="rgba(99,102,241,0.12)" />
-              <MobileMenuItem Icon={Scale}    label="Cookies Policy"  onPress={() => setLegalSlug("cookies-policy")} iconColor="#10b981" iconBg="rgba(16,185,129,0.12)" />
-              <MobileMenuItem Icon={BookOpen} label="Acceptable Use"  onPress={() => setLegalSlug("acceptable-use")} iconColor="#a78bfa" iconBg="rgba(167,139,250,0.12)" />
+          {/* Legal section - separate card like mobile app */}
+          <div style={{ marginTop: 8 }}>
+            <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.15)", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 8 }}>
+              Legal
+            </p>
+            <div
+              className="overflow-hidden rounded-2xl"
+              style={{
+                backgroundColor: "#0e0e16",
+                border: "1px solid rgba(255,255,255,0.06)",
+              }}
+            >
+              <MobileMenuItem Icon={FileText} label="Terms of Service" onPress={() => setLegalSlug("terms")}           iconColor="#f59e0b" iconBg="rgba(245,158,11,0.15)" noBorder={false} />
+              <MobileMenuItem Icon={Lock}     label="Privacy Policy"  onPress={() => setLegalSlug("privacy-policy")} iconColor="#6366f1" iconBg="rgba(99,102,241,0.15)" noBorder={false} />
+              <MobileMenuItem Icon={Scale}    label="Cookies Policy"  onPress={() => setLegalSlug("cookies-policy")} iconColor="#10b981" iconBg="rgba(16,185,129,0.15)" noBorder={false} />
+              <MobileMenuItem Icon={BookOpen} label="Acceptable Use"  onPress={() => setLegalSlug("acceptable-use")} iconColor="#a78bfa" iconBg="rgba(167,139,250,0.15)" noBorder={true} />
             </div>
           </div>
 
           {/* Logout button */}
           <button
             onClick={() => setShowLogoutConfirm(true)}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 transition"
+            className="flex w-full items-center justify-center gap-2 py-3.5 transition"
             style={{
-              border: "1px solid rgba(239,68,68,0.28)",
-              backgroundColor: "rgba(239,68,68,0.08)",
+              borderRadius: 14,
+              border: "1px solid rgba(239,68,68,0.19)",
+              backgroundColor: "rgba(239,68,68,0.06)",
             }}
           >
             <LogOut size={16} style={{ color: "#ef4444" }} />
@@ -327,7 +355,7 @@ function MobileSettings() {
             <div className="px-6 pt-6 pb-4">
               <h2 className="text-[20px] font-black text-white text-center">Sign out?</h2>
               <p className="text-[13px] mt-2 text-center" style={{ color: "rgba(255,255,255,0.45)" }}>
-                You'll need to log back in to manage your events.
+                You&apos;ll need to log back in to manage your events.
               </p>
             </div>
 
@@ -362,19 +390,19 @@ function MobileSettings() {
   );
 }
 
-function MobileMenuItem({ Icon, label, href, soon, newTab = false, onPress, iconColor = "#6366f1", iconBg = "rgba(99,102,241,0.14)" }) {
+function MobileMenuItem({ Icon, label, href, soon, newTab = false, onPress, iconColor = "#6366f1", iconBg = "rgba(99,102,241,0.14)", noBorder = false }) {
   const inner = (
     <div
-      className="flex w-full items-center gap-3 px-1 py-3"
-      style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+      className="flex w-full items-center gap-3 px-4 py-3.5"
+      style={{ borderBottom: noBorder ? "none" : "1px solid rgba(255,255,255,0.06)" }}
     >
       <div
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]"
         style={{ backgroundColor: iconBg }}
       >
-        <Icon size={16} style={{ color: iconColor }} />
+        <Icon size={14} style={{ color: iconColor }} />
       </div>
-      <span style={{ fontSize: 15, fontWeight: 600, color: soon ? "rgba(255,255,255,0.35)" : "#fff", flex: 1 }}>
+      <span style={{ fontSize: 14, fontWeight: 600, color: soon ? "rgba(255,255,255,0.35)" : "#fff", flex: 1 }}>
         {label}
       </span>
       {soon ? (
@@ -383,7 +411,7 @@ function MobileMenuItem({ Icon, label, href, soon, newTab = false, onPress, icon
           Soon
         </span>
       ) : (
-        <ChevronRight size={16} style={{ color: "rgba(255,255,255,0.25)" }} />
+        <ChevronRight size={13} style={{ color: "rgba(255,255,255,0.25)" }} />
       )}
     </div>
   );
