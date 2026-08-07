@@ -620,7 +620,10 @@ export default function EventPageClient({ event, sections, token }) {
   // guard as soon as the visitor intentionally interacts with the page.
   useEffect(() => {
     const isAndroid = typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
-    if (!isAndroid) return;
+    const isWebView = typeof navigator !== "undefined" &&
+      (navigator.userAgent.includes('wv') || window.ReactNativeWebView);
+
+    if (!isAndroid && !isWebView) return;
 
     let visitorInteracted = false;
     let resetFrame = null;
@@ -649,9 +652,22 @@ export default function EventPageClient({ event, sections, token }) {
     if ("scrollRestoration" in window.history) {
       window.history.scrollRestoration = "manual";
     }
+
+    // CRITICAL FIX: Prevent auto-scroll to elements with IDs (like id="tickets")
+    // Android WebView aggressively scrolls to the first "important" element with an ID.
+    // This is more aggressive than the previous fix - it runs more frequently.
     resetToTop();
     const initialFrame = window.requestAnimationFrame(resetToTop);
-    const delayedReset = window.setTimeout(resetToTop, 0);
+    const delayedResets = [
+      setTimeout(resetToTop, 0),
+      setTimeout(resetToTop, 50),
+      setTimeout(resetToTop, 100),
+      setTimeout(resetToTop, 200),
+      setTimeout(resetToTop, 300),
+      setTimeout(resetToTop, 500),
+      setTimeout(resetToTop, 800),
+      setTimeout(resetToTop, 1200),
+    ];
 
     window.addEventListener("scroll", scheduleTopReset, { passive: true });
     window.addEventListener("pageshow", resetToTop);
@@ -661,7 +677,7 @@ export default function EventPageClient({ event, sections, token }) {
 
     return () => {
       window.cancelAnimationFrame(initialFrame);
-      window.clearTimeout(delayedReset);
+      delayedResets.forEach(clearTimeout);
       if (resetFrame !== null) window.cancelAnimationFrame(resetFrame);
       window.removeEventListener("scroll", scheduleTopReset);
       window.removeEventListener("pageshow", resetToTop);

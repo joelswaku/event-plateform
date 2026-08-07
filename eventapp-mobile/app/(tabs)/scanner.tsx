@@ -161,11 +161,13 @@ export default function ScannerTab() {
   const lastScanRef = useRef(0);
 
   const { scanTicket, syncOffline, offlineQueue, stats, fetchStats, online } = useScannerStore();
-  const { events, fetchEvents, activeEventId, setActiveEvent } = useEventStore();
+  const { events, fetchEvents, activeEventId, setActiveEvent, loading: eventsLoading } = useEventStore();
 
-  // Resolve the event to scan for
-  const eventId     = activeEventId ?? events[0]?.id ?? '';
-  const activeEvent = events.find(e => e.id === eventId) ?? null;
+  // Resolve only to an event that is currently loaded. A stale activeEventId
+  // (for example after an event was removed or access changed) must never be
+  // sent to the check-in API.
+  const activeEvent = events.find(e => e.id === activeEventId) ?? events[0] ?? null;
+  const eventId     = activeEvent?.id ?? '';
   const cfg         = activeEvent
     ? (Colors.status[activeEvent.status as keyof typeof Colors.status] ?? Colors.status.DRAFT)
     : null;
@@ -183,6 +185,14 @@ export default function ScannerTab() {
 
   useEffect(() => { fetchEvents(); }, []);
 
+  // Keep the shared active event in sync when the scanner safely falls back
+  // from a stale selection to the first event the user can access.
+  useEffect(() => {
+    if (activeEvent && activeEvent.id !== activeEventId) {
+      setActiveEvent(activeEvent.id);
+    }
+  }, [activeEvent?.id, activeEventId, setActiveEvent]);
+
   useEffect(() => {
     const unsub = NetInfo.addEventListener(state => {
       if (state.isConnected && offlineQueue.length > 0 && eventId) {
@@ -197,14 +207,15 @@ export default function ScannerTab() {
   }, [eventId]);
 
   const handleScan = useCallback(async (data: string) => {
-    const now = Date.now();
-    if (now - lastScanRef.current < 1500) return;
-    lastScanRef.current = now;
-
-    if (!eventId) {
+    if (!activeEvent || !eventId) {
+      setPickerOpen(true);
       notify.noEventSelected();
       return;
     }
+
+    const now = Date.now();
+    if (now - lastScanRef.current < 1500) return;
+    lastScanRef.current = now;
 
     const result = await scanTicket(eventId, data.trim());
     setLastResult(result);
@@ -213,7 +224,7 @@ export default function ScannerTab() {
     } else if (result.type === 'DUPLICATE') {
       notify.checkinDuplicate(result.holder_name ?? undefined);
     }
-  }, [eventId, scanTicket]);
+  }, [activeEvent, eventId, scanTicket]);
 
   const handleManualScan = () => {
     if (!manualInput.trim()) return;
@@ -256,7 +267,11 @@ export default function ScannerTab() {
     <SafeAreaView style={s.safe} edges={['top']}>
 
       {/* ── Event selector banner ──────────────────────────────────── */}
-      <Pressable style={s.eventSelector} onPress={() => setPickerOpen(true)}>
+      <Pressable
+        style={s.eventSelector}
+        onPress={() => events.length > 0 && setPickerOpen(true)}
+        disabled={eventsLoading || events.length === 0}
+      >
         {activeEvent ? (
           <>
             {/* Thumb */}
@@ -305,8 +320,14 @@ export default function ScannerTab() {
               <Feather name="calendar" size={18} color={Colors.accent.indigo} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.noEventTitle}>No event selected</Text>
-              <Text style={s.noEventSub}>Tap to choose which event to scan</Text>
+              <Text style={s.noEventTitle}>
+                {eventsLoading ? 'Loading events…' : 'No events available'}
+              </Text>
+              <Text style={s.noEventSub}>
+                {eventsLoading
+                  ? 'Please wait while we load your events'
+                  : 'Create an event from the Events tab, then return to scan'}
+              </Text>
             </View>
             <Feather name="chevron-down" size={16} color={Colors.text.muted} />
           </View>
@@ -328,7 +349,7 @@ export default function ScannerTab() {
 
       {/* ── Camera viewport ────────────────────────────────────────── */}
       <View style={s.cameraWrap}>
-        {isFocused && (
+        {isFocused && activeEvent && (
           <CameraView
             style={StyleSheet.absoluteFill}
             facing="back"
@@ -355,11 +376,13 @@ export default function ScannerTab() {
         </View>
 
         {/* Torch toggle */}
-        <Pressable style={s.torchBtn} onPress={() => setTorch(t => !t)}>
-          <BlurView intensity={40} tint="dark" style={s.torchBlur}>
-            <Feather name={torch ? 'zap-off' : 'zap'} size={18} color={torch ? Colors.accent.amber : '#fff'} />
-          </BlurView>
-        </Pressable>
+        {activeEvent && (
+          <Pressable style={s.torchBtn} onPress={() => setTorch(t => !t)}>
+            <BlurView intensity={40} tint="dark" style={s.torchBlur}>
+              <Feather name={torch ? 'zap-off' : 'zap'} size={18} color={torch ? Colors.accent.amber : '#fff'} />
+            </BlurView>
+          </Pressable>
+        )}
 
         {/* Hint text */}
         <View style={s.hintWrap}>
@@ -380,7 +403,7 @@ export default function ScannerTab() {
           <Feather name="hash" size={15} color={Colors.text.subtle} />
           <TextInput
             style={s.manualInput}
-            placeholder="Enter ticket code manually…"
+            placeholder={activeEvent ? 'Enter ticket code manually…' : 'Select an event to enter a ticket code'}
             placeholderTextColor={Colors.text.subtle}
             value={manualInput}
             onChangeText={setManualInput}
@@ -388,6 +411,7 @@ export default function ScannerTab() {
             returnKeyType="done"
             autoCapitalize="none"
             autoCorrect={false}
+            editable={!!activeEvent}
           />
           {manualInput.length > 0 && (
             <Pressable

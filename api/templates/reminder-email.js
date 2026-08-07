@@ -1,7 +1,27 @@
 /**
  * Event Reminder Email Template
- * Beautiful, responsive HTML email for event reminders
+ *
+ * Built with table layout and solid, light surfaces so the message stays
+ * readable in Gmail, including Gmail's automatic dark-mode treatment.
  */
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function safeUrl(value) {
+  try {
+    const url = new URL(String(value));
+    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : '#';
+  } catch {
+    return '#';
+  }
+}
 
 export function generateReminderEmail({
   guestName,
@@ -14,23 +34,65 @@ export function generateReminderEmail({
   timing,
 }) {
   const timingLabels = {
-    'instant': 'Registration Confirmed',
-    '1_minute': '1 Minute',
-    '15_minutes': '15 Minutes',
-    '30_minutes': '30 Minutes',
-    '1_hour': '1 Hour',
-    '2_hours': '2 Hours',
-    '6_hours': '6 Hours',
-    '12_hours': '12 Hours',
-    '24_hours': '24 Hours',
-    '3_days': '3 Days',
-    '7_days': '1 Week',
-    '14_days': '2 Weeks',
-    '30_days': '1 Month',
+    instant: 'Registration confirmed',
+    '1_minute': '1 minute',
+    '15_minutes': '15 minutes',
+    '30_minutes': '30 minutes',
+    '1_hour': '1 hour',
+    '2_hours': '2 hours',
+    '6_hours': '6 hours',
+    '12_hours': '12 hours',
+    '24_hours': '24 hours',
+    '3_days': '3 days',
+    '7_days': '1 week',
+    '14_days': '2 weeks',
+    '30_days': '1 month',
   };
 
-  const timingLabel = timingLabels[timing] || 'Reminder';
   const isConfirmation = timing === 'instant';
+  const timingLabel = timingLabels[timing] || 'Event reminder';
+  const safe = {
+    guestName: escapeHtml(guestName || 'there'),
+    eventTitle: escapeHtml(eventTitle || 'Your event'),
+    eventDate: escapeHtml(eventDate),
+    eventTime: escapeHtml(eventTime),
+    eventLocation: escapeHtml(eventLocation),
+    eventUrl: escapeHtml(safeUrl(eventUrl)),
+    message: escapeHtml(message || ''),
+  };
+  const mapUrl = eventLocation
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(eventLocation))}`
+    : '';
+
+  const dateRow = eventDate ? `
+    <tr>
+      <td width="38" valign="top" style="padding: 0 12px 0 0;">
+        <div style="width: 32px; height: 32px; line-height: 32px; text-align: center; background-color: #eef2ff; border-radius: 8px; color: #4338ca; font-size: 15px;">&#128197;</div>
+      </td>
+      <td valign="top" style="padding: 0;">
+        <p style="margin: 0 0 3px; color: #6b7280; font-size: 11px; font-weight: 700; letter-spacing: 0.9px; line-height: 16px; text-transform: uppercase;">Date &amp; time</p>
+        <p style="margin: 0; color: #111827; font-size: 16px; font-weight: 700; line-height: 23px;">${safe.eventDate}${eventTime ? ` at ${safe.eventTime}` : ''}</p>
+      </td>
+    </tr>` : '';
+
+  const locationRow = eventLocation ? `
+    <tr>
+      <td colspan="2" style="padding: ${eventDate ? '20px' : '0'} 0 0;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+          <tr>
+            <td width="38" valign="top" style="padding: 0 12px 0 0;">
+              <div style="width: 32px; height: 32px; line-height: 32px; text-align: center; background-color: #f5f3ff; border-radius: 8px; color: #6d28d9; font-size: 15px;">&#128205;</div>
+            </td>
+            <td valign="top" style="padding: 0;">
+              <p style="margin: 0 0 3px; color: #6b7280; font-size: 11px; font-weight: 700; letter-spacing: 0.9px; line-height: 16px; text-transform: uppercase;">Location</p>
+              <a href="${escapeHtml(mapUrl)}" style="color: #111827; font-size: 16px; font-weight: 700; line-height: 23px; text-decoration: none;">${safe.eventLocation}</a>
+              <br>
+              <a href="${escapeHtml(mapUrl)}" style="color: #4f46e5; font-size: 13px; font-weight: 700; line-height: 20px; text-decoration: none;">Open in Maps &rarr;</a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>` : '';
 
   return `
 <!DOCTYPE html>
@@ -39,148 +101,101 @@ export function generateReminderEmail({
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>Event Reminder - ${eventTitle}</title>
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+  <title>${safe.eventTitle}</title>
   <!--[if mso]>
   <style type="text/css">
-    body, table, td {font-family: Arial, Helvetica, sans-serif !important;}
+    body, table, td, a { font-family: Arial, Helvetica, sans-serif !important; }
   </style>
   <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; background-color: #f4f7fa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-
-  <!-- Wrapper Table -->
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f4f7fa; padding: 40px 20px;">
+<body class="body" style="margin: 0; padding: 0; background-color: #f3f4f6;">
+  <div style="display: none; max-height: 0; overflow: hidden; opacity: 0; color: transparent; mso-hide: all;">
+    ${isConfirmation ? `You're registered for ${safe.eventTitle}.` : `${timingLabel} until ${safe.eventTitle}.`}
+  </div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width: 100%; background-color: #f3f4f6;">
     <tr>
-      <td align="center">
+      <td align="center" style="padding: 32px 16px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width: 100%; max-width: 600px; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden;">
 
-        <!-- Main Container -->
-        <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.06); overflow: hidden;">
-
-          <!-- Header with Gradient -->
           <tr>
-            <td style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 40px 40px 60px 40px; text-align: center;">
-              <div style="display: inline-block; background: rgba(255,255,255,0.2); border-radius: 12px; padding: 12px 24px; margin-bottom: 20px;">
-                <span style="color: #ffffff; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
-                  ${isConfirmation ? '✓ ' : '🔔 '}${timingLabel}${isConfirmation ? '' : ' Away'}
-                </span>
-              </div>
-              <h1 style="margin: 0; color: #ffffff; font-size: 32px; font-weight: 800; line-height: 1.2;">
-                ${isConfirmation ? 'You\'re Registered!' : 'Event Reminder'}
-              </h1>
-            </td>
-          </tr>
-
-          <!-- Event Card -->
-          <tr>
-            <td style="padding: 0 40px; transform: translateY(-30px);">
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 32px rgba(0,0,0,0.12);">
-                <tr>
-                  <td style="padding: 32px;">
-                    <h2 style="margin: 0 0 8px 0; color: #ffffff; font-size: 28px; font-weight: 700; line-height: 1.3;">
-                      ${eventTitle}
-                    </h2>
-
-                    ${eventDate ? `
-                    <div style="margin: 20px 0 0 0; padding: 18px; background: rgba(255,255,255,0.12); border-radius: 12px; border-left: 4px solid #6366f1;">
-                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                        <tr>
-                          <td style="padding: 4px 0;">
-                            <span style="color: rgba(255,255,255,0.75); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Date & Time</span>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td style="padding: 6px 0;">
-                            <span style="color: #ffffff; font-size: 17px; font-weight: 600;">
-                              📅 ${eventDate}${eventTime ? ` at ${eventTime}` : ''}
-                            </span>
-                          </td>
-                        </tr>
-                      </table>
-                    </div>
-                    ` : ''}
-
-                    ${eventLocation ? `
-                    <div style="margin: 12px 0 0 0; padding: 18px; background: rgba(255,255,255,0.12); border-radius: 12px; border-left: 4px solid #8b5cf6;">
-                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                        <tr>
-                          <td style="padding: 4px 0;">
-                            <span style="color: rgba(255,255,255,0.75); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Location</span>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td style="padding: 6px 0;">
-                            <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(eventLocation)}" style="color: #ffffff; font-size: 17px; font-weight: 600; text-decoration: none; display: inline-block;">
-                              📍 ${eventLocation}
-                              <span style="color: rgba(255,255,255,0.6); font-size: 14px; font-weight: 400; margin-left: 8px;">→ Open in Maps</span>
-                            </a>
-                          </td>
-                        </tr>
-                      </table>
-                    </div>
-                    ` : ''}
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <!-- Message Content -->
-          <tr>
-            <td style="padding: 20px 40px 40px 40px;">
-              <p style="margin: 0 0 24px 0; color: #1e293b; font-size: 16px; line-height: 1.6;">
-                Hi ${guestName || 'there'} 👋
-              </p>
-              <p style="margin: 0 0 32px 0; color: #475569; font-size: 15px; line-height: 1.7;">
-                ${message}
-              </p>
-
-              <!-- CTA Button -->
+            <td style="padding: 24px 32px 18px; border-bottom: 1px solid #e5e7eb;">
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                 <tr>
-                  <td align="center" style="padding: 20px 0;">
-                    <a href="${eventUrl}" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 12px; font-size: 16px; font-weight: 700; box-shadow: 0 4px 16px rgba(99,102,241,0.3);">
-                      View Event Details →
-                    </a>
+                  <td valign="middle">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                      <tr>
+                        <td width="28" height="28" align="center" valign="middle" style="width: 28px; height: 28px; background-color: #4f46e5; border-radius: 8px; color: #ffffff; font-family: Arial, sans-serif; font-size: 17px; font-weight: 700; line-height: 28px;">L</td>
+                        <td style="padding-left: 9px; color: #111827; font-family: Arial, Helvetica, sans-serif; font-size: 17px; font-weight: 800; letter-spacing: -0.2px;">LiteEvent</td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td align="right" valign="middle" style="color: #6b7280; font-family: Arial, Helvetica, sans-serif; font-size: 12px; font-weight: 600;">${isConfirmation ? 'Event registration' : 'Event reminder'}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding: 38px 32px 26px;">
+              <p style="margin: 0 0 14px; color: #4f46e5; font-family: Arial, Helvetica, sans-serif; font-size: 12px; font-weight: 800; letter-spacing: 1px; line-height: 18px; text-transform: uppercase;">${isConfirmation ? '&#10003; Registration confirmed' : `&#128276; ${escapeHtml(timingLabel)} until your event`}</p>
+              <h1 style="margin: 0; color: #111827; font-family: Arial, Helvetica, sans-serif; font-size: 30px; font-weight: 800; letter-spacing: -0.6px; line-height: 38px;">${isConfirmation ? "You're registered." : 'A quick reminder.'}</h1>
+              <p style="margin: 12px 0 0; color: #4b5563; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 25px;">Everything you need for the event is below.</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding: 0 32px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #fafafa; border: 1px solid #e5e7eb; border-radius: 12px;">
+                <tr>
+                  <td style="padding: 24px;">
+                    <p style="margin: 0 0 20px; color: #111827; font-family: Arial, Helvetica, sans-serif; font-size: 20px; font-weight: 800; letter-spacing: -0.3px; line-height: 28px;">${safe.eventTitle}</p>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                      ${dateRow}
+                      ${locationRow}
+                    </table>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
 
-          <!-- Divider -->
           <tr>
-            <td style="padding: 0 40px;">
-              <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, #e2e8f0 50%, transparent 100%);"></div>
+            <td style="padding: 30px 32px 12px;">
+              <p style="margin: 0 0 14px; color: #111827; font-family: Arial, Helvetica, sans-serif; font-size: 16px; font-weight: 700; line-height: 24px;">Hi ${safe.guestName},</p>
+              <p style="margin: 0; color: #4b5563; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 26px;">${safe.message}</p>
             </td>
           </tr>
 
-          <!-- Footer -->
           <tr>
-            <td style="padding: 32px 40px; text-align: center;">
-              <p style="margin: 0 0 12px 0; color: #94a3b8; font-size: 13px; line-height: 1.5;">
-                Powered by <strong style="color: #6366f1;">LiteEvent</strong>
-              </p>
-              <p style="margin: 0; color: #cbd5e1; font-size: 12px; line-height: 1.5;">
-                You're receiving this because you're registered for this event.<br>
-                © ${new Date().getFullYear()} LiteEvent. All rights reserved.
-              </p>
+            <td align="left" style="padding: 24px 32px 38px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td align="center" bgcolor="#4f46e5" style="background-color: #4f46e5; border-radius: 10px;">
+                    <a href="${safe.eventUrl}" style="display: inline-block; padding: 14px 20px; color: #ffffff; font-family: Arial, Helvetica, sans-serif; font-size: 15px; font-weight: 700; line-height: 20px; text-decoration: none;">View event details &rarr;</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding: 22px 32px 28px; border-top: 1px solid #e5e7eb;">
+              <p style="margin: 0 0 8px; color: #6b7280; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 18px;">You are receiving this because you registered for this event.</p>
+              <p style="margin: 0; color: #9ca3af; font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 18px;">Powered by LiteEvent &middot; &copy; ${new Date().getFullYear()} LiteEvent</p>
             </td>
           </tr>
 
         </table>
-        <!-- End Main Container -->
-
       </td>
     </tr>
   </table>
-  <!-- End Wrapper -->
-
 </body>
-</html>
-  `.trim();
+</html>`.trim();
 }
 
-// Plain text version for email clients that don't support HTML
+// Plain-text fallback for email clients that don't render HTML.
 export function generateReminderTextEmail({
   guestName,
   eventTitle,
@@ -189,7 +204,6 @@ export function generateReminderTextEmail({
   eventLocation,
   eventUrl,
   message,
-  timing,
 }) {
   return `
 Hi ${guestName || 'there'},
@@ -200,8 +214,8 @@ EVENT DETAILS
 ━━━━━━━━━━━━━━━━━━━━━━
 ${eventTitle}
 
-${eventDate ? `📅 Date: ${eventDate}${eventTime ? ` at ${eventTime}` : ''}` : ''}
-${eventLocation ? `📍 Location: ${eventLocation}` : ''}
+${eventDate ? `Date: ${eventDate}${eventTime ? ` at ${eventTime}` : ''}` : ''}
+${eventLocation ? `Location: ${eventLocation}` : ''}
 
 View full event details:
 ${eventUrl}
