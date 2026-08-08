@@ -65,6 +65,21 @@ function fillAccent(pct: number) {
   return '#10b981';
 }
 
+// Seating is a dark-only Expo screen. Keep the product navy, but use raised
+// blue surfaces and brighter supporting text so table information stays legible.
+const SEATING_THEME = {
+  page: '#012354',
+  surface: '#063968',
+  surfaceRaised: '#084777',
+  surfaceSoft: '#052f5d',
+  border: 'rgba(11,148,253,0.38)',
+  borderSoft: 'rgba(160,213,255,0.22)',
+  text: '#f2f8ff',
+  textSecondary: '#c2e1fb',
+  textMuted: '#91c8f3',
+  blue: '#0b94fd',
+};
+
 // ── Seat-position math (mirrors web exactly) ─────────────────────────────────────
 
 function ellipseSeats(count: number, rx: number, ry: number, cx: number, cy: number) {
@@ -615,9 +630,9 @@ function StatsGrid({ cap, asgn, tables }: { cap: number; asgn: number; tables: n
   const free = Math.max(0, cap - asgn);
   const rate = cap > 0 ? Math.round((asgn / cap) * 100) : 0;
   const items = [
-    { label: 'Total Capacity', value: cap,      accent: '#6366f1', sub: `${tables} table${tables !== 1 ? 's' : ''}` },
-    { label: 'Assigned',       value: asgn,     accent: '#10b981', sub: `${rate}% fill rate`              },
-    { label: 'Available',      value: free,     accent: free > 0 ? '#f59e0b' : '#10b981', sub: free === 0 ? 'All seated!' : 'seats free' },
+    { label: 'Total Capacity', value: cap,      accent: SEATING_THEME.blue, sub: `${tables} table${tables !== 1 ? 's' : ''}` },
+    { label: 'Assigned',       value: asgn,     accent: '#40d8aa', sub: `${rate}% fill rate`              },
+    { label: 'Available',      value: free,     accent: free > 0 ? '#ffd166' : '#40d8aa', sub: free === 0 ? 'All seated!' : 'seats free' },
     { label: 'Fill Rate',      value: `${rate}%`, accent: rate >= 80 ? '#f43f5e' : rate >= 50 ? '#f59e0b' : '#10b981',
       sub: rate >= 90 ? 'Almost full' : rate >= 50 ? 'Filling up' : 'Plenty of space' },
   ];
@@ -635,10 +650,10 @@ function StatsGrid({ cap, asgn, tables }: { cap: number; asgn: number; tables: n
 }
 const sg = StyleSheet.create({
   grid:  { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  card:  { flex: 1, minWidth: '45%', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', backgroundColor: 'rgba(255,255,255,0.04)', paddingHorizontal: 14, paddingVertical: 12 },
+  card:  { flex: 1, minWidth: '45%', borderRadius: 16, borderWidth: 1, borderColor: SEATING_THEME.border, backgroundColor: SEATING_THEME.surface, paddingHorizontal: 14, paddingVertical: 12 },
   value: { fontSize: 22, fontWeight: '900', marginBottom: 2 },
-  label: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 0.8 },
-  sub:   { fontSize: 10, color: 'rgba(255,255,255,0.25)', marginTop: 2 },
+  label: { fontSize: 10, fontWeight: '700', color: SEATING_THEME.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 },
+  sub:   { fontSize: 10, color: SEATING_THEME.textMuted, marginTop: 2 },
 });
 
 // ── TableCard ────────────────────────────────────────────────────────────────────
@@ -760,35 +775,35 @@ function TableCard({
 }
 
 const tc = StyleSheet.create({
-  card:         { borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', backgroundColor: 'rgba(255,255,255,0.035)', overflow: 'hidden', marginBottom: 10 },
-  stripe:       { height: 2 },
+  card:         { borderRadius: 16, borderWidth: 1, borderColor: SEATING_THEME.border, backgroundColor: SEATING_THEME.surface, overflow: 'hidden', marginBottom: 10 },
+  stripe:       { height: 3 },
   header:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 8 },
   headerClickable: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   shapeIcon:    { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   titleWrap:    { flex: 1, minWidth: 0 },
-  tableName:    { fontSize: 14, fontWeight: '700', color: 'rgba(255,255,255,0.9)' },
-  tableSub:     { fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 1 },
+  tableName:    { fontSize: 14, fontWeight: '700', color: SEATING_THEME.text },
+  tableSub:     { fontSize: 11, color: SEATING_THEME.textMuted, marginTop: 1 },
   actions:      { flexDirection: 'row', gap: 2, flexShrink: 0 },
   iconBtn:      { padding: 6, borderRadius: 8 },
   barWrap:      { paddingHorizontal: 14, paddingBottom: 10 },
-  barBg:        { height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
+  barBg:        { height: 4, borderRadius: 2, backgroundColor: 'rgba(1,35,84,0.95)', overflow: 'hidden' },
   barFill:      { height: 4, borderRadius: 2 },
-  guestRow:     { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', backgroundColor: 'rgba(255,255,255,0.02)' },
+  guestRow:     { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 8, borderTopWidth: 1, borderTopColor: SEATING_THEME.borderSoft, backgroundColor: SEATING_THEME.surfaceSoft },
   avatarStack:  { flexDirection: 'row', alignItems: 'center' },
   avatarItem:   { borderWidth: 1.5, borderColor: Colors.bg.card, borderRadius: 12 },
-  avatarMore:   { width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', marginLeft: -8, borderWidth: 1.5, borderColor: Colors.bg.card },
-  avatarMoreTxt:{ fontSize: 9, fontWeight: '800', color: 'rgba(255,255,255,0.6)' },
-  guestCount:   { flex: 1, fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.45)' },
+  avatarMore:   { width: 24, height: 24, borderRadius: 12, backgroundColor: SEATING_THEME.surfaceRaised, alignItems: 'center', justifyContent: 'center', marginLeft: -8, borderWidth: 1.5, borderColor: SEATING_THEME.blue },
+  avatarMoreTxt:{ fontSize: 9, fontWeight: '800', color: SEATING_THEME.textSecondary },
+  guestCount:   { flex: 1, fontSize: 11, fontWeight: '600', color: SEATING_THEME.textSecondary },
   guestList:    { paddingHorizontal: 14, paddingBottom: 8, gap: 4 },
   guestItem:    { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, borderRadius: 10, paddingHorizontal: 4 },
-  guestName:    { flex: 1, fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.7)' },
-  seatBadge:    { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  seatNum:      { fontSize: 9, fontFamily: 'monospace', color: 'rgba(255,255,255,0.4)' },
+  guestName:    { flex: 1, fontSize: 12, fontWeight: '600', color: SEATING_THEME.textSecondary },
+  seatBadge:    { backgroundColor: 'rgba(11,148,253,0.18)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  seatNum:      { fontSize: 9, fontFamily: 'monospace', color: '#b9e0ff' },
   removeBtn:    { padding: 4, borderRadius: 6 },
   assignBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginHorizontal: 14, marginBottom: 12, marginTop: 4, borderWidth: 1, borderStyle: 'dashed', borderRadius: 10, paddingVertical: 8 },
   assignTxt:    { fontSize: 11, fontWeight: '700' },
-  fullBadge:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginHorizontal: 14, marginBottom: 12, marginTop: 4, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 10, paddingVertical: 8 },
-  fullTxt:      { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.25)' },
+  fullBadge:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginHorizontal: 14, marginBottom: 12, marginTop: 4, backgroundColor: SEATING_THEME.surfaceSoft, borderRadius: 10, paddingVertical: 8 },
+  fullTxt:      { fontSize: 11, fontWeight: '600', color: SEATING_THEME.textMuted },
 });
 
 // ── TableSheet — Add / Edit table ─────────────────────────────────────────────────
@@ -1553,7 +1568,7 @@ export default function SeatingScreen() {
 const s = StyleSheet.create({
   root: {
     flex:            1,
-    backgroundColor: Colors.bg.primary,
+    backgroundColor: SEATING_THEME.page,
   },
   topBar: {
     flexDirection:     'row',
@@ -1561,29 +1576,29 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical:   12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomColor: SEATING_THEME.border,
     gap:               10,
   },
   backBtn:    { padding: 4 },
   titleWrap:  { flex: 1 },
-  title:      { fontSize: 17, fontWeight: '800', color: '#fff', letterSpacing: -0.3 },
+  title:      { fontSize: 17, fontWeight: '800', color: SEATING_THEME.text, letterSpacing: -0.3 },
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  topBtn:     { padding: 8, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(255,255,255,0.04)' },
-  topBtnAccent: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, borderColor: 'rgba(99,102,241,0.3)', backgroundColor: 'rgba(99,102,241,0.12)' },
-  topBtnTxt:  { fontSize: 12, fontWeight: '700', color: '#818cf8' },
+  topBtn:     { padding: 8, borderRadius: 10, borderWidth: 1, borderColor: SEATING_THEME.border, backgroundColor: SEATING_THEME.surfaceSoft },
+  topBtnAccent: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, borderColor: 'rgba(11,148,253,0.60)', backgroundColor: 'rgba(11,148,253,0.18)' },
+  topBtnTxt:  { fontSize: 12, fontWeight: '700', color: '#b9e0ff' },
 
   scroll: { paddingHorizontal: 16, paddingTop: 16 },
 
   center:     { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  loadingTxt: { fontSize: 13, color: 'rgba(255,255,255,0.3)' },
+  loadingTxt: { fontSize: 13, color: SEATING_THEME.textSecondary },
 
   empty:       { alignItems: 'center', paddingVertical: 60, gap: 12 },
-  emptyIcon:   { width: 72, height: 72, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.04)', alignItems: 'center', justifyContent: 'center' },
-  emptyTitle:  { fontSize: 17, fontWeight: '800', color: 'rgba(255,255,255,0.8)' },
-  emptySub:    { fontSize: 13, color: 'rgba(255,255,255,0.35)', textAlign: 'center', lineHeight: 20, maxWidth: 260 },
-  emptyBtn:    { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 22, paddingVertical: 12, marginTop: 4 },
-  emptyBtnTxt: { fontSize: 14, fontWeight: '800', color: '#07070f' },
+  emptyIcon:   { width: 72, height: 72, borderRadius: 22, backgroundColor: SEATING_THEME.surface, borderWidth: 1, borderColor: SEATING_THEME.border, alignItems: 'center', justifyContent: 'center' },
+  emptyTitle:  { fontSize: 17, fontWeight: '800', color: SEATING_THEME.text },
+  emptySub:    { fontSize: 13, color: SEATING_THEME.textSecondary, textAlign: 'center', lineHeight: 20, maxWidth: 260 },
+  emptyBtn:    { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: SEATING_THEME.blue, borderRadius: 16, paddingHorizontal: 22, paddingVertical: 12, marginTop: 4 },
+  emptyBtnTxt: { fontSize: 14, fontWeight: '800', color: '#fff' },
 
   fab:    { position: 'absolute', right: 20, alignItems: 'center' },
-  fabBtn: { width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.accent.indigo, alignItems: 'center', justifyContent: 'center', shadowColor: Colors.accent.indigo, shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 10 },
+  fabBtn: { width: 56, height: 56, borderRadius: 28, backgroundColor: SEATING_THEME.blue, alignItems: 'center', justifyContent: 'center', shadowColor: SEATING_THEME.blue, shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 10 },
 });

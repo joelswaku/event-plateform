@@ -3,6 +3,7 @@ import { Tabs } from 'expo-router';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useScannerStore } from '@/store/scanner.store';
 import { Colors } from '@/constants/colors';
 
@@ -31,14 +32,23 @@ function TabIcon({
 }
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
   const offlineQueue = useScannerStore(s => s.offlineQueue);
   const pendingCount = offlineQueue.length;
+  const isIOS = Platform.OS === 'ios';
+  const bottomInset = isIOS ? Math.max(insets.bottom, 22) : Math.max(insets.bottom, 8);
+  const tabContentHeight = isIOS ? 50 : 64;
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.tabBar,
+        // Android can draw its system navigation controls over app content.
+        // Reserve that inset so every tab remains visible and tappable.
+        tabBarStyle: [
+          styles.tabBar,
+          { height: tabContentHeight + bottomInset, paddingBottom: bottomInset },
+        ],
         // The selected state belongs to TabIcon only. Do not let the navigator
         // paint a full-width selected/pressed background behind the bar.
         tabBarActiveBackgroundColor: 'transparent',

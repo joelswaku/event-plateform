@@ -349,14 +349,20 @@ function getMobileActionInfo(key, nextValue) {
     visibility: nextValue
       ? { icon: <Globe size={26} />, color: "#6366f1", title: "Make event public?", message: "Your event page will be visible to everyone. Anyone with the link can view details, RSVP, or buy tickets (if enabled).", confirmLabel: "Make Public" }
       : { icon: <Lock size={26} />, color: "#f59e0b", title: "Make event private?", message: "The public event page will be hidden. Only guests you invite directly will be able to access it.", confirmLabel: "Make Private" },
+    allow_rsvp: nextValue
+      ? { icon: <Users size={26} />, color: "#10b981", title: "Switch to RSVP?", message: "RSVP will be enabled (invitation only by default). Ticketing and Donations will be turned off automatically.", confirmLabel: "Enable RSVP" }
+      : { icon: <Users size={26} />, color: "#10b981", title: "Disable RSVP?", message: "The RSVP button will be removed from your event page. Existing RSVPs are kept but no new ones will be accepted.", confirmLabel: "Disable RSVP" },
+    open_rsvp: nextValue
+      ? { icon: <Users size={26} />, color: "#10b981", title: "Enable Open RSVP?", message: "Anyone will be able to RSVP without needing an invitation. Great for public community events.", confirmLabel: "Enable Open RSVP" }
+      : { icon: <Users size={26} />, color: "#10b981", title: "Disable Open RSVP?", message: "Guests will need a direct invitation to RSVP. Existing RSVPs are not affected.", confirmLabel: "Disable Open RSVP" },
     allow_ticketing: nextValue
-      ? { icon: <Ticket size={26} />, color: "#f59e0b", title: "Enable Ticketing?", message: "Ticketing will be enabled. Donations will be turned off automatically.", confirmLabel: "Enable Ticketing" }
+      ? { icon: <Ticket size={26} />, color: "#f59e0b", title: "Switch to Ticketing?", message: "Ticketing will be enabled. RSVP and Donations will be turned off automatically.", confirmLabel: "Enable Ticketing" }
       : { icon: <Ticket size={26} />, color: "#f59e0b", title: "Disable ticketing?", message: "Ticket sales will be turned off. Existing ticket types and issued tickets are not deleted, but no new purchases will be accepted.", confirmLabel: "Disable Ticketing" },
     allow_qr_checkin: nextValue
       ? { icon: <QrCode size={26} />, color: "#06b6d4", title: "Enable QR check-in?", message: "You and your team can scan guest QR codes at the door to mark attendance in real time using the Scanner.", confirmLabel: "Enable QR Check-in" }
       : { icon: <QrCode size={26} />, color: "#06b6d4", title: "Disable QR check-in?", message: "The scanner will no longer accept QR codes for this event. You can still mark attendance manually from the Guests tab.", confirmLabel: "Disable QR Check-in" },
     allow_donations: nextValue
-      ? { icon: <Heart size={26} />, color: "#f43f5e", title: "Enable Donations?", message: "Donations will be enabled. Ticketing will be turned off automatically.", confirmLabel: "Enable Donations" }
+      ? { icon: <Heart size={26} />, color: "#f43f5e", title: "Switch to Donations?", message: "Donations will be enabled. RSVP and Ticketing will be turned off automatically.", confirmLabel: "Enable Donations" }
       : { icon: <Heart size={26} />, color: "#f43f5e", title: "Disable donations?", message: "The donation option will be removed from your event page. Past donations are not affected.", confirmLabel: "Disable Donations" },
   };
   return map[key] ?? { icon: <Settings2 size={26} />, color: "#6366f1", title: "Confirm change", message: "Are you sure you want to change this setting?", confirmLabel: "Confirm" };
@@ -695,13 +701,14 @@ export default function EventSettingsPage() {
     }
   }, [eventId, updateEvent]);
 
-  // RSVP controls guest access and can stay on with either payment module.
-  // Ticketing and Donations remain mutually exclusive.
+  // Only one of RSVP, Ticketing, or Donations can be active at a time.
   const applyModuleToggle = useCallback((key, value) => {
     if (value) {
-      if (key === 'allow_ticketing') return saveToggle('allow_ticketing', true, { allow_donations: false });
-      if (key === 'allow_donations') return saveToggle('allow_donations', true, { allow_ticketing: false });
+      if (key === 'allow_rsvp') return saveToggle('allow_rsvp', true, { allow_ticketing: false, allow_donations: false, open_rsvp: false });
+      if (key === 'allow_ticketing') return saveToggle('allow_ticketing', true, { allow_rsvp: false, allow_donations: false, open_rsvp: false });
+      if (key === 'allow_donations') return saveToggle('allow_donations', true, { allow_rsvp: false, allow_ticketing: false, open_rsvp: false });
     }
+    if (!value && key === 'allow_rsvp') return saveToggle('allow_rsvp', false, { open_rsvp: false });
     saveToggle(key, value);
   }, [saveToggle]);
 
@@ -815,6 +822,14 @@ export default function EventSettingsPage() {
 
             {/* MODULES */}
             <MSection label="MODULES">
+              <MToggle label="RSVP" sub="Collect guest names and emails" checked={form.allow_rsvp} onChange={v => setMobilePending({ key: "allow_rsvp", nextValue: v, info: getMobileActionInfo("allow_rsvp", v) })} accent="#10b981" />
+              {form.allow_rsvp && (
+                <>
+                  <MDivider />
+                  <MToggle label="Open RSVP" sub="Anyone can RSVP without invitation" checked={form.open_rsvp} onChange={v => setMobilePending({ key: "open_rsvp", nextValue: v, info: getMobileActionInfo("open_rsvp", v) })} accent="#10b981" />
+                </>
+              )}
+              <MDivider />
               <MToggle label="Ticketing" sub="Secure payment processing" checked={form.allow_ticketing} onChange={v => setMobilePending({ key: "allow_ticketing", nextValue: v, info: getMobileActionInfo("allow_ticketing", v) })} accent="#f59e0b" />
               <MDivider />
               <MToggle label="Donations" sub="Accept tips and contributions" checked={form.allow_donations} onChange={v => setMobilePending({ key: "allow_donations", nextValue: v, info: getMobileActionInfo("allow_donations", v) })} accent="#f43f5e" />
@@ -993,10 +1008,21 @@ export default function EventSettingsPage() {
                 <SectionHeader icon={Zap} label="Modules & Features" colorClass="text-emerald-500" description="Extend your event functionality with pre-built modules." />
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Toggle icon={Users} label="RSVP Flow" description="Collect guest names and emails" checked={form.allow_rsvp} onChange={v => applyModuleToggle("allow_rsvp", v)} />
                     <Toggle icon={Ticket} label="Stripe Ticketing" colorClass="text-amber-500" description="Secure payment processing" checked={form.allow_ticketing} onChange={v => applyModuleToggle("allow_ticketing", v)} />
-                    <Toggle icon={Heart} label="Donation Portal" colorClass="text-pink-500" description="Accept tips and contributions" checked={form.allow_donations} onChange={v => applyModuleToggle("allow_donations", v)} />
                   </div>
+
+                  <AnimatePresence>
+                    {form.allow_rsvp && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                        <div className="pl-6 border-l-4 border-indigo-500/30 py-2">
+                          <Toggle icon={Globe} label="Open RSVP" colorClass="text-emerald-500" description="Allow anyone to RSVP without an invitation link" checked={form.open_rsvp} onChange={v => saveToggle("open_rsvp", v)} />
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Toggle icon={Heart} label="Donation Portal" colorClass="text-pink-500" description="Accept tips and contributions" checked={form.allow_donations} onChange={v => applyModuleToggle("allow_donations", v)} />
                     <ActionCard icon={Bell} label="Event Reminders" colorClass="text-pink-500" description="Automated email notifications" onClick={() => {
                       localStorage.setItem('openRemindersModal', 'true');
                       router.push(`/events/${eventId}`);

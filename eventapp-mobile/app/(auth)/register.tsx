@@ -3,8 +3,6 @@ import {
   View, Text, ScrollView, StyleSheet, Pressable,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { LegalPageModal } from '@/components/ui/LegalPageModal';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,6 +14,7 @@ import { scheduleWelcomeNotification, registerPushToken } from '@/lib/push-notif
 import { useAuthStore } from '@/store/auth.store';
 import { Input }  from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { LiteEventLogo } from '@/components/ui/LiteEventLogo';
 import { Colors } from '@/constants/colors';
 
 const schema = z.object({
@@ -32,10 +31,7 @@ type Form = z.infer<typeof schema>;
 export default function RegisterScreen() {
   const router   = useRouter();
   const register = useAuthStore(s => s.register);
-  const [showPw,       setShowPw]       = useState(false);
-  const [termsChecked, setTermsChecked] = useState(false);
-  const [termsTouched, setTermsTouched] = useState(false);
-  const [legalSlug,    setLegalSlug]    = useState<string | null>(null);
+  const [showPw, setShowPw] = useState(false);
 
   const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm<Form>({
     resolver:      zodResolver(schema),
@@ -43,8 +39,6 @@ export default function RegisterScreen() {
   });
 
   const onSubmit = async (data: Form) => {
-    setTermsTouched(true);
-    if (!termsChecked) return toast.warning('Terms required', 'Please accept the terms to continue.');
     const result = await register({ full_name: data.full_name, email: data.email, password: data.password });
 
     if (result.success) {
@@ -82,9 +76,7 @@ export default function RegisterScreen() {
 
           {/* Brand */}
           <View style={styles.brand}>
-            <View style={styles.logoWrap}>
-              <Feather name="zap" size={28} color="#fff" />
-            </View>
+            <LiteEventLogo size={64} radius={20} style={styles.logoWrap} />
             <Text style={styles.appName}>LiteEvent</Text>
             <Text style={styles.tagline}>Create your account and start managing events</Text>
           </View>
@@ -125,39 +117,6 @@ export default function RegisterScreen() {
                   value={value} onChangeText={onChange} error={errors.confirm_password?.message} />
               )} />
 
-            {/* Terms checkbox */}
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 4 }}>
-              <Pressable
-                onPress={() => { setTermsChecked(v => !v); setTermsTouched(true); }}
-                hitSlop={8}
-                style={{
-                  width: 18, height: 18, borderRadius: 5, borderWidth: 2, marginTop: 1,
-                  alignItems: 'center', justifyContent: 'center',
-                  backgroundColor: termsChecked ? Colors.accent.indigo : 'rgba(255,255,255,0.06)',
-                  borderColor: termsTouched && !termsChecked ? '#ef4444' : termsChecked ? Colors.accent.indigo : 'rgba(255,255,255,0.25)',
-                }}>
-                {termsChecked && <Feather name="check" size={11} color="#fff" />}
-              </Pressable>
-              <Text style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 18 }}>
-                {'I agree to the '}
-                <Text onPress={() => setLegalSlug('terms')}
-                  style={{ color: Colors.accent.indigo, textDecorationLine: 'underline' }}>
-                  Terms of Service
-                </Text>
-                {' and '}
-                <Text onPress={() => setLegalSlug('privacy-policy')}
-                  style={{ color: Colors.accent.indigo, textDecorationLine: 'underline' }}>
-                  Privacy Policy
-                </Text>
-                {'. I am at least 18 years old.'}
-              </Text>
-            </View>
-            {termsTouched && !termsChecked && (
-              <Text style={{ fontSize: 11, color: '#ef4444', marginTop: 2 }}>
-                You must accept the terms to create an account.
-              </Text>
-            )}
-
             <Button
               label="Create Account"
               onPress={handleSubmit(onSubmit)}
@@ -165,8 +124,6 @@ export default function RegisterScreen() {
               accent={Colors.accent.indigo}
               size="lg"
             />
-
-            <LegalPageModal slug={legalSlug} onClose={() => setLegalSlug(null)} />
           </View>
 
           {/* Footer */}
@@ -195,9 +152,6 @@ const styles = StyleSheet.create({
 
   brand:    { alignItems: 'center', gap: 8, paddingVertical: 16 },
   logoWrap: {
-    width: 64, height: 64, borderRadius: 20,
-    backgroundColor: '#4f46e5',
-    alignItems: 'center', justifyContent: 'center',
     shadowColor: '#6366f1', shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.5, shadowRadius: 16, elevation: 12,
   },

@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Config } from '@/constants/config';
+import { LiteEventLogo } from '@/components/ui/LiteEventLogo';
 
 export default function VerifyEmailScreen() {
   const router = useRouter();
@@ -127,6 +128,7 @@ export default function VerifyEmailScreen() {
 
       <View style={styles.container}>
         <View style={styles.header}>
+          <LiteEventLogo size={46} radius={14} style={styles.brandLogo} />
           <View style={styles.iconBox}>
             <Feather name="mail" size={32} color="#fff" />
           </View>
@@ -174,6 +176,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, justifyContent: 'center' },
   glow: { position: 'absolute', borderRadius: 999, opacity: 0.18 },
   header: { alignItems: 'center', marginBottom: 40 },
+  brandLogo: { marginBottom: 18 },
   iconBox: {
     width: 80,
     height: 80,

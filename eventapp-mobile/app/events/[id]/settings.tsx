@@ -476,11 +476,9 @@ export default function EventSettingsScreen() {
   }
 
   function requestToggleModule(key: ModuleKey, nextValue: boolean, icon: keyof typeof Feather.glyphMap, color: string, title: string, message: string, label: string) {
-    // RSVP manages guest access and can be used alongside Ticketing or Donations.
-    // Only the two payment modules are mutually exclusive.
-    const exclusiveModules: ModuleKey[] = ['allow_ticketing', 'allow_donations'];
+    const exclusiveModules: ModuleKey[] = ['allow_rsvp', 'allow_ticketing', 'allow_donations'];
     const labels: Partial<Record<ModuleKey, string>> = {
-      allow_ticketing: 'Ticketing', allow_donations: 'Donations',
+      allow_rsvp: 'RSVP', allow_ticketing: 'Ticketing', allow_donations: 'Donations',
     };
     const conflicts = nextValue && exclusiveModules.includes(key)
       ? exclusiveModules
@@ -503,8 +501,10 @@ export default function EventSettingsScreen() {
         setSaving(true);
         const payload = nextValue && exclusiveModules.includes(key)
           ? {
+              allow_rsvp: key === 'allow_rsvp',
               allow_ticketing: key === 'allow_ticketing',
               allow_donations: key === 'allow_donations',
+              open_rsvp: false,
             }
           : key === 'allow_rsvp' && !nextValue
           ? { allow_rsvp: false, open_rsvp: false }

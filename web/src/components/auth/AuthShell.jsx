@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Zap, CalendarCheck, Ticket, Users } from "lucide-react";
+import { CalendarCheck, Ticket, Users } from "lucide-react";
 import "@/styles/auth-animations.css";
 
 const STATS = [
@@ -18,9 +18,9 @@ const AVATARS = [
   { initials: "KL", color: "bg-amber-500"  },
 ];
 
-export default function AuthShell({ children, headline, subline }) {
+export default function AuthShell({ children, headline, subline, denseMobile = false }) {
   return (
-    <div className="min-h-screen flex bg-[#09090E] overflow-x-hidden">
+    <div className="flex h-[100dvh] min-h-[100dvh] overflow-x-hidden bg-[#09090E]">
 
       {/* ── Left panel ──────────────────────────────────────────── */}
       <div className="hidden lg:flex lg:w-[48%] relative overflow-hidden flex-shrink-0">
@@ -138,15 +138,15 @@ export default function AuthShell({ children, headline, subline }) {
       </div>
 
       {/* ── Right panel ─────────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col items-center justify-center px-4 py-6 sm:px-6 sm:py-12 lg:px-14 overflow-y-auto overflow-x-hidden relative w-full min-w-0">
+      <div className="relative flex min-h-0 w-full min-w-0 flex-1 flex-col items-center justify-start overflow-x-hidden overflow-y-auto overscroll-y-contain px-4 py-5 sm:justify-center sm:px-6 sm:py-12 lg:px-14">
 
         {/* Gradient background - same as mobile app */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#0f0c29] via-[#1a1040] to-[#24243e]" />
 
         {/* Animated glow orbs - same as mobile app with floating animations */}
-        <div className="absolute -top-20 -right-16 w-72 h-72 bg-[#4f46e5]/18 rounded-full blur-3xl animate-float-slow" />
-        <div className="absolute top-1/3 -left-16 w-56 h-56 bg-[#7c3aed]/18 rounded-full blur-3xl animate-float-medium" />
-        <div className="absolute bottom-0 right-1/3 w-48 h-48 bg-[#db2777]/18 rounded-full blur-3xl animate-float-fast" />
+        <div className="absolute -top-20 -right-16 h-72 w-72 rounded-full bg-[#4f46e5]/18 blur-3xl animate-float-slow" />
+        <div className="absolute top-1/3 -left-16 h-56 w-56 rounded-full bg-[#7c3aed]/18 blur-3xl animate-float-medium" />
+        <div className="absolute bottom-0 right-1/3 h-48 w-48 rounded-full bg-[#db2777]/18 blur-3xl animate-float-fast" />
 
         {/* Grid overlay - same as mobile app */}
         <div
@@ -158,29 +158,33 @@ export default function AuthShell({ children, headline, subline }) {
         />
 
         {/* Mobile brand - compact */}
-        <Link href="/" className="relative z-10 flex items-center gap-2 mb-3 sm:mb-4 lg:hidden self-start">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#6366f1] flex items-center justify-center shadow-lg shadow-[#6366f1]/50">
-            <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="white" />
-          </div>
-          <span className="text-white font-black text-sm sm:text-base tracking-tight">LiteEvent</span>
+        <Link href="/" className="relative z-10 mb-3 flex self-start items-center gap-2 sm:mb-4 lg:hidden">
+          <Image
+            src="/logo.png"
+            alt="LiteEvent"
+            width={40}
+            height={40}
+            className="h-9 w-9 rounded-xl bg-white object-contain shadow-lg shadow-[#6366f1]/40 sm:h-10 sm:w-10"
+          />
+          <span className="text-sm font-black tracking-tight text-white sm:text-base">LiteEvent</span>
         </Link>
 
         {/* Floating stat card - compact on mobile */}
-        <div className="relative z-10 w-full max-w-md mb-3 sm:mb-5 lg:hidden animate-slide-up">
-          <div className="bg-white/5 backdrop-blur-sm border border-white/8 rounded-xl sm:rounded-2xl p-3 sm:p-4 flex justify-around items-center shadow-xl">
+        <div className={`relative z-10 mb-3 w-full max-w-md animate-slide-up sm:mb-5 lg:hidden ${denseMobile ? "hidden sm:block" : ""}`}>
+          <div className="flex items-center justify-around rounded-xl border border-white/12 bg-white/[0.07] p-3 shadow-xl backdrop-blur-sm sm:rounded-2xl sm:p-4">
             <div className="flex flex-col items-center flex-1">
-              <span className="text-base sm:text-lg font-extrabold text-white">12K+</span>
-              <span className="text-[9px] sm:text-[10px] text-white/40 font-semibold mt-0.5">Events</span>
+              <span className="text-base font-extrabold text-white sm:text-lg">12K+</span>
+              <span className="mt-0.5 text-[9px] font-semibold text-white/60 sm:text-[10px]">Events</span>
             </div>
-            <div className="w-px h-6 sm:h-8 bg-white/8" />
+            <div className="h-6 w-px bg-white/12 sm:h-8" />
             <div className="flex flex-col items-center flex-1">
-              <span className="text-base sm:text-lg font-extrabold text-white">890K</span>
-              <span className="text-[9px] sm:text-[10px] text-white/40 font-semibold mt-0.5">Tickets sold</span>
+              <span className="text-base font-extrabold text-white sm:text-lg">890K</span>
+              <span className="mt-0.5 text-[9px] font-semibold text-white/60 sm:text-[10px]">Tickets sold</span>
             </div>
-            <div className="w-px h-6 sm:h-8 bg-white/8" />
+            <div className="h-6 w-px bg-white/12 sm:h-8" />
             <div className="flex flex-col items-center flex-1">
-              <span className="text-base sm:text-lg font-extrabold text-white">2.4K</span>
-              <span className="text-[9px] sm:text-[10px] text-white/40 font-semibold mt-0.5">Organizers</span>
+              <span className="text-base font-extrabold text-white sm:text-lg">2.4K</span>
+              <span className="mt-0.5 text-[9px] font-semibold text-white/60 sm:text-[10px]">Organizers</span>
             </div>
           </div>
         </div>

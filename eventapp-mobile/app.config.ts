@@ -147,6 +147,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
   },
 
+  androidNavigationBar: {
+    barStyle: "light-content",
+    backgroundColor: "#07070f",
+  },
+
   plugins: [
     "expo-router",
     "expo-font",

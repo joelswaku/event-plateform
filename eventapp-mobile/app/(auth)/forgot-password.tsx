@@ -10,6 +10,7 @@ import { Feather } from '@expo/vector-icons';
 import api from '@/lib/api';
 import { Input }  from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { LiteEventLogo } from '@/components/ui/LiteEventLogo';
 import { Colors } from '@/constants/colors';
 
 const schema = z.object({ email: z.string().email('Enter a valid email') });
@@ -38,6 +39,7 @@ export default function ForgotPasswordScreen() {
           <Pressable onPress={() => router.back()} style={styles.back}>
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
+          <LiteEventLogo size={46} radius={14} style={styles.brandLogo} />
           <View style={styles.iconWrap}>
             <Feather name="lock" size={28} color={Colors.accent.indigo} />
           </View>
@@ -58,6 +60,7 @@ const styles = StyleSheet.create({
   safe:    { flex: 1, backgroundColor: Colors.bg.primary },
   content: { flex: 1, padding: 24, gap: 16, justifyContent: 'center' },
   back:    { position: 'absolute', top: 20, left: 20, width: 40, height: 40, borderRadius: 12, backgroundColor: Colors.bg.elevated, alignItems: 'center', justifyContent: 'center' },
+  brandLogo: { alignSelf: 'center', marginBottom: 4 },
   iconWrap:{ width: 72, height: 72, borderRadius: 22, backgroundColor: `${Colors.accent.indigo}20`, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
   title:   { fontSize: 24, fontWeight: '900', color: '#fff', textAlign: 'center' },
   sub:     { fontSize: 13, color: Colors.text.muted, textAlign: 'center', lineHeight: 20 },
