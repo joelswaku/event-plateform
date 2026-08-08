@@ -186,6 +186,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           // Release builds may only communicate over HTTPS. This prevents a
           // device on an untrusted network from intercepting API traffic.
           usesCleartextTraffic: false,
+          // Disable Hermes to avoid ES6 class compatibility issues
+          enableHermes: false,
         },
       },
     ],
