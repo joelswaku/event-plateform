@@ -119,8 +119,7 @@ export default function EditEventScreen() {
 
   const changeModule = (key: 'allow_rsvp' | 'allow_ticketing' | 'allow_donations', enabled: boolean) => {
     const labels = { allow_rsvp: 'RSVP', allow_ticketing: 'Ticketing', allow_donations: 'Donations' };
-    // RSVP is guest access, not a competing payment module.
-    const exclusiveModules = ['allow_ticketing', 'allow_donations'] as const;
+    const exclusiveModules = ['allow_rsvp', 'allow_ticketing', 'allow_donations'] as const;
     const conflicts = enabled
       ? exclusiveModules
           .filter(moduleKey => moduleKey !== key && form[moduleKey])
@@ -128,11 +127,13 @@ export default function EditEventScreen() {
       : [];
     const applyChange = () => {
       setFormState(prev => enabled
-        ? exclusiveModules.includes(key as typeof exclusiveModules[number]) ? {
+        ? {
             ...prev,
+            allow_rsvp: key === 'allow_rsvp',
             allow_ticketing: key === 'allow_ticketing',
             allow_donations: key === 'allow_donations',
-          } : { ...prev, [key]: true }
+            open_rsvp: false,
+          }
         : {
             ...prev,
             [key]: false,

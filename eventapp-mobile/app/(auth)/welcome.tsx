@@ -9,6 +9,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { LiteEventLogo } from '@/components/ui/LiteEventLogo';
 
 const { width: W, height: H } = Dimensions.get('window');
 
@@ -169,13 +170,7 @@ export default function WelcomeScreen() {
 
         {/* Logo / brand mark */}
         <View style={[s.logoWrap, { marginTop: insets.top > 0 ? 0 : 12 }]} pointerEvents="none">
-          <LinearGradient
-            colors={[current.accent, current.accent + 'aa']}
-            style={s.logoCircle}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          >
-            <Feather name="zap" size={18} color="#fff" />
-          </LinearGradient>
+          <LiteEventLogo size={34} radius={10} />
           <Text style={s.brandName}>LiteEvent</Text>
         </View>
 
@@ -240,7 +235,6 @@ const s = StyleSheet.create({
 
   /* logo */
   logoWrap:   { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 24, paddingTop: Platform.OS === 'android' ? 20 : 4 },
-  logoCircle: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   brandName:  { fontSize: 18, fontWeight: '900', color: '#fff', letterSpacing: -0.3 },
 
   /* text */

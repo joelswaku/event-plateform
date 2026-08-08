@@ -33,8 +33,8 @@ export default function GoogleLoginButton({ redirectTo = "/dashboard" }) {
         onClick={handleGoogleLogin}
         disabled={loading}
         suppressHydrationWarning
-        className={`flex min-h-12 w-full items-center justify-center gap-3 overflow-hidden rounded-xl border border-white/12 bg-white/[0.07] px-4 py-2.5 shadow-[0_12px_28px_rgba(0,0,0,0.24)] transition-all duration-200 ${
-          loading ? "pointer-events-none opacity-60" : "hover:border-white/20 hover:bg-white/[0.09]"
+        className={`flex min-h-12 w-full items-center justify-center gap-3 overflow-hidden rounded-xl border border-[#77739d] bg-white/10 px-4 py-2.5 shadow-[0_12px_28px_rgba(0,0,0,0.24)] transition-all duration-200 ${
+          loading ? "pointer-events-none opacity-60" : "hover:border-[#b7b2ed] hover:bg-white/[0.14]"
         }`}
       >
         <GoogleIcon />

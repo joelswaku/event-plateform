@@ -3,14 +3,13 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import GoogleLoginButton from "@/components/auth/GoogleLoginButton";
 import AuthShell from "@/components/auth/AuthShell";
-import LegalModal from "@/components/legal/LegalModal";
 
-const BASE   = "w-full px-4 py-3.5 rounded-[14px] text-white text-[15px] font-medium placeholder:text-white/25 outline-none transition-all bg-[#0a0a14] border";
-const NORMAL = `${BASE} border-white/10 focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/20`;
+const BASE   = "w-full rounded-[14px] border bg-[#0a0a14] px-4 py-3.5 text-[15px] font-medium text-white outline-none transition-all placeholder:text-[#aab2c5]";
+const NORMAL = `${BASE} border-[#4f4d64] focus:border-[#a5b4fc] focus:ring-2 focus:ring-[#6366f1]/30`;
 const ERR    = `${BASE} border-[#ef4444]/60 focus:border-[#ef4444] focus:ring-2 focus:ring-[#ef4444]/20`;
 
 const STRENGTH_META = [
@@ -40,11 +39,11 @@ function PasswordStrength({ password }) {
         {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
-            className={`h-1 flex-1 rounded-full transition-all duration-300 ${i <= score ? meta.bar : "bg-white/10"}`}
+            className={`h-1 flex-1 rounded-full transition-all duration-300 ${i <= score ? meta.bar : "bg-white/15"}`}
           />
         ))}
       </div>
-      <p className="text-[11px] text-gray-500 font-medium">{meta.label} password</p>
+      <p className="text-[11px] font-medium text-gray-300">{meta.label} password</p>
     </div>
   );
 }
@@ -52,7 +51,7 @@ function PasswordStrength({ password }) {
 function Field({ label, id, error, touched, children }) {
   return (
     <div>
-      <label htmlFor={id} className="block text-xs font-semibold text-white/45 tracking-wide mb-1.5">
+      <label htmlFor={id} className="mb-1.5 block text-xs font-semibold tracking-wide text-[#e5e7eb]">
         {label}
       </label>
       {children}
@@ -72,12 +71,9 @@ function RegisterForm() {
   const searchParams = useSearchParams();
   const inviteToken  = searchParams.get("invite");
 
-  const [form,         setForm]         = useState({ full_name: "", email: "", password: "", confirmPassword: "" });
-  const [touched,      setTouched]      = useState({});
-  const [showPw,       setShowPw]       = useState(false);
-  const [termsChecked, setTermsChecked] = useState(false);
-  const [termsTouched, setTermsTouched] = useState(false);
-  const [legalSlug,    setLegalSlug]    = useState(null);
+  const [form,    setForm]    = useState({ full_name: "", email: "", password: "", confirmPassword: "" });
+  const [touched, setTouched] = useState({});
+  const [showPw,  setShowPw]  = useState(false);
 
   const validate = (vals) => {
     const e = {};
@@ -98,9 +94,7 @@ function RegisterForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setTouched({ full_name: true, email: true, password: true, confirmPassword: true });
-    setTermsTouched(true);
     if (Object.keys(errors).length) return;
-    if (!termsChecked) return;
 
     const res = await register({ full_name: form.full_name.trim(), email: form.email, password: form.password });
 
@@ -125,12 +119,13 @@ function RegisterForm() {
     <AuthShell
       headline="Start your event journey today."
       subline="Create events, invite guests, and grow your audience with powerful tools."
+      denseMobile
     >
       {/* Glass card container - compact on mobile */}
-      <div className="bg-white/5 backdrop-blur-sm border border-white/8 rounded-3xl p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="space-y-4 rounded-3xl border border-[#5b5878] bg-white/[0.08] p-4 shadow-xl shadow-black/20 backdrop-blur-sm sm:space-y-6 sm:p-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Create account</h1>
-          <p className="text-white/45 text-xs sm:text-sm mt-1">Join thousands of event organizers</p>
+          <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">Create account</h1>
+          <p className="mt-1 text-xs text-[#cbd5e1] sm:text-sm">Join thousands of event organizers</p>
         </div>
 
         {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID &&
@@ -139,9 +134,9 @@ function RegisterForm() {
             <GoogleLoginButton />
 
             <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-white/8" />
-              <span className="text-white/30 text-xs font-medium uppercase tracking-wider">or</span>
-              <div className="h-px flex-1 bg-white/8" />
+              <div className="h-px flex-1 bg-[#514f70]" />
+              <span className="text-xs font-medium uppercase tracking-wider text-[#aeb4c7]">or</span>
+              <div className="h-px flex-1 bg-[#514f70]" />
             </div>
           </>
         )}
@@ -188,7 +183,7 @@ function RegisterForm() {
             <button
               type="button"
               onClick={() => setShowPw((v) => !v)}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-300 transition-colors hover:text-white"
               tabIndex={-1}
             >
               {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -213,7 +208,7 @@ function RegisterForm() {
         {serverError && (
           <div className="flex items-start gap-2.5 rounded-xl border border-[#ef4444]/20 bg-[#ef4444]/10 px-4 py-3">
             <AlertCircle className="w-4 h-4 text-[#ef4444] shrink-0 mt-0.5" />
-            <p className="text-[#ef4444] text-sm">{serverError}</p>
+            <p className="text-sm text-[#ef4444]">{serverError}</p>
           </div>
         )}
 
@@ -226,53 +221,9 @@ function RegisterForm() {
             <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> Creating account…</>
           ) : "Create Account"}
         </button>
-
-        {/* Terms acceptance checkbox */}
-        <div>
-          <div className="flex items-start gap-3 select-none">
-            <button
-              type="button"
-              onClick={() => { setTermsChecked(v => !v); setTermsTouched(true); }}
-              className={`mt-0.5 shrink-0 flex items-center justify-center rounded-md border-2 transition-all ${
-                termsChecked
-                  ? "bg-[#6366f1] border-[#6366f1]"
-                  : termsTouched && !termsChecked
-                  ? "border-[#ef4444] bg-[#ef4444]/10"
-                  : "border-white/20 bg-white/4"
-              }`}
-              style={{ width: 18, height: 18 }}>
-              {termsChecked && (
-                <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                  <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              )}
-            </button>
-            <span className="text-xs text-white/45 leading-relaxed">
-              I have read and agree to the{" "}
-              <button type="button" onClick={() => setLegalSlug("terms")}
-                className="text-[#6366f1] hover:text-[#818cf8] underline underline-offset-2 transition-colors font-semibold">
-                Terms of Service
-              </button>
-              {" "}and{" "}
-              <button type="button" onClick={() => setLegalSlug("privacy-policy")}
-                className="text-[#6366f1] hover:text-[#818cf8] underline underline-offset-2 transition-colors font-semibold">
-                Privacy Policy
-              </button>
-              . I am at least 18 years old.
-            </span>
-          </div>
-          {termsTouched && !termsChecked && (
-            <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-[#ef4444]">
-              <AlertCircle className="w-3 h-3 shrink-0" />
-              You must accept the terms to create an account.
-            </p>
-          )}
-        </div>
-
-          <LegalModal slug={legalSlug} onClose={() => setLegalSlug(null)} />
         </form>
 
-        <p className="text-center text-sm text-white/40">
+        <p className="text-center text-sm text-[#cbd5e1]">
           Already have an account?{" "}
           <Link href="/login" className="text-[#6366f1] font-bold hover:text-[#818cf8] transition-colors">
             Sign in

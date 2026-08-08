@@ -14,6 +14,7 @@ import { Feather } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/auth.store';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { LiteEventLogo } from '@/components/ui/LiteEventLogo';
 import { Colors } from '@/constants/colors';
 
 const schema = z.object({
@@ -70,9 +71,7 @@ export default function LoginScreen() {
 
           {/* Brand */}
           <View style={styles.brand}>
-            <View style={styles.logoWrap}>
-              <Feather name="zap" size={28} color="#fff" />
-            </View>
+            <LiteEventLogo size={64} radius={20} style={styles.logoWrap} />
             <Text style={styles.appName}>LiteEvent</Text>
             <Text style={styles.tagline}>Manage events. Scan tickets. Go live.</Text>
           </View>
@@ -181,9 +180,6 @@ const styles = StyleSheet.create({
 
   brand:     { alignItems: 'center', gap: 8, paddingVertical: 16 },
   logoWrap:  {
-    width: 64, height: 64, borderRadius: 20,
-    backgroundColor: '#4f46e5',
-    alignItems: 'center', justifyContent: 'center',
     shadowColor: '#6366f1', shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.5, shadowRadius: 16, elevation: 12,
   },

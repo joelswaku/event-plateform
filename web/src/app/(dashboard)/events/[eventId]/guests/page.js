@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { useGuestStore }         from "@/store/guest.store";
 import { useSeatingStore }       from "@/store/seating.store";
-import { useEventStore }         from "@/store/event.store";
 import { useSubscriptionStore }  from "@/store/subscription.store";
 import ConfirmModal, { useConfirm } from "@/components/ui/confirm-modal";
 import { trackConversion } from "@/lib/analytics";
@@ -42,38 +41,6 @@ function attendanceBadge(status) {
     LATE:       "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
   };
   return map[status] || "bg-gray-100 text-gray-500";
-}
-
-function getRsvpAccessStatus(event) {
-  if (!event) return null;
-  if (!event.allow_rsvp) {
-    return {
-      mode: "disabled",
-      label: "RSVP not accepting responses",
-      detail: "Guests cannot submit a new RSVP from the event page.",
-      color: "#6b7280",
-      background: "rgba(107,114,128,0.10)",
-      border: "rgba(107,114,128,0.24)",
-    };
-  }
-  if (event.open_rsvp) {
-    return {
-      mode: "open",
-      label: "RSVP open to everyone",
-      detail: "Anyone with the event link can RSVP.",
-      color: "#10b981",
-      background: "rgba(16,185,129,0.10)",
-      border: "rgba(16,185,129,0.26)",
-    };
-  }
-  return {
-    mode: "invitation",
-    label: "RSVP for invited guests only",
-    detail: "Only people added by email can RSVP.",
-    color: "#f59e0b",
-    background: "rgba(245,158,11,0.10)",
-    border: "rgba(245,158,11,0.26)",
-  };
 }
 
 /* ── Guest card (desktop expandable) ─────────────────────────── */
@@ -336,7 +303,6 @@ const MOBILE_FILTERS = [
 
 function MobileGuestsPage({
   eventId, guests, filteredGuests, rsvpMap, attendanceMap, seatMap,
-  rsvpAccess,
   isLoading, query, setQuery, mobileFilter, setMobileFilter,
   onAddGuest, onEditGuest,
   onBulkDelete, onBulkInvite, onBulkRsvp,
@@ -429,20 +395,6 @@ function MobileGuestsPage({
               <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
                 {guests.length} total · {checkinCount} checked in
               </p>
-              {rsvpAccess && (
-                <div
-                  className="mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1"
-                  style={{ background: rsvpAccess.background, borderColor: rsvpAccess.border }}
-                  title={rsvpAccess.detail}
-                >
-                  {rsvpAccess.mode === "open"
-                    ? <Users size={11} style={{ color: rsvpAccess.color }} />
-                    : rsvpAccess.mode === "invitation"
-                      ? <Mail size={11} style={{ color: rsvpAccess.color }} />
-                      : <Lock size={11} style={{ color: rsvpAccess.color }} />}
-                  <span className="text-[10px] font-bold" style={{ color: rsvpAccess.color }}>{rsvpAccess.label}</span>
-                </div>
-              )}
             </>
           )}
         </div>
@@ -770,8 +722,6 @@ export default function GuestsPage() {
   const router = useRouter();
   const prices = useSubscriptionStore(s => s.prices);
   const plan   = useSubscriptionStore(s => s.plan);
-  const currentEvent = useEventStore(s => s.currentEvent);
-  const fetchEventDashboard = useEventStore(s => s.fetchEventDashboard);
 
   const {
     guests, rsvps, attendance, selectedGuestIds,
@@ -806,13 +756,6 @@ export default function GuestsPage() {
   const [inviteChannelModal, setInviteChannelModal] = useState(null);
   const [qrChannelModal, setQrChannelModal] = useState(null);
   const [filterStatus, setFilterStatus] = useState("ALL"); // ALL, GOING, MAYBE, DECLINED, PENDING
-
-  useEffect(() => {
-    if (!eventId || currentEvent?.id === eventId) return;
-    fetchEventDashboard(eventId).catch(() => {});
-  }, [eventId, currentEvent?.id, fetchEventDashboard]);
-
-  const rsvpAccess = getRsvpAccessStatus(currentEvent?.id === eventId ? currentEvent : null);
 
   useEffect(() => {
     if (!eventId) return;
@@ -1065,7 +1008,6 @@ export default function GuestsPage() {
           rsvpMap={rsvpMap}
           attendanceMap={attendanceMap}
           seatMap={seatMap}
-          rsvpAccess={rsvpAccess}
           isLoading={isLoading}
           query={query}
           setQuery={setQuery}
@@ -1105,20 +1047,6 @@ export default function GuestsPage() {
             <div>
               <h1 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-100 sm:text-2xl">Guests</h1>
               <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Manage attendees, invitations, RSVP, and check-in.</p>
-              {rsvpAccess && (
-                <div
-                  className="mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1"
-                  style={{ background: rsvpAccess.background, borderColor: rsvpAccess.border }}
-                  title={rsvpAccess.detail}
-                >
-                  {rsvpAccess.mode === "open"
-                    ? <Users className="h-3.5 w-3.5" style={{ color: rsvpAccess.color }} />
-                    : rsvpAccess.mode === "invitation"
-                      ? <Mail className="h-3.5 w-3.5" style={{ color: rsvpAccess.color }} />
-                      : <Lock className="h-3.5 w-3.5" style={{ color: rsvpAccess.color }} />}
-                  <span className="text-xs font-semibold" style={{ color: rsvpAccess.color }}>{rsvpAccess.label}</span>
-                </div>
-              )}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
