@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import DashboardSidebar from "./dashboard-sidebar";
 import Topbar from "./topbar";
 import BillingBanner from "@/components/ui/BillingBanner";
+import DashboardRouteLoader from "./DashboardRouteLoader";
 
 export default function AppShell({ children }) {
   const pathname = usePathname();
@@ -19,6 +20,7 @@ export default function AppShell({ children }) {
       className="bg-(--bg-base) text-(--text-primary)"
       style={isFullscreen ? { height: "100svh", display: "flex", flexDirection: "column" } : { minHeight: "100vh" }}
     >
+      <DashboardRouteLoader />
       {/* Inner flex row: overflow:hidden lives here, not on the root */}
       <div className={`flex ${isFullscreen ? "flex-1 min-h-0 overflow-hidden" : "min-h-screen"}`}>
 

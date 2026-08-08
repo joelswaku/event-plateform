@@ -27,6 +27,7 @@ import AIInsightCard          from "@/components/ai/AIInsightCard";
 import { useAIStore }         from "@/store/ai.store";
 import { usePlannerStore }    from "@/store/planner.store";
 import PostEventSummaryModal  from "@/components/ai/PostEventSummaryModal";
+import DashboardLoadingScreen from "@/components/layout/DashboardLoadingScreen";
 import toast from "react-hot-toast";
 import { api } from "@/lib/api";
 
@@ -1806,27 +1807,7 @@ export default function EventDetailPage() {
   }
 
   if (loading || !event) {
-    return (
-      <>
-        {/* Mobile skeleton */}
-        <div className="sm:hidden">
-          <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "#080a12" }} aria-busy="true" aria-label="Loading event">
-            <div className="h-[320px] animate-pulse" style={{ background: "linear-gradient(135deg, #1d2340, #12182a)" }} />
-            <div className="flex flex-col gap-4 p-5">
-              <div className="h-5 w-36 animate-pulse rounded-full" style={{ background: "rgba(129,140,248,0.40)" }} />
-              <div className="h-8 w-3/4 animate-pulse rounded-lg" style={{ background: "rgba(255,255,255,0.16)" }} />
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-16 animate-pulse rounded-[16px] border" style={{ background: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.10)" }} />
-              ))}
-            </div>
-          </div>
-        </div>
-        {/* Desktop loading */}
-        <div className="hidden sm:flex min-h-[40vh] items-center justify-center text-sm text-gray-400">
-          Loading…
-        </div>
-      </>
-    );
+    return <DashboardLoadingScreen message="Opening your event…" />;
   }
 
   return (
