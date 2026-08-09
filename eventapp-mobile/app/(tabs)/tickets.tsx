@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useTicketStore } from '@/store/ticket.store';
+import { useAuthStore }   from '@/store/auth.store';
 import { Colors }         from '@/constants/colors';
 import { fmtCurrency }    from '@/lib/format';
 import { getTierConfig }  from '@/lib/tier';
@@ -13,9 +14,18 @@ import { getTierConfig }  from '@/lib/tier';
 export default function TicketsTab() {
   const router   = useRouter();
   const { eventsWithTickets, fetchEventsWithTickets, fetchStats, stats } = useTicketStore();
+  const isHydrated = useAuthStore(st => st.isHydrated);
 
-  useEffect(() => { fetchEventsWithTickets(); }, []);
-  const refresh = useCallback(() => fetchEventsWithTickets(), []);
+  // COLD-START FIX: Wait for auth hydration before fetching
+  useEffect(() => {
+    if (!isHydrated) return;
+    fetchEventsWithTickets();
+  }, [isHydrated]);
+
+  const refresh = useCallback(() => {
+    if (!isHydrated) return;
+    fetchEventsWithTickets();
+  }, [isHydrated]);
 
   return (
     <SafeAreaView style={styles.safe}>
