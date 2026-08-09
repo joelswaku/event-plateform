@@ -46,19 +46,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const { user, isAuthenticated, refreshToken } = await loadSession();
       if (user) applyUser(user);
-      set({ user, isAuthenticated, isHydrated: true });
+
+      // COLD-START FIX: Don't set isHydrated until token refresh completes
+      set({ user, isAuthenticated });
 
       if (isAuthenticated) {
         if (!refreshToken) {
           await clearSession();
-          set({ user: null, isAuthenticated: false });
+          set({ user: null, isAuthenticated: false, isHydrated: true });
         } else {
           const newToken = await get().refreshToken(refreshToken);
           if (!newToken) {
             await clearSession();
-            set({ user: null, isAuthenticated: false });
+            set({ user: null, isAuthenticated: false, isHydrated: true });
+          } else {
+            // Token refresh succeeded - NOW we're ready
+            set({ isHydrated: true });
           }
         }
+      } else {
+        // No session to restore - hydration complete
+        set({ isHydrated: true });
       }
     } catch {
       set({ isHydrated: true });
