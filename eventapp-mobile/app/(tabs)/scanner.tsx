@@ -31,6 +31,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { notify } from '@/lib/toast';
 import { useScannerStore } from '@/store/scanner.store';
 import { useEventStore }   from '@/store/event.store';
+import { useAuthStore }    from '@/store/auth.store';
 import { ScanResultOverlay } from '@/components/scanner/ScanResultOverlay';
 import { Colors } from '@/constants/colors';
 import { ScanResult, Event } from '@/types';
@@ -162,6 +163,7 @@ export default function ScannerTab() {
 
   const { scanTicket, syncOffline, offlineQueue, stats, fetchStats, online } = useScannerStore();
   const { events, fetchEvents, activeEventId, setActiveEvent, loading: eventsLoading } = useEventStore();
+  const isHydrated  = useAuthStore(st => st.isHydrated);
 
   // Resolve only to an event that is currently loaded. A stale activeEventId
   // (for example after an event was removed or access changed) must never be
@@ -183,7 +185,11 @@ export default function ScannerTab() {
     );
   }, []);
 
-  useEffect(() => { fetchEvents(); }, []);
+  // COLD-START FIX: Wait for auth hydration before fetching events
+  useEffect(() => {
+    if (!isHydrated) return;
+    fetchEvents();
+  }, [isHydrated]);
 
   // Keep the shared active event in sync when the scanner safely falls back
   // from a stale selection to the first event the user can access.

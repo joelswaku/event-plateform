@@ -24,7 +24,7 @@ function parseApiError(raw?: string): { title: string; subtitle?: string } {
 
   const msg = raw.toLowerCase();
 
-  // Auth errors
+  // Auth errors - NEVER show "Connection issue" for these
   if (msg.includes('invalid credentials') || msg.includes('wrong password') || msg.includes('incorrect password'))
     return { title: 'Incorrect email or password', subtitle: 'Double-check your details and try again.' };
   if (msg.includes('email already') || msg.includes('already exists') || msg.includes('duplicate'))
@@ -35,8 +35,11 @@ function parseApiError(raw?: string): { title: string; subtitle?: string } {
     return { title: 'Session expired', subtitle: 'Please sign in again.' };
   if (msg.includes('unauthorized') || msg.includes('not authorized') || msg.includes('authentication required'))
     return { title: 'Sign in required', subtitle: 'Please sign in to continue.' };
+  // COLD-START FIX: Catch 401/403 during startup - likely session restoration issue
+  if (msg.includes('401') || msg.includes('403'))
+    return { title: 'Session expired', subtitle: 'Please sign in again.' };
 
-  // Network & server errors
+  // Network & server errors - only for REAL connection issues
   if (msg.includes('network') || msg.includes('connect') || msg.includes('timeout') || msg.includes('econnrefused'))
     return { title: 'Connection issue', subtitle: 'Check your internet and try again.' };
   if (msg.includes('500') || msg.includes('internal server'))

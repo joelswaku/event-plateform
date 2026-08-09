@@ -789,6 +789,7 @@ function EmptyEvents({ onPress }: { onPress: () => void }) {
 export default function HomeScreen() {
   const router   = useRouter();
   const user     = useAuthStore(st => st.user);
+  const isHydrated = useAuthStore(st => st.isHydrated);
 
   const { events, fetchEvents, loading, activeEventId, setActiveEvent, dashboard, fetchEventDashboard } = useEventStore();
   const { isPremium, fetchSubscription, plan, usage, limits } = useSubscriptionStore();
@@ -832,7 +833,10 @@ export default function HomeScreen() {
     }
   }, [activeEventId, events]);
 
+  // COLD-START FIX: Wait for auth hydration before making API calls
   useEffect(() => {
+    if (!isHydrated) return;
+
     fetchEvents();
     fetchSubscription();
     fetchNotifs();
@@ -844,7 +848,7 @@ export default function HomeScreen() {
       seq(quickAnim,  120),
       seq(listAnim,   180),
     ]).start();
-  }, []);
+  }, [isHydrated]);
 
   // Fetch dashboard whenever active event changes
   useEffect(() => {
@@ -865,18 +869,20 @@ export default function HomeScreen() {
   // Re-check subscription + notifications when screen comes back into focus
   useFocusEffect(
     useCallback(() => {
+      if (!isHydrated) return;
       fetchSubscription();
       fetchNotifs();
       if (activeEventId) fetchEventDashboard(activeEventId);
-    }, [activeEventId, fetchSubscription, fetchNotifs])
+    }, [activeEventId, isHydrated, fetchSubscription, fetchNotifs])
   );
 
   const onRefresh = useCallback(() => {
+    if (!isHydrated) return;
     fetchEvents();
     fetchSubscription();
     fetchNotifs();
     if (activeEventId) fetchEventDashboard(activeEventId);
-  }, [activeEventId]);
+  }, [activeEventId, isHydrated]);
 
   const greeting = () => {
     const h = new Date().getHours();
