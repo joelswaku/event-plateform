@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   pageTitle: { fontSize: 17, fontWeight: '900', color: '#fff' },
-  content:   { padding: 24, gap: 20, paddingBottom: 100 },
+  content:   { padding: 24, gap: 20, paddingBottom: 140 },  // Extra padding for Android nav bar + Sign out button
 
   profileHead: { alignItems: 'center', gap: 8, paddingVertical: 16 },
   avatarWrap: { position: 'relative' },

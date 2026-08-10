@@ -4,8 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import DashboardLoadingScreen from "./DashboardLoadingScreen";
 
-const DISPLAY_DELAY = 100;
-const MIN_VISIBLE_TIME = 280;
+const DISPLAY_DELAY = 0;
+const MIN_VISIBLE_TIME = 0;
 const FAILSAFE_TIMEOUT = 12000;
 
 function isDashboardNavigation(event) {

@@ -7,6 +7,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface BottomSheetProps {
   open:       boolean;
@@ -17,6 +18,7 @@ interface BottomSheetProps {
 }
 
 export function BottomSheet({ open, onClose, title, children, maxHeight = 600 }: BottomSheetProps) {
+  const insets = useSafeAreaInsets();
   const translateY = useSharedValue(600);
   const opacity    = useSharedValue(0);
 
@@ -58,7 +60,7 @@ export function BottomSheet({ open, onClose, title, children, maxHeight = 600 }:
           </Animated.View>
 
           {/* Sheet */}
-          <Animated.View style={[styles.sheet, { maxHeight }, sheetAnim]}>
+          <Animated.View style={[styles.sheet, { maxHeight, paddingBottom: Math.max(insets.bottom, 12) }, sheetAnim]}>
             {/* Handle */}
             <View style={styles.handleWrap}>
               <View style={styles.handle} />
@@ -76,7 +78,7 @@ export function BottomSheet({ open, onClose, title, children, maxHeight = 600 }:
 
             {/* Content */}
             <ScrollView
-              contentContainerStyle={styles.content}
+              contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 20 }]}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
@@ -142,6 +144,5 @@ const styles = StyleSheet.create({
   },
   content: {
     padding:       20,
-    paddingBottom: 40,
   },
 });

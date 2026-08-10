@@ -2,7 +2,6 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useScannerStore } from '@/store/scanner.store';
 import { Colors } from '@/constants/colors';
@@ -15,10 +14,10 @@ function TabIcon({
   label: string;
   badge?: number;
 }) {
-  const color = focused ? Colors.accent.indigo : Colors.text.subtle;
+  const color = focused ? '#ffffff' : 'rgba(255,255,255,0.45)';
   return (
     <View style={styles.tabItem}>
-      <View style={styles.iconWrap}>
+      <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
         <Feather name={name} size={17} color={color} />
         {!!badge && (
           <View style={styles.badge}>
@@ -26,7 +25,7 @@ function TabIcon({
           </View>
         )}
       </View>
-      <Text style={styles.tabLabel} numberOfLines={1}>{label}</Text>
+      <Text style={[styles.tabLabel, focused && styles.tabLabelActive]} numberOfLines={1}>{label}</Text>
     </View>
   );
 }
@@ -54,9 +53,6 @@ export default function TabsLayout() {
         tabBarActiveBackgroundColor: 'transparent',
         tabBarInactiveBackgroundColor: 'transparent',
         tabBarItemStyle: styles.tabBarItem,
-        tabBarBackground: () => (
-          <BlurView intensity={70} tint="dark" style={StyleSheet.absoluteFill} />
-        ),
         tabBarShowLabel: false,
       }}
     >
@@ -120,9 +116,9 @@ const styles = StyleSheet.create({
     right:             0,
     height:            Platform.OS === 'ios' ? 84 : 64,
     borderTopWidth:    1,
-    borderTopColor:    Colors.border.DEFAULT,
-    backgroundColor:   'transparent',
-    elevation:         0,
+    borderTopColor:    'rgba(11,148,253,0.38)',
+    backgroundColor:   '#071827',
+    elevation:         18,
     paddingBottom:     Platform.OS === 'ios' ? 22 : 6,
     paddingHorizontal: 0,
   },
@@ -144,6 +140,11 @@ const styles = StyleSheet.create({
     justifyContent:  'center',
     position:        'relative',
   },
+  iconWrapActive: {
+    backgroundColor: 'rgba(99,102,241,0.20)',  // Indigo background when selected
+    borderWidth: 1,
+    borderColor: 'rgba(129,140,248,0.50)',     // Brighter border
+  },
   badge: {
     position:          'absolute',
     top:               5,
@@ -160,8 +161,13 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize:      10,
     fontWeight:    '700',
-    color:         Colors.text.subtle,
-    letterSpacing: 0,       // ← 0 tracking prevents overflow
+    color:         'rgba(255,255,255,0.45)',  // Brighter gray for better readability
+    letterSpacing: 0,
+    textAlign:     'center',
+  },
+  tabLabelActive: {
+    color: '#ffffff',  // Pure white when selected for maximum contrast
+    fontWeight: '800',
   },
 
   // Scan center FAB — green, matches web mobile
