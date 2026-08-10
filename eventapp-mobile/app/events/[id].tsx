@@ -103,6 +103,7 @@ function EventRemindersModal({ visible, onClose, eventId, eventTitle }: {
   eventId: string;
   eventTitle: string;
 }) {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { plan, isSubscribed, fetchSubscription } = useSubscriptionStore();
   const isPro = isSubscribed && (plan === 'pro' || plan === 'enterprise');
@@ -297,7 +298,7 @@ function EventRemindersModal({ visible, onClose, eventId, eventTitle }: {
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
       <View style={rms.backdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={rms.sheet}>
+        <View style={[rms.sheet, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <View style={rms.handle} />
 
           {/* Header */}
@@ -445,7 +446,7 @@ function EventRemindersModal({ visible, onClose, eventId, eventTitle }: {
               </ScrollView>
 
               {/* Actions */}
-              <View style={rms.actions}>
+              <View style={[rms.actions, { paddingBottom: Math.max(insets.bottom, 16) }]}>
                 <Pressable style={rms.cancelBtn} onPress={onClose} disabled={saving}>
                   <Text style={rms.cancelText}>Cancel</Text>
                 </Pressable>
@@ -473,7 +474,7 @@ function EventRemindersModal({ visible, onClose, eventId, eventTitle }: {
       {showTimingPicker !== null && (
         <View style={rms.timingOverlay}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowTimingPicker(null)} />
-          <View style={rms.timingSheet}>
+          <View style={[rms.timingSheet, { paddingBottom: Math.max(insets.bottom, 20) }]}>
             <View style={rms.timingSheetHeader}>
               <Text style={rms.editTitle}>Select reminder time</Text>
               <Pressable onPress={() => setShowTimingPicker(null)} hitSlop={10}>
@@ -673,7 +674,6 @@ const rms = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     padding: 20,
-    paddingBottom: 32,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.06)',
   },

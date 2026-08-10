@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -21,6 +22,7 @@ interface Props {
 }
 
 export function DateTimePicker({ label, value, onChange, minDate }: Props) {
+  const insets = useSafeAreaInsets();
   const now = new Date();
   const [open,      setOpen]      = useState(false);
   const [viewDate,  setViewDate]  = useState(value ?? now);
@@ -75,9 +77,19 @@ export function DateTimePicker({ label, value, onChange, minDate }: Props) {
     ? value.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
     : 'Select date & time';
 
+  const openPicker = () => {
+    const base = value ?? new Date();
+    setViewDate(base);
+    setSelected(base);
+    setAmpm(base.getHours() >= 12 ? 'PM' : 'AM');
+    setHour(String(base.getHours() % 12 || 12).padStart(2, '0'));
+    setMinute(String(Math.round(base.getMinutes() / 5) * 5).padStart(2, '0'));
+    setOpen(true);
+  };
+
   return (
     <>
-      <Pressable style={styles.trigger} onPress={() => setOpen(true)}>
+      <Pressable style={styles.trigger} onPress={openPicker}>
         <View style={styles.triggerLeft}>
           <View style={styles.triggerIcon}>
             <Feather name="calendar" size={15} color={Colors.accent.indigo} />
@@ -92,7 +104,7 @@ export function DateTimePicker({ label, value, onChange, minDate }: Props) {
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)} statusBarTranslucent>
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 20) + 16 }]}>
 
           {/* Handle */}
           <View style={styles.handle} />
@@ -245,7 +257,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius:  28,
     borderTopRightRadius: 28,
     padding: 20,
-    paddingBottom: 40,
     borderTopWidth: 1,
     borderTopColor: Colors.border.DEFAULT,
     maxHeight: '90%',

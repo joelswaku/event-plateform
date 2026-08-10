@@ -1267,7 +1267,7 @@ const s = StyleSheet.create({
   statTile:  { flex: 1, borderRadius: 18, borderWidth: 1, padding: 12, gap: 3, overflow: 'hidden', backgroundColor: Colors.bg.card },
   statIcon:  { width: 26, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   statValue: { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
-  statLabel: { fontSize: 9, color: Colors.text.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  statLabel: { fontSize: 9, color: 'rgba(255,255,255,0.65)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
 
   /* Upgrade */
   upgradeBanner: { marginHorizontal: 20, marginTop: 14, borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: `${Colors.accent.amber}30`, overflow: 'hidden' },
@@ -1288,7 +1288,7 @@ const s = StyleSheet.create({
   quickRow:  { flexDirection: 'row', justifyContent: 'space-between' },
   quickBtn:  { alignItems: 'center', gap: 8, flex: 1 },
   quickGrad: { width: (SW - 40 - 36) / 4, aspectRatio: 1, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  quickLabel:{ fontSize: 11, fontWeight: '800', color: Colors.text.muted, textTransform: 'uppercase', letterSpacing: 0.3 },
+  quickLabel:{ fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: 0.3 },
 
   /* Carousel */
   carouselContent: { paddingRight: 20, gap: 12 },

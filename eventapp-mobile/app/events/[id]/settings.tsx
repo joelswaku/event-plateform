@@ -6,10 +6,10 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { notify } from '@/lib/toast';
 import { useEventStore } from '@/store/event.store';
 import { Colors } from '@/constants/colors';
+import { DateTimePicker as EventDateTimePicker } from '@/components/ui/DateTimePicker';
 
 /* ──────────────────────────────────────────────────────────────────────────────
    TYPES & CONSTANTS
@@ -380,8 +380,6 @@ export default function EventSettingsScreen() {
 
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [showTimezonePicker, setShowTimezonePicker] = useState(false);
-  const [showStartDate, setShowStartDate] = useState(false);
-  const [showEndDate, setShowEndDate] = useState(false);
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
 
@@ -437,6 +435,13 @@ export default function EventSettingsScreen() {
 
   async function saveChanges() {
     if (!id) return;
+
+    // Validate dates before saving
+    if (endDate < startDate) {
+      notify.error('Invalid dates', 'End date must be after start date. Please adjust your dates.');
+      return;
+    }
+
     setSaving(true);
     const payload = {
       ...form,
@@ -634,41 +639,18 @@ export default function EventSettingsScreen() {
             color={Colors.accent.amber}
           />
 
-          <Field label="Start Date & Time">
-            <Pressable onPress={() => setShowStartDate(true)} style={s.dateBtn}>
-              <Feather name="calendar" size={14} color="rgba(255,255,255,0.5)" />
-              <Text style={s.dateBtnText}>{startDate.toLocaleString()}</Text>
-            </Pressable>
-          </Field>
+          <EventDateTimePicker
+            label="Start date & time"
+            value={startDate}
+            onChange={setStartDate}
+          />
 
-          {showStartDate && (
-            <DateTimePicker
-              value={startDate}
-              mode="datetime"
-              onChange={(e, date) => {
-                setShowStartDate(false);
-                if (date) setStartDate(date);
-              }}
-            />
-          )}
-
-          <Field label="End Date & Time">
-            <Pressable onPress={() => setShowEndDate(true)} style={s.dateBtn}>
-              <Feather name="calendar" size={14} color="rgba(255,255,255,0.5)" />
-              <Text style={s.dateBtnText}>{endDate.toLocaleString()}</Text>
-            </Pressable>
-          </Field>
-
-          {showEndDate && (
-            <DateTimePicker
-              value={endDate}
-              mode="datetime"
-              onChange={(e, date) => {
-                setShowEndDate(false);
-                if (date) setEndDate(date);
-              }}
-            />
-          )}
+          <EventDateTimePicker
+            label="End date & time"
+            value={endDate}
+            minDate={startDate}
+            onChange={setEndDate}
+          />
 
           <Field label="Timezone">
             <SelectField
@@ -972,19 +954,6 @@ const s = StyleSheet.create({
     paddingVertical: 12,
   },
   selectText: { fontSize: 14, color: '#fff', fontWeight: '500' },
-
-  dateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  dateBtnText: { fontSize: 14, color: '#fff', fontWeight: '500', flex: 1 },
 
   toggleRow: {
     flexDirection: 'row',
