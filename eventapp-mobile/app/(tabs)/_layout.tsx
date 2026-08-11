@@ -14,7 +14,7 @@ function TabIcon({
   label: string;
   badge?: number;
 }) {
-  const color = focused ? '#ffffff' : 'rgba(255,255,255,0.45)';
+  const color = focused ? '#ffffff' : '#d7eaff';
   return (
     <View style={styles.tabItem}>
       <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
@@ -35,8 +35,10 @@ export default function TabsLayout() {
   const offlineQueue = useScannerStore(s => s.offlineQueue);
   const pendingCount = offlineQueue.length;
   const isIOS = Platform.OS === 'ios';
-  const bottomInset = isIOS ? Math.max(insets.bottom, 22) : Math.max(insets.bottom, 8);
-  const tabContentHeight = isIOS ? 50 : 64;
+  // Some Android devices report no bottom inset even while the system controls
+  // overlap the app. Keep the labels above that protected area.
+  const bottomInset = isIOS ? Math.max(insets.bottom, 22) : Math.max(insets.bottom, 40);
+  const tabContentHeight = isIOS ? 50 : 66;
 
   return (
     <Tabs
@@ -46,7 +48,11 @@ export default function TabsLayout() {
         // Reserve that inset so every tab remains visible and tappable.
         tabBarStyle: [
           styles.tabBar,
-          { height: tabContentHeight + bottomInset, paddingBottom: bottomInset },
+          {
+            height: tabContentHeight + bottomInset,
+            paddingTop: isIOS ? 0 : 6,
+            paddingBottom: bottomInset,
+          },
         ],
         // The selected state belongs to TabIcon only. Do not let the navigator
         // paint a full-width selected/pressed background behind the bar.
@@ -80,7 +86,7 @@ export default function TabsLayout() {
               <View style={styles.scanTab}>
                 <Feather name="maximize" size={20} color="#fff" />
               </View>
-              <Text style={[styles.tabLabel, { color: Colors.text.subtle }]}>Scan</Text>
+              <Text style={styles.tabLabel}>Scan</Text>
             </View>
           ),
         }}
@@ -114,31 +120,40 @@ const styles = StyleSheet.create({
     bottom:            0,
     left:              0,
     right:             0,
-    height:            Platform.OS === 'ios' ? 84 : 64,
+    height:            Platform.OS === 'ios' ? 84 : 106,
     borderTopWidth:    1,
     borderTopColor:    'rgba(11,148,253,0.38)',
     backgroundColor:   '#071827',
     elevation:         18,
     paddingBottom:     Platform.OS === 'ios' ? 22 : 6,
     paddingHorizontal: 0,
+    overflow:          'hidden',
   },
   tabItem: {
     alignItems:     'center',
     justifyContent: 'center',
-    gap:            1,
-    paddingTop:     2,
+    gap:            2,
+    paddingTop:     0,
     minWidth:       44,
+    height:         Platform.OS === 'ios' ? 50 : 56,
   },
   tabBarItem: {
     backgroundColor: 'transparent',
+    height:           Platform.OS === 'ios' ? 50 : 66,
+    alignItems:       'center',
+    justifyContent:   'center',
+    paddingTop:       Platform.OS === 'ios' ? 0 : 8,
+    paddingBottom:    Platform.OS === 'ios' ? 0 : 4,
+    overflow:         'hidden',
   },
   iconWrap: {
-    width:           38,
-    height:          38,
-    borderRadius:    11,
+    width:           34,
+    height:          34,
+    borderRadius:    10,
     alignItems:      'center',
     justifyContent:  'center',
     position:        'relative',
+    overflow:        'hidden',
   },
   iconWrapActive: {
     backgroundColor: 'rgba(99,102,241,0.20)',  // Indigo background when selected
@@ -160,8 +175,8 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 8, fontWeight: '900', color: '#fff' },
   tabLabel: {
     fontSize:      10,
-    fontWeight:    '700',
-    color:         'rgba(255,255,255,0.45)',  // Brighter gray for better readability
+    fontWeight:    '900',
+    color:         '#ffffff',
     letterSpacing: 0,
     textAlign:     'center',
   },
@@ -172,13 +187,13 @@ const styles = StyleSheet.create({
 
   // Scan center FAB — green, matches web mobile
   scanTab: {
-    width:           54,
-    height:          54,
-    borderRadius:    16,
+    width:           40,
+    height:          40,
+    borderRadius:    13,
     backgroundColor: '#059669',
     alignItems:      'center',
     justifyContent:  'center',
-    marginTop:       -10,
+    marginTop:       -2,
     shadowColor:     '#10b981',
     shadowOffset:    { width: 0, height: 4 },
     shadowOpacity:   0.45,

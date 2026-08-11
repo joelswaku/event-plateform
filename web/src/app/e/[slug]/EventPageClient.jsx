@@ -615,30 +615,32 @@ export default function EventPageClient({ event, sections, token }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, [showStickyBar]);
 
-  // Android Custom Tabs can restore a previous document position after the
-  // ticket requests finish. Keep an initial visit at the Hero, but release the
-  // guard as soon as the visitor intentionally interacts with the page.
+  // Keep the opening frame predictable in mobile browsers and the Expo web
+  // view. Events with Tickets or Donations start just inside the hero so the
+  // hero and its action card are visible together (instead of leaving the
+  // purchase card far below the fold). This is an intentional, small offset —
+  // not an accidental jump to the Tickets section.
   useEffect(() => {
-    const isAndroid = typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
-    const isWebView = typeof navigator !== "undefined" &&
-      (navigator.userAgent.includes('wv') || window.ReactNativeWebView);
+    const isCompactViewport = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
+    const shouldPrioritizeAction = isCompactViewport && (showTicket || showDonate);
 
-    if (!isAndroid && !isWebView) return;
+    if (!isCompactViewport) return;
 
     let visitorInteracted = false;
     let resetFrame = null;
     const previousScrollRestoration = window.history.scrollRestoration;
+    const initialScrollTop = shouldPrioritizeAction ? 120 : 0;
 
-    const resetToTop = () => {
+    const restoreOpeningPosition = () => {
       if (visitorInteracted) return;
-      window.scrollTo(0, 0);
+      window.scrollTo(0, initialScrollTop);
     };
 
-    const scheduleTopReset = () => {
-      if (visitorInteracted || window.scrollY === 0 || resetFrame !== null) return;
+    const scheduleOpeningPositionRestore = () => {
+      if (visitorInteracted || Math.abs(window.scrollY - initialScrollTop) < 2 || resetFrame !== null) return;
       resetFrame = window.requestAnimationFrame(() => {
         resetFrame = null;
-        resetToTop();
+        restoreOpeningPosition();
       });
     };
 
@@ -646,31 +648,28 @@ export default function EventPageClient({ event, sections, token }) {
       visitorInteracted = true;
     };
 
-    // Disable browser scroll restoration before the ticket section updates its
-    // layout. The scroll listener catches late restoration from Android Custom
-    // Tabs; it is removed from control on the visitor's first real gesture.
+    // Disable browser scroll restoration before ticket or donation data updates
+    // the layout. The scroll listener catches late restoration from Android
+    // Custom Tabs; it stops as soon as the visitor makes a real gesture.
     if ("scrollRestoration" in window.history) {
       window.history.scrollRestoration = "manual";
     }
 
-    // CRITICAL FIX: Prevent auto-scroll to elements with IDs (like id="tickets")
-    // Android WebView aggressively scrolls to the first "important" element with an ID.
-    // This is more aggressive than the previous fix - it runs more frequently.
-    resetToTop();
-    const initialFrame = window.requestAnimationFrame(resetToTop);
+    restoreOpeningPosition();
+    const initialFrame = window.requestAnimationFrame(restoreOpeningPosition);
     const delayedResets = [
-      setTimeout(resetToTop, 0),
-      setTimeout(resetToTop, 50),
-      setTimeout(resetToTop, 100),
-      setTimeout(resetToTop, 200),
-      setTimeout(resetToTop, 300),
-      setTimeout(resetToTop, 500),
-      setTimeout(resetToTop, 800),
-      setTimeout(resetToTop, 1200),
+      setTimeout(restoreOpeningPosition, 0),
+      setTimeout(restoreOpeningPosition, 50),
+      setTimeout(restoreOpeningPosition, 100),
+      setTimeout(restoreOpeningPosition, 200),
+      setTimeout(restoreOpeningPosition, 300),
+      setTimeout(restoreOpeningPosition, 500),
+      setTimeout(restoreOpeningPosition, 800),
+      setTimeout(restoreOpeningPosition, 1200),
     ];
 
-    window.addEventListener("scroll", scheduleTopReset, { passive: true });
-    window.addEventListener("pageshow", resetToTop);
+    window.addEventListener("scroll", scheduleOpeningPositionRestore, { passive: true });
+    window.addEventListener("pageshow", restoreOpeningPosition);
     ["pointerdown", "touchstart", "wheel", "keydown"].forEach((eventName) => {
       window.addEventListener(eventName, releaseInitialScrollGuard, { passive: true, capture: true });
     });
@@ -679,8 +678,8 @@ export default function EventPageClient({ event, sections, token }) {
       window.cancelAnimationFrame(initialFrame);
       delayedResets.forEach(clearTimeout);
       if (resetFrame !== null) window.cancelAnimationFrame(resetFrame);
-      window.removeEventListener("scroll", scheduleTopReset);
-      window.removeEventListener("pageshow", resetToTop);
+      window.removeEventListener("scroll", scheduleOpeningPositionRestore);
+      window.removeEventListener("pageshow", restoreOpeningPosition);
       ["pointerdown", "touchstart", "wheel", "keydown"].forEach((eventName) => {
         window.removeEventListener(eventName, releaseInitialScrollGuard, true);
       });
@@ -688,7 +687,7 @@ export default function EventPageClient({ event, sections, token }) {
         window.history.scrollRestoration = previousScrollRestoration;
       }
     };
-  }, []);
+  }, [showTicket, showDonate]);
 
   useEffect(() => {
     if (!enrichedEvent.id) return;

@@ -118,6 +118,20 @@ export async function getProjectService({ organizationId, projectId }) {
   );
   if (!project) throw new AppError("Project not found", 404);
 
+  // Older planner projects may predate location fields. Keep local vendor
+  // searches useful by falling back to the event they are linked to.
+  if (project.event_id && (!project.venue || !project.city || !project.country)) {
+    const { rows: [event] } = await db.query(
+      "SELECT venue_name, venue_address, city, country FROM events WHERE id = $1",
+      [project.event_id],
+    );
+    if (event) {
+      project.venue ||= event.venue_name || event.venue_address || null;
+      project.city ||= event.city || null;
+      project.country ||= event.country || null;
+    }
+  }
+
   const [taskRows, vendorRows, timelineRows, budgetRows, teamRows, activityRows] = await Promise.all([
     db.query("SELECT * FROM planner_tasks WHERE project_id = $1 AND parent_task_id IS NULL ORDER BY position_order, created_at", [projectId]),
     db.query("SELECT * FROM planner_vendors WHERE project_id = $1 ORDER BY category, name", [projectId]),

@@ -1244,7 +1244,7 @@ const s = StyleSheet.create({
   headerLeft:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
   headerRight:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logoMark:     { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  greetingLine: { fontSize: 11, color: Colors.text.muted, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.6 },
+  greetingLine: { fontSize: 11, color: '#d4e6f5', fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },
   nameLine:     { fontSize: 18, color: '#fff', fontWeight: '900', letterSpacing: -0.4 },
   headerBtn:    { width: 38, height: 38, borderRadius: 12, backgroundColor: Colors.bg.elevated, borderWidth: 1, borderColor: Colors.border.DEFAULT, alignItems: 'center', justifyContent: 'center' },
   notifDot:     { position: 'absolute', top: 8, right: 8, width: 7, height: 7, borderRadius: 4, backgroundColor: Colors.accent.amber, borderWidth: 1.5, borderColor: Colors.bg.primary },
@@ -1267,14 +1267,14 @@ const s = StyleSheet.create({
   statTile:  { flex: 1, borderRadius: 18, borderWidth: 1, padding: 12, gap: 3, overflow: 'hidden', backgroundColor: Colors.bg.card },
   statIcon:  { width: 26, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   statValue: { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
-  statLabel: { fontSize: 9, color: 'rgba(255,255,255,0.65)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  statLabel: { fontSize: 9, color: '#e8f4ff', fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.4 },
 
   /* Upgrade */
   upgradeBanner: { marginHorizontal: 20, marginTop: 14, borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: `${Colors.accent.amber}30`, overflow: 'hidden' },
   upgradeLeft:   { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
   upgradeEmoji:  { fontSize: 22 },
   upgradeTitle:  { fontSize: 13, fontWeight: '800', color: '#fff' },
-  upgradeSub:    { fontSize: 11, color: Colors.text.muted, marginTop: 1 },
+  upgradeSub:    { fontSize: 11, color: '#c8dced', marginTop: 1 },
   upgradeCta:    { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: `${Colors.accent.amber}25`, borderWidth: 1, borderColor: `${Colors.accent.amber}45` },
   upgradeCtaTxt: { fontSize: 12, fontWeight: '800', color: Colors.accent.amber },
 
@@ -1288,7 +1288,7 @@ const s = StyleSheet.create({
   quickRow:  { flexDirection: 'row', justifyContent: 'space-between' },
   quickBtn:  { alignItems: 'center', gap: 8, flex: 1 },
   quickGrad: { width: (SW - 40 - 36) / 4, aspectRatio: 1, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  quickLabel:{ fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: 0.3 },
+  quickLabel:{ fontSize: 11, fontWeight: '900', color: '#ffffff', textTransform: 'uppercase', letterSpacing: 0.3 },
 
   /* Carousel */
   carouselContent: { paddingRight: 20, gap: 12 },
@@ -1301,7 +1301,7 @@ const s = StyleSheet.create({
   featuredBottom:  { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 18, gap: 6 },
   featuredTitle:   { fontSize: 20, fontWeight: '900', color: '#fff', letterSpacing: -0.5, lineHeight: 26 },
   featuredMeta:    { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },
-  featuredMetaTxt: { fontSize: 11, color: 'rgba(255,255,255,0.55)', fontWeight: '600' },
+  featuredMetaTxt: { fontSize: 11, color: '#e1effa', fontWeight: '700' },
   metaDot:         { fontSize: 11, color: 'rgba(255,255,255,0.3)' },
 
   /* Dots */
@@ -1315,14 +1315,14 @@ const s = StyleSheet.create({
   recentInfo: { flex: 1, padding: 12, gap: 4 },
   recentTitle:{ fontSize: 14, fontWeight: '800', color: '#fff', letterSpacing: -0.2 },
   recentDateRow:{ flexDirection: 'row', alignItems: 'center', gap: 4 },
-  recentDate: { fontSize: 11, color: Colors.text.subtle, fontWeight: '600' },
+  recentDate: { fontSize: 11, color: '#c7ddec', fontWeight: '700' },
   statusPill: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 99, marginTop: 2 },
   statusDot:  { width: 5, height: 5, borderRadius: 3 },
   statusTxt:  { fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
 
   /* Managing section */
   teamSectionLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  teamSectionTitle: { fontSize: 12, fontWeight: '800', color: 'rgba(255,255,255,0.40)', textTransform: 'uppercase', letterSpacing: 0.6 },
+  teamSectionTitle: { fontSize: 12, fontWeight: '900', color: '#fef3c7', textTransform: 'uppercase', letterSpacing: 0.6 },
   teamCountBadge:   { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 99, backgroundColor: 'rgba(251,191,36,0.15)' },
   teamCountTxt:     { fontSize: 11, fontWeight: '800', color: '#fbbf24' },
   teamList:         { gap: 8 },
@@ -1331,7 +1331,7 @@ const s = StyleSheet.create({
   teamCardThumbBadge: { position: 'absolute', bottom: 3, right: 3, width: 14, height: 14, borderRadius: 4, backgroundColor: 'rgba(42,29,0,0.85)', alignItems: 'center', justifyContent: 'center' },
   teamCardInfo:       { flex: 1, minWidth: 0, gap: 2 },
   teamCardTitle:    { fontSize: 13, fontWeight: '800', color: '#fef3c7' },
-  teamCardSub:      { fontSize: 11, color: 'rgba(251,191,36,0.55)' },
+  teamCardSub:      { fontSize: 11, color: '#fde68a', fontWeight: '700' },
 
   /* Super admin banner */
   sadmBanner:   { marginHorizontal: 20, marginTop: 6, marginBottom: 2, borderRadius: 14, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: 'rgba(201,169,110,0.30)', overflow: 'hidden' },

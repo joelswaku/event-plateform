@@ -33,6 +33,7 @@ export default function EditEventScreen() {
 
   const ready       = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const invalidDateRangeRef = useRef('');
 
   /* Load */
   useEffect(() => {
@@ -81,10 +82,19 @@ export default function EditEventScreen() {
       if (form.starts_at instanceof Date && form.ends_at instanceof Date) {
         if (form.ends_at <= form.starts_at) {
           setSaving(false);
-          setSaveErr('Invalid dates: end must be after start');
+          setSaveErr(null);
+          const rangeKey = `${form.starts_at.getTime()}:${form.ends_at.getTime()}`;
+          if (invalidDateRangeRef.current !== rangeKey) {
+            invalidDateRangeRef.current = rangeKey;
+            Alert.alert(
+              'Event dates need updating',
+              'The event start date must be before the end date. Choose an end date and time after the start date to continue.',
+            );
+          }
           return;
         }
       }
+      invalidDateRangeRef.current = '';
 
       const res = await updateEvent(id, {
         title:             form.title,
@@ -114,8 +124,21 @@ export default function EditEventScreen() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [form]);
 
-  const change = (field: string, value: any) =>
+  const change = (field: string, value: any) => {
+    if ((field === 'starts_at' || field === 'ends_at') && value instanceof Date) {
+      const start = field === 'starts_at' ? value : form.starts_at;
+      const end = field === 'ends_at' ? value : form.ends_at;
+      if (start instanceof Date && end instanceof Date && end <= start) {
+        const rangeKey = `${start.getTime()}:${end.getTime()}`;
+        invalidDateRangeRef.current = rangeKey;
+        Alert.alert(
+          'Event dates need updating',
+          'The event start date must be before the end date. Choose an end date and time after the start date to continue.',
+        );
+      }
+    }
     setFormState(prev => ({ ...prev, [field]: value }));
+  };
 
   const changeModule = (key: 'allow_rsvp' | 'allow_ticketing' | 'allow_donations', enabled: boolean) => {
     const labels = { allow_rsvp: 'RSVP', allow_ticketing: 'Ticketing', allow_donations: 'Donations' };
