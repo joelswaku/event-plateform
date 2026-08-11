@@ -359,7 +359,7 @@ function PlanCard({ name, price, period, badge, features, isCurrent, isPassed, i
         },
       ]}
     >
-      {badge && (
+      {badge && !isPassed && (
         <View style={[pc.badge, { backgroundColor: Colors.accent.indigo }]}>
           <Text style={pc.badgeText}>{badge}</Text>
         </View>
@@ -397,7 +397,7 @@ function PlanCard({ name, price, period, badge, features, isCurrent, isPassed, i
         <View style={pc.currentBtn}>
           <Text style={pc.currentBtnText}>Current plan</Text>
         </View>
-      ) : onUpgrade ? (
+      ) : onUpgrade && !isPassed ? (
         <Pressable
           style={[pc.upgradeBtn, upgradeDisabled && { opacity: 0.6 }]}
           onPress={(e) => { onUpgrade(); }}

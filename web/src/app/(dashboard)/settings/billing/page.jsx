@@ -288,12 +288,13 @@ function MobileUsageCard({ icon, label, used, limit }) {
 
 function MobilePlanCard({ name, price, period, badge, features, isCurrent, isPassed, isPopular, isSelected, onSelect, accent, onUpgrade, upgradeLoading, upgradeDisabled }) {
   const isSelectable = !isCurrent && !isPassed && !!onSelect;
-  const borderColor = isSelected
+  const showSelected = isSelected && !isCurrent && !isPassed;
+  const borderColor = showSelected
     ? accent
-    : isPopular
+    : isPopular && !isPassed
     ? `${accent}55`
     : "rgba(255,255,255,0.08)";
-  const boxShadow = isSelected
+  const boxShadow = showSelected
     ? `0 0 0 2px ${accent}55, 0 0 28px ${accent}30`
     : undefined;
 
@@ -302,16 +303,16 @@ function MobilePlanCard({ name, price, period, badge, features, isCurrent, isPas
       onClick={isSelectable ? onSelect : undefined}
       className="relative flex flex-col gap-4 rounded-[18px] p-4 transition-all"
       style={{
-        background: isSelected ? `${accent}0a` : "#0e0e16",
+        background: showSelected ? `${accent}0a` : "#0e0e16",
         border: `1px solid ${borderColor}`,
         boxShadow,
-        marginTop: badge ? 12 : 0,
+        marginTop: badge && !isPassed ? 12 : 0,
         cursor: isSelectable ? "pointer" : "default",
         opacity: isPassed ? 0.45 : 1,
       }}
     >
       {/* Selected check */}
-      {isSelected && (
+      {showSelected && (
         <div
           className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full"
           style={{ background: accent }}
@@ -320,7 +321,7 @@ function MobilePlanCard({ name, price, period, badge, features, isCurrent, isPas
         </div>
       )}
 
-      {badge && (
+      {badge && !isPassed && (
         <div
           className="absolute left-1/2 -translate-x-1/2 rounded-full px-3 py-1"
           style={{ top: -12, background: "#6366f1" }}
@@ -331,7 +332,7 @@ function MobilePlanCard({ name, price, period, badge, features, isCurrent, isPas
         </div>
       )}
 
-      <div className="flex items-end justify-between" style={{ paddingTop: badge ? 4 : 0 }}>
+      <div className="flex items-end justify-between" style={{ paddingTop: badge && !isPassed ? 4 : 0 }}>
         <div>
           <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 1 }}>
             {name}
@@ -365,7 +366,7 @@ function MobilePlanCard({ name, price, period, badge, features, isCurrent, isPas
         >
           <span style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.45)" }}>Current plan</span>
         </div>
-      ) : onUpgrade ? (
+      ) : onUpgrade && !isPassed ? (
         <button
           onClick={onUpgrade}
           disabled={upgradeDisabled}
@@ -713,15 +714,16 @@ function UsageCard({ Icon, label, used, limit, unlimited, warningText, emptyText
 
 function PlanCard({ name, price, period, badge, features, isCurrent, isPassed, isPopular, isSelected, onSelect, buttonLabel, buttonDisabled, buttonLoading, onUpgrade, isGold }) {
   const isSelectable = !isCurrent && !isPassed && !!onSelect;
+  const showSelected = isSelected && !isCurrent && !isPassed;
 
   // Dynamic Tailwind classes for light/dark mode support
   let containerClasses = "relative flex flex-col rounded-2xl border p-6 transition-all duration-200";
 
-  if (isSelected && isGold) {
+  if (showSelected && isGold) {
     containerClasses += " border-amber-400 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/20 shadow-xl shadow-amber-500/20";
-  } else if (isSelected) {
+  } else if (showSelected) {
     containerClasses += " border-indigo-400 dark:border-indigo-600 bg-indigo-50 dark:bg-indigo-950/20 shadow-xl shadow-indigo-500/20";
-  } else if (isPopular || isGold) {
+  } else if ((isPopular || isGold) && !isPassed) {
     containerClasses += isGold
       ? " border-amber-300 dark:border-amber-700/60 bg-white dark:bg-slate-900 shadow-lg shadow-amber-500/10"
       : " border-indigo-300 dark:border-indigo-700/60 bg-white dark:bg-slate-900 shadow-lg shadow-indigo-500/10";
@@ -736,11 +738,11 @@ function PlanCard({ name, price, period, badge, features, isCurrent, isPassed, i
       style={{
         cursor:  isSelectable ? "pointer" : "default",
         opacity: isPassed ? 0.45 : 1,
-        marginTop: badge ? "14px" : undefined,
+        marginTop: badge && !isPassed ? "14px" : undefined,
       }}
     >
       {/* Selected check */}
-      {isSelected && !isCurrent && (
+      {showSelected && (
         <div
           className={`absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full ${
             isGold ? 'bg-amber-500' : 'bg-indigo-500'
@@ -750,7 +752,7 @@ function PlanCard({ name, price, period, badge, features, isCurrent, isPassed, i
         </div>
       )}
 
-      {badge && (
+      {badge && !isPassed && (
         <div
           className={`absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full px-3.5 py-1 text-[10px] font-black uppercase tracking-widest text-white whitespace-nowrap ${
             isGold ? 'bg-linear-to-r from-amber-400 to-orange-500' : 'bg-indigo-500'
@@ -782,20 +784,22 @@ function PlanCard({ name, price, period, badge, features, isCurrent, isPassed, i
       </ul>
 
       {/* CTA button */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onUpgrade?.(); }}
-        disabled={buttonDisabled || isCurrent}
-        className={`mt-auto flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all active:scale-[0.97] disabled:cursor-default disabled:opacity-60 ${
-          isCurrent
-            ? 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-500'
-            : isGold
-            ? 'bg-linear-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40'
-            : 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40'
-        }`}
-      >
-        {buttonLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-        {buttonLabel}
-      </button>
+      {!isPassed && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onUpgrade?.(); }}
+          disabled={buttonDisabled || isCurrent}
+          className={`mt-auto flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all active:scale-[0.97] disabled:cursor-default disabled:opacity-60 ${
+            isCurrent
+              ? 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-500'
+              : isGold
+              ? 'bg-linear-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40'
+              : 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40'
+          }`}
+        >
+          {buttonLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+          {buttonLabel}
+        </button>
+      )}
     </div>
   );
 }

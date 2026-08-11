@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import { useChatStore } from '@/store/chat.store';
 import { useAuthStore } from '@/store/auth.store';
@@ -12,6 +13,7 @@ interface FloatingChatButtonProps {
 
 export function FloatingChatButton({ onPress }: FloatingChatButtonProps) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const isSuperAdmin = useAuthStore(s => !!s.user?.is_super_admin);
   const unreadTotal = useChatStore(s => s.unreadTotal);
   const fetchUnreadCount = useChatStore(s => s.fetchUnreadCount);
@@ -101,7 +103,10 @@ export function FloatingChatButton({ onPress }: FloatingChatButtonProps) {
   };
 
   return (
-    <Animated.View style={[styles.container, { transform: [{ scale: scaleAnim }] }]}>
+    <Animated.View style={[
+      styles.container,
+      { bottom: Math.max(insets.bottom, 16) + 16, transform: [{ scale: scaleAnim }] },
+    ]}>
       <Pressable
         style={styles.button}
         onPress={handlePress}

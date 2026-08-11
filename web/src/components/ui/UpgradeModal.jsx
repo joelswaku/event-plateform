@@ -183,18 +183,18 @@ export default function UpgradeModal({
   // it opens and where a user goes after dismissing it.
   const isOpen = controlledOpen ?? upgradeModalOpen;
   const feature = controlledFeature ?? upgradeModalFeature;
+  const isStarter = plan === "starter";
+  const isPro = isSubscribed && ["pro", "premium", "enterprise"].includes(plan);
+  const [loadingTier, setLoadingTier] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState(isStarter || isPro ? "pro" : "starter");
   const closeModal = () => {
-    setSelectedPlan(isStarter ? "pro" : "starter");
+    setSelectedPlan(isStarter || isPro ? "pro" : "starter");
     if (controlledOpen !== undefined) {
       onClose?.();
       return;
     }
     closeUpgradeModal();
   };
-
-  const isStarter = plan === "starter";
-  const [loadingTier, setLoadingTier] = useState(null);
-  const [selectedPlan, setSelectedPlan] = useState(isStarter ? "pro" : "starter");
 
   // Prices always come from the API, rather than trusting browser state.
   useEffect(() => {
@@ -203,7 +203,13 @@ export default function UpgradeModal({
     }
   }, [isOpen, fetchPrices]);
 
-  const copy = getTriggerCopy(feature, plan);
+  const copy = isPro
+    ? {
+        badge: "Pro plan",
+        headline: "You already have Pro access.",
+        sub: "Your current plan includes this feature.",
+      }
+    : getTriggerCopy(feature, plan);
   // The API is the source of truth for price IDs. Environment values are only
   // a backward-compatible fallback for older deployments.
   const starterPriceId = prices?.starter?.id || STARTER_PRICE_ID;
@@ -215,7 +221,7 @@ export default function UpgradeModal({
    * - If user has no subscription: use checkout (redirect to Stripe)
    */
   const handleCheckout = async (priceId, tier) => {
-    if (!priceId) return;
+    if (!priceId || isPro || (isStarter && tier === "starter")) return;
     setLoadingTier(tier);
 
     // Check if user already has a subscription
@@ -311,9 +317,9 @@ export default function UpgradeModal({
               </p>
             </div>
 
-            {/* Plan columns — 2-col for starter users, 3-col for free */}
-            <div className={`mt-5 grid gap-2.5 px-6 ${isStarter ? "grid-cols-2" : "grid-cols-3"}`}>
-              {!isStarter && (
+            {/* Show only plans a user can meaningfully select. */}
+            <div className={`mt-5 grid gap-2.5 px-6 ${isPro ? "grid-cols-1" : isStarter ? "grid-cols-2" : "grid-cols-3"}`}>
+              {!isStarter && !isPro && (
                 <PlanCol
                   label="Free"
                   price="$0"
@@ -322,28 +328,30 @@ export default function UpgradeModal({
                   dimmed
                 />
               )}
-              <PlanCol
-                label="Starter"
-                price="$19"
-                period="/mo"
-                features={STARTER_FEATURES}
-                highlight={!isStarter}
-                badge={isStarter ? "Current Plan" : "Most Popular"}
-                accentColor="#6366f1"
-                dimmed={isStarter}
-                selected={!isStarter && selectedPlan === "starter"}
-                onClick={!isStarter ? () => setSelectedPlan("starter") : undefined}
-              />
+              {!isPro && (
+                <PlanCol
+                  label="Starter"
+                  price="$19"
+                  period="/mo"
+                  features={STARTER_FEATURES}
+                  highlight={!isStarter}
+                  badge={isStarter ? "Current Plan" : "Most Popular"}
+                  accentColor="#6366f1"
+                  dimmed={isStarter}
+                  selected={!isStarter && selectedPlan === "starter"}
+                  onClick={!isStarter ? () => setSelectedPlan("starter") : undefined}
+                />
+              )}
               <PlanCol
                 label="Pro"
                 price="$49"
                 period="/mo"
                 features={PRO_FEATURES}
-                highlight={isStarter}
-                badge={isStarter ? "Recommended" : undefined}
+                highlight={isStarter || isPro}
+                badge={isPro ? "Current Plan" : isStarter ? "Recommended" : undefined}
                 accentColor="#f59e0b"
-                selected={isStarter || selectedPlan === "pro"}
-                onClick={() => setSelectedPlan("pro")}
+                selected={isPro || isStarter || selectedPlan === "pro"}
+                onClick={!isPro ? () => setSelectedPlan("pro") : undefined}
               />
             </div>
 
@@ -361,7 +369,7 @@ export default function UpgradeModal({
             {/* CTAs */}
             <div className="flex gap-3 px-6 pb-7 pt-4">
               {/* Starter — only shown for free users */}
-              {!isStarter && (
+              {!isStarter && !isPro && (
                 <button
                   onClick={() => handleCheckout(starterPriceId, "starter")}
                   disabled={isLoading || loadingTier !== null}
@@ -382,29 +390,39 @@ export default function UpgradeModal({
                 </button>
               )}
 
-              {/* Pro — primary for starter users, secondary for free users */}
-              <button
-                onClick={() => handleCheckout(proPriceId, "pro")}
-                disabled={isLoading || loadingTier !== null}
-                className="group flex flex-1 items-center justify-center gap-2 rounded-2xl py-3.5 text-[13px] font-black uppercase tracking-[0.1em] transition-all duration-200 active:scale-[0.98] disabled:opacity-60"
-                style={isStarter ? {
-                  background: "linear-gradient(135deg, #c9a96e 0%, #f59e0b 100%)",
-                  color: "#000",
-                  boxShadow: "0 6px 24px rgba(201,169,110,0.45)",
-                } : {
-                  background: "rgba(245,158,11,0.12)",
-                  border: "1px solid rgba(245,158,11,0.30)",
-                  color: "#f59e0b",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
-                onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-              >
-                <Zap size={14} fill="currentColor" />
-                {loadingTier === "pro" ? "Redirecting…" : "Upgrade to Pro"}
-                {loadingTier !== "pro" && isStarter && (
-                  <ArrowRight size={13} className="transition-transform duration-200 group-hover:translate-x-0.5" />
-                )}
-              </button>
+              {isPro ? (
+                <button
+                  onClick={closeModal}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl py-3.5 text-[13px] font-black uppercase tracking-[0.1em] transition-all duration-200 active:scale-[0.98]"
+                  style={{ background: "rgba(245,158,11,0.14)", border: "1px solid rgba(245,158,11,0.30)", color: "#f59e0b" }}
+                >
+                  Continue
+                </button>
+              ) : (
+                /* Pro — primary for starter users, secondary for free users */
+                <button
+                  onClick={() => handleCheckout(proPriceId, "pro")}
+                  disabled={isLoading || loadingTier !== null}
+                  className="group flex flex-1 items-center justify-center gap-2 rounded-2xl py-3.5 text-[13px] font-black uppercase tracking-[0.1em] transition-all duration-200 active:scale-[0.98] disabled:opacity-60"
+                  style={isStarter ? {
+                    background: "linear-gradient(135deg, #c9a96e 0%, #f59e0b 100%)",
+                    color: "#000",
+                    boxShadow: "0 6px 24px rgba(201,169,110,0.45)",
+                  } : {
+                    background: "rgba(245,158,11,0.12)",
+                    border: "1px solid rgba(245,158,11,0.30)",
+                    color: "#f59e0b",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+                >
+                  <Zap size={14} fill="currentColor" />
+                  {loadingTier === "pro" ? "Redirecting…" : "Upgrade to Pro"}
+                  {loadingTier !== "pro" && isStarter && (
+                    <ArrowRight size={13} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+                  )}
+                </button>
+              )}
             </div>
 
             <p className="pb-5 text-center text-[10px]" style={{ color: "rgba(255,255,255,0.18)" }}>

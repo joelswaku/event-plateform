@@ -332,6 +332,18 @@ export default function GuestDetailScreen() {
           </>
         )}
 
+        {/* ── Seating ───────────────────────────────────────────── */}
+        <SectionLabel label="SEATING" />
+        <View style={s.actionGroup}>
+          <ActionRow
+            icon="map-pin"
+            label="Assign Seat"
+            sub="Assign this guest to a table seat"
+            accent={Colors.accent.violet}
+            onPress={() => router.push(`/events/${eventId}/seating` as any)}
+          />
+        </View>
+
         {/* ── Details ───────────────────────────────────────────── */}
         <SectionLabel label="DETAILS" />
         <View style={s.detailsCard}>

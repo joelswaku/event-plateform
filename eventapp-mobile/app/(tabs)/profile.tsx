@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable, Image, Alert, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
@@ -14,6 +14,7 @@ import { LegalPageModal }       from '@/components/ui/LegalPageModal';
 import { Colors }               from '@/constants/colors';
 
 export default function ProfileTab() {
+  const insets       = useSafeAreaInsets();
   const router       = useRouter();
   const openDrawer   = useDrawerStore(s => s.open);
   const user         = useAuthStore(s => s.user);
@@ -80,7 +81,10 @@ export default function ProfileTab() {
         <Text style={styles.pageTitle}>Profile</Text>
         <View style={{ width: 40 }} />
       </View>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 156 }]}
+        showsVerticalScrollIndicator={false}
+      >
 
         {/* Avatar + name */}
         <View style={styles.profileHead}>
@@ -284,7 +288,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   pageTitle: { fontSize: 17, fontWeight: '900', color: '#fff' },
-  content:   { padding: 24, gap: 20, paddingBottom: 140 },  // Extra padding for Android nav bar + Sign out button
+  content:   { padding: 24, gap: 20 },
 
   profileHead: { alignItems: 'center', gap: 8, paddingVertical: 16 },
   avatarWrap: { position: 'relative' },

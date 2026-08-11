@@ -433,12 +433,29 @@ export default function EventSettingsScreen() {
 
   const isPublic = currentEvent.visibility === 'PUBLIC';
 
+  function showInvalidDateRange() {
+    Alert.alert(
+      'Event dates need updating',
+      'The event start date must be before the end date. Choose an end date and time after the start date, then save your changes.',
+    );
+  }
+
+  function handleStartDateChange(nextDate: Date) {
+    setStartDate(nextDate);
+    if (endDate && nextDate >= endDate) showInvalidDateRange();
+  }
+
+  function handleEndDateChange(nextDate: Date) {
+    setEndDate(nextDate);
+    if (startDate && nextDate <= startDate) showInvalidDateRange();
+  }
+
   async function saveChanges() {
     if (!id) return;
 
     // Validate dates before saving
-    if (endDate < startDate) {
-      notify.error('Invalid dates', 'End date must be after start date. Please adjust your dates.');
+    if (endDate <= startDate) {
+      showInvalidDateRange();
       return;
     }
 
@@ -642,14 +659,14 @@ export default function EventSettingsScreen() {
           <EventDateTimePicker
             label="Start date & time"
             value={startDate}
-            onChange={setStartDate}
+            onChange={handleStartDateChange}
           />
 
           <EventDateTimePicker
             label="End date & time"
             value={endDate}
             minDate={startDate}
-            onChange={setEndDate}
+            onChange={handleEndDateChange}
           />
 
           <Field label="Timezone">

@@ -13,7 +13,7 @@ import { useSubscriptionStore } from '@/store/subscription.store';
 import { Colors } from '@/constants/colors';
 import { TimelineSection } from '@/components/planner/TimelineSection';
 import { notify } from '@/lib/toast';
-import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
+import { NestableDraggableFlatList, NestableScrollContainer, RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { UpgradeNotificationModal } from '@/components/planner/UpgradeNotificationModal';
 
@@ -968,11 +968,13 @@ function PhaseGroup({ phase, tasks, onToggle, onOpen, onReorder, projectId }: an
       </TouchableOpacity>
 
       {open && (
-        <DraggableFlatList
+        <NestableDraggableFlatList
           data={items}
           keyExtractor={(t: any) => t.id}
           onDragEnd={handleDragEnd}
-          scrollEnabled={false}
+          // Let ordinary vertical swipes reach the page scroll view. A task is
+          // reordered only after a deliberate long press and drag.
+          activationDistance={24}
           renderItem={({ item, drag, isActive }: RenderItemParams<any>) => (
             <ScaleDecorator activeScale={1.02}>
               <View style={[
@@ -1190,7 +1192,7 @@ function TasksSection({ project, projectId, onGenerate, generating }: { project:
             onGenerate={search || statusFilter !== 'all' || priFilter !== 'all' ? undefined : onGenerate}
             generating={generating} />
         : (
-          <GestureHandlerRootView style={{ gap: 8 }}>
+          <GestureHandlerRootView style={{ gap: 8, flexGrow: 0, flexShrink: 0 }}>
             {groups.map(({ phase, tasks: pt }) => (
               <PhaseGroup key={phase.id} phase={phase} tasks={pt}
                 onToggle={toggle} onOpen={setSelectedTask}
@@ -3124,7 +3126,12 @@ export default function PlannerProjectScreen() {
       </ScrollView>
 
       {/* Section content */}
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 32 }} keyboardShouldPersistTaps="handled">
+      <NestableScrollContainer
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={true}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 140 }}
+      >
         {activeSection === 'overview'  && <OverviewSection  project={currentProject} onGenerate={handleGenerate} generating={aiGenerating} onNavigate={setActiveSection} projectId={projectId!} />}
         {activeSection === 'tasks'     && <TasksSection     project={currentProject} projectId={projectId!} onGenerate={() => handleGenerate('tasks')} generating={aiGenerating} />}
         {activeSection === 'timeline'  && <TimelineSection  project={currentProject} projectId={projectId!} onGenerate={() => handleGenerate('timeline')} generating={aiGenerating} />}
@@ -3135,7 +3142,7 @@ export default function PlannerProjectScreen() {
         {activeSection === 'files'     && <FilesSection     projectId={projectId!} />}
         {activeSection === 'ai-brief'  && <AIBriefSection   project={currentProject} onGenerate={() => handleGenerate('brief')} generating={aiGenerating} />}
         {activeSection === 'settings'  && <SettingsSection  project={currentProject} projectId={projectId!} />}
-      </ScrollView>
+      </NestableScrollContainer>
 
       <SidebarDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} project={currentProject} activeSection={activeSection} onSelect={setActiveSection} />
 
@@ -3170,14 +3177,14 @@ const s = StyleSheet.create({
 
   sectionContent: { padding: 14, gap: 12 },
   card: { backgroundColor: Colors.bg.card, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 14 },
-  cardTitle: { fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 },
+  cardTitle: { fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.70)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 },
 
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   kpiCard: { width: '47.5%', backgroundColor: Colors.bg.card, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 14, gap: 6 },
   kpiIconWrap: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   kpiVal:   { fontSize: 22, fontWeight: '900', color: '#fff', letterSpacing: -0.5 },
-  kpiLabel: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5 },
-  kpiSub:   { fontSize: 10, color: 'rgba(255,255,255,0.3)' },
+  kpiLabel: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.75)', textTransform: 'uppercase', letterSpacing: 0.5 },
+  kpiSub:   { fontSize: 10, color: 'rgba(255,255,255,0.50)' },
 
   progressTrack: { height: 6, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden', marginBottom: 10 },
   progressFill:  { height: 6, borderRadius: 3 },
@@ -3217,11 +3224,11 @@ const s = StyleSheet.create({
   taskCardBorder: { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' },
   taskCheck: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center', marginTop: 1, flexShrink: 0 },
   taskCheckDone: { backgroundColor: '#10b981', borderColor: '#10b981' },
-  taskCardTitle: { fontSize: 14, fontWeight: '600', color: '#fff', lineHeight: 20, marginBottom: 5 },
+  taskCardTitle: { fontSize: 14, fontWeight: '600', color: '#ffffff', lineHeight: 20, marginBottom: 5 },
   taskBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   taskBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 99 },
   taskBadgeText: { fontSize: 10, fontWeight: '700' },
-  taskDueText: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.4)' },
+  taskDueText: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.60)' },
   taskDeleteBtn: { marginTop: 2, padding: 4 },
 
   filterChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.04)' },
@@ -3232,15 +3239,15 @@ const s = StyleSheet.create({
   phaseGroup: { borderRadius: 12, borderWidth: 1, overflow: 'hidden', marginBottom: 2 },
   phaseHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 9 },
   phaseDot: { width: 7, height: 7, borderRadius: 4, flexShrink: 0 },
-  phaseLabel: { flex: 1, fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8 },
+  phaseLabel: { flex: 1, fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8, color: 'rgba(255,255,255,0.85)' },
   phaseCount: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
   phaseCountText: { fontSize: 10, fontWeight: '800' },
 
   taskRow:   { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 12 },
   taskBorder: { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)' },
-  taskTitle: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
+  taskTitle: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.95)' },
   taskDone:  { textDecorationLine: 'line-through', opacity: 0.4 },
-  taskMeta:  { fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 2 },
+  taskMeta:  { fontSize: 11, color: 'rgba(255,255,255,0.50)', marginTop: 2 },
   priorityDot: { width: 7, height: 7, borderRadius: 4, flexShrink: 0 },
 
   addTaskRow:    { flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 4 },

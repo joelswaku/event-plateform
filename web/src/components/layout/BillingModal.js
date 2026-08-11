@@ -327,9 +327,10 @@ function ModalPlanCard({
   buttonLabel, buttonDisabled, buttonLoading, onUpgrade,
 }) {
   const isSelectable = !isCurrent && !isPassed && !!onSelect;
+  const showSelected = isSelected && !isCurrent && !isPassed;
 
   let borderColor, boxShadow, background;
-  if (isSelected) {
+  if (showSelected) {
     borderColor = "var(--accent)";
     boxShadow   = "0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent), 0 0 28px color-mix(in srgb, var(--accent) 18%, transparent)";
     background  = "color-mix(in srgb, var(--accent) 5%, var(--bg-surface))";
@@ -337,7 +338,7 @@ function ModalPlanCard({
     borderColor = "var(--accent)";
     boxShadow   = "0 0 24px color-mix(in srgb, var(--accent) 18%, transparent)";
     background  = "var(--bg-surface)";
-  } else if (isPopular) {
+  } else if (isPopular && !isPassed) {
     borderColor = "var(--accent)";
     background  = "var(--bg-surface)";
   } else {
@@ -355,7 +356,7 @@ function ModalPlanCard({
         opacity: isPassed ? 0.45 : 1,
       }}
     >
-      {badge && (
+      {badge && !isPassed && (
         <div
           className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-0.5 text-[10px] font-black uppercase tracking-widest text-white"
           style={{ background: "var(--accent)" }}
@@ -373,7 +374,7 @@ function ModalPlanCard({
           Current
         </div>
       )}
-      {isSelected && !isCurrent && (
+      {showSelected && (
         <div
           className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full"
           style={{ background: "var(--accent)" }}
@@ -396,19 +397,21 @@ function ModalPlanCard({
           </li>
         ))}
       </ul>
-      <button
-        onClick={(e) => { e.stopPropagation(); onUpgrade?.(); }}
-        disabled={buttonDisabled || isCurrent}
-        className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition disabled:cursor-default"
-        style={
-          isCurrent
-            ? { background: "var(--bg-elevated)", color: "var(--text-muted)" }
-            : { background: "var(--accent)", color: "#fff" }
-        }
-      >
-        {buttonLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-        {buttonLabel}
-      </button>
+      {!isPassed && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onUpgrade?.(); }}
+          disabled={buttonDisabled || isCurrent}
+          className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition disabled:cursor-default"
+          style={
+            isCurrent
+              ? { background: "var(--bg-elevated)", color: "var(--text-muted)" }
+              : { background: "var(--accent)", color: "#fff" }
+          }
+        >
+          {buttonLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+          {buttonLabel}
+        </button>
+      )}
     </div>
   );
 }

@@ -731,9 +731,11 @@ function OtherSuggestions({ category, currentVendorName, projectId }: {
 
   useEffect(() => {
     if (!category) return;
-    setLoading(true);
     const q = CAT_QUERIES[category] || category.toLowerCase();
-    api.post('/google-places/search', { query: q })
+    const location = [currentProject?.city, currentProject?.country].filter(Boolean).join(', ');
+    if (!location) { setPlaces([]); setLoading(false); return; }
+    setLoading(true);
+    api.post('/google-places/search', { query: q, location })
       .then(r => {
         const results = (r.data?.places || [])
           .filter((p: any) => (p.displayName?.text || '') !== currentVendorName)
@@ -742,7 +744,7 @@ function OtherSuggestions({ category, currentVendorName, projectId }: {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [category, currentVendorName]);
+  }, [category, currentVendorName, currentProject?.city, currentProject?.country]);
 
   async function handleAdd(place: any) {
     setAdding(place.id);
@@ -912,9 +914,9 @@ export default function VendorsPage() {
   const [detail,      setDetail]      = useState<{ item: any; type: 'place'|'saved' } | null>(null);
 
   useEffect(() => {
-    if (currentProject?.city)    setCity(currentProject.city);
-    if (currentProject?.country) setCountry(currentProject.country);
-  }, [currentProject?.id]);
+    setCity(currentProject?.city || '');
+    setCountry(currentProject?.country || '');
+  }, [currentProject?.city, currentProject?.country]);
 
   const filteredVendors = useMemo(() => {
     let list = allVendors;
@@ -943,6 +945,10 @@ export default function VendorsPage() {
   async function runSearch(cat: string) {
     const q   = CAT_QUERIES[cat] || cat.toLowerCase();
     const loc = [city, stateF, country].filter(Boolean).join(', ');
+    if (!loc) {
+      notify.error('Add an event location', 'Set the event city or country before searching for local vendors.');
+      return;
+    }
     setLoadingG(true);
     setPlaces([]);
     try {
