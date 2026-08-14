@@ -24,6 +24,8 @@ import {
   registerLimiter,
   resetLimiter,
   googleAuthLimiter,
+  verificationLimiter,
+  resendVerificationLimiter,
 } from "../utils/rateLimite.js";
 
 const router = Router();
@@ -49,10 +51,10 @@ router.get("/google/callback", googleCallback);
 router.post("/refresh-token", refreshToken);
 
 // Verify email with code
-router.post("/verify-email", verifyEmail);
+router.post("/verify-email", verificationLimiter, verifyEmail);
 
 // Resend verification code
-router.post("/resend-verification-code", resendCode);
+router.post("/resend-verification-code", resendVerificationLimiter, resendCode);
 
 // Request password reset
 router.post("/request-password-reset", resetLimiter, forgotPassword);

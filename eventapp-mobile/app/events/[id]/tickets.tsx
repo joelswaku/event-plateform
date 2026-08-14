@@ -227,12 +227,19 @@ function KPI({ label, value, accent }: { label: string; value: string | number; 
 /* ── Donut chart ─────────────────────────────────────────── */
 interface Seg { label: string; count: number; color: string; }
 function DonutChart({ title, segments, centerLabel, centerSub }: { title: string; segments: Seg[]; centerLabel?: number | string; centerSub?: string }) {
-  const total = segments.reduce((s, g) => s + g.count, 0);
+  // API data may arrive as strings or briefly contain stale values while a
+  // different event is loading. Never pass NaN, Infinity, or a negative dash
+  // length to Android's native SVG renderer; those values can lock the view.
+  const safeSegments = segments.map(segment => ({
+    ...segment,
+    count: Math.max(0, Number.isFinite(Number(segment.count)) ? Number(segment.count) : 0),
+  }));
+  const total = safeSegments.reduce((sum, segment) => sum + segment.count, 0);
   const R = 34, cx = 42, cy = 42, sw = 10;
   const circ = 2 * Math.PI * R;
   let off = 0;
-  const arcs = segments.map(seg => {
-    const dash = total > 0 ? (seg.count / total) * circ : 0;
+  const arcs = safeSegments.map(seg => {
+    const dash = total > 0 ? Math.max(0, Math.min((seg.count / total) * circ, circ)) : 0;
     const arc  = { ...seg, dash, off };
     off += dash;
     return arc;
@@ -247,7 +254,7 @@ function DonutChart({ title, segments, centerLabel, centerSub }: { title: string
             {total > 0 && arcs.map((arc, i) => (
               <Circle key={i} cx={cx} cy={cy} r={R} fill="none"
                 stroke={arc.color} strokeWidth={sw}
-                strokeDasharray={`${arc.dash} ${circ - arc.dash}`}
+                strokeDasharray={[arc.dash, Math.max(circ - arc.dash, 0)]}
                 strokeDashoffset={-arc.off}
                 rotation={-90} originX={cx} originY={cy}
               />
@@ -259,7 +266,7 @@ function DonutChart({ title, segments, centerLabel, centerSub }: { title: string
           </View>
         </View>
         <View style={{ flex: 1, gap: 6 }}>
-          {segments.map(seg => (
+          {safeSegments.map(seg => (
             <View key={seg.label} style={ch.legendRow}>
               <View style={[ch.dot, { backgroundColor: seg.color }]} />
               <Text style={ch.legendLbl} numberOfLines={1}>{seg.label}</Text>

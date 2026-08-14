@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ChevronLeft, Mail, Grid, UserCheck, Hash, Calendar, Layers, Trash2, Check, Clock, CheckCircle, Edit2, ChevronRight } from "lucide-react";
+import { ChevronLeft, Mail, Grid, UserCheck, Hash, Calendar, Layers, Trash2, Check, Clock, CheckCircle, Edit2, ChevronRight, MapPin } from "lucide-react";
 import { useGuestStore } from "@/store/guest.store";
+import { useSeatingStore } from "@/store/seating.store";
 import toast from "react-hot-toast";
 
 function getInitials(name) {
@@ -284,6 +285,7 @@ export default function GuestDetailPage() {
   const { eventId, guestId } = useParams();
   const router = useRouter();
   const { guests, getGuestById, deleteGuest, sendGuestInvitation, sendQrEmail, manualCheckIn } = useGuestStore();
+  const { assignments, locations, fetchAssignments, fetchLocations } = useSeatingStore();
 
   const [busy, setBusy] = useState(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -294,8 +296,10 @@ export default function GuestDetailPage() {
   useEffect(() => {
     if (eventId && guestId) {
       getGuestById(eventId, guestId);
+      fetchAssignments(eventId);
+      fetchLocations(eventId);
     }
-  }, [eventId, guestId]);
+  }, [eventId, guestId, getGuestById, fetchAssignments, fetchLocations]);
 
   if (!guest) {
     return (
@@ -338,6 +342,14 @@ export default function GuestDetailPage() {
   const cfg = STATUS_CFG[rsvpStatus] || STATUS_CFG.PENDING;
   const initials = getInitials(guest.full_name);
   const checkedIn = guest.checked_in_at;
+  const seatAssignment = assignments.find((assignment) => assignment.guest_id === guestId);
+  const seatedTable = seatAssignment
+    ? locations.find((location) => location.id === seatAssignment.seating_table_id)
+    : null;
+  const seatLabel = seatedTable ? `Seated at ${seatedTable.location_name}` : "Assign Seat";
+  const seatSub = seatedTable
+    ? (seatAssignment?.seat_number ? `Seat ${seatAssignment.seat_number} · Click to change seating` : "Click to change seating")
+    : "Assign this guest to a table seat";
 
   return (
     <div className="min-h-screen" style={{ background: '#0a0a0f' }}>
@@ -491,6 +503,19 @@ export default function GuestDetailPage() {
             </div>
           </>
         )}
+
+        {/* Seating */}
+        <SectionLabel label="SEATING" />
+        <div className="rounded-[14px] border overflow-hidden"
+          style={{ background: '#14141f', borderColor: 'rgba(255,255,255,0.08)' }}>
+          <ActionRow
+            icon={MapPin}
+            label={seatLabel}
+            sub={seatSub}
+            accent="#8b5cf6"
+            onClick={() => router.push(`/events/${eventId}/seating`)}
+          />
+        </div>
 
         {/* Details */}
         <SectionLabel label="DETAILS" />

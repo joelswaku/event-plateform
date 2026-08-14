@@ -118,7 +118,7 @@ function MobileStatTile({ value, label, Icon, accent }) {
       </span>
       <span
         className="text-[10px] font-bold uppercase tracking-[0.4px]"
-        style={{ color: "rgba(255,255,255,0.45)" }}
+        style={{ color: "rgba(255,255,255,0.78)" }}
       >
         {label}
       </span>
@@ -143,7 +143,7 @@ function MobileUpgradeBanner({ plan, onUpgrade }) {
         <span className="text-[22px] leading-none select-none">⚡</span>
         <div>
           <p className="text-[13px] font-extrabold text-white">{title}</p>
-          <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>{subtitle}</p>
+          <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.78)" }}>{subtitle}</p>
         </div>
       </div>
       <button
@@ -205,7 +205,7 @@ function MobilePremiumBadge({ plan }) {
             {label.toUpperCase()}
           </span>
         </div>
-        <p className="text-[11px] truncate" style={{ color: "rgba(255,255,255,0.45)" }}>
+        <p className="text-[11px] truncate" style={{ color: "rgba(255,255,255,0.78)" }}>
           {subtitle}
         </p>
       </div>
@@ -234,7 +234,7 @@ function MobileQuickAction({ Icon, label, href, fromColor, toColor }) {
       </div>
       <span
         className="text-[11px] font-extrabold uppercase tracking-[0.3px]"
-        style={{ color: "rgba(255,255,255,0.45)" }}
+        style={{ color: "rgba(255,255,255,0.92)" }}
       >
         {label}
       </span>
@@ -297,7 +297,7 @@ function MobileFeaturedCard({ event }) {
           className="flex h-7 w-7 items-center justify-center rounded-full border"
           style={{ background: "rgba(0,0,0,0.35)", borderColor: "rgba(255,255,255,0.12)" }}
         >
-          <ChevronRight size={14} style={{ color: "rgba(255,255,255,0.6)" }} />
+          <ChevronRight size={14} style={{ color: "rgba(255,255,255,0.88)" }} />
         </div>
       </div>
 
@@ -311,8 +311,8 @@ function MobileFeaturedCard({ event }) {
         </p>
         <div className="flex flex-wrap gap-3.5">
           <div className="flex items-center gap-1.5">
-            <Calendar size={11} style={{ color: isTeam ? "rgba(251,191,36,0.6)" : "rgba(255,255,255,0.55)" }} />
-            <span className="text-[11px] font-semibold" style={{ color: isTeam ? "rgba(251,191,36,0.6)" : "rgba(255,255,255,0.55)" }}>
+            <Calendar size={11} style={{ color: isTeam ? "rgba(251,191,36,0.82)" : "rgba(255,255,255,0.78)" }} />
+            <span className="text-[11px] font-semibold" style={{ color: isTeam ? "rgba(251,191,36,0.82)" : "rgba(255,255,255,0.78)" }}>
               {date}
             </span>
           </div>
@@ -322,10 +322,10 @@ function MobileFeaturedCard({ event }) {
             </span>
           ) : loc && (
             <div className="flex items-center gap-1.5">
-              <MapPin size={11} style={{ color: "rgba(255,255,255,0.55)" }} />
+              <MapPin size={11} style={{ color: "rgba(255,255,255,0.78)" }} />
               <span
                 className="max-w-[140px] truncate text-[11px] font-semibold"
-                style={{ color: "rgba(255,255,255,0.55)" }}
+                style={{ color: "rgba(255,255,255,0.78)" }}
               >
                 {loc}
               </span>
@@ -372,8 +372,8 @@ function MobileRecentCard({ event, onPress }) {
           {event.title}
         </span>
         <div className="flex items-center gap-1.5">
-          <Calendar size={10} style={{ color: isTeam ? "rgba(251,191,36,0.6)" : "rgba(255,255,255,0.25)" }} />
-          <span className="text-[11px] font-semibold" style={{ color: isTeam ? "rgba(251,191,36,0.6)" : "rgba(255,255,255,0.25)" }}>
+          <Calendar size={10} style={{ color: isTeam ? "rgba(251,191,36,0.82)" : "rgba(255,255,255,0.75)" }} />
+          <span className="text-[11px] font-semibold" style={{ color: isTeam ? "rgba(251,191,36,0.82)" : "rgba(255,255,255,0.75)" }}>
             {date}
           </span>
         </div>
@@ -404,7 +404,7 @@ function MobileRecentCard({ event, onPress }) {
 
       {/* Arrow */}
       <div className="pr-3.5">
-        <ChevronRight size={16} style={{ color: isTeam ? "rgba(251,191,36,0.45)" : "rgba(255,255,255,0.25)" }} />
+        <ChevronRight size={16} style={{ color: isTeam ? "rgba(251,191,36,0.75)" : "rgba(255,255,255,0.72)" }} />
       </div>
     </button>
   );
@@ -431,7 +431,7 @@ function MobileEmptyState() {
       </p>
       <p
         className="relative max-w-[280px] text-center text-[13px] leading-5"
-        style={{ color: "rgba(255,255,255,0.45)" }}
+        style={{ color: "rgba(255,255,255,0.76)" }}
       >
         Join thousands of organizers using LiteEvent to run seamless events — from gatherings to conferences.
       </p>
@@ -513,7 +513,7 @@ function MobileBottomNav() {
                 </div>
                 <span
                   className="mt-0.5 text-[10px] font-bold"
-                  style={{ color: "rgba(255,255,255,0.40)" }}
+                  style={{ color: "rgba(255,255,255,0.92)" }}
                 >
                   Scan
                 </span>
@@ -534,11 +534,11 @@ function MobileBottomNav() {
               className="flex min-w-0 flex-1 flex-col items-center justify-center gap-px py-0.5"
             >
               <span className="flex h-[38px] w-[38px] items-center justify-center">
-                <Icon size={17} style={{ color: active ? "#6366f1" : "rgba(255,255,255,0.40)" }} />
+                <Icon size={17} style={{ color: active ? "#a5b4fc" : "rgba(255,255,255,0.84)" }} />
               </span>
               <span
                 className="text-[10px] font-bold"
-                style={{ color: "rgba(255,255,255,0.40)" }}
+                style={{ color: active ? "#ffffff" : "rgba(255,255,255,0.90)" }}
               >
                 {label}
               </span>
@@ -595,14 +595,14 @@ function MobileSwitchConfirmSheet({ pending, onConfirm, onCancel }) {
             className="flex w-full items-center gap-2.5 rounded-[10px] border px-3 py-[9px]"
             style={{ background: "#14141f", borderColor: "rgba(255,255,255,0.06)" }}
           >
-            <Calendar size={13} style={{ color: "rgba(255,255,255,0.45)" }} />
+            <Calendar size={13} style={{ color: "rgba(255,255,255,0.78)" }} />
             <span className="flex-1 text-[13px] font-bold leading-tight" style={{ color: "rgba(255,255,255,0.85)" }}>
               {pending.title}
             </span>
           </div>
 
           {/* Body */}
-          <p className="text-center text-[13px] leading-[19px]" style={{ color: "rgba(255,255,255,0.45)" }}>
+          <p className="text-center text-[13px] leading-[19px]" style={{ color: "rgba(255,255,255,0.76)" }}>
             The scanner, builder, and guest tools will switch to this event.
             Any in-progress actions on the current event will not be affected.
           </p>
@@ -621,7 +621,7 @@ function MobileSwitchConfirmSheet({ pending, onConfirm, onCancel }) {
           <button
             onClick={onCancel}
             className="py-2 text-[14px] font-semibold"
-            style={{ color: "rgba(255,255,255,0.40)" }}
+            style={{ color: "rgba(255,255,255,0.82)" }}
           >
             Cancel
           </button>
@@ -647,7 +647,7 @@ function MobileActiveEventToggle({ events, activeEventId, onRequestSwitch }) {
         >
           ACTIVE EVENT
         </span>
-        <span className="text-[9px] font-semibold" style={{ color: "rgba(255,255,255,0.25)" }}>
+        <span className="text-[9px] font-semibold" style={{ color: "rgba(255,255,255,0.68)" }}>
           · scanner &amp; builder use this
         </span>
       </div>
@@ -679,7 +679,7 @@ function MobileActiveEventToggle({ events, activeEventId, onRequestSwitch }) {
               />
               <span
                 className="relative flex-1 truncate text-[12px] font-bold"
-                style={{ color: isActive ? "#fff" : "rgba(255,255,255,0.45)", letterSpacing: "-0.1px" }}
+                style={{ color: isActive ? "#fff" : "rgba(255,255,255,0.82)", letterSpacing: "-0.1px" }}
               >
                 {ev.title}
               </span>
@@ -721,7 +721,7 @@ function MobileSwitchBanner({ title }) {
       <div className="min-w-0">
         <p
           className="text-[11px] font-bold uppercase tracking-[0.5px]"
-          style={{ color: "rgba(255,255,255,0.45)" }}
+          style={{ color: "rgba(255,255,255,0.78)" }}
         >
           Now managing
         </p>
@@ -831,7 +831,7 @@ function MobileDashboard() {
             <div>
               <p
                 className="text-[11px] font-bold uppercase tracking-[0.6px]"
-                style={{ color: "rgba(255,255,255,0.45)" }}
+                style={{ color: "rgba(255,255,255,0.76)" }}
               >
                 {greeting}
               </p>
@@ -848,7 +848,7 @@ function MobileDashboard() {
               className="relative flex h-[38px] w-[38px] items-center justify-center rounded-xl border"
               style={{ background: "#14141f", borderColor: "rgba(255,255,255,0.10)" }}
             >
-              <Bell size={18} style={{ color: "rgba(255,255,255,0.45)" }} />
+              <Bell size={18} style={{ color: "rgba(255,255,255,0.88)" }} />
               {unreadCount > 0 ? (
                 <span
                   className="absolute right-[5px] top-[5px] flex h-[16px] min-w-[16px] items-center justify-center rounded-full border-[1.5px] px-[3px] text-[9px] font-extrabold text-white"
@@ -945,7 +945,7 @@ function MobileDashboard() {
           <div className="px-5 mt-6">
             <div className="flex items-center gap-2 mb-3">
               <Users size={13} style={{ color: "#fbbf24" }} />
-              <p className="text-[12px] font-extrabold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.40)" }}>
+              <p className="text-[12px] font-extrabold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.78)" }}>
                 Events you&apos;re managing
               </p>
               <span
@@ -983,7 +983,7 @@ function MobileDashboard() {
                       <p className="text-[13px] font-extrabold text-white truncate">{ev.title}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         {dateStr && (
-                          <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>{dateStr}</span>
+                          <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.76)" }}>{dateStr}</span>
                         )}
                         <span
                           className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide"
@@ -993,12 +993,12 @@ function MobileDashboard() {
                         </span>
                       </div>
                       {ev.owner_name && (
-                        <p className="mt-0.5 text-[10px] truncate" style={{ color: "rgba(251,191,36,0.35)" }}>
+                        <p className="mt-0.5 text-[10px] truncate" style={{ color: "rgba(251,191,36,0.72)" }}>
                           by {ev.owner_name}
                         </p>
                       )}
                     </div>
-                    <ChevronRight size={14} style={{ color: "rgba(251,191,36,0.35)" }} />
+                    <ChevronRight size={14} style={{ color: "rgba(251,191,36,0.78)" }} />
                   </Link>
                 );
               })}

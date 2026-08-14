@@ -3,13 +3,13 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Eye, EyeOff } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import GoogleLoginButton from "@/components/auth/GoogleLoginButton";
 import AuthShell from "@/components/auth/AuthShell";
 
-const BASE   = "w-full rounded-[14px] border bg-[#0a0a14] px-4 py-3.5 text-[15px] font-medium text-white outline-none transition-all placeholder:text-[#aab2c5]";
-const NORMAL = `${BASE} border-[#4f4d64] focus:border-[#a5b4fc] focus:ring-2 focus:ring-[#6366f1]/30`;
+const BASE   = "w-full rounded-[14px] border bg-[#0e0f1b] px-4 py-3.5 text-[15px] font-medium text-white outline-none transition-all placeholder:text-[#e2e8f0]";
+const NORMAL = `${BASE} border-[#67648b] focus:border-[#a5b4fc] focus:ring-2 focus:ring-[#6366f1]/30`;
 const ERR    = `${BASE} border-[#ef4444]/60 focus:border-[#ef4444] focus:ring-2 focus:ring-[#ef4444]/20`;
 
 const STRENGTH_META = [
@@ -51,7 +51,7 @@ function PasswordStrength({ password }) {
 function Field({ label, id, error, touched, children }) {
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-xs font-semibold tracking-wide text-[#e5e7eb]">
+      <label htmlFor={id} className="mb-1.5 block text-xs font-bold tracking-wide text-white">
         {label}
       </label>
       {children}

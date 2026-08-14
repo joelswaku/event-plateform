@@ -292,6 +292,11 @@ export async function verifyEmailWithCode({ token, code, ip, userAgent, deviceNa
 
     const user = userResult.rows[0];
 
+    if (user.status !== "ACTIVE" || user.deleted_at) {
+      await client.query("ROLLBACK");
+      return { success: false, message: "This account is no longer active" };
+    }
+
     /* Check if already verified */
     if (user.email_verified) {
       await client.query("ROLLBACK");
@@ -362,7 +367,7 @@ export async function verifyEmailWithCode({ token, code, ip, userAgent, deviceNa
     /* Send welcome email (non-blocking) */
     try {
       await sendNewUserWelcomeEmail({
-        to: normalizedEmail,
+        to: user.email,
         name: user.full_name,
       });
     } catch (emailError) {
@@ -413,6 +418,11 @@ export async function resendVerificationCode({ token }) {
     }
 
     const user = userResult.rows[0];
+
+    if (user.status !== "ACTIVE" || user.deleted_at) {
+      await client.query("ROLLBACK");
+      return { success: false, message: "This account is no longer active" };
+    }
 
     /* Check if already verified */
     if (user.email_verified) {
@@ -635,7 +645,7 @@ export async function loginUser({
 
     if (!user) throw new Error("Invalid credentials");
 
-    if (user.status !== "ACTIVE")
+    if (user.status !== "ACTIVE" || user.deleted_at)
       throw new Error("Account disabled");
 
     if (!user.password_hash)
@@ -912,12 +922,6 @@ export async function googleLogin({
 
       user = result.rows[0];
 
-      // SECURITY FIX: Check account status - reject disabled accounts
-      if (user.status !== "ACTIVE") {
-        await client.query("ROLLBACK");
-        throw new Error("Account disabled");
-      }
-
     } else {
       /* =========================
          2. CHECK EMAIL EXIST
@@ -956,6 +960,15 @@ export async function googleLogin({
         `,
         [user.id, googleUser.googleId]
       );
+    }
+
+    // A social sign-in must obey the same account status rules as password
+    // sign-in. This also protects an existing email/password account before a
+    // Google identity is linked to it.
+    if (!user || user.status !== "ACTIVE" || user.deleted_at) {
+      const error = new Error("Account disabled");
+      error.statusCode = 403;
+      throw error;
     }
 
     // Google has confirmed ownership of this address. If this is an account
@@ -1115,6 +1128,11 @@ export async function rotateRefreshToken({
   res,
 }) {
   const payload = verifyRefreshToken(refreshToken);
+  if (!payload?.sub) {
+    const error = new Error("Invalid refresh token");
+    error.statusCode = 401;
+    throw error;
+  }
   const tokenHash = hashToken(refreshToken);
 
   const client = await db.connect();
@@ -1132,12 +1150,27 @@ export async function rotateRefreshToken({
       [tokenHash]
     );
 
-    if (!session.rows.length) {
-      await client.query("ROLLBACK");
-      throw new Error("Session invalid");
+    if (!session.rows.length || session.rows[0].user_id !== payload.sub) {
+      const error = new Error("Session invalid");
+      error.statusCode = 401;
+      throw error;
     }
 
-    // Revoke old session
+    const { rows: uRows } = await client.query(
+      `SELECT is_super_admin, status, deleted_at
+       FROM users
+       WHERE id = $1
+       LIMIT 1`,
+      [payload.sub]
+    );
+    const user = uRows[0];
+    if (!user || user.status !== "ACTIVE" || user.deleted_at) {
+      const error = new Error("Account is no longer active");
+      error.statusCode = 401;
+      throw error;
+    }
+
+    // Revoke the old session only after its account remains eligible to renew.
     await client.query(
       `UPDATE auth_sessions
        SET revoked_at = now()
@@ -1145,15 +1178,11 @@ export async function rotateRefreshToken({
       [session.rows[0].id]
     );
 
-    const { rows: uRows } = await client.query(
-      `SELECT is_super_admin FROM users WHERE id = $1 LIMIT 1`,
-      [payload.sub]
-    );
     const tokens = generateTokens({
       userId:       payload.sub,
       organizationId: payload.org,
       role:         payload.role,
-      isSuperAdmin: uRows[0]?.is_super_admin === true,
+      isSuperAdmin: user.is_super_admin === true,
     });
 
     const newHash = hashToken(tokens.refreshToken);
@@ -1544,11 +1573,20 @@ export async function getCurrentUser(userId) {
     terms_version_accepted
     FROM users
     WHERE id=$1
+      AND status = 'ACTIVE'
+      AND deleted_at IS NULL
     `,
     [userId]
   );
 
-  return result.rows[0];
+  const user = result.rows[0];
+  if (!user) {
+    const error = new Error("Account is no longer active");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  return user;
 }
 
 export async function acceptTermsService({ userId, version = "2025.1", ip, userAgent }) {

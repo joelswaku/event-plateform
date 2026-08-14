@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, FlatList, Image,
-  ScrollView, StyleSheet, SafeAreaView, Alert, ActivityIndicator, Platform,
+  ScrollView, StyleSheet, Alert, ActivityIndicator, Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useBuilderStore } from '@/store/builder.store';
 import { useEventStore } from '@/store/event.store';
@@ -110,8 +111,14 @@ export default function TemplatePickerModal({ visible, eventId, eventType, isPre
   };
 
   return (
-    <Modal visible={visible} animationType="slide" statusBarTranslucent presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined} onRequestClose={onClose}>
-      <SafeAreaView style={s.root}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      statusBarTranslucent={false}
+      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
+      onRequestClose={onClose}
+    >
+      <SafeAreaView style={s.root} edges={['top', 'left', 'right']}>
         <View style={s.header}>
           <Text style={s.title}>Templates</Text>
           <TouchableOpacity style={s.closeBtn} onPress={onClose} activeOpacity={0.7}>

@@ -35,6 +35,11 @@ function SheetModal({ onClose, accentBar, children, maxWidth = "max-w-md", palet
     : { background: "rgba(8,8,18,0.98)", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 32px 80px rgba(0,0,0,0.75)" };
   const closeStyle = { background: palette ? palette.surface : "rgba(255,255,255,0.08)" };
   const closeColor = palette ? palette.muted : "rgba(255,255,255,0.55)";
+  const closeSheet = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onClose();
+  };
 
   if (desktop) {
     return (
@@ -54,7 +59,7 @@ function SheetModal({ onClose, accentBar, children, maxWidth = "max-w-md", palet
           style={{ ...sheetStyle, maxHeight: "90vh" }}
         >
           {accentBar}
-          <button onClick={onClose}
+          <button type="button" onClick={closeSheet}
             className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-xl z-10"
             style={closeStyle}>
             <X size={15} color={closeColor} />
@@ -80,9 +85,14 @@ function SheetModal({ onClose, accentBar, children, maxWidth = "max-w-md", palet
       <div className="flex justify-center pt-3 pb-1">
         <div className="h-1 w-10 rounded-full" style={{ background: palette ? palette.border : "rgba(255,255,255,0.18)" }} />
       </div>
-      <button onClick={onClose}
-        className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-xl"
-        style={closeStyle}>
+      <button
+        type="button"
+        aria-label="Close ticket selection"
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={closeSheet}
+        className="pointer-events-auto absolute right-5 top-5 z-20 flex h-10 w-10 touch-manipulation items-center justify-center rounded-xl"
+        style={{ ...closeStyle, touchAction: "manipulation" }}
+      >
         <X size={15} color={closeColor} />
       </button>
       <div className="overflow-y-auto" style={{ maxHeight: "calc(92vh - 40px)" }}>
@@ -108,11 +118,11 @@ function resolveTier(ticket) {
 }
 
 const TIER = {
-  free:     { accent: "#10b981", dark: "#022c22", bg: "linear-gradient(145deg,#022c22,#064e3b)", border: "rgba(16,185,129,0.25)", muted: "rgba(167,243,208,0.65)", icon: "🎁", label: "Free" },
-  early:    { accent: "#f59e0b", dark: "#1c1002", bg: "linear-gradient(145deg,#1c1002,#451a03)", border: "rgba(245,158,11,0.3)",  muted: "rgba(253,230,138,0.65)", icon: "⚡", label: "Early Bird" },
-  standard: { accent: "#6366f1", dark: "#0f0f1f", bg: "linear-gradient(145deg,#0f0f1f,#1e1b4b)", border: "rgba(99,102,241,0.28)", muted: "rgba(199,210,254,0.65)", icon: "🎟️", label: "Standard" },
-  vip:      { accent: "#C9A96E", dark: "#0f0b00", bg: "linear-gradient(145deg,#0f0b00,#2d1f00)", border: "rgba(201,169,110,0.35)", muted: "rgba(253,230,138,0.6)",  icon: "👑", label: "VIP" },
-  pro:      { accent: "#a78bfa", dark: "#0d0718", bg: "linear-gradient(145deg,#0d0718,#1e0a3c)", border: "rgba(167,139,250,0.35)", muted: "rgba(221,214,254,0.6)",  icon: "💎", label: "Premium" },
+  free:     { icon: "🎁", label: "Free" },
+  early:    { icon: "⚡", label: "Early Bird" },
+  standard: { icon: "🎟️", label: "Standard" },
+  vip:      { icon: "👑", label: "VIP" },
+  pro:      { icon: "💎", label: "Premium" },
 };
 
 // ─── Donation drawer ───────────────────────────────────────────────────────────
@@ -307,7 +317,7 @@ function TicketCheckoutDrawer({ ticket, event, onClose, onBack, theme }) {
         )}
         <div>
           <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest mb-1"
-            style={{ background: `${cfg.accent}20`, color: cfg.accent, border: `1px solid ${cfg.accent}35` }}>
+            style={{ background: `color-mix(in srgb, ${colors.accent} 14%, ${colors.background})`, color: colors.accent, border: `1px solid color-mix(in srgb, ${colors.accent} 35%, ${colors.border})` }}>
             {cfg.icon} {cfg.label}
           </span>
           <h3 className="text-xl font-bold" style={{ color: colors.text }}>{ticket.name}</h3>
@@ -357,8 +367,8 @@ function TicketCheckoutDrawer({ ticket, event, onClose, onBack, theme }) {
 
         {step === "success" && (
           <motion.div key="success" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-5 py-6">
-            <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center" style={{ background: `${cfg.accent}20` }}>
-              <CheckCircle size={32} style={{ color: cfg.accent }} />
+            <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center" style={{ background: `color-mix(in srgb, ${colors.accent} 14%, ${colors.background})` }}>
+              <CheckCircle size={32} style={{ color: colors.accent }} />
             </div>
             <div><h3 className="text-2xl font-black" style={{ color: colors.text }}>You&apos;re in! 🎉</h3><p className="mt-1 text-sm" style={{ color: colors.muted }}>Your ticket is confirmed.</p></div>
             {result?.issued_tickets?.[0] && (
@@ -454,14 +464,14 @@ function TicketDrawer({ event, tickets, onClose, theme }) {
                 onClick={() => !soldOut && setSelected(t)}
                 disabled={soldOut}
                 className="relative w-full overflow-hidden rounded-2xl p-4 text-left transition-all active:scale-[0.99] disabled:opacity-40"
-                style={{ background: colors.background, border: `1px solid ${soldOut ? colors.border : cfg.accent + "55"}`, boxShadow: `0 6px 20px ${cfg.accent}12` }}
+                style={{ background: colors.background, border: `1px solid ${soldOut ? colors.border : colors.accent + "55"}`, boxShadow: `0 6px 20px ${colors.accent}12` }}
               >
-                <div className="absolute inset-y-0 left-0 w-1" style={{ background: cfg.accent }} />
+                <div className="absolute inset-y-0 left-0 w-1" style={{ background: colors.accent }} />
                 <div className="flex items-start gap-3 pl-1">
                   <div className="min-w-0 flex-1">
                     <div className="mb-1 flex items-center gap-2">
                     <span className="text-base">{cfg.icon}</span>
-                    <span className="text-xs font-black uppercase tracking-widest" style={{ color: cfg.accent }}>{cfg.label}</span>
+                    <span className="text-xs font-black uppercase tracking-widest" style={{ color: colors.accent }}>{cfg.label}</span>
                       {urgent && <span className="flex items-center gap-0.5 text-[10px] font-bold text-red-600"><Zap size={9} />{available} left</span>}
                       {soldOut && <span className="text-[10px] font-bold" style={{ color: colors.muted }}>Sold out</span>}
                     </div>
@@ -472,7 +482,7 @@ function TicketDrawer({ event, tickets, onClose, theme }) {
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-xl font-black" style={{ color: t.kind === "FREE" ? cfg.accent : colors.text }}>
+                    <p className="text-xl font-black" style={{ color: t.kind === "FREE" ? colors.accent : colors.text }}>
                     {fmtPrice(Number(t.price), t.currency)}
                     </p>
                     {!soldOut && <span className="mt-1.5 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-black uppercase" style={{ background: colors.accent, color: colors.accentFg }}>Select <ArrowRight size={11} /></span>}
@@ -615,21 +625,25 @@ export default function EventPageClient({ event, sections, token }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, [showStickyBar]);
 
-  // Keep the opening frame predictable in mobile browsers and the Expo web
-  // view. Events with Tickets or Donations start just inside the hero so the
-  // hero and its action card are visible together (instead of leaving the
-  // purchase card far below the fold). This is an intentional, small offset —
-  // not an accidental jump to the Tickets section.
+  // Keep the opening frame predictable in mobile browsers, the Expo web view,
+  // and short laptop screens. Events with Tickets or Donations start just
+  // inside the hero so the action card and its reassurance text are visible
+  // together (instead of leaving the purchase card below the fold). This is an
+  // intentional, small offset — not an accidental jump to Tickets.
   useEffect(() => {
     const isCompactViewport = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
-    const shouldPrioritizeAction = isCompactViewport && (showTicket || showDonate);
+    const isShortLaptopViewport = typeof window !== "undefined"
+      && window.matchMedia("(min-width: 769px) and (max-height: 820px)").matches;
+    const shouldPrioritizeAction = (showTicket || showDonate) && (isCompactViewport || isShortLaptopViewport);
 
-    if (!isCompactViewport) return;
+    if (!shouldPrioritizeAction) return;
 
     let visitorInteracted = false;
     let resetFrame = null;
     const previousScrollRestoration = window.history.scrollRestoration;
-    const initialScrollTop = shouldPrioritizeAction ? 120 : 0;
+    // Keep the full call-to-action and its reassurance line in view. Short
+    // laptop screens need a little more room than phones for this card.
+    const initialScrollTop = isCompactViewport ? 190 : 280;
 
     const restoreOpeningPosition = () => {
       if (visitorInteracted) return;

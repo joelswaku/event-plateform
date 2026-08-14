@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -62,6 +62,7 @@ type Message = { role: 'bot' | 'user'; content: string };
 
 export default function NewPlannerScreen() {
   const router       = useRouter();
+  const insets       = useSafeAreaInsets();
   const { eventId: preEventId } = useLocalSearchParams<{ eventId?: string }>();
   const { createProject, generateAITasks, projects, fetchProjects } = usePlannerStore();
   const { events: allEvents, fetchEvents, loading: eventsLoading } = useEventStore();
@@ -80,6 +81,10 @@ export default function NewPlannerScreen() {
   const [answers,     setAnswers]     = useState<Record<string, any>>({});
   const [typing,      setTyping]      = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  // Keep the composer above Android navigation controls, including devices
+  // that report a zero bottom safe-area inset.
+  const composerBottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 36 : 12);
 
   const scrollRef = useRef<ScrollView>(null);
 
@@ -200,7 +205,7 @@ export default function NewPlannerScreen() {
   /* ── Render ─────────────────────────────────────────────────────────── */
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
 
         {/* Header */}
         <View style={s.header}>
@@ -407,7 +412,7 @@ export default function NewPlannerScreen() {
 
             {/* Input row */}
             {phase === 'chat' && (
-              <View style={s.inputRow}>
+              <View style={[s.inputRow, { marginBottom: composerBottomInset }]}>
                 <TextInput
                   ref={inputRef}
                   style={s.chatInput}
@@ -419,6 +424,7 @@ export default function NewPlannerScreen() {
                   returnKeyType="send"
                   onSubmitEditing={handleAnswer}
                   blurOnSubmit={false}
+                  onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)}
                 />
                 <TouchableOpacity
                   style={[s.sendBtn, (typing || !input.trim()) && s.dimmed]}

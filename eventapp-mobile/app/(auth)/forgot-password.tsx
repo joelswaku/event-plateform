@@ -63,5 +63,5 @@ const styles = StyleSheet.create({
   brandLogo: { alignSelf: 'center', marginBottom: 4 },
   iconWrap:{ width: 72, height: 72, borderRadius: 22, backgroundColor: `${Colors.accent.indigo}20`, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
   title:   { fontSize: 24, fontWeight: '900', color: '#fff', textAlign: 'center' },
-  sub:     { fontSize: 13, color: Colors.text.muted, textAlign: 'center', lineHeight: 20 },
+  sub:     { fontSize: 13, color: '#dbeafe', textAlign: 'center', lineHeight: 20, fontWeight: '600' },
 });

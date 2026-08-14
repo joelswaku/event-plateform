@@ -56,13 +56,28 @@ function resolveTier(ticket) {
 }
 
 const TIER = {
-  free:     { label:"Free",       icon:"🎁", accent:"#10b981", dark:"#022c22", bg:"linear-gradient(160deg,#052e16,#064e3b)",  border:"rgba(16,185,129,0.3)",  muted:"rgba(167,243,208,0.7)",  glow:"rgba(16,185,129,0.25)",  shimmer:false },
-  early:    { label:"Early Bird", icon:"⚡", accent:"#f59e0b", dark:"#1c1002", bg:"linear-gradient(160deg,#1c0a00,#431400)",  border:"rgba(245,158,11,0.35)", muted:"rgba(253,230,138,0.7)",  glow:"rgba(245,158,11,0.28)",  shimmer:false },
-  standard: { label:"Standard",   icon:"🎟️",accent:"#6366f1", dark:"#0f0f1f", bg:"linear-gradient(160deg,#0f0f1f,#1e1b4b)", border:"rgba(99,102,241,0.3)",  muted:"rgba(199,210,254,0.7)",  glow:"rgba(99,102,241,0.22)",  shimmer:false },
-  discount: { label:"Discount",   icon:"🏷️",accent:"#06b6d4", dark:"#0a1520", bg:"linear-gradient(160deg,#0a1520,#0e4a5a)", border:"rgba(6,182,212,0.3)",   muted:"rgba(165,243,252,0.7)",  glow:"rgba(6,182,212,0.2)",   shimmer:false },
-  vip:      { label:"VIP",        icon:"👑", accent:"#C9A96E", dark:"#0f0b00", bg:"linear-gradient(160deg,#0f0b00,#2d1f00)", border:"rgba(201,169,110,0.4)", muted:"rgba(253,230,138,0.65)", glow:"rgba(201,169,110,0.3)",  shimmer:true  },
-  pro:      { label:"Premium",    icon:"💎", accent:"#a78bfa", dark:"#0d0718", bg:"linear-gradient(160deg,#0d0718,#1e0a3c)", border:"rgba(167,139,250,0.4)", muted:"rgba(221,214,254,0.65)", glow:"rgba(167,139,250,0.3)",  shimmer:true  },
+  free:     { label:"Free",       icon:"🎁", shimmer:false },
+  early:    { label:"Early Bird", icon:"⚡", shimmer:false },
+  standard: { label:"Standard",   icon:"🎟️", shimmer:false },
+  discount: { label:"Discount",   icon:"🏷️", shimmer:false },
+  vip:      { label:"VIP",        icon:"👑", shimmer:true },
+  pro:      { label:"Premium",    icon:"💎", shimmer:true },
 };
+
+function getThemeTicketTier(ticket) {
+  const tier = TIER[resolveTier(ticket)];
+  return {
+    ...tier,
+    accent: "var(--t-accent)",
+    dark: "var(--t-dark)",
+    bg: "var(--t-bg-alt)",
+    border: "var(--t-border)",
+    muted: "var(--t-text-muted)",
+    glow: "var(--t-accent-dim)",
+    accentSoft: "color-mix(in srgb, var(--t-accent) 14%, var(--t-bg-alt))",
+    accentBorder: "color-mix(in srgb, var(--t-accent) 38%, var(--t-border))",
+  };
+}
 
 /* ─── HELPERS ────────────────────────────────────────────── */
 function fmt(price, currency = "USD") {
@@ -134,11 +149,11 @@ function CountUnit({ value, label, accent }) {
   return (
     <div className="flex flex-col items-center gap-1">
       <div
-        className="relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl overflow-hidden"
+        className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl sm:h-16 sm:w-16 sm:rounded-2xl"
         style={{
-          background: "rgba(255,255,255,0.05)",
-          border: `1px solid ${accent}30`,
-          boxShadow: `0 4px 20px ${accent}15`,
+          background: "color-mix(in srgb, var(--t-bg-alt) 90%, var(--t-accent))",
+          border: "1px solid color-mix(in srgb, var(--t-accent) 30%, var(--t-border))",
+          boxShadow: "0 4px 20px var(--t-accent-dim)",
         }}
       >
         <AnimatePresence mode="popLayout">
@@ -148,8 +163,9 @@ function CountUnit({ value, label, accent }) {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 20, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="text-2xl sm:text-3xl font-black tabular-nums"
-            style={{ color: "#fff", fontVariantNumeric: "tabular-nums" }}
+            className="text-xl font-black tabular-nums sm:text-3xl"
+            style={{ color: "var(--t-text)", fontVariantNumeric: "tabular-nums" }}
+            suppressHydrationWarning
           >
             {pad(value)}
           </motion.span>
@@ -163,7 +179,7 @@ function CountUnit({ value, label, accent }) {
           }}
         />
       </div>
-      <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.35)" }}>
+      <span className="text-[9px] font-bold uppercase tracking-wider sm:text-[10px] sm:tracking-widest" style={{ color: "var(--t-text-muted)" }}>
         {label}
       </span>
     </div>
@@ -183,35 +199,27 @@ function Perf({ color }) {
   );
 }
 
-/* ─── SOCIAL PROOF COUNTER ────────────────────────────────── */
-function ViewerCount({ accent }) {
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    setCount(Math.floor(Math.random() * 40) + 12);
-    const id = setInterval(() => {
-      setCount((n) => Math.max(8, n + (Math.random() > 0.5 ? 1 : -1)));
-    }, 3500);
-    return () => clearInterval(id);
-  }, []);
+/* ─── TICKET FACT ─────────────────────────────────────────── */
+function TicketFact({ label, value, accent = false }) {
   return (
-    <motion.div
-      className="flex items-center gap-2 rounded-full px-3 py-1.5"
+    <div
+      className="rounded-xl px-3 py-2.5 text-left sm:rounded-2xl sm:px-4 sm:py-3"
       style={{
-        background: `${accent}12`,
-        border: `1px solid ${accent}25`,
+        background: accent
+          ? "color-mix(in srgb, var(--t-accent) 14%, var(--t-bg-alt))"
+          : "color-mix(in srgb, var(--t-bg) 76%, var(--t-bg-alt))",
+        border: accent
+          ? "1px solid color-mix(in srgb, var(--t-accent) 36%, var(--t-border))"
+          : "1px solid var(--t-border)",
       }}
     >
-      <span className="relative flex h-2 w-2">
-        <span
-          className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75"
-          style={{ background: accent }}
-        />
-        <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: accent }} />
-      </span>
-      <span className="text-[11px] font-bold" style={{ color: accent }}>
-        {count} people viewing now
-      </span>
-    </motion.div>
+      <p className="text-[8px] font-black uppercase tracking-[0.16em] sm:text-[9px] sm:tracking-[0.2em]" style={{ color: "var(--t-text-muted)" }}>
+        {label}
+      </p>
+      <p className="mt-1 truncate text-xs font-black leading-none sm:text-sm" style={{ color: accent ? "var(--t-accent)" : "var(--t-text)" }}>
+        {value}
+      </p>
+    </div>
   );
 }
 
@@ -228,7 +236,7 @@ function tierCode(ticket) {
 
 function PremiumTicketCard({ ticket, onBuy, delay = 0, isEditor }) {
   const tierKey  = resolveTier(ticket);
-  const cfg      = TIER[tierKey];
+  const cfg      = getThemeTicketTier(ticket);
   const code     = tierCode(ticket);
 
   const available = ticket.quantity_total != null
@@ -250,86 +258,137 @@ function PremiumTicketCard({ ticket, onBuy, delay = 0, isEditor }) {
       initial={{ opacity: 0, y: 32, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1], delay }}
-      className="relative flex flex-col overflow-hidden rounded-2xl"
+      className="group relative flex flex-col overflow-hidden rounded-3xl"
       style={{
-        border: "1px solid rgba(255,255,255,0.07)",
-        boxShadow: isFeatured ? `0 24px 64px rgba(0,0,0,0.55), 0 0 0 1px ${cfg.border}` : "0 16px 48px rgba(0,0,0,0.45)",
-        transform: isFeatured ? "scale(1.03)" : "scale(1)",
-        transition: "transform 0.3s ease, box-shadow 0.3s ease",
+        border: `2px solid ${isFeatured ? cfg.accent : cfg.border}`,
+        boxShadow: isFeatured
+          ? `0 24px 64px -12px ${cfg.accent}40, 0 8px 32px -8px ${cfg.accent}30, 0 0 0 1px ${cfg.accent}20`
+          : "0 16px 48px -8px rgba(0,0,0,0.14), 0 4px 20px -4px rgba(0,0,0,0.10)",
+        transform: isFeatured ? "scale(1.02)" : "scale(1)",
+        transition: "transform 0.4s ease, box-shadow 0.4s ease, border-color 0.3s ease",
+        background: `linear-gradient(180deg, var(--t-bg-alt) 0%, color-mix(in srgb, var(--t-bg) 92%, var(--t-bg-alt)) 100%)`,
       }}
       onMouseEnter={e => {
-        e.currentTarget.style.transform = isFeatured ? "scale(1.05) translateY(-5px)" : "translateY(-5px) scale(1.01)";
-        e.currentTarget.style.boxShadow = `0 32px 80px rgba(0,0,0,0.60), 0 0 0 1px ${cfg.border}`;
+        e.currentTarget.style.transform = isFeatured ? "scale(1.04) translateY(-8px)" : "translateY(-8px) scale(1.02)";
+        e.currentTarget.style.boxShadow = `0 32px 80px -12px ${cfg.accent}50, 0 12px 40px -8px ${cfg.accent}35, 0 0 0 2px ${cfg.accent}`;
+        e.currentTarget.style.borderColor = cfg.accent;
       }}
       onMouseLeave={e => {
-        e.currentTarget.style.transform = isFeatured ? "scale(1.03)" : "scale(1)";
-        e.currentTarget.style.boxShadow = isFeatured ? `0 24px 64px rgba(0,0,0,0.55), 0 0 0 1px ${cfg.border}` : "0 16px 48px rgba(0,0,0,0.45)";
+        e.currentTarget.style.transform = isFeatured ? "scale(1.02)" : "scale(1)";
+        e.currentTarget.style.boxShadow = isFeatured
+          ? `0 24px 64px -12px ${cfg.accent}40, 0 8px 32px -8px ${cfg.accent}30, 0 0 0 1px ${cfg.accent}20`
+          : "0 16px 48px -8px rgba(0,0,0,0.14), 0 4px 20px -4px rgba(0,0,0,0.10)";
+        e.currentTarget.style.borderColor = isFeatured ? cfg.accent : cfg.border;
       }}
     >
-      {/* ── Dark header bar ── */}
-      <div className="relative flex items-center justify-between px-5 py-4"
-        style={{ background: "#0c0c12", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+      {/* Top accent gradient */}
+      <div className="absolute top-0 left-0 right-0 h-1" style={{
+        background: `linear-gradient(90deg, ${cfg.accent} 0%, color-mix(in srgb, ${cfg.accent} 70%, transparent) 100%)`,
+        opacity: isFeatured ? 0.9 : 0.7
+      }} />
+
+      {/* Glow effect on hover */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+        style={{
+          background: `radial-gradient(circle at 50% 0%, color-mix(in srgb, ${cfg.accent} 12%, transparent), transparent 70%)`,
+        }}
+      />
+
+      {/* ── Header bar ── */}
+      <div className="relative flex items-center justify-between px-6 py-4"
+        style={{
+          background: `linear-gradient(135deg, var(--t-dark) 0%, color-mix(in srgb, var(--t-dark) 95%, ${cfg.accent}) 100%)`,
+          borderBottom: `1px solid ${cfg.border}`
+        }}>
         <div className="flex items-center gap-3">
           {/* tier code badge */}
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xs font-black tracking-wider"
-            style={{ background: `${cfg.accent}18`, border: `1.5px solid ${cfg.accent}40`, color: cfg.accent }}>
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xs font-black tracking-wider shadow-lg"
+            style={{
+              background: `linear-gradient(135deg, ${cfg.accentSoft}, color-mix(in srgb, ${cfg.accentSoft} 85%, transparent))`,
+              border: `2px solid ${cfg.accentBorder}`,
+              color: cfg.accent,
+              boxShadow: `0 4px 12px ${cfg.accent}30`
+            }}>
             {code}
           </div>
           <div>
-            <p className="text-[9px] font-black uppercase tracking-[0.22em]" style={{ color: cfg.accent }}>
+            <p className="text-[9px] font-black uppercase tracking-[0.24em] mb-0.5" style={{ color: cfg.accent }}>
               {cfg.label} Access
             </p>
-            <p className="text-sm font-bold text-white leading-tight">{ticket.name}</p>
+            <p className="text-base font-black text-white leading-tight tracking-tight">{ticket.name}</p>
           </div>
         </div>
         {/* right: status */}
         {isSoldOut ? (
-          <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full"
-            style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)" }}>
+          <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg"
+            style={{ background: "rgba(239,68,68,0.18)", color: "#f87171", border: "2px solid rgba(239,68,68,0.30)" }}>
             Sold Out
           </span>
         ) : isUrgent ? (
-          <span className="text-[10px] font-black text-amber-400 flex items-center gap-1">
+          <span className="text-[10px] font-black px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-300 border-2 border-amber-500/40 flex items-center gap-1.5 shadow-lg animate-pulse">
             🔥 {available} left
           </span>
         ) : isFeatured ? (
-          <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full"
-            style={{ background: `${cfg.accent}20`, color: cfg.accent, border: `1px solid ${cfg.accent}35` }}>
-            Popular
+          <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg"
+            style={{
+              background: `linear-gradient(135deg, ${cfg.accentSoft}, color-mix(in srgb, ${cfg.accentSoft} 85%, transparent))`,
+              color: cfg.accent,
+              border: `2px solid ${cfg.accentBorder}`,
+              boxShadow: `0 4px 12px ${cfg.accent}35`
+            }}>
+            ⭐ Popular
           </span>
         ) : null}
       </div>
 
-      {/* ── Cream body ── */}
-      <div className="flex flex-col flex-1 px-5 pt-6 pb-5 gap-4" style={{ background: "#f0ebe0" }}>
+      <div className="relative flex flex-col flex-1 px-6 pt-7 pb-6 gap-5">
 
         {/* Large centered price */}
         <div className="text-center">
-          <p className="text-[9px] font-bold uppercase tracking-[0.25em] mb-1" style={{ color: "#7a6e5f" }}>per person</p>
-          <p className="leading-none font-black"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "clamp(2.6rem,5vw,3.6rem)", color: "#0f0d0a", letterSpacing: "-0.02em" }}>
+          <p className="text-[10px] font-bold uppercase tracking-[0.28em] mb-2" style={{ color: "var(--t-text-muted)" }}>
+            Ticket Price
+          </p>
+          <p className="leading-none font-black tracking-tight"
+            style={{
+              fontFamily: "var(--t-font-heading)",
+              fontSize: "clamp(2.8rem,6vw,4rem)",
+              color: cfg.accent,
+              letterSpacing: "-0.03em",
+              textShadow: `0 4px 20px ${cfg.accent}35`
+            }}>
             {ticket.kind === "FREE" ? "Free" : fmt(Number(ticket.price), ticket.currency)}
           </p>
           {ticket.kind !== "FREE" && (
-            <p className="text-xs mt-1 font-semibold" style={{ color: "#9a8c7e" }}>
-              {ticket.currency} · incl. fees
+            <p className="text-sm mt-2 font-bold uppercase tracking-wide" style={{ color: "var(--t-text-muted)" }}>
+              {ticket.currency} · Fees Included
             </p>
           )}
         </div>
 
-        {/* Divider */}
-        <div className="flex items-center gap-2">
-          <div className="flex-1 h-px" style={{ background: "rgba(0,0,0,0.08)" }} />
-          <div className="w-1.5 h-1.5 rounded-full" style={{ background: "rgba(0,0,0,0.12)" }} />
-          <div className="flex-1 h-px" style={{ background: "rgba(0,0,0,0.08)" }} />
+        {/* Elegant divider */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px" style={{
+            background: `linear-gradient(90deg, transparent, ${cfg.border}, transparent)`
+          }} />
+          <div className="w-1.5 h-1.5 rounded-full" style={{ background: cfg.accent, opacity: 0.6 }} />
+          <div className="flex-1 h-px" style={{
+            background: `linear-gradient(90deg, transparent, ${cfg.border}, transparent)`
+          }} />
         </div>
 
         {/* Features */}
         {features.length > 0 && (
-          <ul className="space-y-1.5">
+          <ul className="space-y-2.5">
             {features.map((f, i) => (
-              <li key={i} className="flex items-start gap-2 text-xs font-semibold" style={{ color: "#4a3f30" }}>
-                <span style={{ color: cfg.accent, fontWeight: 900 }}>✓</span>{f}
+              <li key={i} className="flex items-start gap-2.5 text-sm font-semibold" style={{ color: "var(--t-text)" }}>
+                <span className="mt-0.5 flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-black"
+                  style={{
+                    background: cfg.accentSoft,
+                    color: cfg.accent,
+                    boxShadow: `0 2px 8px ${cfg.accent}25`
+                  }}>✓</span>
+                {f}
               </li>
             ))}
           </ul>
@@ -337,37 +396,83 @@ function PremiumTicketCard({ ticket, onBuy, delay = 0, isEditor }) {
 
         {/* Capacity bar */}
         {ticket.quantity_total != null && !isSoldOut && (
-          <div>
-            <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#9a8c7e" }}>
-              <span>{isUrgent ? `⚠ ${available} spots left` : `${available} available`}</span>
-              <span style={{ color: cfg.accent }}>{Math.round(pct)}% filled</span>
+          <div className="pt-2">
+            <div className="flex justify-between text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: "var(--t-text-muted)" }}>
+              <span className="flex items-center gap-1.5">
+                {isUrgent && <span className="text-base">⚠</span>}
+                {available} available
+              </span>
+              <span className="font-black" style={{ color: cfg.accent }}>{Math.round(pct)}% sold</span>
             </div>
-            <div style={{ height: 3, borderRadius: 99, background: "rgba(0,0,0,0.10)", overflow: "hidden" }}>
+            <div className="h-2.5 rounded-full overflow-hidden" style={{
+              background: "color-mix(in srgb, var(--t-border) 50%, transparent)",
+              boxShadow: "inset 0 2px 4px rgba(0,0,0,0.1)"
+            }}>
               <motion.div
                 initial={{ width: 0 }} animate={{ width: `${pct}%` }}
                 transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1], delay: delay + 0.3 }}
-                style={{ height: "100%", borderRadius: 99, background: isUrgent ? "#ef4444" : cfg.accent }}
+                className="h-full rounded-full"
+                style={{
+                  background: isUrgent
+                    ? "linear-gradient(90deg, #ef4444, #f97316)"
+                    : `linear-gradient(90deg, ${cfg.accent}, color-mix(in srgb, ${cfg.accent} 80%, #fff))`,
+                  boxShadow: `0 0 12px ${isUrgent ? '#ef4444' : cfg.accent}60`
+                }}
               />
             </div>
           </div>
         )}
 
-        {/* Dual CTA */}
-        <div className="flex flex-col gap-2 mt-auto">
+        {/* CTA */}
+        <div className="flex flex-col gap-2.5 mt-auto pt-3">
           <button
             onClick={() => !isSoldOut && !isEditor && onBuy(ticket)}
             disabled={isSoldOut || isEditor}
-            className="w-full py-3.5 text-sm font-black uppercase tracking-widest transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl"
-            style={{ background: isSoldOut ? "rgba(0,0,0,0.12)" : "#0f0d0a", color: isSoldOut ? "#9a8c7e" : "#f0ebe0", letterSpacing: "0.08em" }}>
-            {isSoldOut ? "Sold Out" : ticket.kind === "FREE" ? "Reserve Free Spot" : "Buy Now →"}
+            className="group/btn relative w-full overflow-hidden py-4 text-sm font-black uppercase tracking-wider transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed rounded-2xl"
+            style={{
+              background: isSoldOut
+                ? "linear-gradient(135deg, color-mix(in srgb, var(--t-border) 60%, transparent), var(--t-border))"
+                : `linear-gradient(135deg, ${cfg.accent}, color-mix(in srgb, ${cfg.accent} 85%, #000))`,
+              color: isSoldOut ? "var(--t-text-muted)" : "var(--t-dark)",
+              letterSpacing: "0.10em",
+              boxShadow: isSoldOut ? "none" : `0 12px 32px -8px ${cfg.accent}70, 0 0 0 1px ${cfg.accent}30`,
+              border: isSoldOut ? "2px solid var(--t-border)" : "2px solid transparent",
+              fontWeight: 900
+            }}>
+            <span className="relative z-10 flex items-center justify-center gap-2.5">
+              {isSoldOut ? (
+                "Sold Out"
+              ) : (
+                <>
+                  {ticket.kind === "FREE" ? "Reserve Free Spot" : "Buy Now"}
+                  <svg className="w-4 h-4 transition-transform duration-300 group-hover/btn:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </>
+              )}
+            </span>
+            {!isSoldOut && (
+              <div className="absolute inset-0 translate-y-full bg-gradient-to-t from-white/25 to-white/10 transition-transform duration-300 group-hover/btn:translate-y-0" />
+            )}
           </button>
           {!isSoldOut && !isEditor && (
             <button
               onClick={() => onBuy(ticket)}
-              className="w-full py-2.5 text-xs font-bold uppercase tracking-widest transition-all active:scale-[0.98] rounded-xl"
-              style={{ background: "transparent", color: "#4a3f30", border: "1.5px solid rgba(0,0,0,0.18)", letterSpacing: "0.10em" }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = cfg.accent}
-              onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.18)"}>
+              className="group/outline w-full py-3 text-xs font-bold uppercase tracking-widest transition-all active:scale-[0.97] rounded-2xl relative overflow-hidden"
+              style={{
+                background: "transparent",
+                color: "var(--t-text)",
+                border: `2px solid ${cfg.border}`,
+                letterSpacing: "0.12em"
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = cfg.accent;
+                e.currentTarget.style.color = cfg.accent;
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = cfg.border;
+                e.currentTarget.style.color = "var(--t-text)";
+              }}>
               {ticket.kind === "FREE" ? "Learn More" : "Reserve a Spot"}
             </button>
           )}
@@ -403,14 +508,14 @@ function TicketHeroHeader({ event, tickets, accentColor }) {
   const showCountdown = countdown && !countdown.ended;
 
   return (
-    <div className="text-center mb-12">
+    <div className="mb-12">
       {/* Urgency flash banner */}
       <AnimatePresence>
         {(anyUrgent || anySoldOut) && (
           <motion.div
             initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 rounded-full px-4 py-2 mb-6 text-sm font-bold"
+            className="mx-auto mb-5 flex w-fit items-center gap-2 rounded-full px-4 py-2 text-sm font-bold"
             style={{
               background: "linear-gradient(135deg,rgba(239,68,68,0.15),rgba(239,68,68,0.08))",
               border: "1px solid rgba(239,68,68,0.3)",
@@ -425,71 +530,95 @@ function TicketHeroHeader({ event, tickets, accentColor }) {
         )}
       </AnimatePresence>
 
-      {/* Title */}
+      {/* Ticket section introduction */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        className="relative overflow-hidden rounded-3xl border p-6 sm:p-10"
+        style={{
+          background: "linear-gradient(135deg, color-mix(in srgb, var(--t-accent) 8%, var(--t-bg-alt)) 0%, var(--t-bg-alt) 100%)",
+          borderColor: "color-mix(in srgb, var(--t-accent) 20%, var(--t-border))",
+          boxShadow: "0 20px 60px -12px rgba(0,0,0,0.15), 0 8px 20px -8px rgba(0,0,0,0.1)",
+        }}
       >
-        <p
-          className="text-[11px] font-black uppercase tracking-[0.3em] mb-3"
-          style={{ color: accentColor, opacity: 0.8 }}
-        >
-          🎟️ &nbsp; Secure Your Spot
-        </p>
-        <h2
-          className="text-4xl sm:text-5xl font-black leading-none mb-3"
-          style={{
-            color: "#fff",
-            letterSpacing: "-0.03em",
-            textShadow: `0 0 80px ${accentColor}30`,
-          }}
-        >
-          Get Your Tickets
-        </h2>
-        {priceLabel && (
-          <p className="text-lg font-semibold mb-2" style={{ color: "rgba(255,255,255,0.45)" }}>
-            {priceLabel}
-          </p>
-        )}
-      </motion.div>
+        {/* Decorative accent line */}
+        <div className="absolute top-0 left-0 right-0 h-1" style={{
+          background: `linear-gradient(90deg, ${accentColor} 0%, transparent 100%)`,
+          opacity: 0.6
+        }} />
 
-      {/* Social proof */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
-        className="flex justify-center mt-4 mb-8"
-      >
-        <ViewerCount accent={accentColor} />
+        <div className="grid items-center gap-6 sm:gap-8 md:grid-cols-[1.4fr_1fr]">
+          <div>
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full px-4 py-1.5" style={{
+              background: "color-mix(in srgb, var(--t-accent) 12%, var(--t-bg-alt))",
+              border: "1px solid color-mix(in srgb, var(--t-accent) 25%, transparent)"
+            }}>
+              <span className="text-base">🎟️</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: accentColor }}>
+                Tickets Available
+              </span>
+            </div>
+
+            <h2
+              className="text-[2.2rem] font-black leading-[0.92] tracking-tight sm:text-5xl lg:text-6xl"
+              style={{
+                color: "var(--t-text)",
+                letterSpacing: "-0.045em",
+                textShadow: "0 2px 12px rgba(0,0,0,0.1)"
+              }}
+            >
+              Secure Your Spot
+            </h2>
+            <p className="mt-4 max-w-xl text-base leading-relaxed sm:text-lg" style={{ color: "var(--t-text-muted)" }}>
+              Reserve your ticket now and receive instant confirmation with QR code entry.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <TicketFact label="Ticket types" value={`${tickets.length} ${tickets.length === 1 ? "option" : "options"}`} accent />
+            <TicketFact label="Starting from" value={priceLabel || "Available now"} />
+            <TicketFact label="Event" value={(event?.title || "This event").substring(0, 20)} />
+            <TicketFact label="Availability" value={totalLeft === null ? "Open entry" : `${Math.max(totalLeft, 0)} left`} accent={anyUrgent} />
+          </div>
+        </div>
       </motion.div>
 
       {/* Countdown */}
       {showCountdown && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
+          initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.2, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="inline-flex flex-col items-center"
+          className="mt-8 rounded-2xl border p-6 sm:mt-10 sm:rounded-3xl sm:p-8"
+          style={{
+            background: "linear-gradient(180deg, var(--t-bg-alt) 0%, color-mix(in srgb, var(--t-bg) 80%, var(--t-bg-alt)) 100%)",
+            borderColor: "var(--t-border)",
+            boxShadow: "0 12px 32px -8px rgba(0,0,0,0.1), inset 0 1px 0 0 rgba(255,255,255,0.05)"
+          }}
         >
-          <p
-            className="text-[10px] font-bold uppercase tracking-[0.25em] mb-4"
-            style={{ color: "rgba(255,255,255,0.3)" }}
-          >
-            Event starts in
-          </p>
-          <div className="flex items-start gap-3 sm:gap-5">
+          <div className="mb-5 flex items-center justify-center gap-2 sm:mb-6">
+            <div className="h-px w-12 bg-gradient-to-r from-transparent" style={{ background: `linear-gradient(90deg, transparent, ${accentColor})` }} />
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] sm:text-[11px]" style={{ color: accentColor }}>
+              Event Starts In
+            </p>
+            <div className="h-px w-12" style={{ background: `linear-gradient(90deg, ${accentColor}, transparent)` }} />
+          </div>
+
+          <div className="flex items-center justify-center gap-3 sm:gap-6">
             {countdown.days > 0 && (
               <>
-                <CountUnit value={countdown.days}    label="Days"    accent={accentColor} />
-                <span className="text-2xl font-black mt-3" style={{ color: "rgba(255,255,255,0.2)" }}>:</span>
+                <CountUnit value={countdown.days} label="Days" accent={accentColor} />
+                <span className="mt-3 text-xl font-black sm:mt-4 sm:text-3xl" style={{ color: "var(--t-border)", opacity: 0.6 }}>:</span>
               </>
             )}
-            <CountUnit value={countdown.hours}   label="Hours"   accent={accentColor} />
-            <span className="text-2xl font-black mt-3" style={{ color: "rgba(255,255,255,0.2)" }}>:</span>
-            <CountUnit value={countdown.minutes} label="Min"     accent={accentColor} />
-            <span className="text-2xl font-black mt-3" style={{ color: "rgba(255,255,255,0.2)" }}>:</span>
-            <CountUnit value={countdown.seconds} label="Sec"     accent={accentColor} />
+            <CountUnit value={countdown.hours} label="Hours" accent={accentColor} />
+            <span className="mt-3 text-xl font-black sm:mt-4 sm:text-3xl" style={{ color: "var(--t-border)", opacity: 0.6 }}>:</span>
+            <CountUnit value={countdown.minutes} label="Minutes" accent={accentColor} />
+            <span className="mt-4 hidden text-3xl font-black sm:block" style={{ color: "var(--t-border)", opacity: 0.6 }}>:</span>
+            <div className="hidden sm:block">
+              <CountUnit value={countdown.seconds} label="Seconds" accent={accentColor} />
+            </div>
           </div>
         </motion.div>
       )}
@@ -500,35 +629,54 @@ function TicketHeroHeader({ event, tickets, accentColor }) {
 /* ─── TRUST BAR ───────────────────────────────────────────── */
 function TrustBar({ accent }) {
   const items = [
-    { icon: "🔒", text: "Secure checkout" },
-    { icon: "📧", text: "Instant e-ticket" },
-    { icon: "✅", text: "QR code entry" },
-    { icon: "💳", text: "Stripe payments" },
+    { icon: "🔒", text: "Secure Checkout", subtext: "SSL encrypted" },
+    { icon: "📧", text: "Instant Delivery", subtext: "E-ticket by email" },
+    { icon: "✅", text: "QR Entry", subtext: "Fast check-in" },
+    { icon: "💳", text: "Stripe Payment", subtext: "Trusted worldwide" },
   ];
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ delay: 0.6 }}
-      className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 mt-12 pt-8"
-      style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.6, duration: 0.6 }}
+      className="mt-12 pt-10"
+      style={{
+        borderTop: `1px solid var(--t-border)`,
+      }}
     >
-      {items.map((it) => (
-        <div key={it.text} className="flex items-center gap-2">
-          <span className="text-base">{it.icon}</span>
-          <span className="text-[12px] font-semibold" style={{ color: "rgba(255,255,255,0.3)" }}>
-            {it.text}
-          </span>
-        </div>
-      ))}
+      <p className="text-center text-[11px] font-black uppercase tracking-wider mb-6" style={{ color: "var(--t-text-muted)" }}>
+        Trusted & Secure Experience
+      </p>
+      <div className="grid grid-cols-2 gap-4 sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-6 lg:gap-8">
+        {items.map((it) => (
+          <motion.div
+            key={it.text}
+            whileHover={{ scale: 1.05 }}
+            className="flex items-start gap-3 p-3 rounded-xl transition-all sm:flex-col sm:items-center sm:text-center sm:p-4"
+            style={{
+              background: "color-mix(in srgb, var(--t-bg-alt) 60%, var(--t-bg))",
+              border: "1px solid var(--t-border)"
+            }}
+          >
+            <span className="text-2xl flex-shrink-0">{it.icon}</span>
+            <div>
+              <p className="text-sm font-black leading-tight" style={{ color: "var(--t-text)" }}>
+                {it.text}
+              </p>
+              <p className="text-[10px] font-semibold mt-0.5" style={{ color: "var(--t-text-muted)" }}>
+                {it.subtext}
+              </p>
+            </div>
+          </motion.div>
+        ))}
+      </div>
     </motion.div>
   );
 }
 
 /* ─── CHECKOUT MODAL (from existing code — kept as-is) ─────── */
 function CheckoutModal({ ticket, event, onClose }) {
-  const tierKey = resolveTier(ticket);
-  const cfg     = TIER[tierKey];
+  const cfg     = getThemeTicketTier(ticket);
 
   const [step,       setStep]       = useState("form");
   const [qty,        setQty]        = useState(1);
@@ -582,9 +730,9 @@ function CheckoutModal({ ticket, event, onClose }) {
     width:       "100%",
     padding:     "12px 14px",
     borderRadius: 12,
-    border:       "1px solid rgba(255,255,255,0.1)",
-    background:   "rgba(255,255,255,0.05)",
-    color:        "#fff",
+    border:       "1px solid var(--t-border)",
+    background:   "var(--t-bg)",
+    color:        "var(--t-text)",
     fontSize:     14,
     outline:      "none",
     transition:   "border-color 0.2s",
@@ -616,7 +764,7 @@ function CheckoutModal({ ticket, event, onClose }) {
             <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: cfg.accent }}>
               {cfg.icon} {cfg.label} Ticket
             </span>
-            <h3 className="text-xl font-black mt-1" style={{ color: "#fff", letterSpacing: "-0.02em" }}>
+            <h3 className="text-xl font-black mt-1" style={{ color: "var(--t-text)", letterSpacing: "-0.02em" }}>
               {ticket.name}
             </h3>
             <p className="text-2xl font-black mt-1" style={{ color: cfg.accent, letterSpacing: "-0.03em" }}>
@@ -627,7 +775,7 @@ function CheckoutModal({ ticket, event, onClose }) {
           <button
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-xl transition"
-            style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }}
+            style={{ background: "var(--t-bg)", color: "var(--t-text-muted)" }}
           >
             ✕
           </button>
@@ -649,8 +797,8 @@ function CheckoutModal({ ticket, event, onClose }) {
                       <button key={i + 1} onClick={() => setQty(i + 1)}
                         className="h-9 w-9 rounded-xl text-sm font-bold transition"
                         style={{
-                          background: qty === i + 1 ? cfg.accent : "rgba(255,255,255,0.06)",
-                          color:      qty === i + 1 ? cfg.dark    : "rgba(255,255,255,0.5)",
+                          background: qty === i + 1 ? cfg.accent : "var(--t-bg)",
+                          color:      qty === i + 1 ? cfg.dark    : "var(--t-text-muted)",
                           border:     `1px solid ${qty === i + 1 ? cfg.accent : "transparent"}`,
                         }}>
                         {i + 1}
@@ -668,7 +816,7 @@ function CheckoutModal({ ticket, event, onClose }) {
                   placeholder="Your full name"
                   style={inputStyle}
                   onFocus={(e) => (e.target.style.borderColor = cfg.accent)}
-                  onBlur={(e)  => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
+                  onBlur={(e)  => (e.target.style.borderColor = cfg.border)}
                 />
               </div>
 
@@ -681,7 +829,7 @@ function CheckoutModal({ ticket, event, onClose }) {
                   type="email"
                   style={inputStyle}
                   onFocus={(e) => (e.target.style.borderColor = cfg.accent)}
-                  onBlur={(e)  => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
+                  onBlur={(e)  => (e.target.style.borderColor = cfg.border)}
                 />
               </div>
 
@@ -693,7 +841,7 @@ function CheckoutModal({ ticket, event, onClose }) {
                   placeholder="+1 (555) 000-0000"
                   style={inputStyle}
                   onFocus={(e) => (e.target.style.borderColor = cfg.accent)}
-                  onBlur={(e)  => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
+                  onBlur={(e)  => (e.target.style.borderColor = cfg.border)}
                 />
               </div>
 
@@ -707,7 +855,7 @@ function CheckoutModal({ ticket, event, onClose }) {
               {/* Total */}
               {ticket.kind !== "FREE" && (
                 <div className="flex items-center justify-between rounded-xl px-4 py-3"
-                  style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${cfg.border}` }}>
+                  style={{ background: "var(--t-bg)", border: `1px solid ${cfg.border}` }}>
                   <span className="text-sm" style={{ color: cfg.muted }}>Total ({qty} × {fmtP(priceEach)})</span>
                   <span className="text-lg font-black" style={{ color: cfg.accent }}>{fmtP(total)}</span>
                 </div>
@@ -718,7 +866,7 @@ function CheckoutModal({ ticket, event, onClose }) {
                 disabled={submitting}
                 className="w-full rounded-xl py-4 text-sm font-black uppercase tracking-wide transition-all"
                 style={{
-                  background: `linear-gradient(135deg,${cfg.accent},${cfg.accent}cc)`,
+                  background: cfg.accent,
                   color: cfg.dark,
                   boxShadow: `0 8px 24px ${cfg.glow}`,
                   opacity: submitting ? 0.7 : 1,
@@ -732,7 +880,7 @@ function CheckoutModal({ ticket, event, onClose }) {
                   : `Pay ${fmtP(total)} →`}
               </button>
 
-              <p className="text-center text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>
+              <p className="text-center text-[10px]" style={{ color: "var(--t-text-muted)" }}>
                 🔒 Secured by Stripe · Your e-ticket will be emailed instantly
               </p>
             </motion.div>
@@ -745,26 +893,26 @@ function CheckoutModal({ ticket, event, onClose }) {
               className="p-8 flex flex-col items-center text-center gap-5">
               <div
                 className="flex h-20 w-20 items-center justify-center rounded-2xl"
-                style={{ background: `${cfg.accent}18`, border: `1px solid ${cfg.accent}30` }}
+                style={{ background: cfg.accentSoft, border: `1px solid ${cfg.accentBorder}` }}
               >
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={cfg.accent} strokeWidth="2.5">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
               <div>
-                <h3 className="text-2xl font-black" style={{ color: "#fff", letterSpacing: "-0.02em" }}>
+                <h3 className="text-2xl font-black" style={{ color: "var(--t-text)", letterSpacing: "-0.02em" }}>
                   You&apos;re in! 🎉
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed" style={{ color: cfg.muted }}>
                   Your ticket has been issued and sent to{" "}
-                  <span className="font-bold" style={{ color: "#fff" }}>{form.email}</span>.
+                  <span className="font-bold" style={{ color: "var(--t-text)" }}>{form.email}</span>.
                   Check your inbox!
                 </p>
               </div>
               <button
                 onClick={onClose}
                 className="w-full rounded-xl py-3 text-sm font-bold"
-                style={{ background: `${cfg.accent}18`, border: `1px solid ${cfg.border}`, color: cfg.accent }}
+                style={{ background: cfg.accentSoft, border: `1px solid ${cfg.border}`, color: cfg.accent }}
               >
                 Close
               </button>
@@ -797,10 +945,7 @@ export function PremiumTicketsSection({ section, event, isEditor = false, onEdit
 
   const display = isEditor ? TICKET_MOCK : tickets;
 
-  // Pick dominant accent from highest-tier ticket present
-  const hasVip  = display.some((t) => resolveTier(t) === "vip");
-  const hasPro  = display.some((t) => resolveTier(t) === "pro");
-  const accent  = hasPro ? "#a78bfa" : hasVip ? "#C9A96E" : "#6366f1";
+  const accent = "var(--t-accent)";
 
   const gridCols = display.length === 1
     ? "max-w-sm mx-auto"
@@ -815,14 +960,14 @@ export function PremiumTicketsSection({ section, event, isEditor = false, onEdit
       <section
         id="tickets"
         className="relative overflow-hidden py-20 px-4"
-        style={{ background: "#07070f" }}
+        style={{ background: "var(--t-bg)" }}
         onClick={isEditor ? onEdit : undefined}
       >
         {/* Ambient glow */}
         <div
           className="pointer-events-none absolute inset-0"
           style={{
-            background: `radial-gradient(ellipse 70% 40% at 50% 0%, ${accent}14, transparent 70%)`,
+            background: "radial-gradient(ellipse 70% 40% at 50% 0%, var(--t-accent-dim), transparent 70%)",
           }}
         />
 
@@ -830,7 +975,7 @@ export function PremiumTicketsSection({ section, event, isEditor = false, onEdit
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.03]"
           style={{
-            backgroundImage: "linear-gradient(rgba(255,255,255,0.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.5) 1px,transparent 1px)",
+            backgroundImage: "linear-gradient(color-mix(in srgb, var(--t-text) 42%, transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb, var(--t-text) 42%, transparent) 1px,transparent 1px)",
             backgroundSize: "60px 60px",
           }}
         />
@@ -851,9 +996,9 @@ export function PremiumTicketsSection({ section, event, isEditor = false, onEdit
           ) : display.length === 0 ? (
             <div
               className="rounded-2xl border py-16 text-center"
-              style={{ borderColor: "rgba(255,255,255,0.08)", borderStyle: "dashed" }}
+              style={{ borderColor: "var(--t-border)", borderStyle: "dashed" }}
             >
-              <p className="text-sm" style={{ color: "rgba(255,255,255,0.2)" }}>
+              <p className="text-sm" style={{ color: "var(--t-text-muted)" }}>
                 {isEditor ? "Add ticket tiers to see them here" : "No tickets available"}
               </p>
             </div>
@@ -879,7 +1024,7 @@ export function PremiumTicketsSection({ section, event, isEditor = false, onEdit
         {isEditor && (
           <div
             className="absolute left-4 top-4 rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest"
-            style={{ background: "rgba(99,102,241,0.2)", border: "1px solid rgba(99,102,241,0.3)", color: "#818cf8" }}
+            style={{ background: "color-mix(in srgb, var(--t-accent) 14%, var(--t-bg-alt))", border: "1px solid color-mix(in srgb, var(--t-accent) 35%, var(--t-border))", color: "var(--t-accent)" }}
           >
             Tickets
           </div>

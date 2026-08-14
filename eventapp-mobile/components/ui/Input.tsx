@@ -20,14 +20,14 @@ export function Input({
     ? Colors.accent.red
     : focused
     ? Colors.accent.indigo
-    : Colors.border.DEFAULT;
+    : Colors.border.strong;
 
   return (
     <View style={styles.wrapper}>
       {label && <Text style={styles.label}>{label}</Text>}
       <View style={[styles.row, { borderColor }, multiline && styles.rowMultiline]}>
         {icon && (
-          <Feather name={icon} size={16} color={Colors.text.muted} style={[styles.iconLeft, multiline && styles.iconTopAlign]} />
+          <Feather name={icon} size={16} color={Colors.text.secondary} style={[styles.iconLeft, multiline && styles.iconTopAlign]} />
         )}
         <TextInput
           multiline={multiline}
@@ -38,7 +38,7 @@ export function Input({
             multiline && styles.inputMultiline,
             style,
           ]}
-          placeholderTextColor={Colors.text.subtle}
+          placeholderTextColor="#cbd5e1"
           selectionColor={Colors.accent.indigo}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
@@ -46,7 +46,7 @@ export function Input({
         />
         {rightIcon && (
           <Pressable onPress={onRightPress} style={styles.iconRight}>
-            <Feather name={rightIcon} size={16} color={Colors.text.muted} />
+            <Feather name={rightIcon} size={16} color={Colors.text.secondary} />
           </Pressable>
         )}
       </View>
@@ -57,11 +57,11 @@ export function Input({
 
 const styles = StyleSheet.create({
   wrapper:   { gap: 6 },
-  label:     { fontSize: 12, fontWeight: '600', color: Colors.text.muted, letterSpacing: 0.3 },
+  label:     { fontSize: 12, fontWeight: '800', color: '#f1f5f9', letterSpacing: 0.3 },
   row: {
     flexDirection:    'row',
     alignItems:       'center',
-    backgroundColor:  Colors.bg.input,
+    backgroundColor:  '#0e0e1a',
     borderRadius:     14,
     borderWidth:      1,
     paddingHorizontal: 14,

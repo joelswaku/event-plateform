@@ -43,10 +43,9 @@ export async function register(req, res) {
     console.error("REGISTER ERROR:", error)
   
     res.status(500).json({
-      success:false,
-      message:error.message,
-      stack:error.stack
-    })
+      success: false,
+      message: "Unable to create your account. Please try again.",
+    });
   
   }
 }

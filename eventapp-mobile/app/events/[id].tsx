@@ -51,7 +51,7 @@ import { usePlannerStore } from '@/store/planner.store';
 import { useSubscriptionStore } from '@/store/subscription.store';
 import { Colors }         from '@/constants/colors';
 import { Config }         from '@/constants/config';
-import { getToken }       from '@/lib/api';
+import api, { getToken }  from '@/lib/api';
 import { ConfirmModal }   from '@/components/ui/ConfirmModal';
 import { fmtDateTime }    from '@/lib/format';
 import { DashboardPermissions } from '@/types';
@@ -169,11 +169,8 @@ function EventRemindersModal({ visible, onClose, eventId, eventTitle }: {
     if (!eventId) return;
     setLoading(true);
     try {
-      const token = await getToken();
-      const res = await fetch(`${Config.API_URL}/events/${eventId}/reminders`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const res = await api.get<{ success?: boolean; data?: Reminder[] }>(`/events/${eventId}/reminders`);
+      const data = res.data;
       const planReminders = getRemindersForPlan(data.success && Array.isArray(data.data) ? data.data : []);
       setReminders(planReminders.visible);
       setHiddenReminders(planReminders.hidden);
@@ -191,7 +188,6 @@ function EventRemindersModal({ visible, onClose, eventId, eventTitle }: {
     if (!eventId) return;
     setSaving(true);
     try {
-      const token = await getToken();
       // Preserve older Pro reminders as disabled when a user has downgraded.
       // The API replaces the reminder list on save, so omitting them would
       // permanently delete their configuration.
@@ -205,16 +201,11 @@ function EventRemindersModal({ visible, onClose, eventId, eventTitle }: {
         locked: r.locked || false,
       }));
 
-      const res = await fetch(`${Config.API_URL}/events/${eventId}/reminders`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ reminders: cleanReminders }),
+      const res = await api.post<{ success?: boolean; error?: string; message?: string }>(`/events/${eventId}/reminders`, {
+        reminders: cleanReminders,
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      const data = res.data;
+      if (data.success) {
         toast.success('Reminders saved successfully!');
         onClose();
       } else {
@@ -878,19 +869,32 @@ function TicketHeroCard({ eventId, ticketCount, checkinCount, router }: {
   const [cardH,  setCardH] = useState(170);
 
   useEffect(() => {
-    Animated.loop(
+    const scanLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(scanY, { toValue: 1, duration: 3500, easing: Easing.linear, useNativeDriver: true }),
         Animated.timing(scanY, { toValue: 0, duration: 0,    useNativeDriver: true }),
       ])
-    ).start();
-    Animated.loop(
+    );
+    const glowLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(glowOpac, { toValue: 0.95, duration: 1400, useNativeDriver: true }),
         Animated.timing(glowOpac, { toValue: 0.45, duration: 1400, useNativeDriver: true }),
       ])
-    ).start();
-  }, []);
+    );
+
+    scanLoop.start();
+    glowLoop.start();
+
+    // Ticket cards are mounted every time an event is opened. Stop both
+    // infinite loops on exit so Android does not accumulate native animations
+    // after visiting several event and ticket pages.
+    return () => {
+      scanLoop.stop();
+      glowLoop.stop();
+      scanY.stopAnimation();
+      glowOpac.stopAnimation();
+    };
+  }, [glowOpac, scanY]);
 
   const scanTranslate = scanY.interpolate({ inputRange: [0, 1], outputRange: [-2, cardH] });
   const pct = ticketCount > 0 && checkinCount > 0 ? Math.min((checkinCount / ticketCount) * 100, 100) : 0;

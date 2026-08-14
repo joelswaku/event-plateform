@@ -8,8 +8,8 @@ import { useAuthStore } from "@/store/auth.store";
 import GoogleLoginButton from "@/components/auth/GoogleLoginButton";
 import AuthShell from "@/components/auth/AuthShell";
 
-const BASE   = "w-full px-4 py-3.5 rounded-[14px] text-white text-[15px] font-medium placeholder:text-white/25 outline-none transition-all bg-[#0a0a14] border";
-const NORMAL = `${BASE} border-white/10 focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/20`;
+const BASE   = "w-full px-4 py-3.5 rounded-[14px] text-white text-[15px] font-medium placeholder:text-[#cbd5e1] outline-none transition-all bg-[#0e0f1b] border";
+const NORMAL = `${BASE} border-white/20 focus:border-[#818cf8] focus:ring-2 focus:ring-[#6366f1]/25`;
 const ERROR  = `${BASE} border-[#ef4444]/60 focus:border-[#ef4444] focus:ring-2 focus:ring-[#ef4444]/20`;
 
 function validate(form) {
@@ -23,7 +23,7 @@ function validate(form) {
 function Field({ label, id, error, touched, children }) {
   return (
     <div>
-      <label htmlFor={id} className="block text-xs font-semibold text-white/45 tracking-wide mb-1.5">
+      <label htmlFor={id} className="block text-xs font-bold text-white/85 tracking-wide mb-1.5">
         {label}
       </label>
       {children}
@@ -88,10 +88,10 @@ function LoginForm() {
       subline="Create, sell tickets, track guests, and grow your events effortlessly."
     >
       {/* Glass card container - compact on mobile */}
-      <div className="bg-white/5 backdrop-blur-sm border border-white/8 rounded-3xl p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="bg-white/5 backdrop-blur-sm border border-white/15 rounded-3xl p-4 sm:p-6 space-y-4 sm:space-y-6">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Welcome back</h1>
-          <p className="text-white/45 text-xs sm:text-sm mt-1">Sign in to continue</p>
+          <p className="text-white/75 text-xs sm:text-sm mt-1 font-medium">Sign in to continue</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4" noValidate>
@@ -127,7 +127,7 @@ function LoginForm() {
             <button
               type="button"
               onClick={() => setShowPass((v) => !v)}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/65 hover:text-white transition-colors"
               tabIndex={-1}
             >
               {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -167,7 +167,7 @@ function LoginForm() {
           <>
             <div className="flex items-center gap-3">
               <div className="h-px flex-1 bg-white/8" />
-              <span className="text-white/30 text-xs font-medium uppercase tracking-wider">or</span>
+              <span className="text-white/70 text-xs font-bold uppercase tracking-wider">or</span>
               <div className="h-px flex-1 bg-white/8" />
             </div>
 
@@ -175,7 +175,7 @@ function LoginForm() {
           </>
         )}
 
-        <p className="text-center text-sm text-white/40">
+        <p className="text-center text-sm font-medium text-white/70">
           Don&apos;t have an account?{" "}
           <Link href="/register" className="text-[#6366f1] font-bold hover:text-[#818cf8] transition-colors">
             Sign up

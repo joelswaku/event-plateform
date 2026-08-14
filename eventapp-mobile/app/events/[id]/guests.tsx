@@ -26,7 +26,7 @@ import React, { useState, useMemo, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, ScrollView, StyleSheet,
   Pressable, RefreshControl, Dimensions, Animated,
-  ActivityIndicator, Modal,
+  ActivityIndicator, Modal, Platform,
 } from 'react-native';
 import { ConfirmModal, useConfirm } from '@/components/ui/ConfirmModal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -508,6 +508,10 @@ export default function GuestsScreen() {
   }, [selectedIds, eventId, bulkSubmitRsvp]);
 
   const dash = dashboard as any;
+  // Android gesture/navigation controls can sit on top of the app. Position
+  // bulk actions above that protected area instead of rendering beneath it.
+  const bottomActionInset = Math.max(insets.bottom, Platform.OS === 'android' ? 36 : 16);
+  const bulkToolbarHeight = 64 + bottomActionInset + 16;
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -696,12 +700,12 @@ export default function GuestsScreen() {
             </View>
           </>
         )}
-        <View style={{ height: 100 }} />
+        <View style={{ height: selectMode && selectedIds.size > 0 ? bulkToolbarHeight + 16 : 100 }} />
       </ScrollView>
 
       {/* ── BULK ACTION TOOLBAR ─────────────────────────────────── */}
       {selectMode && selectedIds.size > 0 && (
-        <View style={bl.toolbar}>
+        <View style={[bl.toolbar, { bottom: bottomActionInset }]}>
           <Text style={bl.count}>{selectedIds.size} selected</Text>
           <View style={bl.actions}>
             {/* Send Invite */}
@@ -730,7 +734,7 @@ export default function GuestsScreen() {
 
       {/* ── RSVP MENU MODAL ─────────────────────────────────────── */}
       <Modal visible={rsvpMenu} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setRsvpMenu(false)}>
-        <Pressable style={rm.overlay} onPress={() => setRsvpMenu(false)}>
+        <Pressable style={[rm.overlay, { paddingBottom: bottomActionInset }]} onPress={() => setRsvpMenu(false)}>
           <View style={rm.sheet}>
             <Text style={rm.title}>Set RSVP for {selectedIds.size} guest{selectedIds.size !== 1 ? 's' : ''}</Text>
             {[
@@ -1037,7 +1041,7 @@ const bl = StyleSheet.create({
     position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: Colors.bg.elevated,
     borderTopWidth: 1, borderTopColor: Colors.border.subtle,
-    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28,
+    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12,
     flexDirection: 'row', alignItems: 'center', gap: 10,
   },
   count: { fontSize: 13, fontWeight: '800', color: Colors.text.muted, flexShrink: 0 },
