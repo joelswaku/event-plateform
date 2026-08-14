@@ -309,7 +309,7 @@ function VendorCard({ vendor, onSelect, selected, onEdit }) {
       <div className="relative h-32 overflow-hidden">
         <img src={cover} alt={vendor.category || vendor.name}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent" />
 
         {/* Status bar at top */}
         <div className="absolute top-0 left-0 right-0 h-0.5" style={{ backgroundColor: pm.dot }} />
@@ -2068,7 +2068,7 @@ function RecommendedCategoryCard({ cat, onSelect, covered }) {
       />
 
       {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/58 via-black/12 to-transparent" />
 
       {/* Accent top stripe */}
       <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: accent }} />
@@ -2092,7 +2092,7 @@ function RecommendedCategoryCard({ cat, onSelect, covered }) {
       {/* Hover glow */}
       <div
         className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-        style={{ background: `radial-gradient(circle at 50% 100%, ${accent}30 0%, transparent 70%)` }}
+        style={{ background: `radial-gradient(circle at 50% 100%, ${accent}1f 0%, transparent 70%)` }}
       />
     </button>
   );
@@ -2518,7 +2518,7 @@ function VendorDiscovery({ projectId, project, projectVendorNames, realVendors =
                 <p className="text-xs text-gray-500 mt-0.5">
                   {locationStr
                     ? `Searching near ${locationStr}`
-                    : "Enter a city below to search Google Maps"}
+                    : "Searching vendors for your event"}
                 </p>
               </div>
               <button onClick={() => selectCategory("All")}
@@ -2578,7 +2578,7 @@ function VendorDiscovery({ projectId, project, projectVendorNames, realVendors =
               ) : places.length === 0 ? (
                 <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/3 border border-white/6">
                   <MapPin className="w-4 h-4 text-gray-600 shrink-0" />
-                  <p className="text-xs text-gray-500">Enter a city, state, or country above and click Search to find {category.toLowerCase()} vendors nearby</p>
+                  <p className="text-xs text-gray-500">No {category.toLowerCase()} vendors found yet. Try searching again.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3">

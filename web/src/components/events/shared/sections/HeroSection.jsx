@@ -1456,7 +1456,7 @@ function HeroDonationAction({ event, isEditor, delay, centered, displayStyle = "
     <motion.div
       initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: EASE, delay }}
-      className="relative left-1/2 mt-12 w-screen -translate-x-1/2 overflow-hidden pt-16 sm:mt-16 sm:pt-20"
+      className="relative left-1/2 mt-10 w-screen -translate-x-1/2 overflow-hidden pt-14 sm:mt-12 sm:pt-16"
     >
       <svg
         aria-hidden="true"

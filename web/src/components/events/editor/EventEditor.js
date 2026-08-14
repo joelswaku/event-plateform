@@ -7,6 +7,18 @@ import { useEventStore } from "@/store/event.store";
 import ImageUpload from "./ImageUpload";
 import DateTimePicker from "@/components/ui/DateTimePicker";
 
+const DATE_RANGE_ERROR = "The event start date must be before the end date. Choose an end date and time after the start date to continue.";
+
+function getDateRangeError(startsAt, endsAt) {
+  if (!startsAt || !endsAt) return null;
+
+  const start = new Date(startsAt);
+  const end = new Date(endsAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+
+  return end <= start ? DATE_RANGE_ERROR : null;
+}
+
 export default function EventEditor() {
   const { eventId } = useParams();
 
@@ -115,15 +127,11 @@ export default function EventEditor() {
       }
 
       // Validate date range BEFORE sending to API
-      if (startsAt && endsAt) {
-        const startDate = new Date(startsAt);
-        const endDate = new Date(endsAt);
-
-        if (endDate <= startDate) {
-          setError("Event end date/time must be after the start date/time");
-          setSaving(false);
-          return;
-        }
+      const dateError = getDateRangeError(startsAt, endsAt);
+      if (dateError) {
+        setError(dateError);
+        setSaving(false);
+        return;
       }
 
       const payload = {
@@ -168,7 +176,14 @@ export default function EventEditor() {
   /* ================= HANDLER ================= */
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+
+    if (field === "starts_at" || field === "ends_at") {
+      const next = { ...form, [field]: value };
+      setError(getDateRangeError(next.starts_at, next.ends_at));
+    }
   };
+
+  const dateRangeError = getDateRangeError(form.starts_at, form.ends_at);
 
   if (!initializedRef.current) {
     return <div className="p-6 text-gray-500 dark:text-gray-400">Loading editor...</div>;
@@ -273,14 +288,11 @@ export default function EventEditor() {
               placeholder="Pick end date & time"
               minValue={form.starts_at}
               minExclusive
-              minErrorMessage="Event end must be after the event start."
+              minErrorMessage={DATE_RANGE_ERROR}
+              error={dateRangeError}
             />
           </div>
         </div>
-
-        {form.starts_at && form.ends_at && new Date(form.ends_at) <= new Date(form.starts_at) && (
-          <p className="text-xs text-red-500">End date must be after start date</p>
-        )}
 
         <Input
           label="Timezone"

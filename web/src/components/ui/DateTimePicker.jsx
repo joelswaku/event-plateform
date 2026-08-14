@@ -52,6 +52,16 @@ function formatLabel(value) {
   };
 }
 
+function toSelection(date) {
+  return {
+    year: date.getFullYear(),
+    month: date.getMonth(),
+    day: date.getDate(),
+    hour: date.getHours(),
+    minute: date.getMinutes(),
+  };
+}
+
 // ── Year picker ───────────────────────────────────────────────────────────────
 function YearPicker({ currentYear, onSelect }) {
   const startYear = currentYear - 5;
@@ -90,18 +100,23 @@ function CalendarPopover({ value, onChange, minValue, minExclusive = false, minE
   const parsed   = parse(value);
   const today    = new Date();
   const minP     = parse(minValue);
+  const minimumAt = minP
+    ? new Date(minP.year, minP.month, minP.day, minP.hour, minP.minute).getTime()
+    : null;
+  const parsedAt = parsed
+    ? new Date(parsed.year, parsed.month, parsed.day, parsed.hour, parsed.minute).getTime()
+    : null;
+  const defaultSelection = parsed && (minimumAt === null || (minExclusive ? parsedAt > minimumAt : parsedAt >= minimumAt))
+    ? parsed
+    : minP
+      ? toSelection(new Date(minimumAt + (minExclusive ? 60_000 : 0)))
+      : { year: today.getFullYear(), month: today.getMonth(), day: today.getDate(), hour: 12, minute: 0 };
 
   const [view, setView] = useState({
-    year:  parsed?.year  ?? today.getFullYear(),
-    month: parsed?.month ?? today.getMonth(),
+    year:  defaultSelection.year,
+    month: defaultSelection.month,
   });
-  const [sel, setSel] = useState(parsed ?? {
-    year:   today.getFullYear(),
-    month:  today.getMonth(),
-    day:    today.getDate(),
-    hour:   12,
-    minute: 0,
-  });
+  const [sel, setSel] = useState(defaultSelection);
   const [tab,      setTab]      = useState("date");
   const [showYear, setShowYear] = useState(false);
   const [dir,      setDir]      = useState(1); // animation direction
@@ -149,9 +164,6 @@ function CalendarPopover({ value, onChange, minValue, minExclusive = false, minE
   const isToday    = (day) => today.getFullYear() === view.year && today.getMonth() === view.month && today.getDate() === day;
 
   const selectedAt = new Date(sel.year, sel.month, sel.day, sel.hour, sel.minute).getTime();
-  const minimumAt = minP
-    ? new Date(minP.year, minP.month, minP.day, minP.hour, minP.minute).getTime()
-    : null;
   const isBeforeMinimum = minimumAt !== null && (
     minExclusive ? selectedAt <= minimumAt : selectedAt < minimumAt
   );
@@ -171,8 +183,9 @@ function CalendarPopover({ value, onChange, minValue, minExclusive = false, minE
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 6, scale: 0.97 }}
       transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-      className={`absolute left-0 z-50 w-78 rounded-2xl ${openUp ? "bottom-full mb-2" : "top-full mt-2"}`}
+      className={`absolute left-0 z-50 rounded-2xl ${openUp ? "bottom-full mb-2" : "top-full mt-2"}`}
       style={{
+        width: "min(20rem, calc(100vw - 2rem))",
         background: BG_CARD,
         border: `1px solid ${BORDER}`,
         boxShadow: "0 24px 64px rgba(0,0,0,0.55), 0 4px 20px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.04)",

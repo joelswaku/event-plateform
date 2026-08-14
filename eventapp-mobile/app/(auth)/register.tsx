@@ -156,20 +156,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5, shadowRadius: 16, elevation: 12,
   },
   appName: { fontSize: 26, fontWeight: '900', color: '#fff', letterSpacing: -0.5 },
-  tagline: { fontSize: 13, color: 'rgba(255,255,255,0.45)', textAlign: 'center' },
+  tagline: { fontSize: 13, color: 'rgba(255,255,255,0.76)', textAlign: 'center', fontWeight: '600' },
 
   card: {
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius:    24,
     borderWidth:     1,
-    borderColor:     'rgba(255,255,255,0.08)',
+    borderColor:     'rgba(255,255,255,0.16)',
     padding:         24,
     gap:             14,
   },
   cardTitle: { fontSize: 22, fontWeight: '800', color: '#fff' },
-  cardSub:   { fontSize: 13, color: 'rgba(255,255,255,0.45)', marginTop: -6 },
+  cardSub:   { fontSize: 13, color: 'rgba(255,255,255,0.76)', marginTop: -6, fontWeight: '600' },
 
   footer:     { flexDirection: 'row', justifyContent: 'center', paddingVertical: 8 },
-  footerText: { color: 'rgba(255,255,255,0.4)', fontSize: 13 },
+  footerText: { color: 'rgba(255,255,255,0.74)', fontSize: 13, fontWeight: '600' },
   footerLink: { fontSize: 13, fontWeight: '700' },
 });

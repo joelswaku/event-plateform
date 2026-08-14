@@ -6,8 +6,8 @@ import { ArrowLeft, Mail, AlertCircle, CheckCircle, Loader2 } from "lucide-react
 import { useAuthStore } from "@/store/auth.store";
 import AuthShell from "@/components/auth/AuthShell";
 
-const BASE   = "w-full px-4 py-3.5 rounded-[14px] text-white text-[15px] font-medium placeholder:text-white/25 outline-none transition-all bg-[#0a0a14] border";
-const NORMAL = `${BASE} border-white/10 focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/20`;
+const BASE   = "w-full px-4 py-3.5 rounded-[14px] text-white text-[15px] font-medium placeholder:text-[#cbd5e1] outline-none transition-all bg-[#0e0f1b] border";
+const NORMAL = `${BASE} border-white/20 focus:border-[#818cf8] focus:ring-2 focus:ring-[#6366f1]/25`;
 const ERR    = `${BASE} border-[#ef4444]/60 focus:border-[#ef4444] focus:ring-2 focus:ring-[#ef4444]/20`;
 
 function validateEmail(v) {
@@ -55,19 +55,19 @@ export default function ForgotPasswordPage() {
       </Link>
 
       {/* Glass card container - compact on mobile */}
-      <div className="bg-white/5 backdrop-blur-sm border border-white/8 rounded-3xl p-4 sm:p-6">
+      <div className="bg-white/5 backdrop-blur-sm border border-white/15 rounded-3xl p-4 sm:p-6">
         {!sent ? (
           <div className="space-y-4 sm:space-y-6">
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Forgot password?</h1>
-              <p className="text-white/45 text-xs sm:text-sm mt-1">
+              <p className="text-white/75 text-xs sm:text-sm mt-1 font-medium">
                 Enter your email and we&apos;ll send you a reset link.
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4" noValidate>
             <div>
-              <label htmlFor="email" className="block text-xs font-semibold text-white/45 tracking-wide mb-1.5">
+              <label htmlFor="email" className="block text-xs font-bold text-white/85 tracking-wide mb-1.5">
                 Email address
               </label>
               <input
@@ -122,7 +122,7 @@ export default function ForgotPasswordPage() {
           </div>
 
           <h1 className="text-2xl font-bold text-white tracking-tight">Check your inbox</h1>
-          <p className="text-gray-500 text-sm mt-2 leading-relaxed">
+          <p className="text-white/70 text-sm mt-2 leading-relaxed font-medium">
             We sent a reset link to{" "}
             <span className="text-gray-300 font-medium">{email}</span>.
             <br />
@@ -132,7 +132,7 @@ export default function ForgotPasswordPage() {
             <div className="mt-8 space-y-3">
               <button
                 onClick={() => { setSent(false); setTouched(false); setServerError(""); }}
-                className="w-full py-3 rounded-xl border border-white/10 text-white/45 hover:text-white hover:border-white/20 text-sm font-semibold transition-all"
+                className="w-full py-3 rounded-xl border border-white/20 text-white/75 hover:text-white hover:border-white/35 text-sm font-bold transition-all"
               >
                 Try a different email
               </button>

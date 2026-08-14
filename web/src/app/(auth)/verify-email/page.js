@@ -15,7 +15,7 @@ import AuthShell from "@/components/auth/AuthShell";
 import { useAuthStore } from "@/store/auth.store";
 import { api } from "@/lib/api";
 
-const INPUT_CLASS = "w-16 h-16 text-center text-2xl font-bold rounded-xl bg-[#0a0a14] border border-white/10 focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/20 text-white outline-none transition-all";
+const INPUT_CLASS = "w-16 h-16 text-center text-2xl font-bold rounded-xl bg-[#0e0f1b] border border-white/20 focus:border-[#818cf8] focus:ring-2 focus:ring-[#6366f1]/25 text-white outline-none transition-all";
 
 const subscribeToStorage = () => () => {};
 
@@ -187,13 +187,13 @@ function VerifyEmailForm() {
     return (
       <AuthShell headline="Email verified!" subline="Your account is ready.">
         {/* Glass card container - matches mobile app */}
-        <div className="bg-white/5 backdrop-blur-sm border border-white/8 rounded-3xl p-6">
+        <div className="bg-white/5 backdrop-blur-sm border border-white/15 rounded-3xl p-6">
           <div className="text-center py-8">
           <div className="mx-auto mb-6 w-16 h-16 rounded-full bg-[#10b981]/10 border border-[#10b981]/20 flex items-center justify-center">
             <CheckCircle className="w-8 h-8 text-[#10b981]" />
           </div>
             <h1 className="text-2xl font-bold text-white mb-2">Email Verified!</h1>
-            <p className="text-white/45 text-sm">Redirecting to dashboard...</p>
+            <p className="text-white/75 text-sm font-medium">Redirecting to dashboard...</p>
           </div>
         </div>
       </AuthShell>
@@ -203,10 +203,10 @@ function VerifyEmailForm() {
   return (
     <AuthShell headline="Verify your email" subline="Enter the code we sent to your inbox.">
       {/* Glass card container - compact on mobile */}
-      <div className="bg-white/5 backdrop-blur-sm border border-white/8 rounded-3xl p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="bg-white/5 backdrop-blur-sm border border-white/15 rounded-3xl p-4 sm:p-6 space-y-4 sm:space-y-6">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-white">Check your email</h1>
-          <p className="text-white/45 text-xs sm:text-sm mt-1">
+          <p className="text-white/75 text-xs sm:text-sm mt-1 font-medium">
             Enter the 6-digit code we sent to your email
           </p>
         </div>
@@ -264,7 +264,7 @@ function VerifyEmailForm() {
           </div>
         </form>
 
-        <p className="text-center text-sm text-white/40">
+        <p className="text-center text-sm font-medium text-white/70">
           Wrong email? <Link href="/register" onClick={startOver} className="text-[#6366f1] font-bold">Start over</Link>
         </p>
       </div>

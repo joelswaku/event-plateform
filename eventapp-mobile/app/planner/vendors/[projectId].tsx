@@ -148,8 +148,8 @@ function CompactVendorCard({ vendor, onPress }: { vendor: any; onPress: () => vo
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.75} style={S.compactRow}>
       <View style={[S.compactIcon, { backgroundColor: accent + '22', borderColor: accent + '40', overflow: 'hidden',
-                                    shadowColor: accent, shadowOffset: { width: 0, height: 3 },
-                                    shadowOpacity: 0.30, shadowRadius: 6, elevation: 4 }]}>
+                                    shadowColor: accent, shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.16, shadowRadius: 3, elevation: 2 }]}>
         {showImg
           ? <Image source={{ uri: imgUri }} style={StyleSheet.absoluteFill} resizeMode="cover"
               onError={() => setImgOk(false)} />
@@ -178,8 +178,8 @@ function RecommendedCategoryCard({ cat, onSelect, covered }: { cat: string; onSe
   const imgUri = CAT_COVERS[cat] || FALLBACK;
   return (
     <View style={{ width: REC_W, borderRadius: 14,
-                   shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
-                   shadowOpacity: 0.45, shadowRadius: 14, elevation: 10 }}>
+                   shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+                   shadowOpacity: 0.18, shadowRadius: 6, elevation: 2 }}>
     <TouchableOpacity onPress={() => onSelect(cat)} activeOpacity={0.82}
       style={{ width: REC_W, height: 140, borderRadius: 14, overflow: 'hidden',
                borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
@@ -192,8 +192,8 @@ function RecommendedCategoryCard({ cat, onSelect, covered }: { cat: string; onSe
       {/* Gradient layers — top light, bottom dark */}
       <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 48,
                      backgroundColor: 'rgba(0,0,0,0.08)' }} />
-      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 96,
-                     backgroundColor: 'rgba(0,0,0,0.84)' }} />
+      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 82,
+                     backgroundColor: 'rgba(0,0,0,0.58)' }} />
       {/* Accent top stripe — same as web h-0.5 */}
       <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2,
                      backgroundColor: accent }} />
@@ -202,8 +202,8 @@ function RecommendedCategoryCard({ cat, onSelect, covered }: { cat: string; onSe
         <View style={{ position: 'absolute', top: 9, right: 9, width: 22, height: 22,
                        borderRadius: 11, backgroundColor: EMERALD,
                        alignItems: 'center', justifyContent: 'center',
-                       shadowColor: EMERALD, shadowOffset: { width: 0, height: 2 },
-                       shadowOpacity: 0.7, shadowRadius: 4, elevation: 4 }}>
+                       shadowColor: EMERALD, shadowOffset: { width: 0, height: 1 },
+                       shadowOpacity: 0.25, shadowRadius: 2, elevation: 1 }}>
           <Feather name="check" size={12} color="#fff" />
         </View>
       )}
@@ -228,8 +228,8 @@ function GooglePlaceCard({ place, category, onAdd, onPress, adding, added, inPro
   const [imgUri, setImgUri] = React.useState(primary);
   return (
     <View style={{ width: CARD_W, borderRadius: 14,
-                   shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
-                   shadowOpacity: 0.45, shadowRadius: 14, elevation: 10 }}>
+                   shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+                   shadowOpacity: 0.18, shadowRadius: 6, elevation: 2 }}>
     <TouchableOpacity onPress={onPress} activeOpacity={0.82}
       style={{ width: CARD_W, borderRadius: 14, overflow: 'hidden',
                backgroundColor: CARD, borderWidth: 1, borderColor: BORDER }}>
@@ -242,8 +242,8 @@ function GooglePlaceCard({ place, category, onAdd, onPress, adding, added, inPro
           onError={() => { if (imgUri !== FALLBACK) setImgUri(CAT_COVERS[category] || FALLBACK); }}
         />
         {/* Dark bottom overlay */}
-        <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 72,
-                       backgroundColor: 'rgba(0,0,0,0.76)' }} />
+        <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 62,
+                       backgroundColor: 'rgba(0,0,0,0.48)' }} />
         {/* Category chip top-left */}
         <View style={{ position: 'absolute', top: 7, left: 7, paddingHorizontal: 7, paddingVertical: 2,
                        borderRadius: 10, backgroundColor: accent + 'cc' }}>
@@ -732,8 +732,9 @@ function OtherSuggestions({ category, currentVendorName, projectId }: {
   useEffect(() => {
     if (!category) return;
     const q = CAT_QUERIES[category] || category.toLowerCase();
+    // Location improves relevance when it is available, but it is never
+    // required to discover vendors for an event.
     const location = [currentProject?.city, currentProject?.country].filter(Boolean).join(', ');
-    if (!location) { setPlaces([]); setLoading(false); return; }
     setLoading(true);
     api.post('/google-places/search', { query: q, location })
       .then(r => {
@@ -942,13 +943,15 @@ export default function VendorsPage() {
     return m;
   }, [allVendors]);
 
-  async function runSearch(cat: string) {
+  async function runSearch(cat: string, projectOverride?: any) {
     const q   = CAT_QUERIES[cat] || cat.toLowerCase();
-    const loc = [city, stateF, country].filter(Boolean).join(', ');
-    if (!loc) {
-      notify.error('Add an event location', 'Set the event city or country before searching for local vendors.');
-      return;
-    }
+    // Category taps can happen before the project request completes on Android.
+    // Prefer the editable fields, but fall back to the saved event/project location
+    // immediately instead of treating the event as if it has no address.
+    const project = projectOverride || (currentProject?.id === projectId ? currentProject : null);
+    const currentCity = city.trim() || project?.city?.trim?.() || '';
+    const currentCountry = country.trim() || project?.country?.trim?.() || '';
+    const loc = [currentCity, stateF.trim(), currentCountry].filter(Boolean).join(', ');
     setLoadingG(true);
     setPlaces([]);
     try {
@@ -961,10 +964,25 @@ export default function VendorsPage() {
     }
   }
 
-  function selectCategory(cat: string) {
+  async function selectCategory(cat: string) {
     setCategory(cat);
     setPlaces([]);
-    if (cat !== 'All') runSearch(cat);
+    if (cat === 'All') return;
+
+    // If the page was opened just before its project arrived, load that project
+    // before searching. Passing it to runSearch avoids waiting for React state.
+    let project = currentProject?.id === projectId ? currentProject : null;
+    const hasLocation = Boolean(
+      city.trim() || stateF.trim() || country.trim() || project?.city || project?.country,
+    );
+    if (!hasLocation) {
+      const result = await fetchProject(projectId);
+      project = result.data || null;
+    }
+
+    if (project?.city && !city.trim()) setCity(project.city);
+    if (project?.country && !country.trim()) setCountry(project.country);
+    await runSearch(cat, project);
   }
 
   async function handleAddPlace(place: any) {
@@ -1173,7 +1191,7 @@ export default function VendorsPage() {
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 16, fontWeight: '800', color: TEXT }}>{category}</Text>
                 <Text style={{ fontSize: 11, color: MUTED, marginTop: 1 }}>
-                  {[city, stateF, country].filter(Boolean).join(', ') || 'Enter a location to search'}
+                  {[city, stateF, country].filter(Boolean).join(', ') || 'Searching vendors for your event'}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => selectCategory('All')} activeOpacity={0.8}
@@ -1211,7 +1229,7 @@ export default function VendorsPage() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14,
                                backgroundColor: CARD, borderRadius: 12, borderWidth: 1, borderColor: BORDER }}>
                   <Feather name="map-pin" size={15} color={MUTED} />
-                  <Text style={{ fontSize: 12, color: MUTED, flex: 1 }}>Enter a city and tap Search to find {category.toLowerCase()} vendors nearby</Text>
+                  <Text style={{ fontSize: 12, color: MUTED, flex: 1 }}>No {category.toLowerCase()} vendors found yet. Try searching again.</Text>
                 </View>
               ) : (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>

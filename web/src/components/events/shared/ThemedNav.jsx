@@ -153,6 +153,16 @@ function OverlayMenuClassic({ open, links, onClose, theme }) {
             <div className="h-px w-1/2" style={{ background: "var(--t-accent)" }} />
           </div>
 
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-6 top-6 inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.3em] transition-opacity hover:opacity-100"
+            style={{ color: "var(--t-accent)" }}
+            aria-label="Close menu"
+          >
+            Close <span className="text-base leading-none">×</span>
+          </button>
+
           <nav className="flex flex-col items-center gap-8">
             {links.map((link, i) => (
               <motion.button
@@ -229,7 +239,14 @@ function OverlayMenuModern({ open, links, onClose }) {
               <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: "var(--t-accent)" }}>
                 Navigation
               </span>
-              <button onClick={onClose} className="text-white/40 hover:text-white transition text-lg leading-none">✕</button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-white/55 transition hover:text-white"
+                aria-label="Close menu"
+              >
+                Close <span className="text-lg leading-none">×</span>
+              </button>
             </div>
 
             {/* Links */}
@@ -296,11 +313,13 @@ function OverlayMenuMinimal({ open, links, onClose }) {
             ))}
           </nav>
           <button
+            type="button"
             onClick={onClose}
-            className="absolute right-6 top-5 text-[10px] uppercase tracking-[0.3em]"
+            className="absolute right-6 top-5 inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.3em]"
             style={{ color: "var(--t-text-muted)" }}
+            aria-label="Close menu"
           >
-            Close
+            Close <span className="text-base leading-none">×</span>
           </button>
         </motion.div>
       )}
@@ -332,11 +351,13 @@ function OverlayMenuLuxury({ open, links, onClose }) {
 
           {/* Close */}
           <button
+            type="button"
             onClick={onClose}
-            className="absolute right-6 top-6 text-[10px] uppercase tracking-[0.4em] transition-opacity hover:opacity-100"
+            className="absolute right-6 top-6 inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.4em] transition-opacity hover:opacity-100"
             style={{ color: "rgba(212,175,111,0.4)", fontFamily: "var(--t-font-heading)" }}
+            aria-label="Close menu"
           >
-            Close
+            Close <span className="text-base leading-none">×</span>
           </button>
 
           <nav className="flex flex-col items-center gap-10">
@@ -400,8 +421,24 @@ function OverlayMenuFun({ open, links, onClose }) {
               boxShadow: "0 -8px 0 #1a1a1a",
             }}
           >
-            {/* Drag handle */}
-            <div className="mx-auto mb-6 h-1 w-10 rounded-full bg-gray-300" />
+            {/* Sheet header — Fun used to be the only mobile menu without an
+                explicit close control, leaving visitors trapped behind the
+                overlay on small screens. */}
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="h-1 w-10 shrink-0 rounded-full bg-gray-300" aria-hidden="true" />
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#1a1a1a]">Menu</span>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border-2 border-[#1a1a1a] bg-white px-3 text-[10px] font-black uppercase tracking-[0.1em] text-[#1a1a1a] transition active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+                style={{ boxShadow: "2px 2px 0 #1a1a1a" }}
+                aria-label="Close menu"
+              >
+                Close <span className="text-sm leading-none">×</span>
+              </button>
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               {links.map((link, i) => {

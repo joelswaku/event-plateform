@@ -14,6 +14,8 @@ interface AuthState {
   hydrate:      () => Promise<void>;
   login:        (email: string, password: string) => Promise<AuthActionResult>;
   register:     (data: { full_name: string; email: string; password: string }) => Promise<AuthActionResult>;
+  verifyEmail:  (token: string, code: string) => Promise<AuthActionResult>;
+  resendVerificationCode: (token: string) => Promise<AuthActionResult>;
   googleLogin:  (idToken: string) => Promise<{ success: boolean; message?: string }>;
   refreshToken: (storedToken?: string | null) => Promise<string | null>;
   fetchMe:      () => Promise<void>;
@@ -138,6 +140,52 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
         ?? (err instanceof Error ? err.message : 'Registration failed');
       set({ error: message, isLoading: false });
+      return { success: false, message };
+    }
+  },
+
+  // ─── Email verification ──────────────────────────────────────────────────
+  // Mobile verification creates a real mobile session. Using the shared client
+  // guarantees the API returns JSON tokens and that they are saved only in
+  // SecureStore, never in ordinary app storage.
+  verifyEmail: async (token, code) => {
+    set({ isLoading: true, error: null });
+    try {
+      const res = await api.post<{
+        success: boolean;
+        message?: string;
+        user?: User;
+        accessToken?: string;
+        refreshToken?: string;
+      }>('/auth/verify-email', { token, code });
+      const { success, message, user, accessToken, refreshToken } = res.data;
+      if (!success || !user || !accessToken || !refreshToken) {
+        throw new Error(message || 'Verification did not create a session');
+      }
+
+      setToken(accessToken);
+      applyUser(user);
+      await persistSession(user, true, refreshToken);
+      set({ user, isAuthenticated: true, isLoading: false, error: null });
+      return { success: true, message };
+    } catch (err: unknown) {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? (err instanceof Error ? err.message : 'Verification failed');
+      set({ isLoading: false, error: message });
+      return { success: false, message };
+    }
+  },
+
+  resendVerificationCode: async (token) => {
+    try {
+      const res = await api.post<{ success: boolean; message?: string }>('/auth/resend-verification-code', { token });
+      if (!res.data?.success) {
+        return { success: false, message: res.data?.message || 'Unable to resend the code' };
+      }
+      return { success: true, message: res.data.message };
+    } catch (err: unknown) {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? 'Unable to resend the code';
       return { success: false, message };
     }
   },

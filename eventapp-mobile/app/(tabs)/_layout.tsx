@@ -38,7 +38,9 @@ export default function TabsLayout() {
   // Some Android devices report no bottom inset even while the system controls
   // overlap the app. Keep the labels above that protected area.
   const bottomInset = isIOS ? Math.max(insets.bottom, 22) : Math.max(insets.bottom, 40);
-  const tabContentHeight = isIOS ? 50 : 66;
+  // iOS needs a little extra room above the selected icon. Without it, the
+  // top edge of the selected background (and the Scan icon) can be clipped.
+  const tabContentHeight = isIOS ? 56 : 66;
 
   return (
     <Tabs
@@ -50,7 +52,7 @@ export default function TabsLayout() {
           styles.tabBar,
           {
             height: tabContentHeight + bottomInset,
-            paddingTop: isIOS ? 0 : 6,
+            paddingTop: isIOS ? 4 : 6,
             paddingBottom: bottomInset,
           },
         ],
@@ -127,7 +129,7 @@ const styles = StyleSheet.create({
     elevation:         18,
     paddingBottom:     Platform.OS === 'ios' ? 22 : 6,
     paddingHorizontal: 0,
-    overflow:          'hidden',
+    overflow:          Platform.OS === 'ios' ? 'visible' : 'hidden',
   },
   tabItem: {
     alignItems:     'center',
@@ -135,16 +137,16 @@ const styles = StyleSheet.create({
     gap:            2,
     paddingTop:     0,
     minWidth:       44,
-    height:         Platform.OS === 'ios' ? 50 : 56,
+    height:         Platform.OS === 'ios' ? 52 : 56,
   },
   tabBarItem: {
     backgroundColor: 'transparent',
-    height:           Platform.OS === 'ios' ? 50 : 66,
+    height:           Platform.OS === 'ios' ? 52 : 66,
     alignItems:       'center',
     justifyContent:   'center',
     paddingTop:       Platform.OS === 'ios' ? 0 : 8,
     paddingBottom:    Platform.OS === 'ios' ? 0 : 4,
-    overflow:         'hidden',
+    overflow:         Platform.OS === 'ios' ? 'visible' : 'hidden',
   },
   iconWrap: {
     width:           34,
@@ -193,7 +195,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#059669',
     alignItems:      'center',
     justifyContent:  'center',
-    marginTop:       -2,
+    marginTop:       Platform.OS === 'ios' ? 0 : -2,
     shadowColor:     '#10b981',
     shadowOffset:    { width: 0, height: 4 },
     shadowOpacity:   0.45,

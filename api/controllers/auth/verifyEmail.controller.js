@@ -44,7 +44,7 @@ export async function verifyEmail(req, res) {
     console.error("VERIFY EMAIL ERROR:", error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Unable to verify your email right now. Please try again.",
     });
   }
 }
@@ -71,7 +71,7 @@ export async function resendCode(req, res) {
     console.error("RESEND CODE ERROR:", error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Unable to resend the code right now. Please try again.",
     });
   }
 }

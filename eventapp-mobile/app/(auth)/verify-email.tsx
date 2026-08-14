@@ -5,12 +5,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
-import { Config } from '@/constants/config';
 import { LiteEventLogo } from '@/components/ui/LiteEventLogo';
+import { useAuthStore } from '@/store/auth.store';
 
 export default function VerifyEmailScreen() {
   const router = useRouter();
   const { token } = useLocalSearchParams<{ token: string }>();
+  const verifyEmail = useAuthStore(state => state.verifyEmail);
+  const resendVerificationCode = useAuthStore(state => state.resendVerificationCode);
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -73,17 +75,9 @@ export default function VerifyEmailScreen() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${Config.API_URL}/auth/verify-email`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ token, code: verificationCode }),
-      });
-
-      const data = await res.json();
-
-      if (!data.success) {
-        Alert.alert('Error', data.message || 'Verification failed');
+      const result = await verifyEmail(token, verificationCode);
+      if (!result.success) {
+        Alert.alert('Error', result.message || 'Verification failed');
         setLoading(false);
         return;
       }
@@ -100,14 +94,8 @@ export default function VerifyEmailScreen() {
   const handleResend = async () => {
     setResending(true);
     try {
-      const res = await fetch(`${Config.API_URL}/auth/resend-verification-code`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
-      });
-
-      const data = await res.json();
-      Alert.alert('Success', data.message || 'Code sent!');
+      const result = await resendVerificationCode(token);
+      Alert.alert(result.success ? 'Success' : 'Error', result.message || (result.success ? 'Code sent!' : 'Failed to resend code'));
     } catch (error) {
       Alert.alert('Error', 'Failed to resend code');
     }
@@ -187,16 +175,16 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   title: { fontSize: 28, fontWeight: '900', color: '#fff', marginBottom: 8 },
-  subtitle: { fontSize: 14, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 20 },
+  subtitle: { fontSize: 14, color: 'rgba(255,255,255,0.78)', textAlign: 'center', lineHeight: 20, fontWeight: '600' },
   email: { color: '#fff', fontWeight: '700' },
   codeContainer: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 32 },
   codeInput: {
     width: 48,
     height: 56,
-    backgroundColor: Colors.bg.input,
+    backgroundColor: '#0e0e1a',
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: Colors.border.DEFAULT,
+    borderColor: Colors.border.strong,
     color: Colors.text.primary,
     fontSize: 24,
     fontWeight: '700',

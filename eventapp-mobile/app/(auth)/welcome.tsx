@@ -252,7 +252,7 @@ const s = StyleSheet.create({
   },
   body: {
     fontSize:   14,
-    color:      'rgba(255,255,255,0.58)',
+    color:      'rgba(255,255,255,0.78)',
     lineHeight: 22,
     fontWeight: '500',
   },
@@ -269,6 +269,6 @@ const s = StyleSheet.create({
   signupTxt: { fontSize: 16, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
 
   loginBtn:  { paddingVertical: 14, alignItems: 'center' },
-  loginTxt:  { fontSize: 14, color: 'rgba(255,255,255,0.42)', fontWeight: '500' },
+  loginTxt:  { fontSize: 14, color: 'rgba(255,255,255,0.76)', fontWeight: '600' },
   loginLink: { fontWeight: '800' },
 });

@@ -33,6 +33,25 @@ export const googleAuthLimiter = rateLimit({
   message: { success: false, message: "Too many OAuth attempts, try again in 15 minutes." },
 });
 
+// Email verification uses a six-digit code. Limit attempts per verification
+// token so the code cannot be brute-forced without affecting normal app use.
+export const verificationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  skip: () => isDev,
+  keyGenerator: (req) => `${req.ip}:${req.body?.token ?? ""}`,
+  message: { success: false, message: "Too many verification attempts. Request a new code or try again in 15 minutes." },
+});
+
+// Resending has a separate, tighter cap to protect email delivery.
+export const resendVerificationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  skip: () => isDev,
+  keyGenerator: (req) => `${req.ip}:${req.body?.token ?? ""}`,
+  message: { success: false, message: "Too many code requests. Please try again in 15 minutes." },
+});
+
 // Public invitation endpoints — prevents token enumeration; keyed per-token so legitimate
 // guests are not affected by other IPs hammering the same route
 export const invitationLimiter = rateLimit({

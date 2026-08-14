@@ -53,20 +53,20 @@ export default function AuthShell({ children, headline, subline, denseMobile = f
               <div className="w-7 h-7 rounded-lg bg-indigo-500/30 flex items-center justify-center">
                 <Ticket className="w-3.5 h-3.5 text-indigo-300" />
               </div>
-              <span className="text-white/70 text-xs font-medium">New booking</span>
+              <span className="text-white/85 text-xs font-bold">New booking</span>
             </div>
             <p className="text-white text-sm font-semibold">Summer Music Fest</p>
-            <p className="text-gray-400 text-xs mt-0.5">VIP × 2 — $240</p>
+            <p className="text-slate-300 text-xs mt-0.5 font-medium">VIP × 2 — $240</p>
             <div className="mt-3 h-1.5 rounded-full bg-white/10 overflow-hidden">
               <div className="h-full w-[78%] bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full" />
             </div>
-            <p className="text-[10px] text-gray-500 mt-1">78% sold · 44 left</p>
+            <p className="text-[10px] text-slate-300 mt-1 font-medium">78% sold · 44 left</p>
           </div>
         </div>
 
         <div className="absolute bottom-[22%] right-[10%] w-44 -rotate-3 opacity-60">
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 shadow-xl">
-            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold mb-1">Revenue today</p>
+            <p className="text-[10px] text-slate-300 uppercase tracking-wider font-bold mb-1">Revenue today</p>
             <p className="text-white text-xl font-bold">$8,420</p>
             <p className="text-emerald-400 text-xs font-medium mt-1">↑ 24% vs yesterday</p>
           </div>
@@ -92,7 +92,7 @@ export default function AuthShell({ children, headline, subline, denseMobile = f
               <h2 className="text-[2.6rem] font-extrabold text-white leading-[1.15] tracking-tight max-w-[360px]">
                 {headline}
               </h2>
-              <p className="text-gray-400 mt-4 text-[15px] leading-relaxed max-w-[320px]">
+              <p className="text-slate-300 mt-4 text-[15px] leading-relaxed max-w-[320px] font-medium">
                 {subline}
               </p>
             </div>
@@ -103,7 +103,7 @@ export default function AuthShell({ children, headline, subline, denseMobile = f
                 <div key={label} className="bg-white/5 backdrop-blur-sm border border-white/8 rounded-2xl p-4 space-y-2">
                   <Icon className="w-4 h-4 text-indigo-400" />
                   <p className="text-white font-bold text-lg leading-none">{value}</p>
-                  <p className="text-gray-500 text-[11px] leading-tight">{label}</p>
+                  <p className="text-slate-300 text-[11px] leading-tight font-medium">{label}</p>
                 </div>
               ))}
             </div>
@@ -128,7 +128,7 @@ export default function AuthShell({ children, headline, subline, denseMobile = f
                     </svg>
                   ))}
                 </div>
-                <p className="text-gray-400 text-xs">
+                <p className="text-slate-300 text-xs font-medium">
                   Loved by <span className="text-gray-200 font-semibold">2,400+</span> organizers
                 </p>
               </div>
@@ -174,17 +174,17 @@ export default function AuthShell({ children, headline, subline, denseMobile = f
           <div className="flex items-center justify-around rounded-xl border border-white/12 bg-white/[0.07] p-3 shadow-xl backdrop-blur-sm sm:rounded-2xl sm:p-4">
             <div className="flex flex-col items-center flex-1">
               <span className="text-base font-extrabold text-white sm:text-lg">12K+</span>
-              <span className="mt-0.5 text-[9px] font-semibold text-white/60 sm:text-[10px]">Events</span>
+              <span className="mt-0.5 text-[9px] font-bold text-white/80 sm:text-[10px]">Events</span>
             </div>
             <div className="h-6 w-px bg-white/12 sm:h-8" />
             <div className="flex flex-col items-center flex-1">
               <span className="text-base font-extrabold text-white sm:text-lg">890K</span>
-              <span className="mt-0.5 text-[9px] font-semibold text-white/60 sm:text-[10px]">Tickets sold</span>
+              <span className="mt-0.5 text-[9px] font-bold text-white/80 sm:text-[10px]">Tickets sold</span>
             </div>
             <div className="h-6 w-px bg-white/12 sm:h-8" />
             <div className="flex flex-col items-center flex-1">
               <span className="text-base font-extrabold text-white sm:text-lg">2.4K</span>
-              <span className="mt-0.5 text-[9px] font-semibold text-white/60 sm:text-[10px]">Organizers</span>
+              <span className="mt-0.5 text-[9px] font-bold text-white/80 sm:text-[10px]">Organizers</span>
             </div>
           </div>
         </div>

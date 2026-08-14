@@ -1,9 +1,10 @@
 import React, { useEffect, useCallback, useState } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Pressable,
+  View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Pressable, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlannerStore } from '@/store/planner.store';
 import { useEventStore } from '@/store/event.store';
 import { useSubscriptionStore } from '@/store/subscription.store';
@@ -32,6 +33,7 @@ function ProgressBar({ value, total, color = Colors.accent.indigo }: { value: nu
 
 export default function PlannerTab() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { projects, loading, fetchProjects, deleteProject } = usePlannerStore();
   const { events: allEvents, loading: eventsLoading, fetchEvents } = useEventStore();
   const { isSubscribed, features } = useSubscriptionStore();
@@ -42,6 +44,7 @@ export default function PlannerTab() {
 
   // Check planner access
   const hasPlanner = isSubscribed && features?.planner;
+  const sheetBottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 32 : 16);
 
   useEffect(() => {
     if (!hasPlanner) {
@@ -229,16 +232,6 @@ export default function PlannerTab() {
         />
       )}
 
-      {/* FAB — always show, handle no events case */}
-      {projects.length > 0 && (
-        <TouchableOpacity
-          style={s.fab}
-          onPress={() => setShowEventModal(true)}
-        >
-          <Feather name="plus" size={24} color="#fff" />
-        </TouchableOpacity>
-      )}
-
       {/* Upgrade Modal */}
       <UpgradeNotificationModal
         isOpen={showUpgradeModal}
@@ -256,7 +249,10 @@ export default function PlannerTab() {
         onRequestClose={() => setShowEventModal(false)}
       >
         <Pressable style={s.modalOverlay} onPress={() => setShowEventModal(false)}>
-          <Pressable style={s.modalContent} onPress={(e) => e.stopPropagation()}>
+          <Pressable
+            style={[s.modalContent, { paddingBottom: sheetBottomInset }]}
+            onPress={(e) => e.stopPropagation()}
+          >
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>Select Event for Planner</Text>
               <TouchableOpacity onPress={() => setShowEventModal(false)}>
@@ -267,7 +263,7 @@ export default function PlannerTab() {
             <FlatList
               data={events}
               keyExtractor={(ev) => ev.id}
-              contentContainerStyle={{ paddingBottom: 20 }}
+              contentContainerStyle={{ paddingBottom: sheetBottomInset }}
               renderItem={({ item: ev }) => (
                 <TouchableOpacity
                   style={s.modalEventCard}
@@ -351,8 +347,6 @@ const s = StyleSheet.create({
   progressLabel: { fontSize: 11, color: '#d4e6f5', fontWeight: '700' },
   barBg: { height: 4, backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 2, overflow: 'hidden' },
   barFill: { height: 4, borderRadius: 2 },
-  fab: { position: 'absolute', bottom: 90, right: 20, width: 52, height: 52, borderRadius: 16, backgroundColor: Colors.accent.indigo, alignItems: 'center', justifyContent: 'center', shadowColor: Colors.accent.indigo, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6 },
-
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: Colors.bg.primary, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%', paddingTop: 20 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: Colors.border.DEFAULT },

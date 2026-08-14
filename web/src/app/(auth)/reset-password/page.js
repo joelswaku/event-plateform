@@ -7,8 +7,8 @@ import { Eye, EyeOff, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import AuthShell from "@/components/auth/AuthShell";
 
-const BASE   = "w-full px-4 py-3 rounded-xl text-white text-sm placeholder:text-gray-600 outline-none transition-all bg-white/4 border";
-const NORMAL = `${BASE} border-white/8 focus:border-indigo-500/50 focus:bg-white/6`;
+const BASE   = "w-full px-4 py-3 rounded-xl text-white text-sm font-medium placeholder:text-[#cbd5e1] outline-none transition-all bg-[#0e0f1b] border";
+const NORMAL = `${BASE} border-white/20 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/25`;
 const ERR    = `${BASE} border-red-500/50 focus:border-red-500/70`;
 
 /* ── Password strength ───────────────────────────────────────── */
@@ -68,7 +68,7 @@ function validate(form) {
 function Field({ label, id, error, touched, children }) {
   return (
     <div>
-      <label htmlFor={id} className="block text-[13px] font-medium text-gray-400 mb-1.5">
+      <label htmlFor={id} className="block text-[13px] font-bold text-white/85 mb-1.5">
         {label}
       </label>
       {children}
@@ -124,12 +124,12 @@ function ResetPasswordContent() {
       subline="Set a new password and get back to managing your events."
     >
       {/* Glass card container - compact on mobile */}
-      <div className="bg-white/5 backdrop-blur-sm border border-white/8 rounded-3xl p-4 sm:p-6">
+      <div className="bg-white/5 backdrop-blur-sm border border-white/15 rounded-3xl p-4 sm:p-6">
         {!success ? (
           <div className="space-y-4 sm:space-y-6">
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Set new password</h1>
-              <p className="text-white/45 text-xs sm:text-sm mt-1">
+              <p className="text-white/75 text-xs sm:text-sm mt-1 font-medium">
                 Choose a strong password to protect your account.
               </p>
             </div>
@@ -153,7 +153,7 @@ function ResetPasswordContent() {
                     type="button"
                     onClick={() => setShowPass(!showPass)}
                     aria-label={showPass ? "Hide password" : "Show password"}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/65 hover:text-white transition-colors"
                   >
                     {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
@@ -212,7 +212,7 @@ function ResetPasswordContent() {
           </div>
 
           <h1 className="text-2xl font-bold text-white tracking-tight">Password updated</h1>
-          <p className="text-gray-500 text-sm mt-2 leading-relaxed">
+          <p className="text-white/70 text-sm mt-2 leading-relaxed font-medium">
             Your password has been changed successfully.
             <br />
             You can now sign in with your new credentials.

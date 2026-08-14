@@ -12,6 +12,7 @@ import * as Clipboard from 'expo-clipboard';
 import { notify, showSuccess, showError } from '@/lib/toast';
 
 import { useGuestStore }  from '@/store/guest.store';
+import { useSeatingStore } from '@/store/seating.store';
 import { BottomSheet }    from '@/components/ui/BottomSheet';
 import { ConfirmModal }   from '@/components/ui/ConfirmModal';
 import { Colors }         from '@/constants/colors';
@@ -72,6 +73,10 @@ export default function GuestDetailScreen() {
     guests, getGuestById, getAttendance, updateGuest, deleteGuest,
     sendInvitation, sendQrEmail, manualCheckIn, submitGuestRsvp,
   } = useGuestStore();
+  const seatingAssignments = useSeatingStore(s => s.assignments);
+  const seatingLocations = useSeatingStore(s => s.locations);
+  const fetchAssignments = useSeatingStore(s => s.fetchAssignments);
+  const fetchLocations = useSeatingStore(s => s.fetchLocations);
 
   const [busy,         setBusy]         = useState<string | null>(null);
   const [editOpen,     setEditOpen]     = useState(false);
@@ -93,6 +98,8 @@ export default function GuestDetailScreen() {
       if (eventId && guestId) {
         getGuestById(eventId, guestId);
         getAttendance(eventId);
+        fetchAssignments(eventId);
+        fetchLocations(eventId);
       }
 
       // Poll every 15 s while screen is focused so web check-ins appear automatically
@@ -100,10 +107,12 @@ export default function GuestDetailScreen() {
         if (eventId && guestId) {
           getGuestById(eventId, guestId);
           getAttendance(eventId);
+          fetchAssignments(eventId);
+          fetchLocations(eventId);
         }
       }, 15000);
       return () => clearInterval(interval);
-    }, [eventId, guestId])
+    }, [eventId, guestId, fetchAssignments, fetchLocations])
   );
 
   // Sync form when guest loads or edit opens
@@ -179,6 +188,16 @@ export default function GuestDetailScreen() {
 
   const cfg = (STATUS_CFG as any)[guest.status] ?? STATUS_CFG.PENDING;
   const initials = getInitials(guest.full_name);
+  const seatAssignment = seatingAssignments.find(assignment => assignment.guest_id === guestId);
+  const seatedTable = seatAssignment
+    ? seatingLocations.find(location => location.id === seatAssignment.seating_table_id)
+    : null;
+  const seatLabel = seatAssignment
+    ? (seatedTable ? `Seated at ${seatedTable.location_name}` : 'Seat Assigned')
+    : 'Assign Seat';
+  const seatSub = seatAssignment
+    ? (seatAssignment.seat_number ? `Seat ${seatAssignment.seat_number} · Tap to change seating` : 'Tap to change seating')
+    : 'Assign this guest to a table seat';
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -337,8 +356,8 @@ export default function GuestDetailScreen() {
         <View style={s.actionGroup}>
           <ActionRow
             icon="map-pin"
-            label="Assign Seat"
-            sub="Assign this guest to a table seat"
+            label={seatLabel}
+            sub={seatSub}
             accent={Colors.accent.violet}
             onPress={() => router.push(`/events/${eventId}/seating` as any)}
           />

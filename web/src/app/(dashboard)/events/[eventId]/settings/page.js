@@ -72,6 +72,17 @@ const STATUS_CONFIG = {
 };
 
 const easeOut = { duration: 0.4, ease: [0.22, 1, 0.36, 1] };
+const DATE_RANGE_ERROR = "The event start date must be before the end date. Choose an end date and time after the start date to continue.";
+
+function getDateRangeError(startsAt, endsAt) {
+  if (!startsAt || !endsAt) return null;
+
+  const start = new Date(startsAt);
+  const end = new Date(endsAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+
+  return end <= start ? DATE_RANGE_ERROR : null;
+}
 
 /* ─────────────────────────────────────────────
    REUSABLE UI COMPONENTS
@@ -304,16 +315,21 @@ function MSelect({ value, onChange, options }) {
   );
 }
 
-function MDateInput({ value, onChange }) {
+function MDateInput({ value, onChange, min, error }) {
   const iso = value ? value.slice(0, 16) : "";
   return (
-    <input
-      type="datetime-local"
-      value={iso}
-      onChange={e => onChange(e.target.value)}
-      className="w-full rounded-[10px] border px-[13px] py-[11px] text-[14px] font-medium text-white outline-none focus:border-indigo-500/50"
-      style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.10)", colorScheme: "dark" }}
-    />
+    <div>
+      <input
+        type="datetime-local"
+        value={iso}
+        min={min ? min.slice(0, 16) : undefined}
+        aria-invalid={Boolean(error)}
+        onChange={e => onChange(e.target.value)}
+        className="w-full rounded-[10px] border px-[13px] py-[11px] text-[14px] font-medium text-white outline-none focus:border-indigo-500/50"
+        style={{ background: "rgba(255,255,255,0.05)", borderColor: error ? "rgba(248,113,113,0.85)" : "rgba(255,255,255,0.10)", colorScheme: "dark" }}
+      />
+      {error && <p className="mt-1.5 text-[11px] font-medium text-red-300">{error}</p>}
+    </div>
   );
 }
 
@@ -474,6 +490,7 @@ export default function EventSettingsPage() {
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [summaryData, setSummaryData] = useState(null);
   const { generatePostEventSummary, loading: aiLoading } = useAIStore();
+  const dateRangeError = getDateRangeError(form?.starts_at, form?.ends_at);
   
   const initialRef = useRef(null);
 
@@ -516,13 +533,6 @@ export default function EventSettingsPage() {
       console.error("Error converting UTC to local:", error);
       return utcString.slice(0, 16); // Fallback
     }
-  }
-
-  // DateTimePicker values are local, timezone-free strings. Keep automatic
-  // adjustments in that same representation instead of serializing to UTC.
-  function toPickerDateTime(date) {
-    const pad = (value) => String(value).padStart(2, "0");
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   }
 
   function localToUtcForApi(localString, timezone) {
@@ -642,19 +652,14 @@ export default function EventSettingsPage() {
     }
 
     // Validate that end time is after start time
-    if (payload.starts_at && payload.ends_at) {
-      const startMs = new Date(payload.starts_at).getTime();
-      const endMs = new Date(payload.ends_at).getTime();
-      if (endMs <= startMs) {
-        console.error('End time must be after start time:', { starts_at: payload.starts_at, ends_at: payload.ends_at });
+    const dateError = getDateRangeError(payload.starts_at, payload.ends_at);
+    if (dateError) {
         setErrors((current) => ({
           ...current,
-          ends_at: 'Event end must be after the event start.',
+          ends_at: dateError,
         }));
-        alert('End time must be after start time. Please adjust the times.');
         setSaving(false);
         return;
-      }
     }
 
     console.log('Saving event times:', {
@@ -795,7 +800,7 @@ export default function EventSettingsPage() {
                 <MDateInput value={form.starts_at} onChange={v => set("starts_at", v)} />
               </MField>
               <MField label="End">
-                <MDateInput value={form.ends_at} onChange={v => set("ends_at", v)} />
+                <MDateInput value={form.ends_at} min={form.starts_at} error={dateRangeError || errors.ends_at} onChange={v => set("ends_at", v)} />
               </MField>
               <MField label="Venue Name">
                 <MInput value={form.venue_name} onChange={v => set("venue_name", v)} placeholder="Venue or place name" />
@@ -944,23 +949,7 @@ export default function EventSettingsPage() {
                       <Field label="Event Starts">
                         <DateTimePicker
                           value={form.starts_at}
-                          onChange={v => {
-                            console.log('Start time changed to:', v);
-                            // Always update start time
-                            set("starts_at", v);
-
-                            // Check if we need to adjust end time
-                            const newStart = new Date(v + ':00');
-                            const currentEnd = new Date(form.ends_at + ':00');
-
-                            // If end time is not at least 30 minutes after new start, adjust it
-                            const minEndTime = new Date(newStart.getTime() + 30 * 60000); // 30 minutes minimum
-                            if (currentEnd <= minEndTime) {
-                              const newEndStr = toPickerDateTime(new Date(newStart.getTime() + 3600000)); // Add 1 hour
-                              console.log('Auto-adjusting end time to:', newEndStr);
-                              set("ends_at", newEndStr);
-                            }
-                          }}
+                          onChange={v => set("starts_at", v)}
                           minValue={new Date().toISOString()}
                         />
                       </Field>
@@ -973,8 +962,8 @@ export default function EventSettingsPage() {
                           }}
                           minValue={form.starts_at}
                           minExclusive
-                          minErrorMessage="Event end must be after the event start."
-                          error={errors.ends_at}
+                          minErrorMessage={DATE_RANGE_ERROR}
+                          error={dateRangeError || errors.ends_at}
                         />
                       </Field>
                     </div>
