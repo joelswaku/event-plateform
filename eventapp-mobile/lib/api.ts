@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import { Platform } from 'react-native';
 import { Config } from '@/constants/config';
 
 // ─── In-memory state (NEVER stored to disk) ───────────────────────────────────
@@ -24,6 +25,13 @@ const api: AxiosInstance = axios.create({
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   // Identify as mobile client so backend knows to return tokens in JSON
   config.headers['X-Client-Type'] = 'mobile';
+
+  // Android aggressive cache fix - force no-cache on all requests
+  if (Platform.OS === 'android') {
+    config.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+    config.headers['Pragma'] = 'no-cache';
+    config.headers['Expires'] = '0';
+  }
 
   if (_accessToken) {
     config.headers.Authorization = `Bearer ${_accessToken}`;

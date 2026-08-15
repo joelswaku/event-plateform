@@ -27,6 +27,7 @@ export default function ProfileTab() {
   const [avatarLoading,  setAvatarLoading]  = useState(false);
   const [logoutModal,    setLogoutModal]    = useState(false);
   const [legalSlug,      setLegalSlug]      = useState<string | null>(null);
+  const [cacheBuster,    setCacheBuster]    = useState(Date.now());
 
   // Refresh whenever Profile becomes visible so edits made on another device
   // are reflected as soon as the person returns here.
@@ -35,10 +36,20 @@ export default function ProfileTab() {
       void fetchMe();
       // Poll every 3 seconds for fast sync between iOS/Android/Web
       // Ensures avatar and profile changes show quickly across devices
-      const interval = setInterval(() => void fetchMe(), 3_000);
+      const interval = setInterval(() => {
+        void fetchMe();
+        setCacheBuster(Date.now()); // Force image reload on Android
+      }, 3_000);
       return () => clearInterval(interval);
     }, [fetchMe]),
   );
+
+  // Update cache buster when user avatar changes (helps Android reload images faster)
+  useEffect(() => {
+    if (user?.avatar_url) {
+      setCacheBuster(Date.now());
+    }
+  }, [user?.avatar_url]);
 
   // User support replies belong in the regular profile. Super-admin support
   // alerts are displayed in the dedicated Super Admin drawer instead.
@@ -109,7 +120,11 @@ export default function ProfileTab() {
               <View style={styles.avatar}>
                 {user?.avatar_url
                   ? <Image
-                      source={{ uri: user.avatar_url, cache: 'reload' }}
+                      key={`avatar-${user.avatar_url}`}
+                      source={{
+                        uri: `${user.avatar_url}${user.avatar_url.includes('?') ? '&' : '?'}t=${cacheBuster}`,
+                        cache: 'reload'
+                      }}
                       style={StyleSheet.absoluteFill}
                       resizeMode="cover"
                     />
