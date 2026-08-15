@@ -14,6 +14,24 @@ const SUGGESTED = [
   "Is this event family-friendly?",
 ];
 
+const CHAT_BUTTON_POSITIONS = [
+  {
+    left: "auto",
+    right: "max(16px, calc(env(safe-area-inset-right) + 16px))",
+    offsetY: 0,
+  },
+  {
+    left: "max(16px, calc(env(safe-area-inset-left) + 16px))",
+    right: "auto",
+    offsetY: 0,
+  },
+  {
+    left: "auto",
+    right: "max(16px, calc(env(safe-area-inset-right) + 16px))",
+    offsetY: -74,
+  },
+];
+
 function TypingDots() {
   return (
     <div className="flex gap-1 py-0.5">
@@ -39,8 +57,11 @@ export default function EventChatbot({ eventId }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [buttonPosition, setButtonPosition] = useState(0);
+  const [isRelocating, setIsRelocating] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const activeButtonPosition = CHAT_BUTTON_POSITIONS[buttonPosition];
 
   const sessionKey = `chatbot_session_${eventId}`;
 
@@ -61,6 +82,29 @@ export default function EventChatbot({ eventId }) {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 150);
     }
+  }, [open]);
+
+  // Keep the invitation noticeable without interrupting someone who is chatting.
+  // It fades out before moving, then returns in a different safe corner.
+  useEffect(() => {
+    if (open) {
+      setIsRelocating(false);
+      return undefined;
+    }
+
+    let revealTimer;
+    const moveTimer = window.setInterval(() => {
+      setIsRelocating(true);
+      revealTimer = window.setTimeout(() => {
+        setButtonPosition((current) => (current + 1) % CHAT_BUTTON_POSITIONS.length);
+        setIsRelocating(false);
+      }, 360);
+    }, 8500);
+
+    return () => {
+      window.clearInterval(moveTimer);
+      if (revealTimer) window.clearTimeout(revealTimer);
+    };
   }, [open]);
 
   async function send(text) {
@@ -91,7 +135,17 @@ export default function EventChatbot({ eventId }) {
   }
 
   return (
-    <div className="fixed bottom-28 sm:bottom-6 right-4 sm:right-6 z-50 flex flex-col items-end gap-3">
+    <div
+      className="fixed bottom-28 sm:bottom-6 z-50 flex flex-col items-end gap-3"
+      style={{
+        left: activeButtonPosition.left,
+        right: activeButtonPosition.right,
+        opacity: isRelocating ? 0 : 1,
+        transform: `translateY(${activeButtonPosition.offsetY}px) scale(${isRelocating ? 0.92 : 1})`,
+        pointerEvents: isRelocating ? "none" : "auto",
+        transition: "opacity 360ms ease, transform 360ms ease",
+      }}
+    >
       {/* Chat window */}
       {open && (
         <div

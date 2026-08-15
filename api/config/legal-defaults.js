@@ -74,7 +74,7 @@ LiteEvent offers the following subscription plans. Features and limits are subje
 ### 4.3 Ticket Platform Service Fee
 
 For paid ticket sales processed through LiteEvent:
-- A **service fee of 3.5% of the ticket subtotal + $0.49 per paid ticket** is added to the buyer's checkout total.
+- A **platform service fee based on the organizer's plan** is added to the buyer's checkout total. The exact fee, subtotal, and total are shown before secure checkout.
 - Free tickets (price = $0) carry no platform service fee.
 - The platform service fee is **non-refundable** except upon event cancellation by the organizer (see Section 7).
 - This fee is separate from and in addition to Stripe's payment processing fee.

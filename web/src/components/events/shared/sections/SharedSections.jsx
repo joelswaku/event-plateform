@@ -1858,11 +1858,12 @@ function TicketCheckoutModal({ ticket, event, onClose, theme }) {
   const tier = (() => {
     const n = (ticket.name ?? "").toLowerCase();
     const k = ticket.kind;
-    if (k === "FREE") return { accent: "#10b981", dark: "#022c22", badge: "Free", glow: "rgba(16,185,129,0.25)" };
-    if (n.includes("vip") || n.includes("platinum") || n.includes("premium")) return { accent: "#C9A96E", dark: "#0f0b00", badge: "VIP", glow: "rgba(201,169,110,0.28)" };
-    if (n.includes("pro") || n.includes("diamond") || n.includes("all-access")) return { accent: "#a78bfa", dark: "#0d0718", badge: "Premium", glow: "rgba(167,139,250,0.28)" };
-    if (n.includes("early") || n.includes("bird")) return { accent: "#f59e0b", dark: "#1c1002", badge: "Early Bird", glow: "rgba(245,158,11,0.25)" };
-    return { accent: "#6366f1", dark: "#0f0f1f", badge: "Standard", glow: "rgba(99,102,241,0.25)" };
+    const shared = { accent: "var(--t-accent)", dark: "var(--t-dark)", glow: "var(--t-accent-dim)" };
+    if (k === "FREE") return { ...shared, badge: "Free" };
+    if (n.includes("vip") || n.includes("platinum") || n.includes("premium")) return { ...shared, badge: "VIP" };
+    if (n.includes("pro") || n.includes("diamond") || n.includes("all-access")) return { ...shared, badge: "Premium" };
+    if (n.includes("early") || n.includes("bird")) return { ...shared, badge: "Early Bird" };
+    return { ...shared, badge: "Standard" };
   })();
 
   const available = ticket.quantity_total != null
@@ -1897,25 +1898,26 @@ function TicketCheckoutModal({ ticket, event, onClose, theme }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)" }}>
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-4" style={{ background: "color-mix(in srgb, var(--t-dark) 70%, transparent)", backdropFilter: "blur(6px)" }}>
       <motion.div
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 40 }}
-        className="w-full max-w-md overflow-hidden rounded-t-3xl sm:rounded-3xl bg-white shadow-2xl"
+        className="w-full max-w-md overflow-hidden rounded-t-3xl sm:rounded-3xl"
+        style={{ background: "var(--t-bg-alt)", border: "1px solid var(--t-border)", boxShadow: "0 24px 64px color-mix(in srgb, var(--t-dark) 34%, transparent)" }}
       >
         {/* Header */}
         <div
           className="relative flex items-start justify-between p-6"
           style={{
-            background: tier ? `linear-gradient(135deg, ${tier.dark}, ${tier.dark}ee)` : "#111827",
-            borderBottom: tier ? `1px solid ${tier.accent}30` : "1px solid rgba(255,255,255,0.08)",
+            background: "linear-gradient(135deg, var(--t-dark), var(--t-dark-surface))",
+            borderBottom: "1px solid color-mix(in srgb, var(--t-accent) 30%, var(--t-border))",
           }}
         >
           <div>
             {tier && (
               <span className="mb-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest"
-                style={{ background: `${tier.accent}20`, color: tier.accent }}>★ {tier.badge}</span>
+                style={{ background: "color-mix(in srgb, var(--t-accent) 16%, var(--t-dark))", color: tier.accent }}>★ {tier.badge}</span>
             )}
             <p className="text-[11px] text-white/40 uppercase tracking-widest mb-1">{event?.title}</p>
             <h3 className="text-xl font-bold text-white">{ticket.name}</h3>
@@ -1932,39 +1934,42 @@ function TicketCheckoutModal({ ticket, event, onClose, theme }) {
 
               {/* Quantity */}
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-2">Quantity</p>
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--t-text-muted)" }}>Quantity</p>
                 <div className="flex items-center gap-3">
                   <button onClick={() => setQty(q => Math.max(1, q - 1))}
-                    className="h-10 w-10 rounded-xl border border-gray-200 text-lg font-bold text-gray-600 hover:bg-gray-50 transition flex items-center justify-center">−</button>
-                  <span className="w-10 text-center text-lg font-bold text-gray-900">{qty}</span>
+                    className="flex h-10 w-10 items-center justify-center rounded-xl text-lg font-bold transition" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border)", color: "var(--t-text)" }}>−</button>
+                  <span className="w-10 text-center text-lg font-bold" style={{ color: "var(--t-text)" }}>{qty}</span>
                   <button onClick={() => setQty(q => Math.min(available, q + 1))}
-                    className="h-10 w-10 rounded-xl border border-gray-200 text-lg font-bold text-gray-600 hover:bg-gray-50 transition flex items-center justify-center">+</button>
-                  <span className="text-xs text-gray-400 ml-1">{available} available</span>
+                    className="flex h-10 w-10 items-center justify-center rounded-xl text-lg font-bold transition" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border)", color: "var(--t-text)" }}>+</button>
+                  <span className="ml-1 text-xs" style={{ color: "var(--t-text-muted)" }}>{available} available</span>
                 </div>
               </div>
 
               {/* Buyer info */}
               <div className="space-y-3">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Your details</p>
+                <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--t-text-muted)" }}>Your details</p>
                 {[
                   { key: "name",  label: "Full name *",    type: "text",  placeholder: "John Doe" },
                   { key: "email", label: "Email *",        type: "email", placeholder: "you@example.com" },
                   { key: "phone", label: "Phone (optional)", type: "tel",  placeholder: "+1 555 000 0000" },
                 ].map(({ key, label, type, placeholder }) => (
                   <div key={key}>
-                    <label className="text-[11px] text-gray-500 font-medium">{label}</label>
+                    <label className="text-[11px] font-medium" style={{ color: "var(--t-text-muted)" }}>{label}</label>
                     <input type={type} value={form[key]} placeholder={placeholder}
                       onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                      className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 outline-none focus:border-indigo-400 transition"
+                      onFocus={e => { e.currentTarget.style.borderColor = "var(--t-accent)"; }}
+                      onBlur={e => { e.currentTarget.style.borderColor = "var(--t-border)"; }}
+                      className="mt-1 w-full rounded-xl px-4 py-2.5 text-sm outline-none transition"
+                      style={{ background: "var(--t-bg)", border: "1px solid var(--t-border)", color: "var(--t-text)" }}
                     />
                   </div>
                 ))}
               </div>
 
               {/* Total */}
-              <div className="rounded-2xl bg-gray-50 px-4 py-3 flex items-center justify-between">
-                <span className="text-sm text-gray-600">{qty} × {ticket.name}</span>
-                <span className="text-lg font-bold text-gray-900">
+              <div className="flex items-center justify-between rounded-2xl px-4 py-3" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border)" }}>
+                <span className="text-sm" style={{ color: "var(--t-text-muted)" }}>{qty} × {ticket.name}</span>
+                <span className="text-lg font-bold" style={{ color: "var(--t-text)" }}>
                   {ticket.kind === "FREE" ? "Free" : fmtPrice(total)}
                 </span>
               </div>
@@ -1973,7 +1978,7 @@ function TicketCheckoutModal({ ticket, event, onClose, theme }) {
 
               <button onClick={submit} disabled={submitting}
                 className="w-full rounded-2xl py-3.5 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-60"
-                style={{ background: tier ? `linear-gradient(135deg, ${tier.accent}, ${tier.accent}cc)` : "#4F46E5" }}>
+                style={{ background: "var(--t-accent)", color: "var(--t-dark)", boxShadow: "0 8px 24px var(--t-accent-dim)" }}>
                 {submitting ? "Processing…" : ticket.kind === "FREE" ? "Get Free Ticket" : `Pay ${fmtPrice(total)}`}
               </button>
             </motion.div>
@@ -1982,16 +1987,16 @@ function TicketCheckoutModal({ ticket, event, onClose, theme }) {
           {step === "success" && result?.issued_tickets?.[0] && (
             <motion.div key="success" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
               className="p-6 text-center space-y-5">
-              <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-2xl" style={{ background: tier ? `${tier.accent}15` : "#EEF2FF" }}>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={tier ? tier.accent : "#4F46E5"} strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-2xl" style={{ background: "color-mix(in srgb, var(--t-accent) 15%, var(--t-bg))" }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--t-accent)" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">You&apos;re in!</h3>
-                <p className="text-sm text-gray-400 mt-1">Your ticket is confirmed. Show this QR at the door.</p>
+                <h3 className="text-xl font-bold" style={{ color: "var(--t-text)" }}>You&apos;re in!</h3>
+                <p className="mt-1 text-sm" style={{ color: "var(--t-text-muted)" }}>Your ticket is confirmed. Show this QR at the door.</p>
               </div>
 
               {/* QR code */}
-              <div className="mx-auto w-52 h-52 rounded-2xl overflow-hidden border-4 border-gray-100 shadow-sm">
+              <div className="mx-auto h-52 w-52 overflow-hidden rounded-2xl border-4 shadow-sm" style={{ borderColor: "var(--t-border)" }}>
                 <img
                   src={`${API}/public/tickets/qr/${result.issued_tickets[0].qr_token}`}
                   alt="Ticket QR Code"
@@ -1999,14 +2004,15 @@ function TicketCheckoutModal({ ticket, event, onClose, theme }) {
                 />
               </div>
 
-              <div className="rounded-2xl bg-gray-50 px-4 py-3 text-left space-y-1">
-                <p className="text-xs text-gray-400">Order confirmation sent to</p>
-                <p className="text-sm font-semibold text-gray-800">{form.email}</p>
+              <div className="space-y-1 rounded-2xl px-4 py-3 text-left" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border)" }}>
+                <p className="text-xs" style={{ color: "var(--t-text-muted)" }}>Order confirmation sent to</p>
+                <p className="text-sm font-semibold" style={{ color: "var(--t-text)" }}>{form.email}</p>
               </div>
 
               <a
                 href={`${process.env.NEXT_PUBLIC_BASE_URL ?? ""}/my-tickets?email=${encodeURIComponent(form.email)}`}
-                className="block w-full rounded-2xl border border-gray-200 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
+                className="block w-full rounded-2xl py-3 text-sm font-medium transition"
+                style={{ background: "var(--t-bg)", border: "1px solid var(--t-border)", color: "var(--t-text)" }}
               >
                 View all my tickets
               </a>
@@ -2017,8 +2023,8 @@ function TicketCheckoutModal({ ticket, event, onClose, theme }) {
             <motion.div key="paid" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
               className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Complete Payment</h3>
-                <p className="text-xs text-gray-400 mt-0.5">
+                <h3 className="text-xl font-bold" style={{ color: "var(--t-text)" }}>Complete Payment</h3>
+                <p className="mt-0.5 text-xs" style={{ color: "var(--t-text-muted)" }}>
                   Order #{result.order_id?.slice(0, 8)} · {fmtPrice(total)}
                 </p>
               </div>
@@ -2044,19 +2050,20 @@ function TicketCheckoutModal({ ticket, event, onClose, theme }) {
           {step === "paid-success" && (
             <motion.div key="paid-success" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
               className="p-6 text-center space-y-5">
-              <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-2xl" style={{ background: tier ? `${tier.accent}15` : "#EEF2FF" }}>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={tier ? tier.accent : "#4F46E5"} strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-2xl" style={{ background: "color-mix(in srgb, var(--t-accent) 15%, var(--t-bg))" }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--t-accent)" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Payment Confirmed! 🎉</h3>
-                <p className="text-sm text-gray-400 mt-1">Your ticket is being issued and will be emailed to you.</p>
+                <h3 className="text-xl font-bold" style={{ color: "var(--t-text)" }}>Payment Confirmed! 🎉</h3>
+                <p className="mt-1 text-sm" style={{ color: "var(--t-text-muted)" }}>Your ticket is being issued and will be emailed to you.</p>
               </div>
-              <div className="rounded-2xl bg-gray-50 px-4 py-3 text-left space-y-1">
-                <p className="text-xs text-gray-400">Ticket sent to</p>
-                <p className="text-sm font-semibold text-gray-800">{form.email}</p>
+              <div className="space-y-1 rounded-2xl px-4 py-3 text-left" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border)" }}>
+                <p className="text-xs" style={{ color: "var(--t-text-muted)" }}>Ticket sent to</p>
+                <p className="text-sm font-semibold" style={{ color: "var(--t-text)" }}>{form.email}</p>
               </div>
               <a href={`/my-tickets?email=${encodeURIComponent(form.email)}`}
-                className="block w-full rounded-2xl border border-gray-200 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
+                className="block w-full rounded-2xl py-3 text-sm font-medium transition"
+                style={{ background: "var(--t-bg)", border: "1px solid var(--t-border)", color: "var(--t-text)" }}>
                 View My Ticket Profile →
               </a>
             </motion.div>
@@ -2484,9 +2491,16 @@ function TicketCTACard({ ticket, onBuy, isEditor }) {
           </div>
         </div>
         {isSoldOut ? (
-          <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider" style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)" }}>Sold Out</span>
+          <span
+            className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider"
+            style={{
+              background: "color-mix(in srgb, var(--t-accent) 14%, var(--t-dark))",
+              color: "var(--t-accent)",
+              border: "1px solid color-mix(in srgb, var(--t-accent) 35%, var(--t-border))",
+            }}
+          >Sold Out</span>
         ) : isUrgent ? (
-          <span className="shrink-0 text-[10px] font-black text-amber-400">🔥 {available} left</span>
+          <span className="shrink-0 text-[10px] font-black" style={{ color: "var(--t-accent)" }}>🔥 {available} left</span>
         ) : isFeatured ? (
           <span
             className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider"
@@ -2538,7 +2552,7 @@ function TicketCTACard({ ticket, onBuy, isEditor }) {
               <span style={{ color: "var(--t-accent)" }}>{Math.round(pct)}% filled</span>
             </div>
             <div style={{ height: 3, borderRadius: 99, background: "var(--t-border)", overflow: "hidden" }}>
-              <div style={{ height: "100%", borderRadius: 99, background: isUrgent ? "#ef4444" : "var(--t-accent)", width: `${pct}%`, transition: "width 1s ease" }} />
+              <div style={{ height: "100%", borderRadius: 99, background: "var(--t-accent)", width: `${pct}%`, transition: "width 1s ease" }} />
             </div>
           </div>
         )}

@@ -239,7 +239,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   // ─── Fetch current user ───────────────────────────────────────────────────
   fetchMe: async () => {
     try {
-      const res  = await api.get<{ data: User; user: User }>('/auth/me');
+      // Always request fresh account details. Profile edits may have been made
+      // from another signed-in device while this app was in the background.
+      const res  = await api.get<{ data: User; user: User }>('/auth/me', {
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      });
       const user = res.data?.data ?? (res.data as unknown as { user: User })?.user;
       if (user) {
         applyUser(user);

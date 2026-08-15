@@ -24,15 +24,21 @@ export async function uploadAvatar(req, res) {
       folder:        `meetcraft/avatars`,
       public_id:     `user_${userId}`,
       overwrite:     true,
+      invalidate:    true,
       resource_type: "image",
       transformation: [{ width: 400, height: 400, crop: "fill", gravity: "face" }],
     });
 
-    await db.query("UPDATE users SET avatar_url=$1 WHERE id=$2", [result.secure_url, userId]);
+    // Use a unique versioned URL on every upload. Native image components and
+    // browser caches otherwise continue showing the previous photo even when
+    // Cloudinary has already replaced the file.
+    const avatarUrl = `${result.secure_url}${result.secure_url.includes("?") ? "&" : "?"}v=${result.version || Date.now()}`;
+
+    await db.query("UPDATE users SET avatar_url=$1 WHERE id=$2", [avatarUrl, userId]);
 
     return res.status(200).json({
       success: true,
-      data: { avatar_url: result.secure_url },
+      data: { avatar_url: avatarUrl },
     });
   } catch (err) {
     console.error("Avatar upload error:", err);

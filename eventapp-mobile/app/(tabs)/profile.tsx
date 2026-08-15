@@ -4,7 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuthStore }         from '@/store/auth.store';
 import { useDrawerStore }       from '@/store/drawer.store';
 import { useSubscriptionStore } from '@/store/subscription.store';
@@ -19,6 +19,7 @@ export default function ProfileTab() {
   const openDrawer   = useDrawerStore(s => s.open);
   const user         = useAuthStore(s => s.user);
   const logout       = useAuthStore(s => s.logout);
+  const fetchMe      = useAuthStore(s => s.fetchMe);
   const updateAvatar = useAuthStore(s => s.updateAvatar);
   const isSuperAdmin = !!user?.is_super_admin;
   const unreadTotal  = useChatStore(s => s.unreadTotal);
@@ -26,6 +27,18 @@ export default function ProfileTab() {
   const [avatarLoading,  setAvatarLoading]  = useState(false);
   const [logoutModal,    setLogoutModal]    = useState(false);
   const [legalSlug,      setLegalSlug]      = useState<string | null>(null);
+
+  // Refresh whenever Profile becomes visible so edits made on another device
+  // are reflected as soon as the person returns here.
+  useFocusEffect(
+    React.useCallback(() => {
+      void fetchMe();
+      // Poll every 3 seconds for fast sync between iOS/Android/Web
+      // Ensures avatar and profile changes show quickly across devices
+      const interval = setInterval(() => void fetchMe(), 3_000);
+      return () => clearInterval(interval);
+    }, [fetchMe]),
+  );
 
   // User support replies belong in the regular profile. Super-admin support
   // alerts are displayed in the dedicated Super Admin drawer instead.
@@ -95,7 +108,11 @@ export default function ProfileTab() {
             >
               <View style={styles.avatar}>
                 {user?.avatar_url
-                  ? <Image source={{ uri: user.avatar_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                  ? <Image
+                      source={{ uri: user.avatar_url, cache: 'reload' }}
+                      style={StyleSheet.absoluteFill}
+                      resizeMode="cover"
+                    />
                   : <Text style={styles.avatarText}>{initials}</Text>}
               </View>
             </LinearGradient>

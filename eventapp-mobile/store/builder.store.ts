@@ -4,6 +4,15 @@ import { BuilderData, BuilderSection, SaveStatus } from '@/types';
 
 const MAX_HISTORY = 20;
 
+const cloneSections = (sections: BuilderSection[]): BuilderSection[] =>
+  sections.map((section) => ({
+    ...section,
+    config: JSON.parse(JSON.stringify(section.config ?? {})),
+  }));
+
+const snapshotsMatch = (first: BuilderSection[] | undefined, second: BuilderSection[]) =>
+  JSON.stringify(first) === JSON.stringify(second);
+
 interface BuilderState {
   builder:     BuilderData | null;
   isLoading:   boolean;
@@ -13,10 +22,11 @@ interface BuilderState {
   _history:      BuilderSection[][];
   _historyIndex: number;
   _pushSnapshot: () => void;
+  _restoreHistorySnapshot: (eventId: string, nextIndex: number) => Promise<boolean>;
   canUndo:       () => boolean;
   canRedo:       () => boolean;
-  undo:          () => void;
-  redo:          () => void;
+  undo:          (eventId: string) => Promise<boolean>;
+  redo:          (eventId: string) => Promise<boolean>;
 
   // Fetch
   fetchBuilder: (eventId: string) => Promise<void>;
@@ -61,8 +71,9 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
     const { builder, _history, _historyIndex } = get();
     if (!builder?.sections) return;
 
-    const snapshot = builder.sections.map((s) => ({ ...s }));
+    const snapshot = cloneSections(builder.sections);
     const trimmed  = _history.slice(0, _historyIndex + 1);
+    if (snapshotsMatch(trimmed[trimmed.length - 1], snapshot)) return;
     const next     = [...trimmed, snapshot];
     if (next.length > MAX_HISTORY) next.shift();
 
@@ -72,18 +83,57 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
   canUndo: () => get()._historyIndex > 0,
   canRedo: () => get()._historyIndex < get()._history.length - 1,
 
-  undo: () => {
-    const { _history, _historyIndex, builder } = get();
-    if (_historyIndex <= 0 || !builder) return;
-    const newIndex = _historyIndex - 1;
-    set({ builder: { ...builder, sections: _history[newIndex] }, _historyIndex: newIndex });
+  _restoreHistorySnapshot: async (eventId, nextIndex) => {
+    const { builder, _history } = get();
+    const snapshot = _history[nextIndex];
+    if (!builder || !snapshot) return false;
+
+    set({ saveStatus: 'saving' });
+    try {
+      let sections: BuilderSection[];
+      if (snapshot.length === 0) {
+        await Promise.all(
+          builder.sections.map((section) =>
+            api.delete(`/builder/events/${eventId}/sections/${section.id}`)
+          )
+        );
+        sections = [];
+      } else {
+        const res = await api.post<{ data: BuilderSection[] }>(`/builder/events/${eventId}/sections/replace`, {
+          sections: snapshot.map((section) => ({
+            section_type: section.section_type,
+            title: section.title ?? '',
+            body: section.body ?? '',
+            is_visible: section.is_visible !== false,
+            config: section.config ?? {},
+          })),
+        });
+        sections = res.data?.data ?? [];
+      }
+
+      set((state) => ({
+        builder: { ...state.builder!, sections },
+        _historyIndex: nextIndex,
+        saveStatus: 'saved',
+      }));
+      setTimeout(() => { if (get().saveStatus === 'saved') set({ saveStatus: 'idle' }); }, 2000);
+      return true;
+    } catch {
+      set({ saveStatus: 'error' });
+      return false;
+    }
   },
 
-  redo: () => {
-    const { _history, _historyIndex, builder } = get();
-    if (_historyIndex >= _history.length - 1 || !builder) return;
-    const newIndex = _historyIndex + 1;
-    set({ builder: { ...builder, sections: _history[newIndex] }, _historyIndex: newIndex });
+  undo: async (eventId) => {
+    const { _historyIndex } = get();
+    if (_historyIndex <= 0) return false;
+    return get()._restoreHistorySnapshot(eventId, _historyIndex - 1);
+  },
+
+  redo: async (eventId) => {
+    const { _history, _historyIndex } = get();
+    if (_historyIndex >= _history.length - 1) return false;
+    return get()._restoreHistorySnapshot(eventId, _historyIndex + 1);
   },
 
   // ── Fetch ─────────────────────────────────────────────────────────────────────
@@ -95,7 +145,7 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
       set({ builder: data, isLoading: false });
 
       if (data?.sections) {
-        const snapshot = data.sections.map((s) => ({ ...s }));
+        const snapshot = cloneSections(data.sections);
         set({ _history: [snapshot], _historyIndex: 0 });
       }
     } catch {
@@ -105,7 +155,6 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
 
   // ── Create single section ─────────────────────────────────────────────────────
   createSectionFromTemplate: async (eventId, templateKey) => {
-    get()._pushSnapshot();
     try {
       set({ saveStatus: 'saving' });
       const res        = await api.post<{ data: BuilderSection }>(`/builder/events/${eventId}/sections`, { template_key: templateKey });
@@ -114,6 +163,7 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
         builder:    { ...state.builder!, sections: [...(state.builder?.sections ?? []), newSection!] },
         saveStatus: 'saved',
       }));
+      get()._pushSnapshot();
       setTimeout(() => { if (get().saveStatus === 'saved') set({ saveStatus: 'idle' }); }, 2000);
       return newSection;
     } catch {
@@ -123,7 +173,6 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
 
   // ── Apply preset (replace all sections) ──────────────────────────────────────
   applyPreset: async (eventId, sections) => {
-    get()._pushSnapshot();
     try {
       set({ saveStatus: 'saving' });
       const payload = sections.map((s) =>
@@ -137,6 +186,7 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
         builder:    { ...state.builder!, sections: newSections },
         saveStatus: 'saved',
       }));
+      get()._pushSnapshot();
       setTimeout(() => { if (get().saveStatus === 'saved') set({ saveStatus: 'idle' }); }, 2000);
       return newSections;
     } catch {
@@ -146,7 +196,6 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
 
   // ── Batch create sections ─────────────────────────────────────────────────────
   batchCreateSections: async (eventId, templateKeys) => {
-    get()._pushSnapshot();
     try {
       set({ saveStatus: 'saving' });
       const res         = await api.post<{ data: BuilderSection[] }>(`/builder/events/${eventId}/sections/batch`, {
@@ -157,6 +206,7 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
         builder:    { ...state.builder!, sections: [...(state.builder?.sections ?? []), ...newSections] },
         saveStatus: 'saved',
       }));
+      get()._pushSnapshot();
       setTimeout(() => { if (get().saveStatus === 'saved') set({ saveStatus: 'idle' }); }, 2000);
       return newSections;
     } catch {
@@ -177,6 +227,7 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
         },
         saveStatus: 'saved',
       }));
+      get()._pushSnapshot();
       setTimeout(() => { if (get().saveStatus === 'saved') set({ saveStatus: 'idle' }); }, 2000);
     } catch {
       set({ saveStatus: 'error' });
@@ -185,7 +236,6 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
 
   // ── Delete section (optimistic + rollback) ────────────────────────────────────
   deleteSection: async (eventId, sectionId) => {
-    get()._pushSnapshot();
     const prevSections = get().builder?.sections ?? [];
 
     set((state) => ({
@@ -194,6 +244,7 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
 
     try {
       await api.delete(`/builder/events/${eventId}/sections/${sectionId}`);
+      get()._pushSnapshot();
     } catch {
       set((state) => ({ builder: { ...state.builder!, sections: prevSections } }));
     }
@@ -202,7 +253,6 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
   // ── Reorder sections (optimistic + rollback) ──────────────────────────────────
   reorderSections: async (eventId, payload) => {
     const currentSections = get().builder?.sections ?? [];
-    get()._pushSnapshot();
 
     const optimistic = payload
       .map((item) => {
@@ -220,6 +270,7 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
         builder: { ...state.builder!, sections: res.data?.data ?? optimistic },
         saveStatus: 'saved',
       }));
+      get()._pushSnapshot();
       setTimeout(() => { if (get().saveStatus === 'saved') set({ saveStatus: 'idle' }); }, 2000);
     } catch {
       set((state) => ({ builder: { ...state.builder!, sections: currentSections }, saveStatus: 'error' }));
@@ -248,8 +299,12 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
         )
       );
       set({ saveStatus: 'saved' });
+      get()._pushSnapshot();
       setTimeout(() => { if (get().saveStatus === 'saved') set({ saveStatus: 'idle' }); }, 2000);
     } catch {
+      set((state) => ({
+        builder: { ...state.builder!, sections },
+      }));
       set({ saveStatus: 'error' });
     }
   },

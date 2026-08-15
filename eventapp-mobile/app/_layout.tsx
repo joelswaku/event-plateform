@@ -46,6 +46,7 @@ export default function RootLayout() {
   const hydrate           = useAuthStore(s => s.hydrate);
   const isAuthenticated   = useAuthStore(s => s.isAuthenticated);
   const isHydrated        = useAuthStore(s => s.isHydrated);
+  const fetchMe           = useAuthStore(s => s.fetchMe);
   const fetchSubscription = useSubscriptionStore(s => s.fetchSubscription);
   const appState          = useRef<AppStateStatus>(AppState.currentState);
   const router            = useRouter();
@@ -55,6 +56,13 @@ export default function RootLayout() {
   const receivedListenerRef = useRef<Notifications.EventSubscription | null>(null);
 
   useEffect(() => { hydrate(); }, []);
+
+  // The session safely restores from SecureStore first, then refreshes the
+  // profile from the server. This keeps names and avatars in sync when they
+  // were changed on a different phone.
+  useEffect(() => {
+    if (isHydrated && isAuthenticated) void fetchMe();
+  }, [isHydrated, isAuthenticated, fetchMe]);
 
   // Register push token once user is authenticated
   useEffect(() => {
@@ -98,6 +106,7 @@ export default function RootLayout() {
     const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
       if (appState.current.match(/inactive|background/) && next === 'active') {
         if (isAuthenticated) {
+          void fetchMe();
           fetchSubscription();
           clearBadge();
         }
@@ -105,7 +114,7 @@ export default function RootLayout() {
       appState.current = next;
     });
     return () => sub.remove();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchMe, fetchSubscription]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

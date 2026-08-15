@@ -7,6 +7,7 @@ import UpgradeModal from "@/components/ui/UpgradeModal";
 import BillingModal from "@/components/layout/BillingModal";
 import ThemeInit from "@/components/ThemeInit"; // ✅ added
 import GoogleAnalytics from "@/components/GoogleAnalytics";
+import ConnectionStatusBanner from "@/components/ui/ConnectionStatusBanner";
 
 import "./globals.css";
 
@@ -124,6 +125,7 @@ export default function RootLayout({ children }) {
 
         <ThemeProvider>
           <AuthProvider>
+            <ConnectionStatusBanner />
             {children}
 
             <UpgradeModal />

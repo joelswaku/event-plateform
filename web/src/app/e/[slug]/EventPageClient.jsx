@@ -472,7 +472,7 @@ function TicketDrawer({ event, tickets, onClose, theme }) {
                     <div className="mb-1 flex items-center gap-2">
                     <span className="text-base">{cfg.icon}</span>
                     <span className="text-xs font-black uppercase tracking-widest" style={{ color: colors.accent }}>{cfg.label}</span>
-                      {urgent && <span className="flex items-center gap-0.5 text-[10px] font-bold text-red-600"><Zap size={9} />{available} left</span>}
+                      {urgent && <span className="flex items-center gap-0.5 text-[10px] font-bold" style={{ color: colors.accent }}><Zap size={9} />{available} left</span>}
                       {soldOut && <span className="text-[10px] font-bold" style={{ color: colors.muted }}>Sold out</span>}
                     </div>
                     <p className="text-base font-bold" style={{ color: colors.text }}>{t.name}</p>
@@ -719,7 +719,7 @@ export default function EventPageClient({ event, sections, token }) {
 
   return (
     <>
-      <main className={`min-h-screen bg-white ${hasStickyFooter ? "pb-36" : ""}`}>
+      <main className={`min-h-screen ${hasStickyFooter ? "pb-36" : ""}`} style={{ background: eventTheme["--t-bg"] }}>
         <SharedEventRenderer event={enrichedEvent} sections={sections || []} isEditor={false} />
       </main>
 

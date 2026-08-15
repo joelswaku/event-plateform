@@ -317,7 +317,7 @@ export default function MobileBottomBar({
         {/* Undo / Redo */}
         <div className="flex items-center gap-1">
           <button
-            onClick={undo}
+            onClick={() => undo(eventId)}
             disabled={!canUndo}
             title="Undo"
             className="flex h-10 w-10 items-center justify-center rounded-xl transition-colors active:scale-90"
@@ -326,7 +326,7 @@ export default function MobileBottomBar({
             <UndoIcon />
           </button>
           <button
-            onClick={redo}
+            onClick={() => redo(eventId)}
             disabled={!canRedo}
             title="Redo"
             className="flex h-10 w-10 items-center justify-center rounded-xl transition-colors active:scale-90"

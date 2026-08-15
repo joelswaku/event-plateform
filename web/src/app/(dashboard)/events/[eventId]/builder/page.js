@@ -175,8 +175,8 @@ function BuilderContent() {
   useEffect(() => {
     const onKeyDown = (e) => {
       if (!(e.metaKey || e.ctrlKey)) return;
-      if (e.key === "z" && !e.shiftKey) { e.preventDefault(); undo(); }
-      if (e.key === "y" || (e.key === "z" && e.shiftKey)) { e.preventDefault(); redo(); }
+      if (e.key === "z" && !e.shiftKey) { e.preventDefault(); undo(eventId); }
+      if (e.key === "y" || (e.key === "z" && e.shiftKey)) { e.preventDefault(); redo(eventId); }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);

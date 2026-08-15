@@ -1,5 +1,6 @@
 // services/ticket-types.service.js
 import { db } from "../config/db.js";
+import { getEventOwnerPlan, PLANS } from "./planLimits.service.js";
 
 class AppError extends Error {
   constructor(message, statusCode = 400, details = null) {
@@ -109,7 +110,8 @@ GET PUBLIC TICKETS
 ----------------------------------------
 */
 export async function getPublicTicketsService(eventId) {
-  const result = await db.query(
+  const [result, ownerPlan] = await Promise.all([
+    db.query(
     `
     SELECT
       id,
@@ -131,9 +133,16 @@ export async function getPublicTicketsService(eventId) {
     ORDER BY created_at ASC
     `,
     [eventId]
-  );
+    ),
+    getEventOwnerPlan(db, eventId).catch(() => "free"),
+  ]);
 
-  return result.rows;
+  // Return the server-owned fee rate with public ticket data. This keeps every
+  // ticket purchase surface aligned with the exact total Stripe will receive.
+  return {
+    tickets: result.rows,
+    platformFeePercent: PLANS[ownerPlan]?.platformFeePercent ?? PLANS.free.platformFeePercent,
+  };
 }
 
 /*

@@ -44,7 +44,10 @@ api.interceptors.response.use(
     const originalRequest = error.config;
     const response = error.response;
 
-    if (!response) return Promise.reject(error);
+    if (!response) {
+      error.message = "Connection unavailable. Check your Wi-Fi or mobile data, then try again.";
+      return Promise.reject(error);
+    }
 
     // Auth endpoints handle their own errors — never try to refresh on them.
     // Without this, a wrong-password 401 triggers a refresh attempt that
@@ -96,6 +99,12 @@ api.interceptors.response.use(
 
         // Release the queue FIRST so any pending requests don't deadlock.
         onRefreshed();
+
+        // A temporary connection issue must never sign the user out.
+        if (!refreshError?.response) {
+          refreshError.message = "Connection unavailable. Check your Wi-Fi or mobile data, then try again.";
+          return Promise.reject(refreshError);
+        }
 
         // Only call logout if we're not already on an auth page or public page
         // This prevents double-logout and error toasts when user manually logs out

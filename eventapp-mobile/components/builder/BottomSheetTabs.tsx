@@ -12,7 +12,7 @@
  *  - Tabs: Style / Add / Layers / Edit — each has icon + label
  *  - Active tab: indigo icon + label, small top-line indicator
  *  - Edit stays disabled until a section is selected, matching web mobile.
- *  - NO redo button visible
+ *  - Undo and redo controls mirror the web Builder bar.
  *  - Height: matches web h-16 = 64px
  *  - Background: #16181c, 1px top border
  */
@@ -73,12 +73,12 @@ function LogoMark() {
 
 export default function BottomSheetTabs({
   activeTab, onTabChange,
-  hasSelection, canUndo, onUndo,
+  hasSelection, canUndo, canRedo, onUndo, onRedo,
 }: Props) {
   return (
     <View style={s.bar}>
 
-      {/* ── Left: N logo + undo ─────────────────────────────────── */}
+      {/* ── Left: N logo + undo/redo ────────────────────────────── */}
       <View style={s.leftGroup}>
         <LogoMark />
 
@@ -93,6 +93,18 @@ export default function BottomSheetTabs({
             name="rotate-ccw"
             size={16}
             color={canUndo ? '#8b8f9a' : '#2e3038'}
+          />
+        </Pressable>
+        <Pressable
+          style={s.undoBtn}
+          onPress={onRedo}
+          disabled={!canRedo}
+          hitSlop={8}
+        >
+          <Feather
+            name="rotate-cw"
+            size={16}
+            color={canRedo ? '#8b8f9a' : '#2e3038'}
           />
         </Pressable>
       </View>

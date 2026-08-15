@@ -823,7 +823,7 @@ function SchedulePanel({ eventId, items, onCreate, onUpdate, onDelete }) {
                       width: "100%", height: 44, borderRadius: 12, padding: "0 14px",
                       background: "#1e2026", border: "1px solid rgba(255,255,255,0.1)",
                       color: "#f0f1f3", fontSize: 13, outline: "none",
-                      colorScheme: "dark",
+                      colorScheme: "dark", boxSizing: "border-box", minWidth: 0, maxWidth: "100%",
                     }}
                   />
                 </Field>
@@ -836,7 +836,7 @@ function SchedulePanel({ eventId, items, onCreate, onUpdate, onDelete }) {
                       width: "100%", height: 44, borderRadius: 12, padding: "0 14px",
                       background: "#1e2026", border: "1px solid rgba(255,255,255,0.1)",
                       color: "#f0f1f3", fontSize: 13, outline: "none",
-                      colorScheme: "dark",
+                      colorScheme: "dark", boxSizing: "border-box", minWidth: 0, maxWidth: "100%",
                     }}
                   />
                 </Field>
@@ -887,7 +887,7 @@ function SchedulePanel({ eventId, items, onCreate, onUpdate, onDelete }) {
                 width: "100%", height: 44, borderRadius: 12, padding: "0 14px",
                 background: "#1e2026", border: "1px solid rgba(255,255,255,0.1)",
                 color: "#f0f1f3", fontSize: 13, outline: "none",
-                colorScheme: "dark",
+                colorScheme: "dark", boxSizing: "border-box", minWidth: 0, maxWidth: "100%",
               }}
             />
           </Field>
@@ -900,7 +900,7 @@ function SchedulePanel({ eventId, items, onCreate, onUpdate, onDelete }) {
                 width: "100%", height: 44, borderRadius: 12, padding: "0 14px",
                 background: "#1e2026", border: "1px solid rgba(255,255,255,0.1)",
                 color: "#f0f1f3", fontSize: 13, outline: "none",
-                colorScheme: "dark",
+                colorScheme: "dark", boxSizing: "border-box", minWidth: 0, maxWidth: "100%",
               }}
             />
           </Field>

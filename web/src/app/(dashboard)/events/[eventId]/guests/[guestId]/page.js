@@ -301,6 +301,16 @@ export default function GuestDetailPage() {
     }
   }, [eventId, guestId, getGuestById, fetchAssignments, fetchLocations]);
 
+  // The dashboard scroll container can preserve the guest-list position on
+  // mobile navigation. Always begin a new guest-detail view at its header.
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      document.querySelector("main")?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [eventId, guestId]);
+
   if (!guest) {
     return (
       <div className="flex min-h-screen items-center justify-center" style={{ background: '#0a0a0f' }}>

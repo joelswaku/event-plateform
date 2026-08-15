@@ -318,15 +318,15 @@ function MSelect({ value, onChange, options }) {
 function MDateInput({ value, onChange, min, error }) {
   const iso = value ? value.slice(0, 16) : "";
   return (
-    <div>
+    <div className="min-w-0 w-full">
       <input
         type="datetime-local"
         value={iso}
         min={min ? min.slice(0, 16) : undefined}
         aria-invalid={Boolean(error)}
         onChange={e => onChange(e.target.value)}
-        className="w-full rounded-[10px] border px-[13px] py-[11px] text-[14px] font-medium text-white outline-none focus:border-indigo-500/50"
-        style={{ background: "rgba(255,255,255,0.05)", borderColor: error ? "rgba(248,113,113,0.85)" : "rgba(255,255,255,0.10)", colorScheme: "dark" }}
+        className="box-border min-w-0 max-w-full w-full rounded-[10px] border px-[13px] py-[11px] text-[14px] font-medium text-white outline-none focus:border-indigo-500/50"
+        style={{ background: "rgba(255,255,255,0.05)", borderColor: error ? "rgba(248,113,113,0.85)" : "rgba(255,255,255,0.10)", colorScheme: "dark", minWidth: 0 }}
       />
       {error && <p className="mt-1.5 text-[11px] font-medium text-red-300">{error}</p>}
     </div>

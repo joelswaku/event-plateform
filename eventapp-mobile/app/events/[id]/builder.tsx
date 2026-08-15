@@ -450,8 +450,8 @@ export default function BuilderScreen() {
           hasSelection={!!selectedSectionId}
           canUndo={canUndo}
           canRedo={canRedo}
-          onUndo={() => { undo(); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-          onRedo={() => { redo(); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+          onUndo={() => { if (eventId) undo(eventId); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+          onRedo={() => { if (eventId) redo(eventId); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
         />
       </SafeAreaView>
 
