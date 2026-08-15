@@ -182,15 +182,23 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       "expo-build-properties",
       {
+        ios: {
+          deploymentTarget: "15.1",
+          newArchEnabled: true,
+          // Note: useFrameworks: "dynamic" removed - it breaks react-native-netinfo linking
+          // Using modular headers plugin instead for Google pods
+        },
         android: {
           // Release builds may only communicate over HTTPS. This prevents a
           // device on an untrusted network from intercepting API traffic.
           usesCleartextTraffic: false,
-          // Disable Hermes to avoid ES6 class compatibility issues
-          enableHermes: false,
+          newArchEnabled: true,
         },
       },
     ],
+
+    // Fix Google pods (AppCheckCore, GoogleUtilities, RecaptchaInterop) with modular headers
+    "./plugins/withGoogleModularHeaders.js",
 
     "@react-native-community/datetimepicker",
   ],
