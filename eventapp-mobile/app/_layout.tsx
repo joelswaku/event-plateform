@@ -64,6 +64,19 @@ export default function RootLayout() {
     if (isHydrated && isAuthenticated) void fetchMe();
   }, [isHydrated, isAuthenticated, fetchMe]);
 
+  // Keep the small profile record in sync between Android and iOS while the
+  // app is open, even if the person is currently on Home or another screen.
+  // It never runs while the app is in the background.
+  useEffect(() => {
+    if (!isHydrated || !isAuthenticated) return;
+
+    const interval = setInterval(() => {
+      if (appState.current === 'active') void fetchMe();
+    }, 10_000);
+
+    return () => clearInterval(interval);
+  }, [isHydrated, isAuthenticated, fetchMe]);
+
   // Register push token once user is authenticated
   useEffect(() => {
     if (isHydrated && isAuthenticated) {

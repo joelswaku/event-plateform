@@ -13,14 +13,14 @@ import React, { useEffect, useCallback, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable, RefreshControl,
   ActivityIndicator, Dimensions, Animated, NativeSyntheticEvent,
-  NativeScrollEvent, Modal,
+  NativeScrollEvent, Modal, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Image } from 'expo-image';
+import { Image as ExpoImage } from 'expo-image';
 import { useAuthStore }         from '@/store/auth.store';
 import { useEventStore }        from '@/store/event.store';
 import { useDrawerStore }       from '@/store/drawer.store';
@@ -634,7 +634,7 @@ function FeaturedCard({ event, onPress }: { event: Event; onPress: () => void })
   const role   = event.user_role ?? 'ADMIN';
   return (
     <Pressable onPress={onPress} style={[s.featuredCard, isTeam && { borderWidth: 2, borderColor: 'rgba(251,191,36,0.50)' }]}>
-      <Image
+      <ExpoImage
         source={heroImg(event)}
         style={StyleSheet.absoluteFill}
         contentFit="cover"
@@ -789,6 +789,7 @@ function EmptyEvents({ onPress }: { onPress: () => void }) {
 export default function HomeScreen() {
   const router   = useRouter();
   const user     = useAuthStore(st => st.user);
+  const fetchMe  = useAuthStore(st => st.fetchMe);
   const isHydrated = useAuthStore(st => st.isHydrated);
 
   const { events, fetchEvents, loading, activeEventId, setActiveEvent, dashboard, fetchEventDashboard } = useEventStore();
@@ -814,6 +815,7 @@ export default function HomeScreen() {
   // Carousel index
   const [activeIdx,      setActiveIdx]      = useState(0);
   const [planModalOpen,  setPlanModalOpen]  = useState(false);
+  const [avatarCache,    setAvatarCache]    = useState(Date.now());
   const carouselRef = useRef<ScrollView>(null);
 
   // Toast on active-event switch (skip initial mount)
@@ -870,11 +872,19 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!isHydrated) return;
+      fetchMe(); // Refresh profile for avatar updates
       fetchSubscription();
       fetchNotifs();
       if (activeEventId) fetchEventDashboard(activeEventId);
-    }, [activeEventId, isHydrated, fetchSubscription, fetchNotifs])
+    }, [activeEventId, isHydrated, fetchMe, fetchSubscription, fetchNotifs])
   );
+
+  // Update avatar cache when user avatar changes (for Android cache busting)
+  useEffect(() => {
+    if (user?.avatar_url) {
+      setAvatarCache(Date.now());
+    }
+  }, [user?.avatar_url]);
 
   const onRefresh = useCallback(() => {
     if (!isHydrated) return;
@@ -969,13 +979,32 @@ export default function HomeScreen() {
         {/* ── Header ────────────────────────────────────────────── */}
         <Animated.View style={[s.header, animStyle(headerAnim)]}>
           <View style={s.headerLeft}>
-            <LinearGradient
-              colors={user?.is_super_admin ? ['#c9a96e', '#f59e0b'] : [Colors.accent.indigo, Colors.accent.violet]}
-              style={s.logoMark}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            >
-              <Feather name={user?.is_super_admin ? 'shield' : 'zap'} size={14} color={user?.is_super_admin ? '#000' : '#fff'} />
-            </LinearGradient>
+            {/* User Avatar - navigate to profile */}
+            <Pressable onPress={() => router.push('/(tabs)/profile' as never)}>
+              <View style={s.logoMark}>
+                {user?.avatar_url ? (
+                  <Image
+                    key={`home-avatar-${user.avatar_url}-${avatarCache}`}
+                    source={{
+                      uri: `${user.avatar_url}${user.avatar_url.includes('?') ? '&' : '?'}t=${avatarCache}`,
+                      cache: 'reload'
+                    }}
+                    style={StyleSheet.absoluteFill}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <LinearGradient
+                    colors={user?.is_super_admin ? ['#c9a96e', '#f59e0b'] : [Colors.accent.indigo, Colors.accent.violet]}
+                    style={StyleSheet.absoluteFill}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                  >
+                    <Text style={s.avatarInitials}>
+                      {(user?.full_name ?? 'U').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
+                    </Text>
+                  </LinearGradient>
+                )}
+              </View>
+            </Pressable>
             <View>
               <Text style={s.greetingLine}>{greeting()}</Text>
               <Text style={s.nameLine}>{firstName} 👋</Text>
@@ -1244,6 +1273,8 @@ const s = StyleSheet.create({
   headerLeft:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
   headerRight:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logoMark:     { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  avatarWrapper:{ width: 38, height: 38, borderRadius: 12, overflow: 'hidden' },
+  avatarInitials: { fontSize: 14, fontWeight: '900', color: '#fff' },
   greetingLine: { fontSize: 11, color: '#d4e6f5', fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },
   nameLine:     { fontSize: 18, color: '#fff', fontWeight: '900', letterSpacing: -0.4 },
   headerBtn:    { width: 38, height: 38, borderRadius: 12, backgroundColor: Colors.bg.elevated, borderWidth: 1, borderColor: Colors.border.DEFAULT, alignItems: 'center', justifyContent: 'center' },
