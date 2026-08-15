@@ -17,9 +17,17 @@ export default function EditProfileScreen() {
   const user      = useAuthStore(s => s.user);
   const fetchMe   = useAuthStore(s => s.fetchMe);
 
-  const [fullName, setFullName] = useState(user?.full_name ?? '');
-  const [saving,   setSaving]   = useState(false);
+  const [fullName,     setFullName]     = useState(user?.full_name ?? '');
+  const [saving,       setSaving]       = useState(false);
+  const [cacheBuster,  setCacheBuster]  = useState(Date.now());
   const { info, infoProps } = useInfo();
+
+  // Update cache buster when avatar changes to force Android image reload
+  React.useEffect(() => {
+    if (user?.avatar_url) {
+      setCacheBuster(Date.now());
+    }
+  }, [user?.avatar_url]);
 
   const initials = (user?.full_name ?? 'U')
     .split(' ')
@@ -75,7 +83,11 @@ export default function EditProfileScreen() {
               <View style={styles.avatar}>
                 {user?.avatar_url
                   ? <Image
-                      source={{ uri: user.avatar_url, cache: 'reload' }}
+                      key={`avatar-${user.avatar_url}`}
+                      source={{
+                        uri: `${user.avatar_url}${user.avatar_url.includes('?') ? '&' : '?'}t=${cacheBuster}`,
+                        cache: 'reload'
+                      }}
                       style={StyleSheet.absoluteFill}
                       resizeMode="cover"
                     />

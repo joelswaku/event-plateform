@@ -241,7 +241,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       // Always request fresh account details. Profile edits may have been made
       // from another signed-in device while this app was in the background.
-      const res  = await api.get<{ data: User; user: User }>('/auth/me', {
+      // Add timestamp to URL to force Android to bypass aggressive HTTP caching
+      const res  = await api.get<{ data: User; user: User }>(`/auth/me?_t=${Date.now()}`, {
         headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
       });
       const user = res.data?.data ?? (res.data as unknown as { user: User })?.user;
