@@ -3,6 +3,10 @@ import * as authService from "../../services/auth.service.js";
 export async function me(req, res) {
   try {
     const user = await authService.getCurrentUser(req.user.id);
+
+    // Account data (especially avatar and display name) must never be served
+    // from a browser, device, or proxy cache after an edit on another device.
+    res.set("Cache-Control", "private, no-store, max-age=0");
    
      
     return res.status(200).json({

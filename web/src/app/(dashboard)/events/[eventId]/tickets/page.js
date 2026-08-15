@@ -818,8 +818,7 @@ function TermsAcceptanceModal({ onAccepted, onClose }) {
             <p className="text-xs font-black uppercase tracking-widest text-gray-400 dark:text-white/40">Platform fees (added to ticket price for buyers)</p>
             <div className="space-y-1.5">
               {[
-                ["Service fee", "3.5% of ticket subtotal"],
-                ["Per-ticket fee", "$0.49 per paid ticket"],
+                ["Service fee", "Your plan’s rate (0%–2%)"],
                 ["Stripe processing", "2.9% + $0.30 (deducted by Stripe)"],
                 ["Free tickets", "No platform fee"],
               ].map(([label, value]) => (
@@ -831,7 +830,7 @@ function TermsAcceptanceModal({ onAccepted, onClose }) {
             </div>
             <p className="text-[10px] text-gray-400 dark:text-white/35 pt-1 border-t border-gray-100 dark:border-white/8">
               Fees are added on top of your set ticket price. You receive your full ticket price.
-              Example: $50 ticket → buyer pays ~$54.24 total.
+              The exact buyer total is shown before Stripe checkout.
             </p>
           </div>
 

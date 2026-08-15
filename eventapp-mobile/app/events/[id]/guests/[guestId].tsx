@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable,
   ActivityIndicator, TextInput, Switch, Alert, Linking, Share, Platform,
@@ -84,6 +84,7 @@ export default function GuestDetailScreen() {
   const [checkinModal, setCheckinModal] = useState(false);
   const [inviteModal,  setInviteModal]  = useState(false);
   const [qrModal,      setQrModal]      = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
 
   /* Edit form state */
   const [form, setForm] = useState({
@@ -95,6 +96,12 @@ export default function GuestDetailScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      // A reused native screen can retain the guest-list scroll offset.
+      // Reset it before showing the detail header and Edit action.
+      const frame = requestAnimationFrame(() => {
+        scrollRef.current?.scrollTo({ y: 0, animated: false });
+      });
+
       if (eventId && guestId) {
         getGuestById(eventId, guestId);
         getAttendance(eventId);
@@ -111,7 +118,10 @@ export default function GuestDetailScreen() {
           fetchLocations(eventId);
         }
       }, 15000);
-      return () => clearInterval(interval);
+      return () => {
+        cancelAnimationFrame(frame);
+        clearInterval(interval);
+      };
     }, [eventId, guestId, fetchAssignments, fetchLocations])
   );
 
@@ -214,6 +224,7 @@ export default function GuestDetailScreen() {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={s.content}
       >

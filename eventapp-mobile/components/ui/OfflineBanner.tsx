@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
-import { Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, withRepeat, withSequence,
 } from 'react-native-reanimated';
@@ -8,6 +10,7 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 export function OfflineBanner() {
   const isConnected = useNetworkStatus();
+  const insets      = useSafeAreaInsets();
   const opacity     = useSharedValue(0);
   const translateY  = useSharedValue(-40);
 
@@ -27,8 +30,14 @@ export function OfflineBanner() {
   }));
 
   return (
-    <Animated.View style={[styles.banner, anim]}>
-      <Text style={styles.text}>📵  Offline Mode — scans queued locally</Text>
+    <Animated.View pointerEvents="none" style={[styles.banner, { top: insets.top + 10 }, anim]}>
+      <View style={styles.iconWrap}>
+        <Feather name="wifi-off" size={17} color="#FBBF24" />
+      </View>
+      <View style={styles.copy}>
+        <Text style={styles.title}>You&apos;re offline</Text>
+        <Text style={styles.text}>Check your Wi-Fi or mobile data, then try again.</Text>
+      </View>
     </Animated.View>
   );
 }
@@ -36,18 +45,41 @@ export function OfflineBanner() {
 const styles = StyleSheet.create({
   banner: {
     position:        'absolute',
-    top:             0,
-    left:            0,
-    right:           0,
+    left:            12,
+    right:           12,
     zIndex:          9999,
-    backgroundColor: Colors.accent.amber,
+    backgroundColor: '#17130A',
+    borderColor:     `${Colors.accent.amber}66`,
+    borderWidth:     1,
+    borderRadius:    14,
+    paddingHorizontal: 12,
     paddingVertical: 10,
+    flexDirection:   'row',
     alignItems:      'center',
+    gap:             10,
+    elevation:       16,
+  },
+  iconWrap: {
+    width:           34,
+    height:          34,
+    borderRadius:    10,
+    backgroundColor: `${Colors.accent.amber}22`,
+    alignItems:      'center',
+    justifyContent:  'center',
+  },
+  copy: {
+    flex: 1,
+  },
+  title: {
+    color:      '#FFFFFF',
+    fontSize:   13,
+    fontWeight: '800',
+    marginBottom: 1,
   },
   text: {
-    color:      '#1c1002',
+    color:      'rgba(255,255,255,0.66)',
     fontSize:   12,
-    fontWeight: '800',
-    letterSpacing: 0.3,
+    fontWeight: '500',
+    lineHeight: 17,
   },
 });

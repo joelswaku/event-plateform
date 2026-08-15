@@ -322,11 +322,20 @@ function PremiumTicketCard({ ticket, onBuy, delay = 0, isEditor }) {
         {/* right: status */}
         {isSoldOut ? (
           <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg"
-            style={{ background: "rgba(239,68,68,0.18)", color: "#f87171", border: "2px solid rgba(239,68,68,0.30)" }}>
+            style={{
+              background: "color-mix(in srgb, var(--t-accent) 14%, var(--t-dark))",
+              color: "var(--t-accent)",
+              border: "2px solid color-mix(in srgb, var(--t-accent) 35%, var(--t-border))",
+            }}>
             Sold Out
           </span>
         ) : isUrgent ? (
-          <span className="text-[10px] font-black px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-300 border-2 border-amber-500/40 flex items-center gap-1.5 shadow-lg animate-pulse">
+          <span className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-black shadow-lg animate-pulse"
+            style={{
+              background: "color-mix(in srgb, var(--t-accent) 14%, var(--t-dark))",
+              color: "var(--t-accent)",
+              border: "2px solid color-mix(in srgb, var(--t-accent) 35%, var(--t-border))",
+            }}>
             🔥 {available} left
           </span>
         ) : isFeatured ? (
@@ -413,10 +422,8 @@ function PremiumTicketCard({ ticket, onBuy, delay = 0, isEditor }) {
                 transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1], delay: delay + 0.3 }}
                 className="h-full rounded-full"
                 style={{
-                  background: isUrgent
-                    ? "linear-gradient(90deg, #ef4444, #f97316)"
-                    : `linear-gradient(90deg, ${cfg.accent}, color-mix(in srgb, ${cfg.accent} 80%, #fff))`,
-                  boxShadow: `0 0 12px ${isUrgent ? '#ef4444' : cfg.accent}60`
+                  background: `linear-gradient(90deg, ${cfg.accent}, color-mix(in srgb, ${cfg.accent} 80%, var(--t-bg-alt)))`,
+                  boxShadow: `0 0 12px ${cfg.accent}60`
                 }}
               />
             </div>
@@ -432,7 +439,7 @@ function PremiumTicketCard({ ticket, onBuy, delay = 0, isEditor }) {
             style={{
               background: isSoldOut
                 ? "linear-gradient(135deg, color-mix(in srgb, var(--t-border) 60%, transparent), var(--t-border))"
-                : `linear-gradient(135deg, ${cfg.accent}, color-mix(in srgb, ${cfg.accent} 85%, #000))`,
+                : `linear-gradient(135deg, ${cfg.accent}, color-mix(in srgb, ${cfg.accent} 85%, var(--t-dark)))`,
               color: isSoldOut ? "var(--t-text-muted)" : "var(--t-dark)",
               letterSpacing: "0.10em",
               boxShadow: isSoldOut ? "none" : `0 12px 32px -8px ${cfg.accent}70, 0 0 0 1px ${cfg.accent}30`,
@@ -517,9 +524,9 @@ function TicketHeroHeader({ event, tickets, accentColor }) {
             animate={{ opacity: 1, y: 0 }}
             className="mx-auto mb-5 flex w-fit items-center gap-2 rounded-full px-4 py-2 text-sm font-bold"
             style={{
-              background: "linear-gradient(135deg,rgba(239,68,68,0.15),rgba(239,68,68,0.08))",
-              border: "1px solid rgba(239,68,68,0.3)",
-              color: "#ef4444",
+              background: "color-mix(in srgb, var(--t-accent) 14%, var(--t-bg-alt))",
+              border: "1px solid color-mix(in srgb, var(--t-accent) 35%, var(--t-border))",
+              color: "var(--t-accent)",
             }}
           >
             <span style={{ animation: "ticketPulse 1s ease-in-out infinite" }}>🔥</span>
@@ -675,7 +682,7 @@ function TrustBar({ accent }) {
 }
 
 /* ─── CHECKOUT MODAL (from existing code — kept as-is) ─────── */
-function CheckoutModal({ ticket, event, onClose }) {
+function CheckoutModal({ ticket, event, platformFeePercent = 0, onClose }) {
   const cfg     = getThemeTicketTier(ticket);
 
   const [step,       setStep]       = useState("form");
@@ -690,7 +697,12 @@ function CheckoutModal({ ticket, event, onClose }) {
     : 99;
   const maxQty    = Math.min(available, 10);
   const priceEach = ticket.kind === "FREE" ? 0 : Number(ticket.price);
-  const total     = priceEach * qty;
+  const subtotal  = priceEach * qty;
+  const fee       = subtotal > 0
+    ? Math.round((subtotal * Number(platformFeePercent || 0) / 100) * 100) / 100
+    : 0;
+  const total     = subtotal + fee;
+  const canSubmit = Boolean(form.name.trim() && /\S+@\S+\.\S+/.test(form.email));
   const fmtP      = (n) => new Intl.NumberFormat("en-US", {
     style: "currency", currency: ticket.currency ?? "USD",
   }).format(n);
@@ -854,23 +866,24 @@ function CheckoutModal({ ticket, event, onClose }) {
 
               {/* Total */}
               {ticket.kind !== "FREE" && (
-                <div className="flex items-center justify-between rounded-xl px-4 py-3"
+                <div className="space-y-2 rounded-xl px-4 py-3"
                   style={{ background: "var(--t-bg)", border: `1px solid ${cfg.border}` }}>
-                  <span className="text-sm" style={{ color: cfg.muted }}>Total ({qty} × {fmtP(priceEach)})</span>
-                  <span className="text-lg font-black" style={{ color: cfg.accent }}>{fmtP(total)}</span>
+                  <div className="flex items-center justify-between text-sm" style={{ color: cfg.muted }}><span>Subtotal ({qty} × {fmtP(priceEach)})</span><span>{fmtP(subtotal)}</span></div>
+                  {fee > 0 && <div className="flex items-center justify-between text-sm" style={{ color: cfg.muted }}><span>Service fee ({platformFeePercent}%)</span><span>{fmtP(fee)}</span></div>}
+                  <div className="flex items-center justify-between border-t pt-2" style={{ borderColor: cfg.border }}><span className="text-sm font-bold" style={{ color: "var(--t-text)" }}>Total</span><span className="text-lg font-black" style={{ color: cfg.accent }}>{fmtP(total)}</span></div>
                 </div>
               )}
 
               <button
                 onClick={submit}
-                disabled={submitting}
+                disabled={submitting || !canSubmit}
                 className="w-full rounded-xl py-4 text-sm font-black uppercase tracking-wide transition-all"
                 style={{
                   background: cfg.accent,
                   color: cfg.dark,
                   boxShadow: `0 8px 24px ${cfg.glow}`,
-                  opacity: submitting ? 0.7 : 1,
-                  cursor: submitting ? "wait" : "pointer",
+                  opacity: submitting || !canSubmit ? 0.7 : 1,
+                  cursor: submitting || !canSubmit ? "not-allowed" : "pointer",
                 }}
               >
                 {submitting
@@ -929,13 +942,17 @@ export function PremiumTicketsSection({ section, event, isEditor = false, onEdit
   const [tickets,  setTickets]  = useState(isEditor ? TICKET_MOCK : []);
   const [loading,  setLoading]  = useState(!isEditor && !!event?.id);
   const [checkout, setCheckout] = useState(null);
+  const [platformFeePercent, setPlatformFeePercent] = useState(0);
 
   useEffect(() => {
     if (isEditor || !event?.id || !API || !event?.allow_ticketing) return;
     setLoading(true);
     fetch(`${API}/public/events/${event.id}/tickets`)
       .then((r) => r.json())
-      .then((d) => setTickets(d.tickets ?? []))
+      .then((d) => {
+        setTickets(d.tickets ?? []);
+        setPlatformFeePercent(Number(d.platform_fee_percent ?? 0));
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [event?.id, isEditor, event?.allow_ticketing]);
@@ -1037,6 +1054,7 @@ export function PremiumTicketsSection({ section, event, isEditor = false, onEdit
           <CheckoutModal
             ticket={checkout}
             event={event}
+            platformFeePercent={platformFeePercent}
             onClose={() => setCheckout(null)}
           />
         )}

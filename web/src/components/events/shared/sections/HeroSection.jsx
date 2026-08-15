@@ -1625,13 +1625,13 @@ function HeroTicketCard({ event, ctaText, isEditor, priceLabel, spotsLeft, hasLi
   );
 }
 
-function HeroTicketAction({ event, ctaText, isEditor, priceLabel, spotsLeft, hasLimit, ticketCount, isSoldOut, isUrgent, delay, centered, onBuyTickets }) {
+function HeroTicketAction({ event, ctaText, isEditor, priceLabel, spotsLeft, hasLimit, ticketCount, isSoldOut, isUrgent, delay, centered, compact, onBuyTickets }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.65, ease: EASE, delay }}
-      className="relative left-1/2 mt-12 w-screen -translate-x-1/2 overflow-hidden pt-16 sm:mt-16 sm:pt-20"
+      className={`relative left-1/2 w-screen -translate-x-1/2 overflow-hidden ${compact ? "-mt-2 pt-6 sm:-mt-4 sm:pt-8" : "mt-4 pt-8 sm:mt-6 sm:pt-10"}`}
     >
       <svg
         aria-hidden="true"
@@ -1663,7 +1663,7 @@ function HeroTicketAction({ event, ctaText, isEditor, priceLabel, spotsLeft, has
   );
 }
 
-function CtaArea({ showTicketBlock, showRsvpBlock, showDonationBlock, donationStyle, centered, delay, event, isEditor, ctaText, priceLabel, spotsLeft, hasLimit, ticketCount, isSoldOut, isUrgent, onRsvp, onBuyTickets }) {
+function CtaArea({ showTicketBlock, showRsvpBlock, showDonationBlock, donationStyle, centered, delay, event, isEditor, ctaText, priceLabel, spotsLeft, hasLimit, ticketCount, isSoldOut, isUrgent, compactTicketSpacing, onRsvp, onBuyTickets }) {
   if (!showTicketBlock && !showRsvpBlock && !showDonationBlock) return null;
 
   const donationOnly = showDonationBlock && !showTicketBlock && !showRsvpBlock;
@@ -1681,6 +1681,7 @@ function CtaArea({ showTicketBlock, showRsvpBlock, showDonationBlock, donationSt
           ticketCount={ticketCount}
           isSoldOut={isSoldOut}
           isUrgent={isUrgent}
+          compact={compactTicketSpacing}
           delay={delay + 0.05}
           centered={centered}
           onBuyTickets={onBuyTickets}
@@ -1810,6 +1811,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
     ticketCount,
     isSoldOut,
     isUrgent,
+    compactTicketSpacing: theme === "LUXURY",
     onRsvp: handleRsvp,
     onBuyTickets: handleBuyTickets,
   };

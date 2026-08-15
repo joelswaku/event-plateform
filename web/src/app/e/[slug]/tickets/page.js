@@ -38,11 +38,13 @@ const colors = {
 
 function fmtPrice(price, currency = "USD") {
   if (!price || Number(price) === 0) return "Free";
+  const amount = Number(price);
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency,
-    maximumFractionDigits: 0,
-  }).format(Number(price));
+    minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
 }
 
 function ticketLabel(ticket) {
@@ -92,7 +94,7 @@ function TicketChoice({ ticket, event, featured, onChoose }) {
       style={{
         background: colors.surface,
         borderColor: featured ? colors.accent : colors.border,
-        boxShadow: featured ? "0 18px 42px var(--t-accent-dim)" : "0 8px 22px rgba(20,52,37,0.06)",
+        boxShadow: featured ? "0 18px 42px var(--t-accent-dim)" : "0 8px 22px color-mix(in srgb, var(--t-dark) 7%, transparent)",
       }}
     >
       {featured && (
@@ -112,9 +114,23 @@ function TicketChoice({ ticket, event, featured, onChoose }) {
             </div>
           </div>
           {soldOut ? (
-            <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider" style={{ background: "#fff0ef", color: "#bc3c37" }}>Sold out</span>
+            <span
+              className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider"
+              style={{
+                background: "color-mix(in srgb, var(--t-accent) 14%, var(--t-bg-alt))",
+                color: colors.accent,
+                border: "1px solid color-mix(in srgb, var(--t-accent) 35%, var(--t-border))",
+              }}
+            >Sold out</span>
           ) : urgent ? (
-            <span className="flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black" style={{ background: "#fff7e7", color: "#ad6c00" }}><Zap size={11} /> {available} left</span>
+            <span
+              className="flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black"
+              style={{
+                background: "color-mix(in srgb, var(--t-accent) 14%, var(--t-bg-alt))",
+                color: colors.accent,
+                border: "1px solid color-mix(in srgb, var(--t-accent) 35%, var(--t-border))",
+              }}
+            ><Zap size={11} /> {available} left</span>
           ) : null}
         </div>
 
@@ -139,7 +155,7 @@ function TicketChoice({ ticket, event, featured, onChoose }) {
               <span style={{ color: colors.accent }}>{filled.toFixed(0)}% claimed</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "color-mix(in srgb, var(--t-text) 10%, transparent)" }}>
-              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${filled}%`, background: urgent ? "#dd8b31" : colors.accent }} />
+              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${filled}%`, background: colors.accent }} />
             </div>
           </div>
         )}
@@ -158,7 +174,7 @@ function TicketChoice({ ticket, event, featured, onChoose }) {
   );
 }
 
-function CheckoutModal({ ticket, event, onClose }) {
+function CheckoutModal({ ticket, event, platformFeePercent = 0, onClose }) {
   const [step, setStep] = useState("form");
   const [qty, setQty] = useState(1);
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
@@ -173,8 +189,13 @@ function CheckoutModal({ ticket, event, onClose }) {
   const available = ticket.quantity_total != null ? ticket.quantity_total - (ticket.quantity_sold ?? 0) : 10;
   const maxQty = Math.max(1, Math.min(available, 10));
   const priceEach = ticket.kind === "FREE" ? 0 : Number(ticket.price);
-  const total = priceEach * qty;
-  const fee = priceEach > 0 ? Math.round((total * 0.035 + qty * 0.49) * 100) / 100 : 0;
+  const subtotal = priceEach * qty;
+  const fee = subtotal > 0
+    ? Math.round((subtotal * Number(platformFeePercent || 0) / 100) * 100) / 100
+    : 0;
+  const total = subtotal + fee;
+  const hasValidEmail = /\S+@\S+\.\S+/.test(form.email);
+  const canSubmit = Boolean(form.name.trim() && hasValidEmail && termsChecked);
   const inputStyle = { background: "var(--t-bg)", border: "1.5px solid var(--t-border)", color: colors.text };
 
   async function submit() {
@@ -250,7 +271,16 @@ function CheckoutModal({ ticket, event, onClose }) {
               {[{ key: "name", label: "Full name", type: "text", placeholder: "Your full name" }, { key: "email", label: "Email", type: "email", placeholder: "you@example.com" }, { key: "phone", label: "Phone (optional)", type: "tel", placeholder: "+1 234 567 8900" }].map(({ key, label, type, placeholder }) => (
                 <label key={key} className="block text-xs font-bold" style={{ color: colors.text }}>
                   {label}
-                  <input type={type} value={form[key]} placeholder={placeholder} onChange={(e) => setForm((value) => ({ ...value, [key]: e.target.value }))} className="mt-1.5 w-full rounded-xl px-4 py-3 text-sm outline-none transition focus:border-[#2f6b52]" style={inputStyle} />
+                  <input
+                    type={type}
+                    value={form[key]}
+                    placeholder={placeholder}
+                    onChange={(e) => setForm((value) => ({ ...value, [key]: e.target.value }))}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = colors.accent; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = "var(--t-border)"; }}
+                    className="mt-1.5 w-full rounded-xl px-4 py-3 text-sm outline-none transition"
+                    style={inputStyle}
+                  />
                 </label>
               ))}
             </div>
@@ -260,8 +290,8 @@ function CheckoutModal({ ticket, event, onClose }) {
             </div>
 
             <div className="space-y-2 border-y py-4" style={{ borderColor: "var(--t-border)" }}>
-              <div className="flex items-center justify-between text-sm" style={{ color: colors.muted }}><span>Tickets subtotal</span><span className="font-semibold">{fmtPrice(total, ticket.currency)}</span></div>
-              {priceEach > 0 && <div className="flex items-center justify-between text-sm" style={{ color: colors.muted }}><span>Service fee</span><span className="font-semibold">{fmtPrice(fee, ticket.currency)}</span></div>}
+              <div className="flex items-center justify-between text-sm" style={{ color: colors.muted }}><span>Tickets subtotal</span><span className="font-semibold">{fmtPrice(subtotal, ticket.currency)}</span></div>
+              {fee > 0 && <div className="flex items-center justify-between text-sm" style={{ color: colors.muted }}><span>Service fee ({platformFeePercent}%)</span><span className="font-semibold">{fmtPrice(fee, ticket.currency)}</span></div>}
               <div className="flex items-center justify-between pt-2"><span className="text-sm font-black" style={{ color: colors.text }}>Total</span><span className="text-xl font-black" style={{ color: colors.accent }}>{fmtPrice(total, ticket.currency)}</span></div>
             </div>
 
@@ -275,7 +305,7 @@ function CheckoutModal({ ticket, event, onClose }) {
 
             {error && <p className="rounded-xl px-3 py-2 text-sm font-semibold" style={{ background: "#fff1ef", color: "#ae4238" }}>{error}</p>}
 
-            <button onClick={submit} disabled={submitting} className="flex w-full items-center justify-center gap-2 rounded-xl py-4 text-sm font-black transition-all hover:scale-[1.01] active:scale-[0.985] disabled:opacity-55" style={{ background: colors.accent, color: "var(--t-dark)", boxShadow: "0 8px 20px var(--t-accent-dim)" }}>
+            <button onClick={submit} disabled={submitting || !canSubmit} className="flex w-full items-center justify-center gap-2 rounded-xl py-4 text-sm font-black transition-all hover:scale-[1.01] active:scale-[0.985] disabled:opacity-55" style={{ background: colors.accent, color: "var(--t-dark)", boxShadow: "0 8px 20px var(--t-accent-dim)" }}>
               {submitting ? <><Loader2 size={17} className="animate-spin" /> Processing…</> : <>{ticket.kind === "FREE" ? "Reserve my free spot" : `Pay ${fmtPrice(total, ticket.currency)}`} <ArrowRight size={16} /></>}
             </button>
             <p className="flex items-center justify-center gap-1.5 text-center text-[10px] font-semibold" style={{ color: colors.muted }}><ShieldCheck size={13} /> Secure checkout powered by Stripe</p>
@@ -305,6 +335,7 @@ export default function EventTicketsPage() {
   const [event, setEvent] = useState(null);
   const [theme, setTheme] = useState(() => resolveThemeFromSections([]));
   const [tickets, setTickets] = useState([]);
+  const [platformFeePercent, setPlatformFeePercent] = useState(0);
   const [loading, setLoading] = useState(true);
   const [checkout, setCheckout] = useState(null);
   const [banner, setBanner] = useState(() => {
@@ -325,24 +356,26 @@ export default function EventTicketsPage() {
     if (!slug) return;
     Promise.all([
       fetch(`/api/public/pages/${slug}`).then((response) => response.json()).then((data) => {
-        setTheme(resolveThemeFromSections(data.data?.sections));
+        const sections = data.data?.sections ?? [];
+        setTheme(resolveThemeFromSections(sections));
         return data.data?.event ?? null;
       }).catch(() => null),
-      fetch(`/api/public/events/${slug}/tickets`).then((response) => response.json()).then((data) => data.tickets ?? []).catch(() => []),
-    ]).then(([evt, foundTickets]) => {
-      if (evt?.id && foundTickets.length === 0) {
+      fetch(`/api/public/events/${slug}/tickets`).then((response) => response.json()).then((data) => ({ tickets: data.tickets ?? [], platformFeePercent: Number(data.platform_fee_percent ?? 0) })).catch(() => ({ tickets: [], platformFeePercent: 0 })),
+    ]).then(([evt, ticketResult]) => {
+      if (evt?.id && ticketResult.tickets.length === 0) {
         return fetch(`/api/public/events/${evt.id}/tickets`).then((response) => response.json()).then((data) => {
           setEvent(evt);
           setTickets(data.tickets ?? []);
+          setPlatformFeePercent(Number(data.platform_fee_percent ?? 0));
         });
       }
       setEvent(evt);
-      setTickets(foundTickets);
+      setTickets(ticketResult.tickets);
+      setPlatformFeePercent(ticketResult.platformFeePercent);
     }).finally(() => setLoading(false));
   }, [slug]);
 
   const maxPrice = tickets.length ? Math.max(...tickets.map((ticket) => Number(ticket.price ?? 0))) : 0;
-
   return (
     <div className="relative min-h-screen overflow-x-hidden" style={{ ...theme, background: colors.background, color: colors.text, fontFamily: "var(--t-font-body)" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap');`}</style>
@@ -362,21 +395,21 @@ export default function EventTicketsPage() {
         </AnimatePresence>
 
         {loading ? (
-          <div className="mx-auto max-w-5xl px-4 py-8"><div className="overflow-hidden rounded-2xl"><div className="h-64 animate-pulse" style={{ background: "#dfeadf" }} /><div className="space-y-4 p-7"><div className="h-4 w-32 animate-pulse rounded" style={{ background: "#e4ece5" }} /><div className="h-11 w-4/5 animate-pulse rounded" style={{ background: "#edf3ee" }} /><div className="h-4 w-56 animate-pulse rounded" style={{ background: "#e4ece5" }} /></div></div></div>
+          <div className="mx-auto max-w-5xl px-4 py-8"><div className="overflow-hidden rounded-2xl" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}><div className="h-64 animate-pulse" style={{ background: colors.soft }} /><div className="space-y-4 p-7"><div className="h-4 w-32 animate-pulse rounded" style={{ background: "color-mix(in srgb, var(--t-border) 72%, var(--t-bg))" }} /><div className="h-11 w-4/5 animate-pulse rounded" style={{ background: "color-mix(in srgb, var(--t-border) 50%, var(--t-bg))" }} /><div className="h-4 w-56 animate-pulse rounded" style={{ background: "color-mix(in srgb, var(--t-border) 72%, var(--t-bg))" }} /></div></div></div>
         ) : event ? (
           <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }} style={{ background: colors.surface }}>
-            <div className="relative min-h-[250px] overflow-hidden sm:min-h-[310px]" style={{ background: "linear-gradient(135deg,var(--t-dark),var(--t-dark-surface))" }}>
+            <div className="relative min-h-[170px] overflow-hidden sm:min-h-[250px]" style={{ background: "linear-gradient(135deg,var(--t-dark),var(--t-dark-surface))" }}>
               {event.cover_image_url && <img src={event.cover_image_url} alt="" className="absolute inset-0 h-full w-full object-cover" style={{ filter: "brightness(0.62) saturate(0.9)" }} />}
               <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, color-mix(in srgb, var(--t-dark) 84%, transparent) 0%, color-mix(in srgb, var(--t-dark) 48%, transparent) 58%, color-mix(in srgb, var(--t-dark) 18%, transparent) 100%)" }} />
-              <div className="relative flex min-h-[250px] flex-col justify-end px-6 pb-7 pt-12 sm:min-h-[310px] sm:px-10 sm:pb-10">
-                <span className="mb-4 inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em]" style={{ background: "rgba(255,255,255,0.16)", color: "#ffffff", border: "1px solid rgba(255,255,255,0.22)", backdropFilter: "blur(10px)" }}><Ticket size={13} /> Tickets for this event</span>
+              <div className="relative flex min-h-[170px] flex-col justify-end px-6 pb-5 pt-6 sm:min-h-[250px] sm:px-10 sm:pb-8 sm:pt-9">
+                <span className="mb-3 inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] sm:mb-4" style={{ background: "rgba(255,255,255,0.16)", color: "#ffffff", border: "1px solid rgba(255,255,255,0.22)", backdropFilter: "blur(10px)" }}><Ticket size={13} /> Tickets for this event</span>
                 <h1 className="max-w-2xl text-4xl font-black leading-[0.98] text-white sm:text-5xl" style={{ fontFamily: "var(--t-font-heading)", letterSpacing: "-0.035em" }}>{event.title}</h1>
-                <div className="mt-5"><EventMeta event={event} /></div>
+                <div className="mt-4 sm:mt-5"><EventMeta event={event} /></div>
               </div>
             </div>
 
-            <div className="mx-auto max-w-5xl px-6 py-8 sm:px-10 sm:py-10">
-              <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: colors.muted }}>Your place is waiting</p><h2 className="mt-1 text-2xl font-black sm:text-3xl" style={{ color: colors.text, fontFamily: "var(--t-font-heading)" }}>Choose your ticket</h2><p className="mt-2 text-sm" style={{ color: colors.muted }}>Select an option below. Your secure ticket and QR code will arrive by email.</p></div>{tickets.length > 0 && <span className="flex w-fit items-center gap-2 rounded-full px-3 py-2 text-xs font-bold" style={{ background: colors.soft, color: colors.text }}><Users size={14} /> {tickets.length} {tickets.length === 1 ? "ticket type" : "ticket types"}</span>}</div>
+            <div className="mx-auto max-w-5xl px-6 py-4 sm:px-10 sm:py-8">
+              <div className="mb-2 flex flex-col justify-between gap-4 sm:mb-5 sm:flex-row sm:items-end"><div><p className="text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: colors.muted }}>Your place is waiting</p><h2 className="mt-1 text-2xl font-black sm:text-3xl" style={{ color: colors.text, fontFamily: "var(--t-font-heading)" }}>Choose your ticket</h2><p className="mt-2 text-sm" style={{ color: colors.muted }}>Select an option below. Your secure ticket and QR code will arrive by email.</p></div>{tickets.length > 0 && <span className="flex w-fit items-center gap-2 rounded-full px-3 py-2 text-xs font-bold" style={{ background: colors.soft, color: colors.text }}><Users size={14} /> {tickets.length} {tickets.length === 1 ? "ticket type" : "ticket types"}</span>}</div>
 
               {tickets.length === 0 ? (
                 <div className="rounded-[22px] px-6 py-16 text-center" style={{ background: colors.soft, border: "1px solid var(--t-border)" }}><div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: colors.accentLight, color: colors.accent }}><Ticket size={25} /></div><p className="text-xl font-black" style={{ color: colors.text }}>Tickets coming soon</p><p className="mt-2 text-sm" style={{ color: colors.muted }}>Check back closer to the event date.</p></div>
@@ -392,7 +425,7 @@ export default function EventTicketsPage() {
         {!loading && tickets.length > 0 && <div className="flex flex-wrap items-center justify-center gap-x-7 gap-y-3 px-4 py-9 sm:py-11">{[[ShieldCheck, "Secure checkout"], [Ticket, "Instant e-ticket"], [CheckCircle, "QR code entry"], [CreditCard, "Powered by Stripe"]].map(([Icon, label]) => <span key={label} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: colors.muted }}><Icon size={15} style={{ color: colors.accent }} /> {label}</span>)}</div>}
       </main>
 
-      <AnimatePresence>{checkout && <CheckoutModal ticket={checkout} event={event} onClose={() => setCheckout(null)} />}</AnimatePresence>
+      <AnimatePresence>{checkout && <CheckoutModal ticket={checkout} event={event} platformFeePercent={platformFeePercent} onClose={() => setCheckout(null)} />}</AnimatePresence>
     </div>
   );
 }

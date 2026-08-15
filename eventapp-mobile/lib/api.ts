@@ -47,6 +47,11 @@ api.interceptors.response.use(
     const status   = error.response?.status as number | undefined;
     const url      = original?.url ?? '';
 
+    if (!error.response) {
+      error.message = 'Connection unavailable. Check your Wi-Fi or mobile data, then try again.';
+      return Promise.reject(error);
+    }
+
     // Auth endpoints handle their own errors — never try to refresh on them.
     // Without this, a wrong-password 401 triggers a refresh attempt that
     // deadlocks the queue (logout call inside the catch re-queues itself).
@@ -103,9 +108,15 @@ api.interceptors.response.use(
         processQueue(newAccessToken);
         original.headers.Authorization = `Bearer ${newAccessToken}`;
         return api(original);
-      } catch {
+      } catch (refreshError) {
         // Release the queue FIRST so pending requests don't deadlock.
         processQueue(null);
+
+        // A lost connection is temporary, not an invalid session.
+        if (!(refreshError as { response?: unknown })?.response) {
+          return Promise.reject(refreshError);
+        }
+
         clearToken();
         clearOrgId();
         const { useAuthStore } = await import('@/store/auth.store');

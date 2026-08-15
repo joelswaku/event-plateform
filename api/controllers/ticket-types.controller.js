@@ -32,11 +32,12 @@ export async function getPublicTickets(req, res) {
   try {
     const { eventId } = req.params;
 
-    const tickets = await service.getPublicTicketsService(eventId);
+    const result = await service.getPublicTicketsService(eventId);
 
     res.json({
       success: true,
-      tickets,
+      tickets: result.tickets,
+      platform_fee_percent: result.platformFeePercent,
     });
   } catch (err) {
     handleError(res, err);

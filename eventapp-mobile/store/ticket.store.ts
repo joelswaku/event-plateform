@@ -11,6 +11,7 @@ interface TicketState {
   stats:             TicketStats | null;
   eventsWithTickets: Event[];
   loading:           boolean;
+  activeTicketEventId: string | null;
 
   // Admin
   fetchTicketTypes:       (eventId: string) => Promise<void>;
@@ -35,15 +36,21 @@ export const useTicketStore = create<TicketState>((set, get) => ({
   stats:             null,
   eventsWithTickets: [],
   loading:           false,
+  activeTicketEventId: null,
 
   // ── Admin ─────────────────────────────────────────────────────────────────────
   fetchTicketTypes: async (eventId) => {
-    set({ loading: true });
+    // Ticket data is shared by several routes. Clear the previous event before
+    // loading the next one and ignore any late response from the old request.
+    // This prevents stale values from being rendered in native charts.
+    set({ loading: true, activeTicketEventId: eventId, ticketTypes: [], stats: null });
     try {
       const res = await api.get<{ tickets: TicketType[] }>(`/ticket-types/events/${eventId}/tickets`);
-      set({ ticketTypes: res.data?.tickets ?? [], loading: false });
+      if (get().activeTicketEventId === eventId) {
+        set({ ticketTypes: res.data?.tickets ?? [], loading: false });
+      }
     } catch {
-      set({ loading: false });
+      if (get().activeTicketEventId === eventId) set({ loading: false });
     }
   },
 
@@ -51,10 +58,10 @@ export const useTicketStore = create<TicketState>((set, get) => ({
     try {
       const res = await api.get<{ data: TicketStats }>(`/ticket-types/events/${eventId}/tickets/stats`);
       const data = res.data?.data ?? null;
-      set({ stats: data });
+      if (get().activeTicketEventId === eventId) set({ stats: data });
       return data;
     } catch {
-      set({ stats: null });
+      if (get().activeTicketEventId === eventId) set({ stats: null });
       return null;
     }
   },

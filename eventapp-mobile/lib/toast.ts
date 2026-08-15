@@ -41,7 +41,7 @@ function parseApiError(raw?: string): { title: string; subtitle?: string } {
 
   // Network & server errors - only for REAL connection issues
   if (msg.includes('network') || msg.includes('connect') || msg.includes('timeout') || msg.includes('econnrefused'))
-    return { title: 'Connection issue', subtitle: 'Check your internet and try again.' };
+    return { title: 'Connection unavailable', subtitle: 'Check your Wi-Fi or mobile data, then try again.' };
   if (msg.includes('500') || msg.includes('internal server'))
     return { title: 'Server error', subtitle: 'We\'re on it. Please try again shortly.' };
   if (msg.includes('429') || msg.includes('too many requests') || msg.includes('rate limit'))

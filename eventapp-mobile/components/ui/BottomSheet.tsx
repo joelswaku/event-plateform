@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   Modal, View, Text, Pressable, StyleSheet, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
@@ -21,9 +21,12 @@ export function BottomSheet({ open, onClose, title, children, maxHeight = 600 }:
   const insets = useSafeAreaInsets();
   const translateY = useSharedValue(600);
   const opacity    = useSharedValue(0);
+  const closingRef = useRef(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (open) {
+      closingRef.current = false;
       opacity.value    = withTiming(1,   { duration: 200 });
       translateY.value = withSpring(0,   { damping: 20, stiffness: 200 });
     } else {
@@ -31,6 +34,10 @@ export function BottomSheet({ open, onClose, title, children, maxHeight = 600 }:
       translateY.value = withTiming(600, { duration: 200 });
     }
   }, [open]);
+
+  useEffect(() => () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+  }, []);
 
   const sheetAnim = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
@@ -40,15 +47,31 @@ export function BottomSheet({ open, onClose, title, children, maxHeight = 600 }:
   }));
 
   const close = () => {
+    if (!open || closingRef.current) return;
+    closingRef.current = true;
+
+    const finishClose = () => {
+      if (!closingRef.current) return;
+      closingRef.current = false;
+      if (closeTimer.current) {
+        clearTimeout(closeTimer.current);
+        closeTimer.current = null;
+      }
+      onClose();
+    };
+
     opacity.value    = withTiming(0, { duration: 180 });
-    const cb = onClose;
     translateY.value = withTiming(600, { duration: 200 }, () => {
-      if (typeof cb === 'function') runOnJS(cb)();
+      runOnJS(finishClose)();
     });
+
+    // Reanimated callbacks can occasionally be skipped if Android/iOS pauses
+    // a frame. Never leave a transparent native Modal over the whole screen.
+    closeTimer.current = setTimeout(finishClose, 280);
   };
 
   return (
-    <Modal visible={open} transparent animationType="none" statusBarTranslucent>
+    <Modal visible={open} transparent animationType="none" statusBarTranslucent onRequestClose={close}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}

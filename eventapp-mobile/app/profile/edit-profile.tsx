@@ -74,7 +74,11 @@ export default function EditProfileScreen() {
             <View style={styles.avatarRing}>
               <View style={styles.avatar}>
                 {user?.avatar_url
-                  ? <Image source={{ uri: user.avatar_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                  ? <Image
+                      source={{ uri: user.avatar_url, cache: 'reload' }}
+                      style={StyleSheet.absoluteFill}
+                      resizeMode="cover"
+                    />
                   : <Text style={styles.avatarText}>{initials}</Text>}
               </View>
             </View>

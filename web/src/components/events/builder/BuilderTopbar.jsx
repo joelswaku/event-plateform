@@ -115,7 +115,7 @@ export default function BuilderTopbar({ eventId, device, onDeviceChange, onTempl
           style={{ background: "#1e2026", border: "1px solid rgba(255,255,255,0.07)" }}
         >
           <button
-            onClick={undo}
+            onClick={() => undo(eventId)}
             disabled={!canUndo}
             title="Undo (Ctrl+Z)"
             className="flex h-9 w-9 items-center justify-center transition-colors"
@@ -125,7 +125,7 @@ export default function BuilderTopbar({ eventId, device, onDeviceChange, onTempl
           </button>
           <div style={{ width: 1, height: 16, background: "rgba(255,255,255,0.07)" }} />
           <button
-            onClick={redo}
+            onClick={() => redo(eventId)}
             disabled={!canRedo}
             title="Redo (Ctrl+Y)"
             className="flex h-9 w-9 items-center justify-center transition-colors"

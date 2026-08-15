@@ -6,6 +6,16 @@ import { api } from "@/lib/api";
 
 const MAX_HISTORY = 20;
 
+// History needs independent copies. Section config is edited deeply in the
+// builder, so a shallow section copy would let an older snapshot mutate too.
+const cloneSections = (sections = []) =>
+  sections.map((section) => ({
+    ...section,
+    config: section.config ? JSON.parse(JSON.stringify(section.config)) : section.config,
+  }));
+
+const snapshotsMatch = (first, second) => JSON.stringify(first) === JSON.stringify(second);
+
 export const useBuilderStore = create((set, get) => ({
   builder: null,
   isLoading: false,
@@ -20,8 +30,9 @@ export const useBuilderStore = create((set, get) => ({
     const { builder, _history, _historyIndex } = get();
     if (!builder?.sections) return;
 
-    const snapshot = builder.sections.map((s) => ({ ...s }));
+    const snapshot = cloneSections(builder.sections);
     const trimmed = _history.slice(0, _historyIndex + 1);
+    if (snapshotsMatch(trimmed[trimmed.length - 1], snapshot)) return;
     const next = [...trimmed, snapshot];
     if (next.length > MAX_HISTORY) next.shift();
 
@@ -31,26 +42,60 @@ export const useBuilderStore = create((set, get) => ({
   canUndo: () => get()._historyIndex > 0,
   canRedo: () => get()._historyIndex < get()._history.length - 1,
 
-  undo: () => {
-    const { _history, _historyIndex, builder } = get();
-    if (_historyIndex <= 0 || !builder) return;
+  _restoreHistorySnapshot: async (eventId, nextIndex) => {
+    const { builder, _history } = get();
+    const snapshot = _history[nextIndex];
+    if (!eventId || !builder || !snapshot) return false;
 
-    const newIndex = _historyIndex - 1;
-    set({
-      builder: { ...builder, sections: _history[newIndex] },
-      _historyIndex: newIndex,
-    });
+    set({ saveStatus: "saving" });
+    try {
+      let sections;
+      if (snapshot.length === 0) {
+        await Promise.all(
+          (builder.sections || []).map((section) =>
+            api.delete(`/builder/events/${eventId}/sections/${section.id}`)
+          )
+        );
+        sections = [];
+      } else {
+        const res = await api.post(`/builder/events/${eventId}/sections/replace`, {
+          sections: snapshot.map((section) => ({
+            section_type: section.section_type,
+            title: section.title ?? "",
+            body: section.body ?? "",
+            is_visible: section.is_visible !== false,
+            config: section.config || {},
+          })),
+        });
+        sections = res.data?.data || [];
+      }
+
+      set((state) => ({
+        builder: { ...state.builder, sections },
+        _historyIndex: nextIndex,
+        saveStatus: "saved",
+      }));
+      setTimeout(() => {
+        if (get().saveStatus === "saved") set({ saveStatus: "idle" });
+      }, 2000);
+      return true;
+    } catch {
+      set({ saveStatus: "error" });
+      toast.error("Could not restore that change");
+      return false;
+    }
   },
 
-  redo: () => {
-    const { _history, _historyIndex, builder } = get();
-    if (_historyIndex >= _history.length - 1 || !builder) return;
+  undo: async (eventId) => {
+    const { _historyIndex } = get();
+    if (_historyIndex <= 0) return false;
+    return get()._restoreHistorySnapshot(eventId, _historyIndex - 1);
+  },
 
-    const newIndex = _historyIndex + 1;
-    set({
-      builder: { ...builder, sections: _history[newIndex] },
-      _historyIndex: newIndex,
-    });
+  redo: async (eventId) => {
+    const { _history, _historyIndex } = get();
+    if (_historyIndex >= _history.length - 1) return false;
+    return get()._restoreHistorySnapshot(eventId, _historyIndex + 1);
   },
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
@@ -62,7 +107,7 @@ export const useBuilderStore = create((set, get) => ({
       set({ builder: data, isLoading: false });
 
       if (data?.sections) {
-        const snapshot = data.sections.map((s) => ({ ...s }));
+        const snapshot = cloneSections(data.sections);
         set({ _history: [snapshot], _historyIndex: 0 });
       }
     } catch {
@@ -73,7 +118,6 @@ export const useBuilderStore = create((set, get) => ({
 
   // ── Create single section ──────────────────────────────────────────────────
   createSectionFromTemplate: async (eventId, templateKey) => {
-    get()._pushSnapshot();
     try {
       set({ saveStatus: "saving" });
       const res = await api.post(`/builder/events/${eventId}/sections`, {
@@ -87,6 +131,7 @@ export const useBuilderStore = create((set, get) => ({
         },
         saveStatus: "saved",
       }));
+      get()._pushSnapshot();
       setTimeout(() => { if (get().saveStatus === "saved") set({ saveStatus: "idle" }); }, 2000);
       return newSection;
     } catch {
@@ -97,7 +142,6 @@ export const useBuilderStore = create((set, get) => ({
 
   // ── Apply preset — REPLACES all existing sections atomically ──────────────
   applyPreset: async (eventId, sections) => {
-    get()._pushSnapshot();
     try {
       set({ saveStatus: "saving" });
       const payload = sections.map((s) =>
@@ -113,6 +157,7 @@ export const useBuilderStore = create((set, get) => ({
         builder: { ...state.builder, sections: newSections },
         saveStatus: "saved",
       }));
+      get()._pushSnapshot();
       setTimeout(() => { if (get().saveStatus === "saved") set({ saveStatus: "idle" }); }, 2000);
       return newSections;
     } catch {
@@ -123,7 +168,6 @@ export const useBuilderStore = create((set, get) => ({
 
   // ── Batch create sections (for preset templates) ───────────────────────────
   batchCreateSections: async (eventId, templateKeys) => {
-    get()._pushSnapshot();
     try {
       set({ saveStatus: "saving" });
       const res = await api.post(`/builder/events/${eventId}/sections/batch`, {
@@ -137,6 +181,7 @@ export const useBuilderStore = create((set, get) => ({
         },
         saveStatus: "saved",
       }));
+      get()._pushSnapshot();
       setTimeout(() => { if (get().saveStatus === "saved") set({ saveStatus: "idle" }); }, 2000);
       return newSections;
     } catch {
@@ -167,6 +212,7 @@ export const useBuilderStore = create((set, get) => ({
           saveStatus: "saved",
         };
       });
+      get()._pushSnapshot();
       setTimeout(() => { if (get().saveStatus === "saved") set({ saveStatus: "idle" }); }, 2000);
     } catch {
       set({ saveStatus: "error" });
@@ -176,7 +222,6 @@ export const useBuilderStore = create((set, get) => ({
 
   // ── Delete section — optimistic with rollback ──────────────────────────────
   deleteSection: async (eventId, sectionId) => {
-    get()._pushSnapshot();
     const prevSections = get().builder?.sections || [];
 
     set((state) => ({
@@ -188,6 +233,7 @@ export const useBuilderStore = create((set, get) => ({
 
     try {
       await api.delete(`/builder/events/${eventId}/sections/${sectionId}`);
+      get()._pushSnapshot();
     } catch {
       set((state) => ({ builder: { ...state.builder, sections: prevSections } }));
       toast.error("Delete failed");
@@ -197,7 +243,6 @@ export const useBuilderStore = create((set, get) => ({
   // ── Reorder sections — optimistic with rollback ────────────────────────────
   reorderSections: async (eventId, payload) => {
     const currentSections = get().builder?.sections || [];
-    get()._pushSnapshot();
 
     const optimistic = payload
       .map((item) => {
@@ -222,6 +267,7 @@ export const useBuilderStore = create((set, get) => ({
           sections: res.data?.data || optimistic,
         },
       }));
+      get()._pushSnapshot();
     } catch {
       set((state) => ({ builder: { ...state.builder, sections: currentSections } }));
       toast.error("Reorder failed, rolled back");
@@ -255,8 +301,12 @@ export const useBuilderStore = create((set, get) => ({
         )
       );
       set({ saveStatus: "saved" });
+      get()._pushSnapshot();
       setTimeout(() => { if (get().saveStatus === "saved") set({ saveStatus: "idle" }); }, 2000);
     } catch {
+      set((state) => ({
+        builder: { ...state.builder, sections },
+      }));
       set({ saveStatus: "error" });
     }
   },

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Pressable, RefreshControl,
+  View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, ActivityIndicator,
 } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,10 +22,27 @@ type FormData = { name: string; kind: TicketKind; price: string; quantity_total:
 
 const EMPTY_FORM: FormData = { name: '', kind: 'PAID', price: '', quantity_total: '', description: '' };
 
+// API aggregates can be strings, null, or briefly stale during navigation.
+// Never send non-finite numbers to a native style or SVG prop.
+const safeNumber = (value: unknown, fallback = 0) => {
+  if (value === null || value === undefined || value === '') return fallback;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+};
+
+const safePercent = (sold: unknown, capacity: unknown) => {
+  const total = safeNumber(capacity);
+  if (total <= 0) return 0;
+  return Math.max(0, Math.min((safeNumber(sold) / total) * 100, 100));
+};
+
 export default function EventTicketsScreen() {
   const { id: eventId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { ticketTypes, stats, fetchTicketTypes, fetchStats, createTicketType, updateTicketType, deleteTicketType } = useTicketStore();
+  const {
+    ticketTypes, stats, loading, activeTicketEventId,
+    fetchTicketTypes, fetchStats, createTicketType, updateTicketType, deleteTicketType,
+  } = useTicketStore();
 
   const [sheetOpen,  setSheetOpen]  = useState(false);
   const [editTarget, setEditTarget] = useState<TicketType | null>(null);
@@ -38,6 +55,14 @@ export default function EventTicketsScreen() {
     fetchTicketTypes(eventId);
     fetchStats(eventId);
   }, [eventId]);
+
+  // Do not render the previous event's ticket data for even a single frame
+  // while this event loads. Native chart views are particularly sensitive to
+  // a mismatched response during fast navigation.
+  const isCurrentEvent = activeTicketEventId === eventId;
+  const currentTicketTypes = isCurrentEvent ? ticketTypes : [];
+  const currentStats = isCurrentEvent ? stats : null;
+  const ticketLoading = Boolean(eventId) && (!isCurrentEvent || loading);
 
   const openCreate = () => { setForm(EMPTY_FORM); setEditTarget(null); setSheetOpen(true); };
   const openEdit   = (t: TicketType) => {
@@ -90,55 +115,60 @@ export default function EventTicketsScreen() {
         </View>
 
         {/* Stats KPIs */}
-        {stats && (
+        {currentStats && (
           <View style={styles.kpiRow}>
-            <KPI label="Revenue"  value={fmtCurrency(stats.gross_revenue)}  accent={Colors.accent.emerald} />
-            <KPI label="Orders"   value={stats.paid_orders}                  accent={Colors.accent.indigo}  />
-            <KPI label="Issued"   value={stats.total_issued}                 accent={Colors.accent.amber}   />
-            <KPI label="Checked"  value={stats.checked_in}                   accent={Colors.accent.violet}  />
+            <KPI label="Revenue"  value={fmtCurrency(safeNumber(currentStats.gross_revenue))} accent={Colors.accent.emerald} />
+            <KPI label="Orders"   value={safeNumber(currentStats.paid_orders)}                  accent={Colors.accent.indigo}  />
+            <KPI label="Issued"   value={safeNumber(currentStats.total_issued)}                 accent={Colors.accent.amber}   />
+            <KPI label="Checked"  value={safeNumber(currentStats.checked_in)}                   accent={Colors.accent.violet}  />
           </View>
         )}
 
         {/* Charts */}
-        {stats && stats.total_issued > 0 && (
+        {currentStats && safeNumber(currentStats.total_issued) > 0 && (
           <View style={{ gap: 10 }}>
             <DonutChart
               title="Ticket status"
-              centerLabel={stats.total_issued}
+              centerLabel={safeNumber(currentStats.total_issued)}
               centerSub="issued"
               segments={[
-                { label: 'Active',     count: stats.active_tickets ?? (stats.total_issued - stats.checked_in - (stats.revoked ?? 0)), color: '#6366f1' },
-                { label: 'Checked in', count: stats.checked_in,     color: '#10b981' },
-                { label: 'Revoked',    count: stats.revoked ?? 0,   color: '#f43f5e' },
+                { label: 'Active',     count: safeNumber(currentStats.active_tickets, safeNumber(currentStats.total_issued) - safeNumber(currentStats.checked_in) - safeNumber(currentStats.revoked)), color: '#6366f1' },
+                { label: 'Checked in', count: safeNumber(currentStats.checked_in), color: '#10b981' },
+                { label: 'Revoked',    count: safeNumber(currentStats.revoked),    color: '#f43f5e' },
               ]}
             />
             <DonutChart
               title="Orders"
-              centerLabel={stats.total_orders}
+              centerLabel={safeNumber(currentStats.total_orders)}
               centerSub="orders"
               segments={[
-                { label: 'Paid',    count: stats.paid_orders,                        color: '#10b981' },
-                { label: 'Pending', count: stats.total_orders - stats.paid_orders,   color: '#f59e0b' },
+                { label: 'Paid',    count: safeNumber(currentStats.paid_orders), color: '#10b981' },
+                { label: 'Pending', count: safeNumber(currentStats.total_orders) - safeNumber(currentStats.paid_orders), color: '#f59e0b' },
               ]}
             />
             <DonutChart
               title="By ticket kind"
-              centerLabel={ticketTypes.reduce((s, t) => s + (t.quantity_sold ?? 0), 0)}
+              centerLabel={currentTicketTypes.reduce((sum, ticket) => sum + safeNumber(ticket.quantity_sold), 0)}
               centerSub="sold"
-              segments={ticketTypes.reduce((acc: Seg[], t) => {
+              segments={currentTicketTypes.reduce((acc: Seg[], t) => {
                 const ex = acc.find(s => s.label === t.kind);
-                if (ex) ex.count += (t.quantity_sold ?? 0);
-                else acc.push({ label: t.kind, count: t.quantity_sold ?? 0,
+                if (ex) ex.count += safeNumber(t.quantity_sold);
+                else acc.push({ label: t.kind, count: safeNumber(t.quantity_sold),
                   color: t.kind === 'FREE' ? '#10b981' : t.kind === 'PAID' ? '#6366f1' : '#f59e0b' });
                 return acc;
               }, [])}
             />
-            <CapacityBars ticketTypes={ticketTypes} />
+            <CapacityBars ticketTypes={currentTicketTypes} />
           </View>
         )}
 
         {/* Ticket types */}
-        {ticketTypes.length === 0 ? (
+        {ticketLoading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="large" color={Colors.accent.indigo} />
+            <Text style={styles.loadingText}>Loading tickets…</Text>
+          </View>
+        ) : currentTicketTypes.length === 0 ? (
           <EmptyState
             icon="credit-card"
             title="No ticket types"
@@ -148,7 +178,7 @@ export default function EventTicketsScreen() {
             accent={Colors.accent.indigo}
           />
         ) : (
-          ticketTypes.map(t => (
+          currentTicketTypes.map(t => (
             <TicketTypeCard
               key={t.id}
               ticket={t}
@@ -232,7 +262,7 @@ function DonutChart({ title, segments, centerLabel, centerSub }: { title: string
   // length to Android's native SVG renderer; those values can lock the view.
   const safeSegments = segments.map(segment => ({
     ...segment,
-    count: Math.max(0, Number.isFinite(Number(segment.count)) ? Number(segment.count) : 0),
+    count: Math.max(0, safeNumber(segment.count)),
   }));
   const total = safeSegments.reduce((sum, segment) => sum + segment.count, 0);
   const R = 34, cx = 42, cy = 42, sw = 10;
@@ -249,12 +279,12 @@ function DonutChart({ title, segments, centerLabel, centerSub }: { title: string
       <Text style={ch.title}>{title}</Text>
       <View style={ch.row}>
         <View style={{ width: 84, height: 84 }}>
-          <Svg width={84} height={84} viewBox="0 0 84 84">
+          <Svg width={84} height={84} viewBox="0 0 84 84" pointerEvents="none">
             <Circle cx={cx} cy={cy} r={R} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={sw} />
-            {total > 0 && arcs.map((arc, i) => (
+            {total > 0 && arcs.filter(arc => arc.dash > 0).map((arc, i) => (
               <Circle key={i} cx={cx} cy={cy} r={R} fill="none"
                 stroke={arc.color} strokeWidth={sw}
-                strokeDasharray={[arc.dash, Math.max(circ - arc.dash, 0)]}
+                strokeDasharray={`${arc.dash.toFixed(3)} ${Math.max(circ - arc.dash, 0).toFixed(3)}`}
                 strokeDashoffset={-arc.off}
                 rotation={-90} originX={cx} originY={cy}
               />
@@ -282,22 +312,24 @@ function DonutChart({ title, segments, centerLabel, centerSub }: { title: string
 }
 
 /* ── Capacity bars ───────────────────────────────────────── */
-function CapacityBars({ ticketTypes }: { ticketTypes: any[] }) {
-  const withCap = ticketTypes.filter(t => t.quantity_total);
+function CapacityBars({ ticketTypes }: { ticketTypes: TicketType[] }) {
+  const withCap = ticketTypes.filter(ticket => safeNumber(ticket.quantity_total) > 0);
   if (withCap.length === 0) return null;
   return (
     <View style={ch.card}>
       <Text style={ch.title}>Capacity fill</Text>
       <View style={{ gap: 10 }}>
         {withCap.map(t => {
-          const pct  = Math.min(((t.quantity_sold ?? 0) / t.quantity_total) * 100, 100);
+          const sold = safeNumber(t.quantity_sold);
+          const capacity = safeNumber(t.quantity_total);
+          const pct = safePercent(sold, capacity);
           const color = pct >= 100 ? '#f43f5e' : pct >= 80 ? '#f59e0b' : '#6366f1';
           return (
             <View key={t.id}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
                 <Text style={{ fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.70)' }} numberOfLines={1}>{t.name}</Text>
                 <Text style={{ fontSize: 11, fontWeight: '800', color }}>
-                  {t.quantity_sold ?? 0}/{t.quantity_total} · {pct.toFixed(0)}%
+                  {sold}/{capacity} · {pct.toFixed(0)}%
                   {pct >= 100 ? ' 🔴' : pct >= 80 ? ' 🟡' : ''}
                 </Text>
               </View>
@@ -340,6 +372,9 @@ const styles = StyleSheet.create({
   kpi:      { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 12, borderWidth: 1, gap: 2 },
   kpiVal:   { fontSize: 18, fontWeight: '900', letterSpacing: -0.5 },
   kpiLabel: { fontSize: 9, fontWeight: '700', color: Colors.text.subtle },
+
+  loadingWrap: { alignItems: 'center', gap: 10, paddingVertical: 52 },
+  loadingText: { color: Colors.text.muted, fontSize: 13, fontWeight: '600' },
 
   form:    { gap: 14 },
   kindRow: { flexDirection: 'row', gap: 8 },
