@@ -48,8 +48,28 @@ module.exports = function withGoogleModularHeaders(config) {
         targetLine + modularHeadersConfig
       );
 
+      // Add post_install hook to fix deployment targets
+      if (!podfileContent.includes('# Fix deployment targets')) {
+        const postInstallHook = `
+post_install do |installer|
+  # Fix deployment targets - ensure all pods use iOS 15.1 minimum
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      if config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f < 15.1
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
+      end
+    end
+  end
+end
+`;
+
+        // Append at the end of the file
+        podfileContent += postInstallHook;
+      }
+
       fs.writeFileSync(podfilePath, podfileContent, 'utf-8');
       console.log('✓ Injected modular headers for Google pods');
+      console.log('✓ Added post_install hook to fix deployment targets');
 
       return config;
     },
