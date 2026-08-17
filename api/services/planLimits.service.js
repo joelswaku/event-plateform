@@ -64,7 +64,7 @@ export const PLANS = {
     qrScanner: true,
     platformFeePercent: 1.5, // 1.5% platform fee on paid-ticket subtotal
     pageBuilder: true,
-    guestEmailReminders: Infinity, // unlimited email reminders
+    guestEmailReminders: 5, // 5 email reminders maximum (instant + 4 custom)
     planner: true, // full planner access
     rsvp: true,
   },
@@ -112,7 +112,7 @@ export const PLANS = {
     qrScanner: true,
     platformFeePercent: 1.5,
     pageBuilder: true,
-    guestEmailReminders: Infinity,
+    guestEmailReminders: 5, // 5 email reminders maximum (instant + 4 custom)
     planner: true,
     rsvp: true,
   },
@@ -375,7 +375,7 @@ export async function assertCanSendReminder(client, userId, alreadySentCount) {
     throw err;
   }
   if (limit !== Infinity && alreadySentCount >= limit) {
-    const err = new Error("Reminder limit reached. Upgrade to Pro for unlimited reminders.");
+    const err = new Error("Reminder limit reached. Upgrade to Pro for up to 5 reminders.");
     err.statusCode = 403;
     err.code = "PLAN_LIMIT_FEATURE";
     err.details = {
@@ -429,9 +429,10 @@ export async function assertCanUsePlanner(client, userId) {
 
 /**
  * Enforces scheduled-reminder entitlements.
- * Instant Confirmation is included in every plan and does not count as a custom
- * reminder. Free may retain disabled reminders after a downgrade, but cannot
- * enable any; Starter can enable one; Pro/Enterprise can enable unlimited.
+ * Instant Confirmation is included in every plan and does not count toward the limit.
+ * Free may retain disabled reminders after a downgrade, but cannot enable any.
+ * Starter can enable one; Pro can have up to 5 total reminders (instant + 4 custom).
+ * Enterprise has unlimited.
  */
 export async function assertCanEnableReminder(client, userId, eventId, newReminders) {
   const plan = await getUserPlan(client, userId);
@@ -439,6 +440,7 @@ export async function assertCanEnableReminder(client, userId, eventId, newRemind
 
   const customReminders = newReminders.filter(reminder => reminder.timing !== "instant");
   const enabledCustomReminders = customReminders.filter(reminder => reminder.enabled);
+  const totalReminders = newReminders.length; // Total count including instant
 
   // Free can retain disabled settings, but may not activate a scheduled email.
   if (limit === 0 && enabledCustomReminders.length > 0) {
@@ -454,12 +456,15 @@ export async function assertCanEnableReminder(client, userId, eventId, newRemind
     throw err;
   }
 
-  if (limit === Infinity || limit === 0) return; // Pro unlimited; Free has no active custom reminder
+  // Enterprise has unlimited reminders
+  if (limit === Infinity) return;
 
-  // Starter may enable one custom reminder. Existing disabled settings remain
-  // stored so they are restored if the user later upgrades to Pro.
-  if (enabledCustomReminders.length > limit) {
-    const err = new Error(`Your ${plan} plan allows one active custom reminder. Upgrade to Pro to enable more.`);
+  // Free plan - no active custom reminders allowed (already checked above)
+  if (limit === 0) return;
+
+  // Check total reminder count (for Pro plan with 5-reminder limit)
+  if (totalReminders > limit) {
+    const err = new Error(`Your ${plan} plan allows up to ${limit} total reminders. You have ${totalReminders}.`);
     err.statusCode = 403;
     err.code = "PLAN_LIMIT_FEATURE";
     err.details = {
@@ -467,6 +472,23 @@ export async function assertCanEnableReminder(client, userId, eventId, newRemind
       feature: "guestEmailReminders",
       plan,
       limit,
+      current: totalReminders,
+      requiredPlan: plan === "starter" ? "pro" : "enterprise",
+    };
+    throw err;
+  }
+
+  // Starter may enable one custom reminder. Existing disabled settings remain
+  // stored so they are restored if the user later upgrades to Pro.
+  if (plan === "starter" && enabledCustomReminders.length > 1) {
+    const err = new Error(`Your ${plan} plan allows one active custom reminder. Upgrade to Pro to enable more.`);
+    err.statusCode = 403;
+    err.code = "PLAN_LIMIT_FEATURE";
+    err.details = {
+      code: "PLAN_LIMIT_FEATURE",
+      feature: "guestEmailReminders",
+      plan,
+      limit: 1,
       requested: enabledCustomReminders.length,
       requiredPlan: "pro",
     };

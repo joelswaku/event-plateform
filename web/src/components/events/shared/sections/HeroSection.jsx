@@ -1643,7 +1643,7 @@ function HeroTicketAction({ event, ctaText, isEditor, priceLabel, spotsLeft, has
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.65, ease: EASE, delay }}
-      className={`relative left-1/2 w-screen -translate-x-1/2 overflow-hidden ${compact ? "-mt-3 pt-6 sm:-mt-4 sm:pt-8" : "mt-3 pt-6 sm:mt-6 sm:pt-10"}`}
+      className={`relative left-1/2 w-screen -translate-x-1/2 overflow-hidden ${compact ? "mt-0 pt-6 sm:mt-2 sm:pt-8" : "mt-3 pt-6 sm:mt-6 sm:pt-10"}`}
     >
       <svg
         aria-hidden="true"

@@ -1,8 +1,8 @@
 import LegalPageViewer from "@/components/legal/LegalPageViewer";
 
 export const metadata = {
-  title: "Privacy Policy — LiteEvent LLC",
-  description: "Privacy Policy for the LiteEvent event management platform operated by LiteEvent LLC.",
+  title: "Privacy Policy — LiteEvent by Lakenah LLC",
+  description: "Privacy Policy for LiteEvent, the event management platform operated by Lakenah LLC.",
 };
 
 export default function PrivacyPolicyPage() {

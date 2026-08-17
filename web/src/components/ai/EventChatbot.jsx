@@ -212,7 +212,7 @@ export default function EventChatbot({ eventId }) {
       {/* Chat window */}
       {open && (
         <div
-          className="absolute bottom-[calc(100%+12px)] right-0 flex w-[calc(100vw-32px)] sm:w-95 flex-col overflow-hidden shadow-2xl"
+          className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+88px)] flex w-auto max-h-[min(520px,calc(100dvh-120px))] flex-col overflow-hidden shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-[calc(100%+12px)] sm:right-0 sm:w-95 sm:max-h-[520px]"
           style={{
             background: "#0f0f1a",
             border: "1px solid rgba(255,255,255,0.08)",

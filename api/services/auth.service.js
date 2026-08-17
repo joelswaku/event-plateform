@@ -74,11 +74,11 @@ export async function registerUser({
       `
       INSERT INTO users
       (email,password_hash,full_name,status,email_verified,terms_accepted_at,terms_version_accepted,verification_code,verification_code_expires,verification_token)
-      VALUES ($1,$2,$3,'ACTIVE',false,$4,$5,$6,$7,$8)
+      VALUES ($1,$2,$3,'ACTIVE',false,NULL,NULL,$4,$5,$6)
       RETURNING *
       `,
       [normalizedEmail, passwordHash, full_name,
-       new Date(), "2025.1", verificationCode, codeExpires, verificationToken]
+       verificationCode, codeExpires, verificationToken]
     );
    
     
@@ -163,14 +163,6 @@ export async function registerUser({
        (organization_id,actor_user_id,entity_type,entity_id,action,ip_address,user_agent)
        VALUES ($1,$2,'user',$2,'user_created',$3,$4)`,
       [organization.id, user.id, ip, userAgent]
-    );
-
-    await client.query(
-      `INSERT INTO audit_logs
-       (organization_id,actor_user_id,entity_type,entity_id,action,ip_address,user_agent,changes)
-       VALUES ($1,$2,'user',$2,'terms_accepted',$3,$4,$5)`,
-      [organization.id, user.id, ip, userAgent,
-       JSON.stringify({ terms_version: "2025.1", accepted_at: new Date(), context: "registration" })]
     );
 
     await client.query("COMMIT");
@@ -1589,7 +1581,7 @@ export async function getCurrentUser(userId) {
   return user;
 }
 
-export async function acceptTermsService({ userId, version = "2025.1", ip, userAgent }) {
+export async function acceptTermsService({ userId, version = "2026.1", ip, userAgent }) {
   const { rows } = await db.query(
     `UPDATE users
      SET terms_accepted_at = NOW(), terms_version_accepted = $2

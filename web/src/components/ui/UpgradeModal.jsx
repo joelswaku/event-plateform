@@ -34,7 +34,7 @@ const PRO_FEATURES = [
   { icon: CalendarDays, text: "3 active events"       },
   { icon: Users,        text: "Unlimited guests"      },
   { icon: Ticket,       text: "Tickets (1.5% fee)"    },
-  { icon: Bell,         text: "Unlimited reminders"   },
+  { icon: Bell,         text: "5 email reminders"     },
   { icon: Globe,        text: "Custom domain"         },
   { icon: BarChart2,    text: "Adv. analytics"        },
 ];
@@ -54,8 +54,8 @@ function getTriggerCopy(feature, plan) {
     tickets:   { badge: "Lower Ticket Fee",  headline: "Reduce your ticket-selling fee.",       sub: "Free and Starter are 2%; Pro reduces it to 1.5%." },
     planner:   { badge: "Planner Locked",     headline: "The event planner requires a paid plan.", sub: "Upgrade to Starter or Pro to plan tasks, vendors, timelines, and budgets." },
     reminders: isStarter
-      ? { badge: "Reminder Limit Reached", headline: "You've used your 1 Starter reminder config.",  sub: "Upgrade to Pro for unlimited email reminder configurations." }
-      : { badge: "Reminders Locked",       headline: "Email reminders require Starter.",       sub: "Send guest reminders — Starter: 1 config/event, Pro: unlimited." },
+      ? { badge: "Reminder Limit Reached", headline: "You've used your 1 Starter reminder config.",  sub: "Upgrade to Pro for up to 5 email reminder configurations." }
+      : { badge: "Reminders Locked",       headline: "Email reminders require Starter.",       sub: "Send guest reminders — Starter: 1 config/event, Pro: up to 5." },
     feature: isStarter
       ? { badge: "Pro Feature",    headline: "This feature requires Pro.", sub: "Upgrade to Pro to unlock every feature." }
       : { badge: "Feature Locked", headline: "This feature requires a paid plan.", sub: "Upgrade to Starter or Pro to unlock the full toolkit." },

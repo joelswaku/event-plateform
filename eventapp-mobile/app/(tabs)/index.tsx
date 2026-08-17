@@ -246,7 +246,7 @@ const PLAN_TILES = {
     gradTo:   '#f59e0b',
     shadow:   'rgba(201,169,110,0.40)',
     ctaColor: '#000',
-    perks:    ['3 active events', 'Unlimited guests', 'Full planner', '3 team invites', 'Unlimited reminders', 'Tickets (1.5% fee)'],
+    perks:    ['3 active events', 'Unlimited guests', 'Full planner', '3 team invites', '5 email reminders', 'Tickets (1.5% fee)'],
   },
 } as const;
 
@@ -921,8 +921,25 @@ export default function HomeScreen() {
   const activeStats = dashboard?.event?.id === activeEventId ? dashboard.stats : null;
   const guestCount    = activeStats?.guest_count     ?? 0;
   const attendingCount = activeStats?.attending_count ?? 0;
+  const pendingCount  = guestCount - attendingCount;
   const ticketCount   = activeStats?.ticket_count    ?? 0;
   const checkinCount  = activeStats?.checkin_count   ?? 0;
+
+  // Filter stats based on active event's modules
+  const ALL_HOME_STATS = [
+    { value: guestCount,     label: 'Guests',    icon: 'users'       as const, accent: Colors.accent.indigo,  modules: ['allow_rsvp'] },
+    { value: attendingCount, label: 'Attending', icon: 'user-check'  as const, accent: Colors.accent.emerald, modules: ['allow_rsvp'] },
+    { value: pendingCount,   label: 'Pending',   icon: 'user-x'      as const, accent: Colors.accent.amber,   modules: ['allow_rsvp'] },
+    { value: ticketCount,    label: 'Types',     icon: 'credit-card' as const, accent: Colors.accent.indigo,  modules: ['allow_ticketing'] },
+    { value: checkinCount,   label: 'Sold',      icon: 'shopping-bag'as const, accent: Colors.accent.amber,   modules: ['allow_ticketing'] },
+    { value: checkinCount,   label: 'Scanned',   icon: 'check-circle'as const, accent: Colors.accent.emerald, modules: ['allow_ticketing'] },
+    { value: 0,              label: 'Donations', icon: 'heart'       as const, accent: '#f43f5e',             modules: ['allow_donations'] },
+    { value: 0,              label: 'Donors',    icon: 'users'       as const, accent: Colors.accent.violet,  modules: ['allow_donations'] },
+    { value: 0,              label: 'Total',     icon: 'dollar-sign' as const, accent: Colors.accent.emerald, modules: ['allow_donations'] },
+  ];
+  const filteredStats = activeEvent
+    ? ALL_HOME_STATS.filter(stat => stat.modules.some(module => activeEvent[module as keyof typeof activeEvent]))
+    : [];
 
   const initials = (user?.full_name ?? 'U')
     .split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
@@ -1062,10 +1079,15 @@ export default function HomeScreen() {
             </View>
           )}
           <View style={s.statsRow}>
-            <StatTile value={guestCount}     label="Guests"    icon="users"       accent={Colors.accent.indigo}  />
-            <StatTile value={attendingCount} label="Attending" icon="user-check"  accent={Colors.accent.emerald} />
-            <StatTile value={ticketCount}    label="Tickets"   icon="credit-card" accent={Colors.accent.amber}   />
-            <StatTile value={checkinCount}   label="Scanned"   icon="camera"      accent={Colors.accent.violet}  />
+            {filteredStats.map(stat => (
+              <StatTile
+                key={stat.label}
+                value={stat.value}
+                label={stat.label}
+                icon={stat.icon}
+                accent={stat.accent}
+              />
+            ))}
           </View>
         </Animated.View>
         {/* ── Active event toggle ───────────────────────────────── */}

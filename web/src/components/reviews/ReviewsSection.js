@@ -115,9 +115,7 @@ export default function ReviewsSection() {
     );
   }
 
-  if (reviews.length === 0) {
-    return null;
-  }
+  const hasReviews = reviews.length > 0;
 
   // SEO Schema for Reviews
   const reviewSchema = {
@@ -156,52 +154,57 @@ export default function ReviewsSection() {
   return (
     <>
       {/* SEO Schema */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(reviewSchema) }}
-      />
+      {hasReviews && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(reviewSchema) }}
+        />
+      )}
 
       <section id="reviews" className="py-20 bg-foreground/[0.02]">
         <div className="container mx-auto px-4">
           {/* Header */}
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-foreground mb-4">
-              Loved by Event Organizers
+              {hasReviews ? "Loved by Event Organizers" : "Share your LiteEvent experience"}
             </h2>
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <div className="flex">
-                <StarRating rating={Math.round(averageRating)} />
+            {hasReviews && (
+              <div className="flex items-center justify-center gap-3 mb-2">
+                <div className="flex">
+                  <StarRating rating={Math.round(averageRating)} />
+                </div>
+                <span className="text-2xl font-bold text-foreground">
+                  {averageRating.toFixed(1)}
+                </span>
+                <span className="text-foreground/60">
+                  ({totalReviews} {totalReviews === 1 ? "review" : "reviews"})
+                </span>
               </div>
-              <span className="text-2xl font-bold text-foreground">
-                {averageRating.toFixed(1)}
-              </span>
-              <span className="text-foreground/60">
-                ({totalReviews} {totalReviews === 1 ? "review" : "reviews"})
-              </span>
-            </div>
+            )}
             <p className="text-foreground/60 max-w-2xl mx-auto">
-              See what our customers are saying about LiteEvent
+              {hasReviews
+                ? "See what our customers are saying about LiteEvent"
+                : "Created an event with LiteEvent? Tell us what worked well and how we can improve."}
             </p>
           </div>
 
           {/* Reviews Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-            {reviews.slice(0, 6).map((review) => (
-              <ReviewCard key={review.id} review={review} />
-            ))}
-          </div>
-
-          {/* Show More Button */}
-          {reviews.length > 6 && (
-            <div className="text-center mt-8">
-              <a
-                href="/reviews"
-                className="inline-block px-8 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors"
-              >
-                See All {totalReviews} Reviews
-              </a>
+          {hasReviews && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              {reviews.slice(0, 6).map((review) => (
+                <ReviewCard key={review.id} review={review} />
+              ))}
             </div>
           )}
+
+          <div className="text-center mt-8">
+            <a
+              href="/reviews"
+              className="inline-block px-8 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors"
+            >
+              {hasReviews ? `See All ${totalReviews} Reviews` : "Write a Review"}
+            </a>
+          </div>
         </div>
       </section>
     </>

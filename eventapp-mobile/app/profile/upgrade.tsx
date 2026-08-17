@@ -19,7 +19,7 @@ const FEATURES = [
   { icon: 'bar-chart-2', text: 'Advanced analytics & exports'    },
   { icon: 'credit-card', text: 'Ticket selling (1.5% Pro fee)'   },
   { icon: 'camera',      text: 'QR scanner with offline sync'    },
-  { icon: 'bell',        text: 'Unlimited email reminders (Pro)' },
+  { icon: 'bell',        text: '5 email reminders (Pro)' },
 ] as const;
 
 type Plan = 'starter' | 'pro';

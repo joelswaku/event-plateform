@@ -186,7 +186,7 @@ export async function listGiftRegistryItemsService({
    TERMS ACCEPTANCE
 ========================= */
 
-const CURRENT_TERMS_VERSION = "2025-06-01"; // bump when ToS materially changes
+const CURRENT_TERMS_VERSION = "2026.1"; // bump when ToS materially changes
 
 async function ensureTermsTable(client) {
   await client.query(`

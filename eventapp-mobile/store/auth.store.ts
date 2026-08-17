@@ -288,14 +288,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   // ─── Logout ───────────────────────────────────────────────────────────────
   logout: async () => {
-    // Include the refresh token so the server can revoke the session even if
-    // the in-memory access token has already expired.
-    const { refreshToken } = await loadSession();
-    try { await api.post('/auth/logout', { refreshToken }); } catch { /* local cleanup still proceeds */ }
+    // Read the refresh token locally, then clear the visible app session before
+    // any network request. A person must be able to sign out while offline.
+    let refreshToken: string | null = null;
+    try {
+      ({ refreshToken } = await loadSession());
+    } catch {
+      // Local cleanup below still makes logout succeed if SecureStore fails.
+    }
+
     clearToken();
     clearOrgId();
-    await clearSession();
     set({ user: null, isAuthenticated: false, error: null });
+
+    // Clear encrypted on-device session data without waiting for a server.
+    // The app router reacts to the state update above immediately.
+    void clearSession().catch(() => {});
+
+    // Revoke the server-side refresh session when connectivity is available.
+    // This request is intentionally silent so an offline network error never
+    // blocks logout or displays a misleading failure message.
+    if (refreshToken) {
+      void api.post('/auth/logout', { refreshToken }).catch(() => {});
+    }
   },
 
   clearError: () => set({ error: null }),

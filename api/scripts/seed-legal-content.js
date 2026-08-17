@@ -1,6 +1,6 @@
 /**
- * One-time migration: force-upsert all four legal pages in the database.
- * Safe to re-run — uses ON CONFLICT DO UPDATE.
+ * One-time legal-content rollout for the built-in legal pages.
+ * Safe to re-run — it updates only uncustomized, older default pages.
  *
  * Usage:  node scripts/seed-legal-content.js
  */
@@ -36,13 +36,15 @@ async function run() {
            version        = EXCLUDED.version,
            effective_date = EXCLUDED.effective_date,
            is_published   = true,
-           updated_at     = NOW()`,
+           updated_at     = NOW()
+         WHERE legal_pages.updated_by IS NULL
+           AND legal_pages.version <> EXCLUDED.version`,
         [p.slug, p.title, p.content, p.version, p.effective_date]
       );
       console.log(`✓  ${p.slug}`);
     }
 
-    console.log("\n✅  All four legal pages upserted successfully.");
+    console.log("\n✅  Built-in legal pages checked and updated where eligible.");
   } finally {
     client.release();
     await db.end();

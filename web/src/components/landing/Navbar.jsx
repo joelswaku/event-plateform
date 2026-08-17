@@ -10,19 +10,17 @@ const NAV_LINKS = [
   { href: "#templates", label: "Templates" },
   { href: "#features",  label: "Features"  },
   { href: "#pricing",   label: "Pricing"   },
+  { href: "/reviews",   label: "Reviews"   },
   { href: "/contact#contact-form",   label: "Contact"   },
 ];
 
 export default function Navbar() {
   const [scrolled,   setScrolled]   = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [mounted,    setMounted]    = useState(false);
 
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const user            = useAuthStore((s) => s.user);
+  const isHydrated      = useAuthStore((s) => s.isHydrated);
   const logout          = useAuthStore((s) => s.logout);
-
-  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -37,7 +35,7 @@ export default function Navbar() {
     return () => document.removeEventListener("click", close);
   }, [mobileOpen]);
 
-  const loggedIn = mounted && isAuthenticated;
+  const loggedIn = isHydrated && isAuthenticated;
 
   return (
     <>

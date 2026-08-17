@@ -165,7 +165,7 @@ const FAQ_DATA = [
       },
       {
         question: "Is LiteEvent GDPR compliant?",
-        answer: "Yes! We are fully GDPR compliant. You own your data and can export or delete it anytime. We provide tools for guest consent management, data access requests, and right to be forgotten. See our Privacy Policy for details."
+        answer: "We provide account, consent, and privacy-request tools designed to help you manage your information. Privacy rights vary by location; see our Privacy Policy or contact privacy@liteevent.com for help."
       },
       {
         question: "Can I export my event data?",

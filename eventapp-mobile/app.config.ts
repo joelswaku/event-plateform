@@ -88,7 +88,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   owner: "okapiapp",
   name: "LiteEvent",
   slug: "event-app",
-  version: "1.0.0",
+  version: "1.1.0",
   orientation: "portrait",
   scheme: "liteevent",
   userInterfaceStyle: "dark",
@@ -113,6 +113,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
 
   ios: {
     bundleIdentifier: "com.liteevent.mobile",
+    buildNumber: "15",
     supportsTablet: false,
     infoPlist: {
       NSCameraUsageDescription:
@@ -134,6 +135,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
 
   android: {
     package: "com.liteevent.mobile",
+    versionCode: 15,
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
       backgroundColor: "#07070f",

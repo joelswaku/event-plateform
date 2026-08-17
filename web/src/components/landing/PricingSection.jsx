@@ -40,7 +40,7 @@ const PLANS = {
       "Unlimited guests",
       "Full planner access",
       "All templates unlocked",
-      "Unlimited reminders",
+      "5 email reminders",
       "Ticket selling (1.5% fee)",
       "Custom domain",
       "Advanced analytics",

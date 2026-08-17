@@ -44,7 +44,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather }        from '@expo/vector-icons';
 import * as Haptics       from 'expo-haptics';
-import * as WebBrowser   from 'expo-web-browser';
 
 import { useEventStore }  from '@/store/event.store';
 import { usePlannerStore } from '@/store/planner.store';
@@ -237,6 +236,11 @@ function EventRemindersModal({ visible, onClose, eventId, eventTitle }: {
   function handleAddReminder() {
     if (!isPro) {
       setUpgradeTier(isStarter ? 'pro' : 'starter');
+      return;
+    }
+    // Pro plan limit: 5 total reminders maximum
+    if (reminders.length >= 5) {
+      toast.error('You have reached the maximum of 5 reminders for Pro plan.');
       return;
     }
     const newId = Math.max(...reminders.map(r => r.id), 0) + 1;
@@ -1119,6 +1123,10 @@ export default function EventDetailScreen() {
       setRemindersModalOpen(true);
       return;
     }
+    if (label === 'Guests' && !modLocal.allow_rsvp) {
+      requestModule('allow_rsvp', () => router.push(route as never));
+      return;
+    }
     if (label === 'Tickets' && !modLocal.allow_ticketing) {
       requestModule('allow_ticketing', () => router.push(route as never));
       return;
@@ -1128,7 +1136,7 @@ export default function EventDetailScreen() {
       return;
     }
     router.push(route as never);
-  }, [modLocal.allow_ticketing, modLocal.allow_donations, requestModule, router]);
+  }, [modLocal.allow_rsvp, modLocal.allow_ticketing, modLocal.allow_donations, requestModule, router]);
 
   const run = useCallback(async (fn: () => Promise<any>) => {
     setLoading(true);
@@ -1190,12 +1198,21 @@ export default function EventDetailScreen() {
   ];
   const FEATURES = ALL_FEATURES.filter(f => f.show);
 
-  const STAT_ITEMS = [
-    { icon: 'users'       as const, label: 'Guests',    value: event.guest_count    ?? 0, accent: Colors.accent.indigo  },
-    { icon: 'user-check'  as const, label: 'Attending', value: event.attending_count ?? 0, accent: Colors.accent.emerald },
-    { icon: 'credit-card' as const, label: 'Tickets',   value: event.ticket_count   ?? 0, accent: Colors.accent.amber   },
-    { icon: 'check-circle'as const, label: 'Scanned',   value: event.checkin_count  ?? 0, accent: Colors.accent.violet  },
+  const ALL_STAT_ITEMS = [
+    { icon: 'users'       as const, label: 'Guests',    value: event.guest_count    ?? 0, accent: Colors.accent.indigo,  modules: ['allow_rsvp'] },
+    { icon: 'user-check'  as const, label: 'Attending', value: event.attending_count ?? 0, accent: Colors.accent.emerald, modules: ['allow_rsvp'] },
+    { icon: 'user-x'      as const, label: 'Pending',   value: (event.guest_count ?? 0) - (event.attending_count ?? 0), accent: Colors.accent.amber, modules: ['allow_rsvp'] },
+    { icon: 'credit-card' as const, label: 'Types',     value: event.ticket_count   ?? 0, accent: Colors.accent.indigo,  modules: ['allow_ticketing'] },
+    { icon: 'shopping-bag'as const, label: 'Sold',      value: event.checkin_count  ?? 0, accent: Colors.accent.amber,   modules: ['allow_ticketing'] },
+    { icon: 'check-circle'as const, label: 'Scanned',   value: event.checkin_count  ?? 0, accent: Colors.accent.emerald, modules: ['allow_ticketing'] },
+    { icon: 'heart'       as const, label: 'Donations', value: 0,                          accent: '#f43f5e',             modules: ['allow_donations'] },
+    { icon: 'users'       as const, label: 'Donors',    value: 0,                          accent: Colors.accent.violet,  modules: ['allow_donations'] },
+    { icon: 'dollar-sign' as const, label: 'Total',     value: 0,                          accent: Colors.accent.emerald, modules: ['allow_donations'] },
   ];
+  // Filter stats based on active modules
+  const STAT_ITEMS = ALL_STAT_ITEMS.filter(stat =>
+    stat.modules.some(module => event[module as keyof typeof event])
+  );
 
   type MenuItem = {
     icon: React.ComponentProps<typeof Feather>['name'];
@@ -1217,11 +1234,7 @@ export default function EventDetailScreen() {
       accent: '#06b6d4',
       onPress: () => {
         closeMenu();
-        const token = getToken();
-        const url = status === 'PUBLISHED'
-          ? `${Config.WEB_URL}/e/${event.slug}`
-          : `${Config.WEB_URL}/e/${event.slug}?preview=1${token ? `&ptoken=${encodeURIComponent(token)}` : ''}`;
-        WebBrowser.openBrowserAsync(url, { toolbarColor: Colors.bg.primary, controlsColor: Colors.accent.indigo });
+        router.push(`/events/${id}/preview` as never);
       },
     });
     MENU_ITEMS.push({
@@ -1369,7 +1382,7 @@ export default function EventDetailScreen() {
           )}
 
           {/* ── Ticket hero card ───────────────────────────────────── */}
-          {(event.allow_ticketing || (event.ticket_count ?? 0) > 0) && (
+          {event.allow_ticketing && (
             <TicketHeroCard
               eventId={id}
               ticketCount={event.ticket_count ?? 0}
@@ -1533,23 +1546,7 @@ export default function EventDetailScreen() {
           {event?.slug && (
             <Pressable
               style={s.websiteBtn}
-              onPress={() => {
-                if (status === 'PUBLISHED') {
-                  WebBrowser.openBrowserAsync(`${Config.WEB_URL}/e/${event.slug}`, {
-                    toolbarColor: Colors.bg.primary,
-                    controlsColor: Colors.accent.indigo,
-                  });
-                } else {
-                  const token = getToken();
-                  const qs = token
-                    ? `?preview=1&ptoken=${encodeURIComponent(token)}`
-                    : '?preview=1';
-                  WebBrowser.openBrowserAsync(`${Config.WEB_URL}/e/${event.slug}${qs}`, {
-                    toolbarColor: Colors.bg.primary,
-                    controlsColor: Colors.accent.indigo,
-                  });
-                }
-              }}
+              onPress={() => router.push(`/events/${id}/preview` as never)}
             >
               <Feather name="globe" size={14} color={Colors.accent.indigo} />
               <Text style={s.websiteBtnTxt}>See Your Website</Text>
@@ -1655,28 +1652,19 @@ export default function EventDetailScreen() {
       )}
 
       {/* ── Module confirmation sheet ─────────────────────── */}
-      <Modal visible={!!pendingModule} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setPendingModule(null)}>
-        <Pressable style={mcs.backdrop} onPress={() => setPendingModule(null)} />
-        {pendingModule && (
-          <View style={mcs.sheet}>
-            <View style={mcs.handle} />
-            <View style={[mcs.iconBubble, { backgroundColor: `${pendingModule.color}18` }]}>
-              <Feather name={pendingModule.icon} size={26} color={pendingModule.color} />
-            </View>
-            <Text style={mcs.title}>{pendingModule.title}</Text>
-            <Text style={mcs.message}>{pendingModule.msg}</Text>
-            <Pressable
-              style={[mcs.confirmBtn, { backgroundColor: pendingModule.color }]}
-              onPress={confirmModule}
-            >
-              <Text style={mcs.confirmText}>{pendingModule.title.replace('?', '')}</Text>
-            </Pressable>
-            <Pressable style={mcs.cancelBtn} onPress={() => setPendingModule(null)}>
-              <Text style={mcs.cancelText}>Cancel</Text>
-            </Pressable>
-          </View>
-        )}
-      </Modal>
+      {pendingModule && (
+        <ConfirmModal
+          visible
+          onClose={() => setPendingModule(null)}
+          onConfirm={confirmModule}
+          icon={pendingModule.icon}
+          color={pendingModule.color}
+          title={pendingModule.title}
+          message={pendingModule.msg}
+          confirmLabel={pendingModule.title.replace('?', '')}
+          loading={Object.values(modSaving).some(Boolean)}
+        />
+      )}
 
       {/* ── 3-dot action sheet ─────────────────────────────── */}
       <Modal visible={menuOpen} transparent animationType="none" statusBarTranslucent onRequestClose={closeMenu}>

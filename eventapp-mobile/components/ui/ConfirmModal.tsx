@@ -44,6 +44,10 @@ export interface ConfirmConfig {
   cancelLabel?:   string;
   cancelText?:    string;          // alias for cancelLabel
   variant?:       ModalVariant;
+  /** Custom icon (overrides variant icon) */
+  icon?:          keyof typeof Feather.glyphMap;
+  /** Custom color (overrides variant color) */
+  color?:         string;
   onConfirm:      () => void | Promise<void>;
   onCancel?:      () => void;
 }
@@ -52,6 +56,7 @@ export interface ConfirmModalProps extends ConfirmConfig {
   visible?: boolean;
   open?:    boolean;               // alias for visible
   onClose?: () => void;
+  loading?: boolean;              // external loading state
 }
 
 export interface InfoConfig {
@@ -106,9 +111,20 @@ export function ConfirmModal(props: ConfirmModalProps) {
   const variant      = props.variant ?? 'danger';
   const onConfirm    = props.onConfirm;
   const onCancel     = props.onCancel;
+  const customIcon   = props.icon;
+  const customColor  = props.color;
+  const externalLoading = props.loading;
 
   const [loading, setLoading] = useState(false);
+  const isLoading = externalLoading ?? loading;
   const v = V[variant] ?? V['danger']; // fallback so unknown variants never crash
+
+  // Use custom icon/color if provided, otherwise use variant
+  const icon = customIcon ?? v.icon;
+  const color = customColor ?? v.color;
+  const bg = customColor ? `${customColor}19` : v.bg;
+  const border = customColor ? `${customColor}45` : v.border;
+  const barColor = customColor ?? v.barColor;
 
   const handleConfirm = async () => {
     setLoading(true);
@@ -121,22 +137,22 @@ export function ConfirmModal(props: ConfirmModalProps) {
 
   return (
     <ModalWrapper visible={visible} onClose={handleCancel}>
-      <View style={[s.accentBar, { backgroundColor: v.barColor }]} />
-      <View style={[s.iconWrap, { backgroundColor: v.bg, borderColor: v.border }]}>
-        <Feather name={v.icon} size={22} color={v.color} />
+      <View style={[s.accentBar, { backgroundColor: barColor }]} />
+      <View style={[s.iconWrap, { backgroundColor: bg, borderColor: border }]}>
+        <Feather name={icon} size={22} color={color} />
       </View>
       <Text style={s.title}>{title}</Text>
       {message ? <Text style={s.msg}>{message}</Text> : null}
       <View style={s.btnRow}>
-        <Pressable style={s.cancelBtn} onPress={handleCancel} disabled={loading}>
+        <Pressable style={s.cancelBtn} onPress={handleCancel} disabled={isLoading}>
           <Text style={s.cancelTxt}>{cancelLabel}</Text>
         </Pressable>
         <Pressable
-          style={[s.confirmBtn, { backgroundColor: v.color }, loading && s.btnLoading]}
+          style={[s.confirmBtn, { backgroundColor: color }, isLoading && s.btnLoading]}
           onPress={handleConfirm}
-          disabled={loading}
+          disabled={isLoading}
         >
-          {loading
+          {isLoading
             ? <ActivityIndicator size="small" color="#fff" />
             : <Text style={s.confirmTxt}>{confirmLabel}</Text>}
         </Pressable>

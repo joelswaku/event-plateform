@@ -60,6 +60,14 @@ export default function AuthProvider({ children }) {
 
     const isPublicPage = PUBLIC_ROUTES.includes(pathname) || pathname.startsWith("/e/");
 
+    // A local logout marker is authoritative for the browser. This matters
+    // when the network is unavailable and the server cannot clear httpOnly
+    // cookies until later; do not let a protected-page fetch restore the user.
+    if (hasLogoutMarker()) {
+      if (!isPublicPage) window.location.replace("/login");
+      return;
+    }
+
     // Redirect authenticated users to dashboard if on homepage or auth pages
     const shouldRedirectToDashboard = (
       pathname === "/" ||
@@ -120,11 +128,11 @@ export default function AuthProvider({ children }) {
       // Skip revalidation entirely on public pages
       if (!isProtectedPage()) return;
 
-      // If logout marker is set, immediately redirect to homepage
+      // If logout marker is set, immediately redirect to login
       // This handles bfcache restoration after logout on mobile browsers
       if (hasLogoutMarker()) {
-        console.log('Logout marker detected on protected page, redirecting to homepage');
-        window.location.replace("/");
+        console.log('Logout marker detected on protected page, redirecting to login');
+        window.location.replace("/login");
         return;
       }
 

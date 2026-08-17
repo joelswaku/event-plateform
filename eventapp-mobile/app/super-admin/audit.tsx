@@ -71,7 +71,7 @@ function buildHtml(logs: any[], filters: any): string {
     .footer { margin-top: 20px; font-size: 11px; color: #9ca3af; text-align: center; }
   </style></head><body>
   <h1>Audit Log</h1>
-  <p class="meta">Exported: ${new Date().toLocaleString()} · ${logs.length} entries · LiteEvent LLC (dba LiteEvent)</p>
+  <p class="meta">Exported: ${new Date().toLocaleString()} · ${logs.length} entries · Lakenah LLC (operator of LiteEvent)</p>
   <table>
     <thead><tr>
       <th>Date & Time</th><th>User Email</th><th>Name</th><th>Action</th>
@@ -79,7 +79,7 @@ function buildHtml(logs: any[], filters: any): string {
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>
-  <p class="footer">Confidential — LiteEvent LLC · 17200 E Iliff Ave Ste A12 PMB 1011, Aurora CO 80013</p>
+  <p class="footer">Confidential — Lakenah LLC · 17200 E Iliff Ave Ste A12 PMB 1011, Aurora CO 80013</p>
   </body></html>`;
 }
 
