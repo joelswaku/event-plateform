@@ -11,16 +11,16 @@ const LOGOUT_MARKER_KEY = "liteevent:logout";
 
 function markLoggedOut() {
   try {
-    console.log('[Auth] Setting logout marker');
     window.localStorage.setItem(LOGOUT_MARKER_KEY, "1");
   } catch {
     /* storage unavailable */
   }
 }
 
-function clearLogoutMarker() {
+// A deliberate, new sign-in may clear the local-only logout marker. Keeping
+// this exported lets OAuth redirect sign-in do the same before leaving the app.
+export function clearLogoutMarker() {
   try {
-    console.log('[Auth] Clearing logout marker');
     window.localStorage.removeItem(LOGOUT_MARKER_KEY);
   } catch {
     /* storage unavailable */
@@ -486,7 +486,6 @@ export const useAuthStore = create(
         // If logout marker is set, immediately clear persisted auth state
         // This handles the case where user logged out but persisted storage still has auth data
         if (hasLogoutMarker()) {
-          console.log('Logout marker found during rehydration, clearing auth state');
           state?.clearPersistedAuth?.();
         }
         state?.setHydrated();

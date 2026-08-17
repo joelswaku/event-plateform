@@ -88,7 +88,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   owner: "okapiapp",
   name: "LiteEvent",
   slug: "event-app",
-  version: "1.1.0",
+  version: "1.1.1",
   orientation: "portrait",
   scheme: "liteevent",
   userInterfaceStyle: "dark",
