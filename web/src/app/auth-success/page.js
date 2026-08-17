@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth.store";
+import { clearLogoutMarker } from "@/store/auth.store";
 
 /**
  * Intermediate page after Google OAuth callback
@@ -15,6 +16,9 @@ export default function AuthSuccessPage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        // Clear logout marker FIRST - this is a successful new login
+        clearLogoutMarker();
+
         const user = await fetchMe();
         if (user) {
           // Successfully authenticated, get redirect destination
