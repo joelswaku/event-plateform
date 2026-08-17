@@ -194,8 +194,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   googleLogin: async (idToken) => {
     set({ isLoading: true, error: null });
     try {
-      // SECURITY FIX: Backend expects access_token, not id_token
-      const res          = await api.post<{ data: { accessToken: string; refreshToken: string; user: User } }>('/auth/google', { access_token: idToken });
+      // Native Google Sign-In returns a signed OpenID Connect ID token. The
+      // API verifies its signature and audience before creating the session.
+      const res          = await api.post<{ data: { accessToken: string; refreshToken: string; user: User } }>('/auth/google', { id_token: idToken });
       const accessToken  = res.data?.data?.accessToken;
       const refreshToken = res.data?.data?.refreshToken;
       const user         = res.data?.data?.user;

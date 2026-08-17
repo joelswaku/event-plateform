@@ -83,19 +83,31 @@ export async function signInWithGoogle(): Promise<string | null> {
   }
 
   try {
-    // Check if device supports Google Play Services (Android)
-    await GoogleSignin.hasPlayServices();
+    // Check for Play Services before opening the Android account chooser.
+    if (Platform.OS === 'android') {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    }
 
-    // Sign in
-    const userInfo = await GoogleSignin.signIn();
+    // v16 returns { type: 'success', data: User } (or a cancelled response).
+    // Older native builds returned User directly, so retain a safe fallback
+    // while every installed build moves to the current response shape.
+    const signInResponse = await GoogleSignin.signIn();
+    if (signInResponse?.type === 'cancelled') {
+      return null;
+    }
+    const userInfo = signInResponse?.data ?? signInResponse;
 
-    // Get ID token
+    // Prefer the identity token returned by sign-in. getTokens is retained as
+    // a fallback for native builds which only expose it through that method.
     const tokens = await GoogleSignin.getTokens();
+    const idToken = userInfo?.idToken ?? tokens?.idToken;
+    if (!idToken) {
+      throw new Error('Google did not return a sign-in token');
+    }
 
-    console.log('[Google Sign In] Success:', userInfo.user.email);
+    console.log('[Google Sign In] Success:', userInfo?.user?.email ?? 'Google account');
 
-    // Return the idToken (or access token depending on backend)
-    return tokens.idToken;
+    return idToken;
   } catch (error: any) {
     console.error('[Google Sign In] Error:', error);
 

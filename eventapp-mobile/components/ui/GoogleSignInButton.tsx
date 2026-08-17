@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, Text, StyleSheet, ActivityIndicator, View, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { signInWithGoogle, isGoogleSignInAvailable, isGoogleSignInConfigured } from '@/lib/google-signin';
 import { useAuthStore } from '@/store/auth.store';
@@ -22,6 +23,7 @@ function GoogleMark() {
 
 export function GoogleSignInButton({ mode = 'login' }: GoogleSignInButtonProps) {
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
   const googleLogin = useAuthStore(s => s.googleLogin);
   const isAvailable = isGoogleSignInAvailable();
   const isConfigured = isGoogleSignInConfigured();
@@ -60,7 +62,12 @@ export function GoogleSignInButton({ mode = 'login' }: GoogleSignInButtonProps) 
 
       if (!result.success) {
         toast.error('Sign In Failed', result.message || 'Could not sign in with Google');
+        return;
       }
+
+      // Do not rely only on the root auth listener: on a release build the
+      // native Google activity can resume after that listener has evaluated.
+      router.replace('/(tabs)' as never);
     } catch (error: any) {
       console.error('[Google Sign In Button] Error:', error);
       toast.error('Sign In Failed', 'An unexpected error occurred');
@@ -80,22 +87,21 @@ export function GoogleSignInButton({ mode = 'login' }: GoogleSignInButtonProps) 
       disabled={loading}
       accessibilityRole="button"
       accessibilityLabel={mode === 'signup' ? 'Sign up with Google' : 'Sign in with Google'}
-      android_ripple={{ color: 'rgba(60,64,67,0.12)' }}
+      android_ripple={{ color: 'rgba(15, 23, 42, 0.08)' }}
     >
-      <View style={styles.iconContainer}>
+      <View style={styles.iconBadge}>
         {loading ? (
-          <ActivityIndicator size="small" color="#5f6368" />
+          <ActivityIndicator size="small" color="#334155" />
         ) : (
           <GoogleMark />
         )}
       </View>
       <Text style={styles.buttonText}>
         {loading
-          ? 'Signing in with Google…'
-          : mode === 'signup'
-          ? 'Sign up with Google'
-          : 'Sign in with Google'}
+          ? 'Connecting securely…'
+          : 'Continue with Google'}
       </Text>
+      <View style={styles.trailingSpace} />
     </Pressable>
   );
 }
@@ -105,37 +111,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 54,
-    gap: 12,
-    paddingHorizontal: 24,
-    borderRadius: 14,
+    height: 56,
+    gap: 11,
+    paddingHorizontal: 16,
+    borderRadius: 16,
     backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: 'rgba(0,0,0,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(226,232,240,0.96)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 5,
   },
   buttonPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
-    backgroundColor: '#F8F9FA',
+    opacity: 0.96,
+    transform: [{ scale: 0.985 }],
+    backgroundColor: '#F8FAFC',
   },
   buttonDisabled: {
     opacity: 0.5,
   },
-  iconContainer: {
-    width: 22,
-    height: 22,
+  iconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
   },
   buttonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1F2937',
-    letterSpacing: -0.2,
+    flex: 1,
+    fontSize: 15.5,
+    fontWeight: '700',
+    color: '#172033',
+    letterSpacing: -0.1,
+    textAlign: 'center',
   },
+  trailingSpace: { width: 32, height: 32 },
 });
