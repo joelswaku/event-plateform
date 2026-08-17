@@ -30,7 +30,11 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.liteevent.com/api"
+        "EXPO_PUBLIC_API_URL": "https://api.liteevent.com/api",
+        "EXPO_PUBLIC_WEB_URL": "https://liteevent.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "728056596746-bgeh855s1c8t9snrg5l09kp1vvu2uvqd.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "728056596746-bgeh855s1c8t9snrg5l09kp1vvu2uvqd.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "728056596746-bgeh855s1c8t9snrg5l09kp1vvu2uvqd.apps.googleusercontent.com"
       },
       "android": {
         "buildType": "app-bundle"
@@ -44,7 +48,10 @@
       }
     },
     "production-android": {
-      "extends": "production"
+      "extends": "production",
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   },
   "submit": {

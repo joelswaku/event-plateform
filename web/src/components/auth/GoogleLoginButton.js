@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { clearLogoutMarker } from "@/store/auth.store";
 
 export default function GoogleLoginButton({ redirectTo = "/dashboard" }) {
   const isConfigured =
@@ -10,6 +11,10 @@ export default function GoogleLoginButton({ redirectTo = "/dashboard" }) {
 
   const handleGoogleLogin = () => {
     setLoading(true);
+
+    // Google sign-in leaves this page and returns through /auth-success. A
+    // previous explicit logout must not block that new successful session.
+    clearLogoutMarker();
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
     const destination = encodeURIComponent(

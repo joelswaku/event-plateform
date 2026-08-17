@@ -11,7 +11,7 @@ type GoogleSignInButtonProps = {
 
 function GoogleMark() {
   return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" accessibilityLabel="Google">
+    <Svg width={22} height={22} viewBox="0 0 24 24" accessibilityLabel="Google">
       <Path fill="#4285F4" d="M21.35 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h5.23a4.47 4.47 0 0 1-1.94 2.93v2.79h3.14c1.84-1.7 2.92-4.2 2.92-7.75Z" />
       <Path fill="#34A853" d="M12 21.75c2.62 0 4.82-.87 6.43-2.36l-3.14-2.79c-.87.58-1.99.92-3.29.92-2.53 0-4.67-1.71-5.43-4v2.88H3.33a9.72 9.72 0 0 0 8.67 5.35Z" />
       <Path fill="#FBBC05" d="M6.57 13.52a5.85 5.85 0 0 1 0-3.73V6.91H3.33a9.75 9.75 0 0 0 0 9.49l3.24-2.88Z" />
@@ -105,35 +105,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 52,
-    gap: 10,
-    paddingHorizontal: 20,
-    borderRadius: 13,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#dadce0',
+    height: 54,
+    gap: 12,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,0,0,0.08)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   buttonPressed: {
-    opacity: 0.8,
+    opacity: 0.9,
     transform: [{ scale: 0.98 }],
+    backgroundColor: '#F8F9FA',
   },
   buttonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   iconContainer: {
-    width: 20,
-    height: 20,
+    width: 22,
+    height: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
   buttonText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#3c4043',
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
+    letterSpacing: -0.2,
   },
 });
