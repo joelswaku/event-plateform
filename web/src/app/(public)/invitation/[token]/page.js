@@ -49,6 +49,7 @@ export default function InvitationPage() {
   const [rsvpStatus, setRsvpStatus] = useState(null);
   const [plusOnes, setPlusOnes]     = useState(0);
   const [note, setNote]             = useState("");
+  const [allowUpdates, setAllowUpdates] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
@@ -100,6 +101,7 @@ export default function InvitationPage() {
           rsvp_status: status,
           plus_one_count: data?.guest?.plus_one_allowed ? plusOnes : 0,
           note: note.trim() || null,
+          allow_event_updates: allowUpdates,
         }),
       });
       const json = await res.json();
@@ -298,6 +300,34 @@ export default function InvitationPage() {
               placeholder="Dietary requirements, special needs…"
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-indigo-400"
             />
+          </div>
+
+          {/* Communication Consent */}
+          <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4">
+            <label className="flex items-start gap-3 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={allowUpdates}
+                onChange={(e) => setAllowUpdates(e.target.checked)}
+                className="mt-0.5 w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <div className="flex-1">
+                <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 block">
+                  I want to receive event updates
+                </span>
+                <p className="text-xs text-gray-500 mt-1">
+                  Get reminders, QR codes, and updates via{" "}
+                  {guest.email && guest.phone ? "email & SMS" : guest.email ? "email" : guest.phone ? "SMS" : "your preferred method"}.
+                  Unsubscribe anytime.
+                </p>
+                {(guest.email || guest.phone) && (
+                  <p className="text-xs text-gray-400 mt-1.5">
+                    {guest.email && <span className="block">📧 {guest.email}</span>}
+                    {guest.phone && <span className="block">📱 {guest.phone}</span>}
+                  </p>
+                )}
+              </div>
+            </label>
           </div>
 
           {/* RSVP buttons */}

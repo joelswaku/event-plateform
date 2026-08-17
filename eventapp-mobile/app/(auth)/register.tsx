@@ -15,6 +15,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { Input }  from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { LiteEventLogo } from '@/components/ui/LiteEventLogo';
+import { GoogleSignInButton } from '@/components/ui/GoogleSignInButton';
 import { Colors } from '@/constants/colors';
 
 const schema = z.object({
@@ -124,6 +125,14 @@ export default function RegisterScreen() {
               accent={Colors.accent.indigo}
               size="lg"
             />
+
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <GoogleSignInButton mode="signup" />
           </View>
 
           {/* Footer */}
@@ -168,6 +177,25 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 22, fontWeight: '800', color: '#fff' },
   cardSub:   { fontSize: 13, color: 'rgba(255,255,255,0.76)', marginTop: -6, fontWeight: '600' },
+
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  dividerText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.4)',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
 
   footer:     { flexDirection: 'row', justifyContent: 'center', paddingVertical: 8 },
   footerText: { color: 'rgba(255,255,255,0.74)', fontSize: 13, fontWeight: '600' },

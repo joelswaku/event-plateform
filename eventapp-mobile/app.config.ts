@@ -158,8 +158,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-web-browser",
     "expo-secure-store",
 
-    // ✅ Google Sign-In plugin
-    "@react-native-google-signin/google-signin",
+    // ✅ Google Sign-In plugin with iOS URL scheme
+    [
+      "@react-native-google-signin/google-signin",
+      {
+        iosUrlScheme: "com.googleusercontent.apps.728056596746-44c4q2vgaiojan8imrs50ikkjmg3e8d0",
+      },
+    ],
 
     [
       "expo-camera",
@@ -185,8 +190,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         ios: {
           deploymentTarget: "15.1",
           newArchEnabled: true,
-          // Note: useFrameworks: "dynamic" removed - it breaks react-native-netinfo linking
-          // Using modular headers plugin instead for Google pods
+          useFrameworks: "static", // Use static frameworks for better compatibility
         },
         android: {
           // Release builds may only communicate over HTTPS. This prevents a
@@ -196,9 +200,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         },
       },
     ],
-
-    // Fix Google pods (AppCheckCore, GoogleUtilities, RecaptchaInterop) with modular headers
-    "./plugins/withGoogleModularHeaders.js",
 
     "@react-native-community/datetimepicker",
   ],

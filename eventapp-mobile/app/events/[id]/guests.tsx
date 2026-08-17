@@ -373,8 +373,11 @@ export default function GuestsScreen() {
   /* Bulk selection */
   const [selectMode,   setSelectMode]   = useState(false);
   const [selectedIds,  setSelectedIds]  = useState<Set<string>>(new Set());
-  const [bulkLoading,  setBulkLoading]  = useState(false);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [rsvpLoading,   setRsvpLoading]   = useState(false);
   const [rsvpMenu,     setRsvpMenu]     = useState(false);
+  const [bulkInviteModal, setBulkInviteModal] = useState(false);
   const { confirm, confirmProps } = useConfirm();
 
   useFocusEffect(
@@ -420,11 +423,7 @@ export default function GuestsScreen() {
     fetchLocations(eventId);
   }, [eventId]);
 
-  const handleAdd = async () => {
-    if (!newGuest.full_name.trim()) {
-      notify.nameRequired();
-      return;
-    }
+  const createGuestRecord = async () => {
     setAdding(true);
     const result = await createGuest(eventId!, newGuest);
     setAdding(false);
@@ -438,6 +437,15 @@ export default function GuestsScreen() {
     } else {
       notify.guestFailed();
     }
+  };
+
+  const handleAdd = () => {
+    if (!newGuest.full_name.trim()) {
+      notify.nameRequired();
+      return;
+    }
+
+    createGuestRecord();
   };
 
   const toggleSelect = useCallback((id: string) => {
@@ -471,9 +479,9 @@ export default function GuestsScreen() {
       confirmLabel: 'Delete',
       variant: 'danger',
       onConfirm: async () => {
-        setBulkLoading(true);
+        setDeleteLoading(true);
         const res = await bulkDeleteGuests(eventId!, Array.from(selectedIds));
-        setBulkLoading(false);
+        setDeleteLoading(false);
         if (res.success) {
           notify.guestDeleted(selectedIds.size);
           exitSelectMode();
@@ -484,22 +492,36 @@ export default function GuestsScreen() {
     });
   }, [selectedIds, eventId, bulkDeleteGuests, exitSelectMode, confirm]);
 
-  const handleBulkInvite = useCallback(async () => {
-    setBulkLoading(true);
-    const res = await bulkSendInvitations(eventId!, Array.from(selectedIds), { channel: 'EMAIL' });
-    setBulkLoading(false);
+  const handleBulkInvite = useCallback(() => {
+    setBulkInviteModal(true);
+  }, []);
+
+  const sendBulkInviteViaChannel = useCallback(async (channel: 'EMAIL' | 'SMS') => {
+    setBulkInviteModal(false);
+    setInviteLoading(true);
+    const res = await bulkSendInvitations(eventId!, Array.from(selectedIds), { channel });
+    setInviteLoading(false);
     if (res.success) {
-      notify.invitesSent(selectedIds.size);
+      const sent = res.data?.sent ?? selectedIds.size;
+      const failed = res.data?.failed ?? 0;
+      if (failed > 0) {
+        notify.warning(
+          'Some invitations were not sent',
+          `${sent} sent by ${channel === 'SMS' ? 'SMS' : 'email'} · ${failed} need valid contact details or a delivery retry.`,
+        );
+      } else {
+        notify.invitesSent(sent);
+      }
     } else {
-      notify.invitesFailed();
+      notify.error('Could not send invitations', res.error || 'Check guest phone numbers and SMS setup, then try again.');
     }
   }, [selectedIds, eventId, bulkSendInvitations]);
 
   const handleBulkRsvp = useCallback(async (status: string) => {
     setRsvpMenu(false);
-    setBulkLoading(true);
+    setRsvpLoading(true);
     const res = await bulkSubmitRsvp(eventId!, Array.from(selectedIds), status);
-    setBulkLoading(false);
+    setRsvpLoading(false);
     if (res.success) {
       notify.rsvpUpdated(status, selectedIds.size);
     } else {
@@ -709,20 +731,30 @@ export default function GuestsScreen() {
           <Text style={bl.count}>{selectedIds.size} selected</Text>
           <View style={bl.actions}>
             {/* Send Invite */}
-            <Pressable style={bl.btn} onPress={handleBulkInvite} disabled={bulkLoading}>
-              <Feather name="send" size={15} color={Colors.accent.indigo} />
-              <Text style={[bl.btnTxt, { color: Colors.accent.indigo }]}>Invite</Text>
+            <Pressable style={bl.btn} onPress={handleBulkInvite} disabled={inviteLoading || deleteLoading || rsvpLoading}>
+              {inviteLoading
+                ? <ActivityIndicator size="small" color={Colors.accent.indigo} />
+                : <Feather name="send" size={15} color={Colors.accent.indigo} />
+              }
+              <Text style={[bl.btnTxt, { color: Colors.accent.indigo }]}>
+                {inviteLoading ? 'Sending...' : 'Invite'}
+              </Text>
             </Pressable>
 
             {/* RSVP */}
-            <Pressable style={bl.btn} onPress={() => setRsvpMenu(true)} disabled={bulkLoading}>
-              <Feather name="check-circle" size={15} color={Colors.accent.emerald} />
-              <Text style={[bl.btnTxt, { color: Colors.accent.emerald }]}>RSVP</Text>
+            <Pressable style={bl.btn} onPress={() => setRsvpMenu(true)} disabled={inviteLoading || deleteLoading || rsvpLoading}>
+              {rsvpLoading
+                ? <ActivityIndicator size="small" color={Colors.accent.emerald} />
+                : <Feather name="check-circle" size={15} color={Colors.accent.emerald} />
+              }
+              <Text style={[bl.btnTxt, { color: Colors.accent.emerald }]}>
+                {rsvpLoading ? 'Updating...' : 'RSVP'}
+              </Text>
             </Pressable>
 
             {/* Delete */}
-            <Pressable style={bl.deleteBtn} onPress={handleBulkDelete} disabled={bulkLoading}>
-              {bulkLoading
+            <Pressable style={bl.deleteBtn} onPress={handleBulkDelete} disabled={inviteLoading || deleteLoading || rsvpLoading}>
+              {deleteLoading
                 ? <ActivityIndicator size="small" color={Colors.accent.red} />
                 : <Feather name="trash-2" size={15} color={Colors.accent.red} />
               }
@@ -851,7 +883,7 @@ export default function GuestsScreen() {
             onChangeText={t => setNewGuest(g => ({ ...g, email: t }))}
           />
           <Input
-            label="Phone"
+            label="Phone (with country code)"
             icon="phone"
             placeholder="+1 555 000 0000"
             keyboardType="phone-pad"
@@ -896,6 +928,62 @@ export default function GuestsScreen() {
           </Pressable>
         </View>
       </BottomSheet>
+
+      {/* ── Bulk Invite Channel Selector Modal ─────────────────────── */}
+      {bulkInviteModal && (
+        <View style={StyleSheet.absoluteFill}>
+          <Pressable style={inviteModalStyles.overlay} onPress={() => setBulkInviteModal(false)}>
+            <View style={inviteModalStyles.backdrop} />
+          </Pressable>
+          <View style={inviteModalStyles.container}>
+            <Pressable onPress={(e) => e.stopPropagation()} style={inviteModalStyles.content}>
+              <Text style={inviteModalStyles.title}>Send Invitations</Text>
+              <Text style={inviteModalStyles.subtitle}>
+                Send {selectedIds.size} invitation{selectedIds.size !== 1 ? 's' : ''} via:
+              </Text>
+
+              <View style={inviteModalStyles.options}>
+                {/* Email Option */}
+                <Pressable
+                  style={inviteModalStyles.option}
+                  onPress={() => sendBulkInviteViaChannel('EMAIL')}
+                >
+                  <View style={[inviteModalStyles.optionIcon, { backgroundColor: `${Colors.accent.indigo}18` }]}>
+                    <Feather name="mail" size={18} color={Colors.accent.indigo} />
+                  </View>
+                  <View style={inviteModalStyles.optionText}>
+                    <Text style={inviteModalStyles.optionLabel}>Send via Email</Text>
+                    <Text style={inviteModalStyles.optionSub}>To guests with email addresses</Text>
+                  </View>
+                  <Feather name="chevron-right" size={16} color={Colors.accent.indigo} />
+                </Pressable>
+
+                {/* SMS Option */}
+                <Pressable
+                  style={inviteModalStyles.option}
+                  onPress={() => sendBulkInviteViaChannel('SMS')}
+                >
+                  <View style={[inviteModalStyles.optionIcon, { backgroundColor: `${Colors.accent.emerald}18` }]}>
+                    <Feather name="message-circle" size={18} color={Colors.accent.emerald} />
+                  </View>
+                  <View style={inviteModalStyles.optionText}>
+                    <Text style={inviteModalStyles.optionLabel}>Send via SMS</Text>
+                    <Text style={inviteModalStyles.optionSub}>To selected guests with phone numbers</Text>
+                  </View>
+                  <Feather name="chevron-right" size={16} color={Colors.accent.emerald} />
+                </Pressable>
+              </View>
+
+              <Pressable
+                style={inviteModalStyles.cancelBtn}
+                onPress={() => setBulkInviteModal(false)}
+              >
+                <Text style={inviteModalStyles.cancelText}>Cancel</Text>
+              </Pressable>
+            </Pressable>
+          </View>
+        </View>
+      )}
 
       <ConfirmModal {...confirmProps} />
     </SafeAreaView>
@@ -1116,6 +1204,91 @@ const ag = StyleSheet.create({
     marginTop: 4,
   },
   submitTxt: { fontSize: 15, fontWeight: '800', color: '#fff' },
+});
+
+/* ── Invite Modal Styles ────────────────────────────────────────── */
+const inviteModalStyles = StyleSheet.create({
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+  },
+  container: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+    zIndex: 101,
+    pointerEvents: 'box-none',
+  },
+  content: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: '#0e0e16',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    padding: 24,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.45)',
+    marginBottom: 20,
+  },
+  options: {
+    gap: 10,
+    marginBottom: 16,
+  },
+  option: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  optionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  optionText: {
+    flex: 1,
+  },
+  optionLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  optionSub: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.45)',
+    marginTop: 2,
+  },
+  cancelBtn: {
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+  },
+  cancelText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.5)',
+  },
 });
 
 

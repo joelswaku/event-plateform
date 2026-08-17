@@ -1,7 +1,8 @@
 /**
  * Expo config plugin to enable modular headers for Google pods.
- * Fixes CocoaPods issues with AppCheckCore, GoogleUtilities, and RecaptchaInterop
- * without requiring useFrameworks: "dynamic" which breaks react-native-netinfo linking.
+ * Fixes CocoaPods issues with AppCheckCore, GoogleUtilities, RecaptchaInterop,
+ * GoogleSignIn, GTMSessionFetcher, and GTMAppAuth without requiring
+ * useFrameworks: "dynamic" which breaks react-native-netinfo linking.
  */
 const { withDangerousMod } = require('@expo/config-plugins');
 const fs = require('fs');
@@ -37,10 +38,13 @@ module.exports = function withGoogleModularHeaders(config) {
       const targetLine = targetMatch[0];
       const modularHeadersConfig = `
   # Google pods modular headers - fixes AppCheckCore/GoogleUtilities/RecaptchaInterop
-  # without requiring useFrameworks: "dynamic" which breaks react-native-netinfo
+  # and Google Sign In pods without requiring useFrameworks: "dynamic"
   pod 'GoogleUtilities', :modular_headers => true
   pod 'RecaptchaInterop', :modular_headers => true
   pod 'AppCheckCore', :modular_headers => true
+  pod 'GoogleSignIn', :modular_headers => true
+  pod 'GTMSessionFetcher', :modular_headers => true
+  pod 'GTMAppAuth', :modular_headers => true
 `;
 
       podfileContent = podfileContent.replace(

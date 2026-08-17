@@ -13,7 +13,7 @@ import React, { useEffect, useCallback, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable, RefreshControl,
   ActivityIndicator, Dimensions, Animated, NativeSyntheticEvent,
-  NativeScrollEvent, Modal, Image,
+  NativeScrollEvent, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -719,7 +719,7 @@ function RecentRow({ event, onPress }: { event: Event; onPress: () => void }) {
     >
       {/* Thumb */}
       <View style={s.recentThumb}>
-        <Image
+        <ExpoImage
           source={heroImg(event)}
           style={StyleSheet.absoluteFill}
           contentFit="cover"
@@ -983,14 +983,16 @@ export default function HomeScreen() {
             <Pressable onPress={() => router.push('/(tabs)/profile' as never)}>
               <View style={s.logoMark}>
                 {user?.avatar_url ? (
-                  <Image
+                  <ExpoImage
                     key={`home-avatar-${user.avatar_url}-${avatarCache}`}
                     source={{
                       uri: `${user.avatar_url}${user.avatar_url.includes('?') ? '&' : '?'}t=${avatarCache}`,
-                      cache: 'reload'
+                      cacheKey: `home-avatar-${avatarCache}`,
                     }}
                     style={StyleSheet.absoluteFill}
-                    resizeMode="cover"
+                    contentFit="cover"
+                    cachePolicy="none"
+                    transition={0}
                   />
                 ) : (
                   <LinearGradient
@@ -1011,7 +1013,10 @@ export default function HomeScreen() {
             </View>
           </View>
           <View style={s.headerRight}>
-            <Pressable style={s.headerBtn} onPress={() => router.push('/notifications' as never)}>
+            <Pressable
+              style={s.headerBtn}
+              onPress={() => router.push((user?.is_super_admin ? '/notifications' : '/profile/notifications') as never)}
+            >
               <Feather name="bell" size={18} color={Colors.text.muted} />
               {visibleNotificationCount > 0 && (
                 <View style={s.notifBadge}>
@@ -1131,8 +1136,8 @@ export default function HomeScreen() {
                   >
                     {/* Thumbnail */}
                     <View style={s.teamCardThumb}>
-                      <Image
-                        source={{ uri: heroImg(ev) }}
+                      <ExpoImage
+                        source={heroImg(ev)}
                         style={StyleSheet.absoluteFill}
                         contentFit="cover"
                         transition={200}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ChevronLeft, Mail, Grid, UserCheck, Hash, Calendar, Layers, Trash2, Check, Clock, CheckCircle, Edit2, ChevronRight, MapPin } from "lucide-react";
+import { ChevronLeft, Mail, Grid, UserCheck, Hash, Calendar, Layers, Trash2, Check, Clock, CheckCircle, Edit2, ChevronRight, MapPin, MessageCircle } from "lucide-react";
 import { useGuestStore } from "@/store/guest.store";
 import { useSeatingStore } from "@/store/seating.store";
 import toast from "react-hot-toast";
@@ -66,19 +66,20 @@ function DetailRow({ icon: Icon, label, value }) {
   );
 }
 
-function SendQrModal({ open, onClose, onSendEmail, guest }) {
+function SendQrModal({ open, onClose, onSend, guest }) {
   const [sending, setSending] = useState(false);
 
-  const handleSendEmail = async () => {
+  const handleSend = async (channel) => {
     setSending(true);
-    await onSendEmail();
+    const result = await onSend(channel);
     setSending(false);
-    onClose();
+    if (result?.success) onClose();
   };
 
   if (!open) return null;
 
   const hasEmail = guest?.email;
+  const hasPhone = guest?.phone;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -98,7 +99,7 @@ function SendQrModal({ open, onClose, onSendEmail, guest }) {
           {/* Email */}
           {hasEmail && (
             <button
-              onClick={handleSendEmail}
+              onClick={() => handleSend('EMAIL')}
               disabled={sending}
               className="w-full flex items-center gap-3 p-4 rounded-[16px] border transition-all disabled:opacity-50 hover:bg-opacity-20"
               style={{
@@ -120,9 +121,27 @@ function SendQrModal({ open, onClose, onSendEmail, guest }) {
             </button>
           )}
 
-          {!hasEmail && (
+          {hasPhone && (
+            <button
+              onClick={() => handleSend('SMS')}
+              disabled={sending}
+              className="w-full flex items-center gap-3 p-4 rounded-[16px] border transition-all disabled:opacity-50 hover:bg-opacity-20"
+              style={{ background: 'rgba(16,185,129,0.08)', borderColor: 'rgba(16,185,129,0.3)' }}
+            >
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]" style={{ background: 'rgba(16,185,129,0.15)' }}>
+                <MessageCircle size={18} style={{ color: '#10b981' }} />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-bold text-white">Send via SMS</p>
+                <p className="text-[11px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.45)' }}>{guest?.phone}</p>
+              </div>
+              {sending && <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400/40 border-t-emerald-400" />}
+            </button>
+          )}
+
+          {!hasEmail && !hasPhone && (
             <div className="px-4 py-5 text-center text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
-              No email address is saved for this guest.
+              No email address or phone number is saved for this guest.
             </div>
           )}
         </div>
@@ -149,9 +168,9 @@ function SendInviteModal({ open, onClose, onSend, guest, eventId }) {
 
   const handleSend = async (channel) => {
     setSending(true);
-    await onSend(channel);
+    const result = await onSend(channel);
     setSending(false);
-    onClose();
+    if (result?.success) onClose();
   };
 
   const handleWhatsApp = () => {
@@ -237,6 +256,24 @@ function SendInviteModal({ open, onClose, onSend, guest, eventId }) {
             </button>
           )}
 
+          {hasPhone && (
+            <button
+              onClick={() => handleSend('SMS')}
+              disabled={sending}
+              className="w-full flex items-center gap-3 p-4 rounded-[16px] border transition-all disabled:opacity-50 hover:bg-opacity-20"
+              style={{ background: 'rgba(16,185,129,0.08)', borderColor: 'rgba(16,185,129,0.3)' }}
+            >
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]" style={{ background: 'rgba(16,185,129,0.15)' }}>
+                <MessageCircle size={18} style={{ color: '#10b981' }} />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-bold text-white">Send via SMS</p>
+                <p className="text-[11px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.45)' }}>{guest?.phone}</p>
+              </div>
+              {sending && <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400/40 border-t-emerald-400" />}
+            </button>
+          )}
+
           {/* Removed - WhatsApp */}
           {false && hasPhone && (
             <button
@@ -284,7 +321,7 @@ function SendInviteModal({ open, onClose, onSend, guest, eventId }) {
 export default function GuestDetailPage() {
   const { eventId, guestId } = useParams();
   const router = useRouter();
-  const { guests, getGuestById, deleteGuest, sendGuestInvitation, sendQrEmail, manualCheckIn } = useGuestStore();
+  const { guests, getGuestById, deleteGuest, sendGuestInvitation, sendQrEmail, sendQrSms, manualCheckIn } = useGuestStore();
   const { assignments, locations, fetchAssignments, fetchLocations } = useSeatingStore();
 
   const [busy, setBusy] = useState(null);
@@ -329,6 +366,7 @@ export default function GuestDetailPage() {
     } else {
       toast.error(res?.error || 'Action failed');
     }
+    return res;
   };
 
   const handleSendInvite = async (channel) => {
@@ -340,6 +378,7 @@ export default function GuestDetailPage() {
     } else {
       toast.error('Failed to send invitation');
     }
+    return res;
   };
 
   const handleDelete = async () => {
@@ -375,7 +414,7 @@ export default function GuestDetailPage() {
         </button>
         <h1 className="flex-1 text-[17px] font-black text-white truncate">{guest.full_name}</h1>
         <button
-          onClick={() => router.push(`/events/${eventId}/guests`)}
+          onClick={() => router.push(`/events/${eventId}/guests?edit=${guestId}`)}
           className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] border"
           style={{ background: 'rgba(99,102,241,0.12)', borderColor: 'rgba(99,102,241,0.3)' }}
         >
@@ -563,7 +602,11 @@ export default function GuestDetailPage() {
       <SendQrModal
         open={showQrModal}
         onClose={() => setShowQrModal(false)}
-        onSendEmail={() => run('qr', () => sendQrEmail(eventId, guestId), 'QR code sent by email!')}
+        onSend={(channel) => run(
+          'qr',
+          () => channel === 'SMS' ? sendQrSms(eventId, guestId) : sendQrEmail(eventId, guestId),
+          `QR code sent by ${channel === 'SMS' ? 'SMS' : 'email'}!`,
+        )}
         guest={guest}
       />
     </div>

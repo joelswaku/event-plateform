@@ -14,7 +14,7 @@ import { notify, showSuccess, showError } from '@/lib/toast';
 import { useGuestStore }  from '@/store/guest.store';
 import { useSeatingStore } from '@/store/seating.store';
 import { BottomSheet }    from '@/components/ui/BottomSheet';
-import { ConfirmModal }   from '@/components/ui/ConfirmModal';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { Colors }         from '@/constants/colors';
 import { fmtDateTime }    from '@/lib/format';
 
@@ -71,7 +71,7 @@ export default function GuestDetailScreen() {
   const router = useRouter();
   const {
     guests, getGuestById, getAttendance, updateGuest, deleteGuest,
-    sendInvitation, sendQrEmail, manualCheckIn, submitGuestRsvp,
+    sendInvitation, sendQrEmail, sendQrSms, manualCheckIn, submitGuestRsvp,
   } = useGuestStore();
   const seatingAssignments = useSeatingStore(s => s.assignments);
   const seatingLocations = useSeatingStore(s => s.locations);
@@ -160,11 +160,7 @@ export default function GuestDetailScreen() {
     }
   };
 
-  const handleSaveEdit = async () => {
-    if (!form.full_name.trim()) {
-      notify.nameRequired();
-      return;
-    }
+  const saveGuestEdit = async () => {
     setBusy('save');
     const res = await updateGuest(eventId!, guestId!, {
       full_name:        form.full_name.trim(),
@@ -181,6 +177,15 @@ export default function GuestDetailScreen() {
     } else {
       showError('Could not update guest');
     }
+  };
+
+  const handleSaveEdit = () => {
+    if (!form.full_name.trim()) {
+      notify.nameRequired();
+      return;
+    }
+
+    saveGuestEdit();
   };
 
   const handleRsvp = async (status: string) => {
@@ -525,7 +530,7 @@ export default function GuestDetailScreen() {
         onClose={() => setDeleteModal(false)}
       />
 
-      {/* ── Send Invitation Modal (Email Only) ────────────────────────── */}
+      {/* ── Send Invitation Modal (Email + SMS) ──────────────────────── */}
       {inviteModal && (
         <View style={StyleSheet.absoluteFill}>
           <Pressable style={inviteModalStyles.overlay} onPress={() => setInviteModal(false)}>
@@ -539,8 +544,8 @@ export default function GuestDetailScreen() {
               </Text>
 
               <View style={inviteModalStyles.options}>
-                {/* Email Only */}
-                {guest.email ? (
+                {/* Email Option */}
+                {guest.email && (
                   <Pressable
                     style={inviteModalStyles.option}
                     onPress={() => {
@@ -557,10 +562,33 @@ export default function GuestDetailScreen() {
                     </View>
                     <Feather name="chevron-right" size={16} color={Colors.accent.indigo} />
                   </Pressable>
-                ) : (
+                )}
+
+                {/* SMS Option */}
+                {guest.phone && guest.sms_transactional_consent_at && (
+                  <Pressable
+                    style={inviteModalStyles.option}
+                    onPress={() => {
+                      setInviteModal(false);
+                      run('invite', () => sendInvitation(eventId!, guestId!, { channel: 'SMS' }), 'Invitation sent by SMS!');
+                    }}
+                  >
+                    <View style={[inviteModalStyles.optionIcon, { backgroundColor: `${Colors.accent.emerald}18` }]}>
+                      <Feather name="message-circle" size={18} color={Colors.accent.emerald} />
+                    </View>
+                    <View style={inviteModalStyles.optionText}>
+                      <Text style={inviteModalStyles.optionLabel}>Send via SMS</Text>
+                      <Text style={inviteModalStyles.optionSub} numberOfLines={1}>{guest.phone}</Text>
+                    </View>
+                    <Feather name="chevron-right" size={16} color={Colors.accent.emerald} />
+                  </Pressable>
+                )}
+
+                {/* No contact info */}
+                {!guest.email && !guest.phone && (
                   <View style={{ padding: 20, alignItems: 'center' }}>
-                    <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>
-                      No email address for this guest
+                    <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, textAlign: 'center' }}>
+                      No email or phone number for this guest
                     </Text>
                   </View>
                 )}
@@ -577,7 +605,7 @@ export default function GuestDetailScreen() {
         </View>
       )}
 
-      {/* ── Send QR Code Modal (Email Only) ────────────────────────── */}
+      {/* ── Send QR Code Modal (Email + SMS) ─────────────────────────── */}
       {qrModal && (
         <View style={StyleSheet.absoluteFill}>
           <Pressable style={inviteModalStyles.overlay} onPress={() => setQrModal(false)}>
@@ -591,8 +619,8 @@ export default function GuestDetailScreen() {
               </Text>
 
               <View style={inviteModalStyles.options}>
-                {/* Email Only */}
-                {guest.email ? (
+                {/* Email Option */}
+                {guest.email && (
                   <Pressable
                     style={inviteModalStyles.option}
                     onPress={() => {
@@ -609,10 +637,33 @@ export default function GuestDetailScreen() {
                     </View>
                     <Feather name="chevron-right" size={16} color={Colors.accent.indigo} />
                   </Pressable>
-                ) : (
+                )}
+
+                {/* SMS Option */}
+                {guest.phone && guest.sms_transactional_consent_at && (
+                  <Pressable
+                    style={inviteModalStyles.option}
+                    onPress={() => {
+                      setQrModal(false);
+                      run('qr', () => sendQrSms(eventId!, guestId!), 'QR code sent by SMS!');
+                    }}
+                  >
+                    <View style={[inviteModalStyles.optionIcon, { backgroundColor: `${Colors.accent.emerald}18` }]}>
+                      <Feather name="message-circle" size={18} color={Colors.accent.emerald} />
+                    </View>
+                    <View style={inviteModalStyles.optionText}>
+                      <Text style={inviteModalStyles.optionLabel}>Send via SMS</Text>
+                      <Text style={inviteModalStyles.optionSub} numberOfLines={1}>{guest.phone}</Text>
+                    </View>
+                    <Feather name="chevron-right" size={16} color={Colors.accent.emerald} />
+                  </Pressable>
+                )}
+
+                {/* No contact info */}
+                {!guest.email && !guest.phone && (
                   <View style={{ padding: 20, alignItems: 'center' }}>
-                    <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>
-                      No email address for this guest
+                    <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, textAlign: 'center' }}>
+                      No email or phone number for this guest
                     </Text>
                   </View>
                 )}

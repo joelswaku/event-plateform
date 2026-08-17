@@ -19,9 +19,11 @@ interface Props {
   value:    Date | null;
   onChange: (date: Date) => void;
   minDate?: Date;
+  minExclusive?: boolean;
+  error?: string;
 }
 
-export function DateTimePicker({ label, value, onChange, minDate }: Props) {
+export function DateTimePicker({ label, value, onChange, minDate, minExclusive = false, error }: Props) {
   const insets = useSafeAreaInsets();
   const now = new Date();
   const [open,      setOpen]      = useState(false);
@@ -30,6 +32,7 @@ export function DateTimePicker({ label, value, onChange, minDate }: Props) {
   const [ampm,      setAmpm]      = useState<'AM'|'PM'>(value ? (value.getHours() >= 12 ? 'PM' : 'AM') : 'AM');
   const [hour,      setHour]      = useState(value ? String(value.getHours() % 12 || 12).padStart(2,'0') : '12');
   const [minute,    setMinute]    = useState(value ? String(Math.round(value.getMinutes()/5)*5).padStart(2,'0') : '00');
+  const [rangeError, setRangeError] = useState('');
 
   const year  = viewDate.getFullYear();
   const month = viewDate.getMonth();
@@ -57,6 +60,14 @@ export function DateTimePicker({ label, value, onChange, minDate }: Props) {
     if (ampm === 'PM' && h !== 12) h += 12;
     if (ampm === 'AM' && h === 12) h = 0;
     d.setHours(h, parseInt(minute, 10), 0, 0);
+
+    if (minDate && (minExclusive ? d <= minDate : d < minDate)) {
+      setRangeError(minExclusive
+        ? 'Choose a time after the event start.'
+        : 'Choose a date and time on or after the minimum allowed time.');
+      return;
+    }
+
     onChange(d);
     setOpen(false);
   };
@@ -76,20 +87,22 @@ export function DateTimePicker({ label, value, onChange, minDate }: Props) {
   const formatted = value
     ? value.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
     : 'Select date & time';
+  const visibleError = rangeError || error;
 
   const openPicker = () => {
-    const base = value ?? new Date();
+    const base = value ?? minDate ?? new Date();
     setViewDate(base);
     setSelected(base);
     setAmpm(base.getHours() >= 12 ? 'PM' : 'AM');
     setHour(String(base.getHours() % 12 || 12).padStart(2, '0'));
     setMinute(String(Math.round(base.getMinutes() / 5) * 5).padStart(2, '0'));
+    setRangeError('');
     setOpen(true);
   };
 
   return (
     <>
-      <Pressable style={styles.trigger} onPress={openPicker}>
+      <Pressable style={[styles.trigger, !!visibleError && styles.triggerError]} onPress={openPicker}>
         <View style={styles.triggerLeft}>
           <View style={styles.triggerIcon}>
             <Feather name="calendar" size={15} color={Colors.accent.indigo} />
@@ -101,6 +114,7 @@ export function DateTimePicker({ label, value, onChange, minDate }: Props) {
         </View>
         <Feather name="chevron-down" size={16} color={Colors.text.subtle} />
       </Pressable>
+      {!!visibleError && <Text style={styles.rangeError}>{visibleError}</Text>}
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)} statusBarTranslucent>
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
@@ -216,6 +230,8 @@ export function DateTimePicker({ label, value, onChange, minDate }: Props) {
 
               </View>
             </View>
+
+            {!!rangeError && <Text style={styles.rangeError}>{rangeError}</Text>}
           </ScrollView>
 
           {/* Confirm */}
@@ -243,6 +259,7 @@ const styles = StyleSheet.create({
     padding:        14,
   },
   triggerLeft:  { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  triggerError: { borderColor: Colors.accent.red },
   triggerIcon: {
     width: 34, height: 34, borderRadius: 10,
     backgroundColor: `${Colors.accent.indigo}15`,
@@ -304,6 +321,8 @@ const styles = StyleSheet.create({
   timeCellActive:     { backgroundColor: `${Colors.accent.indigo}20`, borderWidth: 1, borderColor: `${Colors.accent.indigo}40` },
   timeCellText:       { fontSize: 18, fontWeight: '600', color: Colors.text.muted },
   timeCellTextActive: { color: Colors.accent.indigo, fontWeight: '900' },
+
+  rangeError: { color: Colors.accent.red, fontSize: 12, fontWeight: '700', marginTop: 2, marginBottom: 4 },
 
   ampmCol: { gap: 8 },
   ampmBtn: {

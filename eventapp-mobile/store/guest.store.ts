@@ -4,6 +4,13 @@ import {
   Guest, GuestGroup, GuestRsvp, GuestAttendance, GuestDashboard,
 } from '@/types';
 
+type BulkInvitationResult = {
+  total: number;
+  sent: number;
+  failed: number;
+  results: Array<{ guest_id: string; status: 'SENT' | 'FAILED'; channel?: string; error?: string }>;
+};
+
 interface GuestState {
   guests:           Guest[];
   guestGroups:      GuestGroup[];
@@ -43,11 +50,12 @@ interface GuestState {
   // QR
   generateQrPass:   (eventId: string, guestId: string) => Promise<{ success: boolean; data?: unknown }>;
   sendQrEmail:      (eventId: string, guestId: string) => Promise<{ success: boolean; error?: string }>;
+  sendQrSms:        (eventId: string, guestId: string) => Promise<{ success: boolean; error?: string }>;
   checkInGuestByQr: (eventId: string, payload: Record<string, unknown>) => Promise<{ success: boolean; data?: unknown; error?: string }>;
 
   // Invitations
   sendGuestInvitation:  (eventId: string, guestId: string, payload?: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
-  bulkSendInvitations:  (eventId: string, guestIds: string[], payload?: Record<string, unknown>) => Promise<{ success: boolean }>;
+  bulkSendInvitations:  (eventId: string, guestIds: string[], payload?: Record<string, unknown>) => Promise<{ success: boolean; data?: BulkInvitationResult; error?: string }>;
 
   // Dashboard
   getGuestDashboard: (eventId: string) => Promise<{ success: boolean; data?: GuestDashboard }>;
@@ -314,6 +322,16 @@ export const useGuestStore = create<GuestState>((set, get) => ({
     }
   },
 
+  sendQrSms: async (eventId, guestId) => {
+    try {
+      await api.post(`/events/${eventId}/guests/${guestId}/send-qr`, { channel: 'SMS' });
+      return { success: true };
+    } catch (err: unknown) {
+      const error = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to send QR via SMS';
+      return { success: false, error };
+    }
+  },
+
   checkInGuestByQr: async (eventId, payload) => {
     try {
       const res = await api.post(`/events/${eventId}/check-in`, payload);
@@ -328,7 +346,10 @@ export const useGuestStore = create<GuestState>((set, get) => ({
   // ── Invitations ───────────────────────────────────────────────────────────────
   sendGuestInvitation: async (eventId, guestId, payload = {}) => {
     try {
-      await api.post(`/events/${eventId}/guests/${guestId}/invitations`, payload);
+      const res = await api.post(`/events/${eventId}/guests/${guestId}/invitations`, payload);
+      if (res.data?.data?.delivered === false) {
+        return { success: false, error: res.data?.data?.invitation?.failed_reason ?? 'Invitation delivery failed' };
+      }
       return { success: true };
     } catch (err: unknown) {
       const error = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to send invitation';
@@ -345,14 +366,24 @@ export const useGuestStore = create<GuestState>((set, get) => ({
   bulkSendInvitations: async (eventId, guestIds, payload = {}) => {
     try {
       set({ isSubmitting: true });
-      for (const guestId of guestIds)
-        await api.post(`/events/${eventId}/guests/${guestId}/invitations`, payload);
+      const res = await api.post(`/events/${eventId}/invitations/send`, {
+        guest_ids: guestIds,
+        ...payload,
+      });
+      const data = res.data?.data as BulkInvitationResult | undefined;
       set({ isSubmitting: false, selectedGuestIds: [] });
-      return { success: true };
+      if (!data || data.sent < 1) {
+        return { success: false, data, error: res.data?.message ?? 'No invitations were sent' };
+      }
+      return {
+        success: true,
+        data,
+        ...(data.failed > 0 ? { error: res.data?.message ?? `${data.failed} invitations could not be sent` } : {}),
+      };
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Bulk invite failed';
       set({ isSubmitting: false, error: msg });
-      return { success: false };
+      return { success: false, error: msg };
     }
   },
 

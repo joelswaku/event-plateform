@@ -20,6 +20,7 @@ import { useAuthStore }   from "@/store/auth.store";
 import { useSubscriptionStore } from "@/store/subscription.store";
 import StatCard           from "@/components/ui/stat-card";
 import ShareEventCard     from "@/components/events/ShareEventCard";
+import EnableModuleModal  from "@/components/events/EnableModuleModal";
 import { EVENT_CATEGORIES } from "@/config/event-categories";
 import dynamic from "next/dynamic";
 const PerformancePredictionWidget = dynamic(() => import("@/components/ai/PerformancePredictionWidget"), { ssr: false });
@@ -401,63 +402,12 @@ function FeatureModules({ event, eventId, readOnly = false }) {
 
       {/* Confirmation Modal */}
       {confirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setConfirmModal(null)}>
-          <div
-            className="mx-4 w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-900/30">
-                {confirmModal.key === 'allow_rsvp' ? <Users className="h-6 w-6 text-indigo-600 dark:text-indigo-400" /> :
-                 confirmModal.key === 'allow_ticketing' ? <Ticket className="h-6 w-6 text-amber-600 dark:text-amber-400" /> :
-                 <Heart className="h-6 w-6 text-pink-600 dark:text-pink-400" />}
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                  Enable {confirmModal.label}?
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {confirmModal.desc}
-                </p>
-              </div>
-            </div>
-
-            {confirmModal.otherModules.length > 0 && (
-              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
-                <div className="flex gap-2">
-                  <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40">
-                    <span className="text-xs font-bold text-amber-600 dark:text-amber-400">!</span>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
-                      This will disable {confirmModal.otherModules.join(' & ')}
-                    </p>
-                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                      Only one module can be active at a time.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setConfirmModal(null)}
-                className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmEnableModule}
-                className="flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400"
-              >
-                Enable & Continue
-              </button>
-            </div>
-          </div>
-        </div>
+        <EnableModuleModal
+          moduleKey={confirmModal.key}
+          otherModules={confirmModal.otherModules}
+          onConfirm={confirmEnableModule}
+          onCancel={() => setConfirmModal(null)}
+        />
       )}
     </>
   );

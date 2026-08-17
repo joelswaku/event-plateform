@@ -16,10 +16,10 @@ interface TicketTypeCardProps {
 
 export function TicketTypeCard({ ticket, onEdit, onDelete, onToggle }: TicketTypeCardProps) {
   const tier      = getTierConfig(ticket);
-  const sold      = ticket.quantity_sold;
-  const total     = ticket.quantity_total;
+  const sold      = safeNumber(ticket.quantity_sold);
+  const total     = ticket.quantity_total == null ? null : safeNumber(ticket.quantity_total);
   const available = total != null ? total - sold : null;
-  const pct       = total ? Math.min((sold / total) * 100, 100) : 0;
+  const pct       = total && total > 0 ? Math.max(0, Math.min((sold / total) * 100, 100)) : 0;
   const soldOut   = available !== null && available <= 0;
 
   return (
@@ -27,6 +27,7 @@ export function TicketTypeCard({ ticket, onEdit, onDelete, onToggle }: TicketTyp
       <LinearGradient
         colors={[tier.dark, `${tier.dark}cc`]}
         style={[StyleSheet.absoluteFill, { borderRadius: 16 }]}
+        pointerEvents="none"
       />
 
       {/* Top stripe */}
@@ -108,6 +109,11 @@ export function TicketTypeCard({ ticket, onEdit, onDelete, onToggle }: TicketTyp
       </View>
     </View>
   );
+}
+
+function safeNumber(value: unknown, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
 }
 
 function getTierKey(t: TicketType): TierKey {

@@ -78,3 +78,29 @@ export const sendQrLimiter = rateLimit({
   keyGenerator: (req) => `${req.ip}:${req.params.guestId ?? ""}`,
   message: { success: false, message: "Too many QR email requests, try again in an hour." },
 });
+
+// SMS has a direct delivery cost. Apply protection only to invitation actions,
+// never to ordinary dashboard navigation or event management.
+export const sendGuestInvitationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  skip: () => isDev,
+  keyGenerator: (req) => `${req.user?.id ?? req.ip}:${req.params.eventId}:${req.params.guestId ?? "bulk"}`,
+  message: { success: false, message: "Too many invitation requests for this guest. Try again in an hour." },
+});
+
+export const bulkInvitationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  skip: () => isDev,
+  keyGenerator: (req) => `${req.user?.id ?? req.ip}:${req.params.eventId}`,
+  message: { success: false, message: "Too many bulk invitation requests. Try again in an hour." },
+});
+
+export const publicGuestQrLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  skip: () => isDev,
+  keyGenerator: (req) => `${req.ip}:${req.params.token ?? ""}`,
+  message: { success: false, message: "Too many QR pass requests. Please try again shortly." },
+});

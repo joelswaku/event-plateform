@@ -16,6 +16,7 @@ export default function OpenRsvpModal({ eventId }) {
   const [name, setName]     = useState("");
   const [email, setEmail]   = useState("");
   const [phone, setPhone]   = useState("");
+  const [smsConsent, setSmsConsent] = useState(false);
   const [status, setStatus] = useState("GOING");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError]   = useState("");
@@ -24,12 +25,22 @@ export default function OpenRsvpModal({ eventId }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    if (phone.trim() && !smsConsent) {
+      setError("Please confirm SMS consent before submitting a phone number.");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch(`${API}/public/events/${eventId}/rsvp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ guest_name: name, email, phone: phone || undefined, rsvp_status: status }),
+        body: JSON.stringify({
+          guest_name: name,
+          email,
+          phone: phone || undefined,
+          rsvp_status: status,
+          ...(phone.trim() ? { sms_transactional_opt_in: smsConsent } : {}),
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.message || "Failed to submit RSVP");
@@ -179,6 +190,27 @@ export default function OpenRsvpModal({ eventId }) {
                     style={{ width: "100%", padding: "11px 14px", fontSize: 14, borderRadius: 12, border: "1px solid #e5e7eb", outline: "none", boxSizing: "border-box", color: "#111827", background: "#fff" }}
                   />
                 </div>
+
+                <label style={{
+                  display: "flex", alignItems: "flex-start", gap: 10,
+                  padding: "12px 13px", borderRadius: 12,
+                  border: `1px solid ${smsConsent ? "#a5b4fc" : "#e5e7eb"}`,
+                  background: smsConsent ? "#eef2ff" : "#fafafa",
+                  cursor: "pointer", color: "#374151", lineHeight: 1.45,
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={smsConsent}
+                    onChange={e => setSmsConsent(e.target.checked)}
+                    style={{ marginTop: 2, width: 16, height: 16, accentColor: "#6366f1", flexShrink: 0, cursor: "pointer" }}
+                  />
+                  <span style={{ fontSize: 11 }}>
+                    <strong style={{ display: "block", fontSize: 12, color: "#312e81", marginBottom: 3 }}>I agree to receive transactional SMS messages about this event{phone.trim() ? " *" : ""}.</strong>
+                    {phone.trim()
+                      ? "Messages may include invitations, RSVP updates, tickets, QR entry passes, and reminders. Message frequency may vary. Message and data rates may apply. Reply STOP to opt out or HELP for help. Your mobile information will not be sold or shared with third parties for promotional or marketing purposes."
+                      : "Add a phone number if you would like to receive event SMS updates."}
+                  </span>
+                </label>
 
                 {error && (
                   <p style={{ fontSize: 13, color: "#ef4444", fontWeight: 600, padding: "10px 14px", background: "#fef2f2", borderRadius: 10 }}>

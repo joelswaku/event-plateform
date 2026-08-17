@@ -364,40 +364,57 @@ function MobileEventCard({ event }) {
   return (
     <Link
       href={`/events/${event.id}`}
-      className="flex items-center overflow-hidden rounded-[18px] border"
-      style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.07)" }}
+      className="group block overflow-hidden rounded-[20px] border transition-transform active:scale-[0.99]"
+      style={{ background: "#0e0e16", borderColor: `${cfg.text}35` }}
     >
-      <div className="relative h-[80px] w-[80px] shrink-0 overflow-hidden" style={{ background: "#14141f" }}>
+      <div className="relative h-[164px] overflow-hidden" style={{ background: "#14141f" }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={heroImg(event)} alt={event.title} className="h-full w-full object-cover" />
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent, rgba(0,0,0,0.45))" }} />
+        <img
+          src={heroImg(event)}
+          alt={event.title}
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+        />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.04) 20%, rgba(7,7,15,0.82) 100%)" }} />
+        <div className="absolute inset-x-0 top-0 h-[3px]" style={{ background: cfg.dot }} />
       </div>
 
-      <div className="flex flex-1 flex-col gap-1.5 py-3 px-3">
-        <span className="line-clamp-1 text-[14px] font-extrabold tracking-tight text-white">{event.title}</span>
-        {date && (
-          <div className="flex items-center gap-1">
-            <Clock size={10} style={{ color: "rgba(255,255,255,0.30)" }} />
-            <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.30)" }}>{date}</span>
-          </div>
-        )}
-        <div className="flex items-center gap-2">
-          <div className="inline-flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: cfg.bg }}>
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: cfg.dot }} />
-            <span className="text-[10px] font-extrabold uppercase tracking-[0.4px]" style={{ color: cfg.text }}>
-              {event.status.charAt(0) + event.status.slice(1).toLowerCase()}
-            </span>
-          </div>
+      <div className="relative -mt-11 flex min-h-[78px] items-end justify-between gap-3 px-4 pb-3.5">
+        <div className="inline-flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: cfg.bg }}>
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: cfg.dot }} />
+          <span className="text-[10px] font-extrabold uppercase tracking-[0.4px]" style={{ color: cfg.text }}>
+            {event.status.charAt(0) + event.status.slice(1).toLowerCase()}
+          </span>
+        </div>
+        <div className="flex min-w-0 flex-col items-end gap-0.5 text-right">
           {event.event_type && (
-            <span className="truncate text-[10px] font-semibold" style={{ color: "rgba(255,255,255,0.25)" }}>
-              {event.event_type}
+            <span className="max-w-[145px] truncate text-[9px] font-extrabold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.62)" }}>
+              {event.event_type.replace(/_/g, " ")}
+            </span>
+          )}
+          {date && (
+            <span className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: "rgba(255,255,255,0.78)" }}>
+              <Clock size={10} />
+              {date}
             </span>
           )}
         </div>
       </div>
 
-      <div className="pr-3.5">
-        <ChevronRight size={16} style={{ color: "rgba(255,255,255,0.20)" }} />
+      <div className="flex min-h-[78px] items-center gap-3 px-4 pb-3.5" style={{ background: "#0e0e16" }}>
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-1 text-[17px] font-extrabold tracking-tight text-white">{event.title}</p>
+          {event.venue_name ? (
+            <div className="mt-1 flex items-center gap-1.5">
+              <MapPin size={11} style={{ color: "rgba(255,255,255,0.35)" }} />
+              <span className="truncate text-[12px] font-medium" style={{ color: "rgba(255,255,255,0.45)" }}>{event.venue_name}</span>
+            </div>
+          ) : (
+            <span className="mt-1 block text-[12px] font-medium" style={{ color: "rgba(255,255,255,0.32)" }}>Open event dashboard</span>
+          )}
+        </div>
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.07)" }}>
+          <ChevronRight size={16} style={{ color: "rgba(255,255,255,0.65)" }} />
+        </div>
       </div>
     </Link>
   );
@@ -406,52 +423,45 @@ function MobileEventCard({ event }) {
 function MobileTeamEventCard({ event }) {
   const date = fmtDate(event.starts_at_local ?? event.starts_at_utc);
   const role = ROLE_LABEL[event.user_role] ?? event.user_role ?? "Team";
+  const cfg = sc(event.status);
 
   return (
     <Link
       href={`/events/${event.id}`}
-      className="flex items-center overflow-hidden rounded-[18px] border"
-      style={{ background: "#2a1d00", borderColor: "rgba(251,191,36,0.30)" }}
+      className="group block overflow-hidden rounded-[20px] border transition-transform active:scale-[0.99]"
+      style={{ background: "#14100a", borderColor: "rgba(251,191,36,0.30)" }}
     >
-      {/* Thumbnail */}
-      <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden" style={{ background: "#14141f" }}>
+      <div className="relative h-[156px] overflow-hidden" style={{ background: "#14141f" }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={heroImg(event)} alt={event.title} className="h-full w-full object-cover" />
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent, rgba(0,0,0,0.50))" }} />
-        {/* Small users badge on thumb */}
-        <div
-          className="absolute bottom-1 right-1 flex h-[14px] w-[14px] items-center justify-center rounded-[3px]"
-          style={{ background: "rgba(42,29,0,0.85)" }}
-        >
-          <Users size={8} style={{ color: "#fbbf24" }} />
+        <img src={heroImg(event)} alt={event.title} className="h-full w-full object-cover opacity-90 transition-transform duration-500 group-hover:scale-105" />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(88,28,135,0.18), rgba(0,0,0,0.72))" }} />
+        <div className="absolute inset-x-0 top-0 h-[3px]" style={{ background: "#fbbf24" }} />
+        <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full px-2.5 py-1" style={{ background: "rgba(139,92,246,0.88)", color: "#fff" }}>
+          <Users size={10} />
+          <span className="text-[10px] font-extrabold uppercase tracking-wide">{role}</span>
+        </div>
+        <div className="absolute bottom-3 right-3 flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: cfg.bg, color: cfg.text }}>
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: cfg.dot }} />
+          <span className="text-[9px] font-extrabold uppercase">{event.status?.toLowerCase()}</span>
         </div>
       </div>
 
-      {/* Info */}
-      <div className="flex flex-1 flex-col gap-[3px] px-3 py-2.5 min-w-0">
-        <span className="line-clamp-1 text-[13px] font-extrabold tracking-tight" style={{ color: "#fef3c7" }}>
-          {event.title}
-        </span>
+      <div className="flex min-h-[78px] items-center gap-3 px-4 py-3.5" style={{ background: "#2a1d00" }}>
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-1 text-[17px] font-extrabold tracking-tight" style={{ color: "#fef3c7" }}>{event.title}</p>
         {date && (
-          <div className="flex items-center gap-1">
-            <CalendarDays size={9} style={{ color: "rgba(251,191,36,0.55)" }} />
-            <span className="text-[10px] font-semibold" style={{ color: "rgba(251,191,36,0.55)" }}>{date}</span>
+          <div className="mt-1 flex items-center gap-1.5">
+            <CalendarDays size={11} style={{ color: "rgba(251,191,36,0.60)" }} />
+            <span className="text-[12px] font-semibold" style={{ color: "rgba(251,191,36,0.60)" }}>{date}</span>
           </div>
         )}
         {event.owner_name && (
-          <span className="text-[10px]" style={{ color: "rgba(251,191,36,0.40)" }}>by {event.owner_name}</span>
+          <span className="mt-1 block truncate text-[11px]" style={{ color: "rgba(251,191,36,0.43)" }}>by {event.owner_name}</span>
         )}
-      </div>
-
-      {/* Role badge + arrow — pinned to right end */}
-      <div className="flex shrink-0 items-center gap-1.5 pr-3">
-        <div
-          className="flex items-center gap-1 rounded-full px-2 py-[3px]"
-          style={{ background: "rgba(251,191,36,0.18)" }}
-        >
-          <span className="text-[9px] font-extrabold uppercase tracking-wide" style={{ color: "#fbbf24" }}>{role}</span>
         </div>
-        <ChevronRight size={14} style={{ color: "rgba(251,191,36,0.45)" }} />
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ background: "rgba(251,191,36,0.10)" }}>
+          <ChevronRight size={16} style={{ color: "rgba(251,191,36,0.70)" }} />
+        </div>
       </div>
     </Link>
   );

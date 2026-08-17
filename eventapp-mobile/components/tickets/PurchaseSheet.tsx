@@ -37,6 +37,7 @@ export function PurchaseSheet({ open, onClose, ticket, eventId }: PurchaseSheetP
   const [success,      setSuccess]      = useState(false);
   const [termsChecked, setTermsChecked] = useState(false);
   const [termsTouched, setTermsTouched] = useState(false);
+  const [smsConsent, setSmsConsent] = useState(false);
   const [legalSlug,    setLegalSlug]    = useState<string | null>(null);
   const paymentRequestKey = useRef(createPaymentRequestKey());
   const submittedFingerprint = useRef<string | null>(null);
@@ -50,7 +51,7 @@ export function PurchaseSheet({ open, onClose, ticket, eventId }: PurchaseSheetP
   const total     = priceEach * qty;
 
   const reset = () => {
-    setQty(1); setForm({ name: '', email: '', phone: '' });
+    setQty(1); setForm({ name: '', email: '', phone: '' }); setSmsConsent(false);
     paymentRequestKey.current = createPaymentRequestKey();
     submittedFingerprint.current = null;
     setError(''); setSuccess(false); onClose();
@@ -60,6 +61,7 @@ export function PurchaseSheet({ open, onClose, ticket, eventId }: PurchaseSheetP
     setTermsTouched(true);
     if (!form.name.trim())         return setError('Full name is required');
     if (!form.email.includes('@')) return setError('Enter a valid email address');
+    if (form.phone.trim() && !smsConsent) return setError('Please confirm SMS consent before submitting a phone number.');
     if (!termsChecked)             return setError('Please accept the terms to continue.');
     setError('');
     setLoading(true);
@@ -76,6 +78,7 @@ export function PurchaseSheet({ open, onClose, ticket, eventId }: PurchaseSheetP
       buyer_name:  form.name.trim(),
       buyer_email: form.email.trim().toLowerCase(),
       buyer_phone: form.phone.trim() || undefined,
+      sms_transactional_opt_in: form.phone.trim() ? smsConsent : undefined,
       items:       [{ ticket_type_id: ticket.id, quantity: qty }],
       // Mobile deep-link redirects — backend substitutes {ORDER_ID} with real ID
       success_url: TICKET_SUCCESS_URL,
@@ -170,6 +173,26 @@ export function PurchaseSheet({ open, onClose, ticket, eventId }: PurchaseSheetP
             onChangeText={t => setForm(f => ({ ...f, phone: t }))}
             keyboardType="phone-pad" />
 
+          <Pressable
+            onPress={() => setSmsConsent(value => !value)}
+            hitSlop={8}
+            style={[styles.smsConsentRow, { borderColor: form.phone.trim() && !smsConsent ? '#b45309' : `${tier.accent}45` }]}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: smsConsent }}
+          >
+            <View style={[styles.termsCb, { backgroundColor: smsConsent ? tier.accent : 'rgba(255,255,255,0.05)', borderColor: smsConsent ? tier.accent : 'rgba(255,255,255,0.22)' }]}>
+              {smsConsent && <Feather name="check" size={10} color="#fff" />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.smsConsentTitle}>I agree to receive transactional SMS messages about this event{form.phone.trim() ? ' *' : ''}.</Text>
+              <Text style={styles.smsConsentText}>
+                {form.phone.trim()
+                  ? 'Messages may include ticket delivery, QR entry, and event updates. Message frequency varies. Msg & data rates may apply. Reply STOP to opt out or HELP for help. Your mobile information is not sold or shared for promotional purposes.'
+                  : 'Add a phone number if you would like to receive ticket and event messages by SMS.'}
+              </Text>
+            </View>
+          </Pressable>
+
           {/* Terms */}
           <View style={styles.termsRow}>
             <Pressable
@@ -254,6 +277,9 @@ const styles = StyleSheet.create({
   termsCb:    { width: 17, height: 17, borderRadius: 5, borderWidth: 2, marginTop: 1, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   termsText:  { flex: 1, fontSize: 11, color: 'rgba(255,255,255,0.42)', lineHeight: 17 },
   termsLink:  { textDecorationLine: 'underline' },
+  smsConsentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderWidth: 1, borderRadius: 12, padding: 11, backgroundColor: 'rgba(99,102,241,0.06)' },
+  smsConsentTitle: { fontSize: 12, fontWeight: '800', color: '#fff', marginBottom: 3 },
+  smsConsentText: { fontSize: 10, color: Colors.text.muted, lineHeight: 15 },
   totalRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
   totalLabel: { fontSize: 14, fontWeight: '700', color: Colors.text.muted },
   totalValue: { fontSize: 22, fontWeight: '900' },

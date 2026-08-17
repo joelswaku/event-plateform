@@ -688,6 +688,7 @@ function CheckoutModal({ ticket, event, platformFeePercent = 0, onClose }) {
   const [step,       setStep]       = useState("form");
   const [qty,        setQty]        = useState(1);
   const [form,       setForm]       = useState({ name: "", email: "", phone: "" });
+  const [smsConsent, setSmsConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error,      setError]      = useState("");
   const paymentRequestKey = useRef(createPaymentRequestKey("ticket"));
@@ -702,7 +703,7 @@ function CheckoutModal({ ticket, event, platformFeePercent = 0, onClose }) {
     ? Math.round((subtotal * Number(platformFeePercent || 0) / 100) * 100) / 100
     : 0;
   const total     = subtotal + fee;
-  const canSubmit = Boolean(form.name.trim() && /\S+@\S+\.\S+/.test(form.email));
+  const canSubmit = Boolean(form.name.trim() && /\S+@\S+\.\S+/.test(form.email) && (!form.phone.trim() || smsConsent));
   const fmtP      = (n) => new Intl.NumberFormat("en-US", {
     style: "currency", currency: ticket.currency ?? "USD",
   }).format(n);
@@ -710,6 +711,7 @@ function CheckoutModal({ ticket, event, platformFeePercent = 0, onClose }) {
   async function submit() {
     if (!form.name.trim() || !form.email.trim()) { setError("Name and email are required"); return; }
     if (!/\S+@\S+\.\S+/.test(form.email)) { setError("Enter a valid email address"); return; }
+    if (form.phone.trim() && !smsConsent) { setError("Please confirm SMS consent before submitting a phone number."); return; }
     setSubmitting(true);
     setError("");
     try {
@@ -720,6 +722,7 @@ function CheckoutModal({ ticket, event, platformFeePercent = 0, onClose }) {
           buyer_name:  form.name.trim(),
           buyer_email: form.email.trim(),
           buyer_phone: form.phone.trim() || undefined,
+          sms_transactional_opt_in: form.phone.trim() ? smsConsent : undefined,
           items: [{ ticket_type_id: ticket.id, quantity: qty }],
           idempotency_key: paymentRequestKey.current,
         }),
@@ -856,6 +859,14 @@ function CheckoutModal({ ticket, event, platformFeePercent = 0, onClose }) {
                   onBlur={(e)  => (e.target.style.borderColor = cfg.border)}
                 />
               </div>
+
+              <label className="flex cursor-pointer items-start gap-2.5 rounded-xl p-3" style={{ background: "var(--t-bg)", border: `1px solid ${cfg.border}` }}>
+                <input type="checkbox" checked={smsConsent} onChange={(event) => setSmsConsent(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded" style={{ accentColor: cfg.accent }} />
+                <span className="text-xs leading-relaxed" style={{ color: cfg.muted }}>
+                  <strong style={{ color: "var(--t-text)" }}>I agree to receive transactional SMS messages about this event{form.phone.trim() ? " *" : ""}.</strong>
+                  <span className="mt-0.5 block">{form.phone.trim() ? "Messages may include ticket delivery, QR entry, and event updates. Message frequency varies. Msg & data rates may apply. Reply STOP to opt out or HELP for help. Your mobile information is not sold or shared for promotional purposes." : "Add a phone number if you would like to receive ticket and event messages by SMS."}</span>
+                </span>
+              </label>
 
               {error && (
                 <div className="rounded-xl px-4 py-3 text-sm font-medium"

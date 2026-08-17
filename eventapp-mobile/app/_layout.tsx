@@ -21,6 +21,7 @@ import {
   handleNotificationResponse,
   clearBadge,
 } from '@/lib/push-notifications';
+import { configureGoogleSignIn } from '@/lib/google-signin';
 
 function AuthGate() {
   const router        = useRouter();
@@ -55,7 +56,10 @@ export default function RootLayout() {
   const responseListenerRef = useRef<Notifications.EventSubscription | null>(null);
   const receivedListenerRef = useRef<Notifications.EventSubscription | null>(null);
 
-  useEffect(() => { hydrate(); }, []);
+  useEffect(() => {
+    hydrate();
+    configureGoogleSignIn(); // Configure Google Sign In on app start
+  }, []);
 
   // The session safely restores from SecureStore first, then refreshes the
   // profile from the server. This keeps names and avatars in sync when they

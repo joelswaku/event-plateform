@@ -2,7 +2,7 @@
 import { db } from "../config/db.js";
 import crypto from "crypto";
 import { assertCanCreateGuest } from "./planLimits.service.js";
-import { sendMail, sendEventInvitationEmail, sendSeatAssignmentEmail, sendRsvpConfirmationEmail } from "../utils/sendEmail.js";
+import { sendMail, sendEventInvitationEmail, sendSeatAssignmentEmail, sendRsvpConfirmationEmail, sendQrCodeSms } from "../utils/sendEmail.js";
 import { sendBrevoSms, sendBrevoWhatsapp } from "./brevo.service.js";
 import { createNotificationService, getEventOwnerIdService } from "./notifications.service.js";
 import QRCode from "qrcode";
@@ -43,6 +43,7 @@ const INVITATION_STATUS = [
   "CANCELLED",
 ];
 const QR_STATUS = ["ACTIVE", "USED", "REVOKED", "EXPIRED"];
+const SMS_TRANSACTIONAL_CONSENT_VERSION = "2026-08-16";
 
 /* =========================
    VALIDATION
@@ -72,6 +73,13 @@ function validateGuestPayload(payload = {}) {
     payload.plus_one_count > 0
   ) {
     errors.push("plus_one_count must be 0 when plus_one_allowed is false");
+  }
+
+  if (
+    normalizeBoolean(payload.sms_transactional_opt_in, false) &&
+    !String(payload.phone || "").trim()
+  ) {
+    errors.push("A phone number is required to record SMS consent");
   }
 
   if (errors.length) {
@@ -123,6 +131,19 @@ function validateInvitationPayload(payload = {}) {
 function normalizeBoolean(value, fallback = false) {
   if (typeof value === "boolean") return value;
   return fallback;
+}
+
+function hasExplicitSmsConsentValue(payload = {}) {
+  return Object.prototype.hasOwnProperty.call(payload, "sms_transactional_opt_in");
+}
+
+function assertSmsTransactionalConsent(guest) {
+  if (!guest?.sms_transactional_consent_at) {
+    throw new AppError(
+      "This guest has not agreed to transactional SMS. Ask them to RSVP and agree to SMS updates first.",
+      409,
+    );
+  }
 }
 function validateInvitationStatus(status) {
   if (!INVITATION_STATUS.includes(status)) {
@@ -264,6 +285,8 @@ function mapGuest(row) {
     full_name: row.full_name,
     email: row.email,
     phone: row.phone,
+    sms_transactional_consent_at: row.sms_transactional_consent_at ?? null,
+    sms_transactional_consent_source: row.sms_transactional_consent_source ?? null,
     plus_one_allowed: row.plus_one_allowed,
     plus_one_count: row.plus_one_count,
     is_vip: row.is_vip,
@@ -337,11 +360,20 @@ export async function createGuestService({
         full_name,
         email,
         phone,
+        sms_transactional_consent_at,
+        sms_transactional_consent_source,
+        sms_transactional_consent_version,
         plus_one_allowed,
         plus_one_count,
         is_vip
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7)
+      VALUES (
+        $1,$2,$3,$4,
+        CASE WHEN $5::boolean THEN NOW() ELSE NULL END,
+        CASE WHEN $5::boolean THEN 'ORGANIZER_CONFIRMED' ELSE NULL END,
+        CASE WHEN $5::boolean THEN $6 ELSE NULL END,
+        $7,$8,$9
+      )
       RETURNING *
       `,
       [
@@ -349,6 +381,8 @@ export async function createGuestService({
         payload.full_name.trim(),
         payload.email ? payload.email.trim().toLowerCase() : null,
         payload.phone ?? null,
+        normalizeBoolean(payload.sms_transactional_opt_in, false),
+        SMS_TRANSACTIONAL_CONSENT_VERSION,
         normalizeBoolean(payload.plus_one_allowed, false),
         payload.plus_one_count ?? 0,
         normalizeBoolean(payload.is_vip, false),
@@ -466,6 +500,16 @@ export async function updateGuestService({
 
     validateGuestPayload(mergedPayload);
 
+    const phoneChanged = String(mergedPayload.phone || "").trim() !== String(guest.phone || "").trim();
+    const hasSmsConsentValue = hasExplicitSmsConsentValue(payload);
+    const wantsSmsConsent = normalizeBoolean(payload.sms_transactional_opt_in, false);
+    const recordSmsConsent = hasSmsConsentValue && wantsSmsConsent && (!guest.sms_transactional_consent_at || phoneChanged);
+    const clearSmsConsent = (hasSmsConsentValue && !wantsSmsConsent) || phoneChanged;
+
+    if (recordSmsConsent && !String(mergedPayload.phone || "").trim()) {
+      throw new AppError("A phone number is required to record SMS consent", 400);
+    }
+
     const result = await client.query(
       `
       UPDATE guests
@@ -473,17 +517,35 @@ export async function updateGuestService({
         full_name=$1,
         email=$2,
         phone=$3,
-        plus_one_allowed=$4,
-        plus_one_count=$5,
-        is_vip=$6,
+        sms_transactional_consent_at = CASE
+          WHEN $4::boolean THEN NOW()
+          WHEN $5::boolean THEN NULL
+          ELSE sms_transactional_consent_at
+        END,
+        sms_transactional_consent_source = CASE
+          WHEN $4::boolean THEN 'ORGANIZER_CONFIRMED'
+          WHEN $5::boolean THEN NULL
+          ELSE sms_transactional_consent_source
+        END,
+        sms_transactional_consent_version = CASE
+          WHEN $4::boolean THEN $6
+          WHEN $5::boolean THEN NULL
+          ELSE sms_transactional_consent_version
+        END,
+        plus_one_allowed=$7,
+        plus_one_count=$8,
+        is_vip=$9,
         updated_at=NOW()
-      WHERE id=$7
+      WHERE id=$10
       RETURNING *
       `,
       [
         mergedPayload.full_name.trim(),
         mergedPayload.email ? mergedPayload.email.trim().toLowerCase() : null,
         mergedPayload.phone ?? null,
+        recordSmsConsent,
+        clearSmsConsent,
+        SMS_TRANSACTIONAL_CONSENT_VERSION,
         mergedPayload.plus_one_allowed,
         mergedPayload.plus_one_count,
         mergedPayload.is_vip,
@@ -931,21 +993,18 @@ export async function sendInvitationEmailToGuestService({
     const event = await assertEventExists(client, eventId, organizationId, userId);
     const guest = await assertGuestBelongsToEvent(client, guestId, eventId);
 
-    // Channel priority: requested channel → email → SMS/WhatsApp → manual
-    let effectiveChannel;
-    if (channel === "SMS" || channel === "WHATSAPP") {
-      effectiveChannel = guest.phone ? channel : (guest.email ? "EMAIL" : "MANUAL");
-    } else if (channel === "EMAIL") {
-      effectiveChannel = guest.email ? "EMAIL" : (guest.phone ? "SMS" : "MANUAL");
-    } else {
-      effectiveChannel = guest.email ? "EMAIL" : (guest.phone ? "SMS" : "MANUAL");
-    }
+    // Honor the channel selected by the organizer. Falling back from SMS to
+    // email makes the UI report an SMS that was never sent and can expose an
+    // invitation through a channel the organizer did not choose.
+    const effectiveChannel = channel;
     let recipientValue = null;
 
     if (effectiveChannel === "EMAIL") {
+      if (!guest.email) throw new AppError("Guest has no email address", 400);
       recipientValue = guest.email.trim().toLowerCase();
     } else if (effectiveChannel === "SMS" || effectiveChannel === "WHATSAPP") {
       if (!guest.phone) throw new AppError("Guest has no phone number", 400);
+      if (effectiveChannel === "SMS") assertSmsTransactionalConsent(guest);
       recipientValue = guest.phone;
     } else {
       recipientValue = guest.email || guest.phone || guest.full_name;
@@ -1056,6 +1115,7 @@ export async function sendInvitationEmailToGuestService({
     return {
       invitation: mapInvitation(updateResult.rows[0]),
       invitation_url: invitationUrl,
+      delivered: finalStatus === "SENT",
     };
   } catch (error) {
     await client.query("ROLLBACK");
@@ -1391,6 +1451,7 @@ export async function getInvitationByTokenService({ token }) {
         g.full_name,
         g.email,
         g.phone,
+        g.sms_transactional_consent_at,
         g.plus_one_allowed,
         g.plus_one_count,
         g.is_vip,
@@ -1446,6 +1507,7 @@ export async function getInvitationByTokenService({ token }) {
         full_name: invitation.full_name,
         email: invitation.email,
         phone: invitation.phone,
+        sms_transactional_consent_at: invitation.sms_transactional_consent_at ?? null,
         plus_one_allowed: invitation.plus_one_allowed,
         plus_one_count: invitation.plus_one_count,
         is_vip: invitation.is_vip,
@@ -1486,6 +1548,8 @@ export async function getInvitationByTokenService({ token }) {
         SELECT
           gi.*,
           g.id AS guest_id,
+          g.phone AS guest_phone,
+          g.sms_transactional_consent_at,
           g.plus_one_allowed,
           g.deleted_at AS guest_deleted_at,
           e.id AS event_id,
@@ -1522,9 +1586,30 @@ export async function getInvitationByTokenService({ token }) {
       const guestUpdates = [];
       const guestVals    = [];
       let gi = 1;
+      const submittedPhone = payload.phone?.trim() || null;
+      const phoneChanged = Boolean(submittedPhone) && submittedPhone !== invitation.guest_phone;
+      const hasSmsConsentValue = hasExplicitSmsConsentValue(payload);
+      const wantsSmsConsent = normalizeBoolean(payload.sms_transactional_opt_in, false);
+      const recordSmsConsent = hasSmsConsentValue && wantsSmsConsent && (!invitation.sms_transactional_consent_at || phoneChanged);
+      const clearSmsConsent = (hasSmsConsentValue && !wantsSmsConsent) || phoneChanged;
+
+      if (recordSmsConsent && !(submittedPhone || invitation.guest_phone)) {
+        throw new AppError("A phone number is required to agree to transactional SMS", 400);
+      }
+
       if (payload.guest_name?.trim())  { guestUpdates.push(`full_name = $${gi++}`); guestVals.push(payload.guest_name.trim()); }
       if (payload.email?.trim())       { guestUpdates.push(`email = $${gi++}`);     guestVals.push(payload.email.trim()); }
-      if (payload.phone?.trim())       { guestUpdates.push(`phone = $${gi++}`);     guestVals.push(payload.phone.trim()); }
+      if (submittedPhone)              { guestUpdates.push(`phone = $${gi++}`);     guestVals.push(submittedPhone); }
+      if (recordSmsConsent) {
+        guestUpdates.push("sms_transactional_consent_at = NOW()");
+        guestUpdates.push("sms_transactional_consent_source = 'PUBLIC_RSVP'");
+        guestUpdates.push(`sms_transactional_consent_version = $${gi++}`);
+        guestVals.push(SMS_TRANSACTIONAL_CONSENT_VERSION);
+      } else if (clearSmsConsent) {
+        guestUpdates.push("sms_transactional_consent_at = NULL");
+        guestUpdates.push("sms_transactional_consent_source = NULL");
+        guestUpdates.push("sms_transactional_consent_version = NULL");
+      }
       if (guestUpdates.length) {
         guestVals.push(invitation.guest_id);
         await client.query(
@@ -1664,7 +1749,7 @@ export async function getInvitationByTokenService({ token }) {
       client.release();
     }
   }
-  export async function sendQrEmailToGuestService({ eventId, guestId, organizationId, userId }) {
+  export async function sendQrEmailToGuestService({ eventId, guestId, organizationId, userId, payload = {} }) {
     const client = await db.connect();
     try {
       await assertOrganizationEventPermission(client, organizationId, userId, eventId);
@@ -1672,12 +1757,23 @@ export async function getInvitationByTokenService({ token }) {
       await assertGuestBelongsToEvent(client, guestId, eventId);
 
       const guestRes = await client.query(
-        `SELECT full_name, email FROM guests WHERE id=$1 AND deleted_at IS NULL LIMIT 1`,
+        `SELECT full_name, email, phone, sms_transactional_consent_at
+         FROM guests WHERE id=$1 AND deleted_at IS NULL LIMIT 1`,
         [guestId]
       );
       const guest = guestRes.rows[0];
       if (!guest) throw new AppError("Guest not found", 404);
-      if (!guest.email) throw new AppError("Guest has no email address", 400);
+
+      // Determine channel (default to EMAIL)
+      const channel = (payload.channel || "EMAIL").toUpperCase();
+
+      // Check if guest has the required contact method
+      if (channel === "SMS") {
+        if (!guest.phone) throw new AppError("Guest has no phone number", 400);
+        assertSmsTransactionalConsent(guest);
+      } else {
+        if (!guest.email) throw new AppError("Guest has no email address", 400);
+      }
 
       // Get or create an active QR pass
       let qrToken;
@@ -1695,23 +1791,35 @@ export async function getInvitationByTokenService({ token }) {
         );
       }
 
-      await sendRsvpConfirmationEmail({
-        to: guest.email,
-        guestName: guest.full_name,
-        eventTitle: event.title,
-        eventDate: event.starts_at,
-        venueName: event.venue_name,
-        qrToken,
-        plusOneCount: 0,
-      });
+      // Send via appropriate channel
+      if (channel === "SMS") {
+        await sendQrCodeSms({
+          to: guest.phone,
+          guestName: guest.full_name,
+          eventTitle: event.title,
+          eventDate: event.starts_at,
+          venueName: event.venue_name,
+          qrToken,
+        });
+      } else {
+        await sendRsvpConfirmationEmail({
+          to: guest.email,
+          guestName: guest.full_name,
+          eventTitle: event.title,
+          eventDate: event.starts_at,
+          venueName: event.venue_name,
+          qrToken,
+          plusOneCount: 0,
+        });
+      }
 
-      return { qr_token: qrToken };
+      return { qr_token: qrToken, channel };
     } finally {
       client.release();
     }
   }
 
-  export async function sendInvitationsToAllGuestsService({
+export async function sendInvitationsToAllGuestsService({
     eventId,
     organizationId,
     userId,
@@ -1756,8 +1864,9 @@ export async function getInvitationByTokenService({ token }) {
   
           results.push({
             guest_id: guest.id,
-            status: "SENT",
+            status: result.delivered ? "SENT" : "FAILED",
             invitation_url: result.invitation_url,
+            ...(result.delivered ? {} : { error: result.invitation?.failed_reason || "Delivery failed" }),
           });
         } catch (err) {
           results.push({
@@ -1782,6 +1891,82 @@ export async function getInvitationByTokenService({ token }) {
     }
   }
 
+export async function sendInvitationsToSelectedGuestsService({
+  eventId,
+  guestIds,
+  organizationId,
+  userId,
+  payload = {},
+}) {
+  if (!Array.isArray(guestIds) || guestIds.length === 0) {
+    throw new AppError("Select at least one guest", 400);
+  }
+
+  const uniqueGuestIds = [...new Set(guestIds.map((id) => String(id).trim()).filter(Boolean))];
+  if (uniqueGuestIds.length === 0) {
+    throw new AppError("Select at least one guest", 400);
+  }
+
+  // Validate the organizer and event before opening any provider requests.
+  const client = await db.connect();
+  try {
+    await assertOrganizationEventPermission(client, organizationId, userId, eventId);
+    await assertEventExists(client, eventId, organizationId, userId);
+  } finally {
+    client.release();
+  }
+
+  // Brevo accepts messages quickly, but keeping a small concurrency limit
+  // protects the API, provider rate limits, and a large guest list from a
+  // single slow connection.
+  const results = new Array(uniqueGuestIds.length);
+  let nextIndex = 0;
+  const worker = async () => {
+    while (true) {
+      const index = nextIndex;
+      nextIndex += 1;
+      if (index >= uniqueGuestIds.length) return;
+
+      const guestId = uniqueGuestIds[index];
+      try {
+        const result = await sendInvitationEmailToGuestService({
+          eventId,
+          guestId,
+          organizationId,
+          userId,
+          payload: { ...payload },
+        });
+
+        results[index] = {
+          guest_id: guestId,
+          status: result.delivered ? "SENT" : "FAILED",
+          channel: result.invitation?.channel || payload.channel || "EMAIL",
+          ...(result.delivered ? {} : { error: result.invitation?.failed_reason || "Delivery failed" }),
+        };
+      } catch (error) {
+        results[index] = {
+          guest_id: guestId,
+          status: "FAILED",
+          channel: payload.channel || "EMAIL",
+          error: error.message || "Delivery failed",
+        };
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(5, uniqueGuestIds.length) }, worker));
+
+  const sent = results.filter((result) => result.status === "SENT").length;
+  const failed = results.length - sent;
+
+  return {
+    total: results.length,
+    sent,
+    failed,
+    results,
+  };
+}
+
 // ── Open RSVP (no invitation token required) ─────────────────────────────────
 
 export async function submitOpenRsvpService({ eventId, payload }) {
@@ -1789,9 +1974,14 @@ export async function submitOpenRsvpService({ eventId, payload }) {
   const email  = String(payload.email       ?? "").trim().toLowerCase();
   const phone  = String(payload.phone       ?? "").trim() || null;
   const status = String(payload.rsvp_status ?? "GOING").toUpperCase();
+  const hasSmsConsentValue = hasExplicitSmsConsentValue(payload);
+  const wantsSmsConsent = normalizeBoolean(payload.sms_transactional_opt_in, false);
 
   if (!name)  throw new AppError("guest_name is required", 400);
   if (!email || !email.includes("@")) throw new AppError("A valid email is required", 400);
+  if (wantsSmsConsent && !phone) {
+    throw new AppError("A phone number is required to agree to transactional SMS", 400);
+  }
   if (!["GOING", "DECLINED", "MAYBE"].includes(status)) {
     throw new AppError("rsvp_status must be GOING, DECLINED, or MAYBE", 400);
   }
@@ -1814,17 +2004,41 @@ export async function submitOpenRsvpService({ eventId, payload }) {
     // Find or create a guest for this event by email
     let guest;
     const existingGuest = await client.query(
-      `SELECT id FROM guests
+      `SELECT id, phone, sms_transactional_consent_at FROM guests
        WHERE email = $1 AND event_id = $2 AND deleted_at IS NULL LIMIT 1`,
       [email, eventId]
     );
 
     if (existingGuest.rows[0]) {
       guest = existingGuest.rows[0];
-      // Update name/phone if provided
+      const phoneChanged = Boolean(phone) && phone !== guest.phone;
+      const recordSmsConsent = hasSmsConsentValue && wantsSmsConsent && (!guest.sms_transactional_consent_at || phoneChanged);
+      const clearSmsConsent = (hasSmsConsentValue && !wantsSmsConsent) || phoneChanged;
+
+      // Update contact details and preserve consent unless the guest changed their
+      // phone number or explicitly updated the separate SMS-consent control.
       await client.query(
-        `UPDATE guests SET full_name = $1, phone = COALESCE($2, phone), updated_at = NOW() WHERE id = $3`,
-        [name, phone, guest.id]
+        `UPDATE guests
+         SET full_name = $1,
+             phone = COALESCE($2, phone),
+             sms_transactional_consent_at = CASE
+               WHEN $3::boolean THEN NOW()
+               WHEN $4::boolean THEN NULL
+               ELSE sms_transactional_consent_at
+             END,
+             sms_transactional_consent_source = CASE
+               WHEN $3::boolean THEN 'OPEN_RSVP'
+               WHEN $4::boolean THEN NULL
+               ELSE sms_transactional_consent_source
+             END,
+             sms_transactional_consent_version = CASE
+               WHEN $3::boolean THEN $5
+               WHEN $4::boolean THEN NULL
+               ELSE sms_transactional_consent_version
+             END,
+             updated_at = NOW()
+         WHERE id = $6`,
+        [name, phone, recordSmsConsent, clearSmsConsent, SMS_TRANSACTIONAL_CONSENT_VERSION, guest.id]
       );
     } else {
       try {
@@ -1836,9 +2050,21 @@ export async function submitOpenRsvpService({ eventId, payload }) {
         throw limitErr;
       }
       const ins = await client.query(
-        `INSERT INTO guests (event_id, full_name, email, phone, plus_one_allowed, plus_one_count, is_vip, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, false, 0, false, NOW(), NOW()) RETURNING id`,
-        [eventId, name, email, phone]
+        `INSERT INTO guests (
+           event_id, full_name, email, phone,
+           sms_transactional_consent_at,
+           sms_transactional_consent_source,
+           sms_transactional_consent_version,
+           plus_one_allowed, plus_one_count, is_vip, created_at, updated_at
+         )
+         VALUES (
+           $1, $2, $3, $4,
+           CASE WHEN $5::boolean THEN NOW() ELSE NULL END,
+           CASE WHEN $5::boolean THEN 'OPEN_RSVP' ELSE NULL END,
+           CASE WHEN $5::boolean THEN $6 ELSE NULL END,
+           false, 0, false, NOW(), NOW()
+         ) RETURNING id`,
+        [eventId, name, email, phone, hasSmsConsentValue && wantsSmsConsent, SMS_TRANSACTIONAL_CONSENT_VERSION]
       );
       guest = ins.rows[0];
     }
