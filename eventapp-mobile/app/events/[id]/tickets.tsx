@@ -194,36 +194,38 @@ export default function EventTicketsScreen() {
       </ScrollView>
 
       {/* Create/Edit sheet */}
-      <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title={editTarget ? 'Edit Ticket' : 'Create Ticket'}>
-        <View style={styles.form}>
-          <Input label="Ticket Name *" placeholder="e.g. VIP Access" value={form.name}
-            onChangeText={t => setForm(f => ({ ...f, name: t }))} />
+      {sheetOpen && (
+        <BottomSheet open onClose={() => setSheetOpen(false)} title={editTarget ? 'Edit Ticket' : 'Create Ticket'}>
+          <View style={styles.form}>
+            <Input label="Ticket Name *" placeholder="e.g. VIP Access" value={form.name}
+              onChangeText={t => setForm(f => ({ ...f, name: t }))} />
 
-          {/* Kind selector */}
-          <View style={styles.kindRow}>
-            {(['FREE','PAID'] as TicketKind[]).map(k => (
-              <Pressable
-                key={k}
-                style={[styles.kindBtn, form.kind === k && { backgroundColor: `${Colors.accent.indigo}25`, borderColor: `${Colors.accent.indigo}50` }]}
-                onPress={() => setForm(f => ({ ...f, kind: k }))}
-              >
-                <Text style={[styles.kindText, form.kind === k && { color: Colors.accent.indigo }]}>{k}</Text>
-              </Pressable>
-            ))}
+            {/* Kind selector */}
+            <View style={styles.kindRow}>
+              {(['FREE','PAID'] as TicketKind[]).map(k => (
+                <Pressable
+                  key={k}
+                  style={[styles.kindBtn, form.kind === k && { backgroundColor: `${Colors.accent.indigo}25`, borderColor: `${Colors.accent.indigo}50` }]}
+                  onPress={() => setForm(f => ({ ...f, kind: k }))}
+                >
+                  <Text style={[styles.kindText, form.kind === k && { color: Colors.accent.indigo }]}>{k}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {form.kind === 'PAID' && (
+              <Input label="Price (USD) *" placeholder="0.00" keyboardType="decimal-pad" value={form.price}
+                onChangeText={t => setForm(f => ({ ...f, price: t }))} />
+            )}
+            <Input label="Quantity (leave empty for unlimited)" placeholder="100" keyboardType="number-pad"
+              value={form.quantity_total} onChangeText={t => setForm(f => ({ ...f, quantity_total: t }))} />
+            <Input label="Description" placeholder="What's included…" value={form.description}
+              onChangeText={t => setForm(f => ({ ...f, description: t }))} multiline />
+
+            <Button label={saving ? 'Saving…' : editTarget ? 'Save Changes' : 'Create Ticket'} onPress={save} loading={saving} accent={Colors.accent.indigo} size="lg" />
           </View>
-
-          {form.kind === 'PAID' && (
-            <Input label="Price (USD) *" placeholder="0.00" keyboardType="decimal-pad" value={form.price}
-              onChangeText={t => setForm(f => ({ ...f, price: t }))} />
-          )}
-          <Input label="Quantity (leave empty for unlimited)" placeholder="100" keyboardType="number-pad"
-            value={form.quantity_total} onChangeText={t => setForm(f => ({ ...f, quantity_total: t }))} />
-          <Input label="Description" placeholder="What's included…" value={form.description}
-            onChangeText={t => setForm(f => ({ ...f, description: t }))} multiline />
-
-          <Button label={saving ? 'Saving…' : editTarget ? 'Save Changes' : 'Create Ticket'} onPress={save} loading={saving} accent={Colors.accent.indigo} size="lg" />
-        </View>
-      </BottomSheet>
+        </BottomSheet>
+      )}
 
       {/* Delete confirm */}
       {deleteTarget && (

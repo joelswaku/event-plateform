@@ -7,6 +7,8 @@ import { createNotificationService, getEventOwnerIdService } from "./notificatio
 import { audit } from "./audit.service.js";
 import { getEventOwnerPlan, PLANS } from "./planLimits.service.js";
 
+const SMS_TRANSACTIONAL_CONSENT_VERSION = "2026-08-16";
+
 class AppError extends Error {
   constructor(message, statusCode = 400, details = null) {
     super(message);
@@ -106,9 +108,18 @@ export async function createTicketOrderService({
 
     const items = normalizeItems(payload.items);
     const idempotencyKey = normalizeIdempotencyKey(payload.idempotency_key);
+    const buyerPhone = String(payload.buyer_phone || "").trim() || null;
+    const hasSmsTransactionalConsent = payload.sms_transactional_opt_in === true;
 
     if (!payload.buyer_email || !String(payload.buyer_email).trim()) {
       throw new AppError("buyer_email is required", 400);
+    }
+
+    if (buyerPhone && !hasSmsTransactionalConsent) {
+      throw new AppError(
+        "Please confirm SMS consent before submitting a phone number.",
+        400,
+      );
     }
 
     const eventRes = await client.query(
@@ -230,6 +241,9 @@ export async function createTicketOrderService({
         buyer_name,
         buyer_email,
         buyer_phone,
+        sms_transactional_consent_at,
+        sms_transactional_consent_source,
+        sms_transactional_consent_version,
         order_status,
         subtotal,
         discount_amount,
@@ -242,7 +256,7 @@ export async function createTicketOrderService({
         client_request_id
       )
       VALUES
-      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'STRIPE',$12,$13,$14)
+       ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'STRIPE',$15,$16,$17)
       ON CONFLICT (event_id, client_request_id)
         WHERE client_request_id IS NOT NULL
         DO NOTHING
@@ -253,7 +267,10 @@ export async function createTicketOrderService({
         buyerUserId,
         payload.buyer_name?.trim() || null,
         String(payload.buyer_email).trim().toLowerCase(),
-        payload.buyer_phone?.trim() || null,
+        buyerPhone,
+        buyerPhone ? now : null,
+        buyerPhone ? "TICKET_CHECKOUT" : null,
+        buyerPhone ? SMS_TRANSACTIONAL_CONSENT_VERSION : null,
         orderStatus,
         subtotal,
         discountAmount,
@@ -321,7 +338,10 @@ export async function createTicketOrderService({
         organization_id: event.organization_id,
         buyer_name:      payload.buyer_name   ?? null,
         buyer_email:     payload.buyer_email,
-        buyer_phone:     payload.buyer_phone  ?? null,
+        buyer_phone:     buyerPhone,
+        sms_transactional_consent: Boolean(buyerPhone && hasSmsTransactionalConsent),
+        sms_transactional_consent_source: buyerPhone ? "TICKET_CHECKOUT" : null,
+        sms_transactional_consent_version: buyerPhone ? SMS_TRANSACTIONAL_CONSENT_VERSION : null,
         subtotal,
         platform_fee:    fees,
         total,

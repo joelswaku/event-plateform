@@ -121,6 +121,8 @@ export interface Guest {
   full_name: string;
   email: string | null;
   phone: string | null;
+  sms_transactional_consent_at?: string | null;
+  sms_transactional_consent_source?: string | null;
   status: GuestStatus;
   rsvp_status: string | null;
   is_vip: boolean;
@@ -236,6 +238,7 @@ export interface PurchaseOrderPayload {
   buyer_name: string;
   buyer_email: string;
   buyer_phone?: string;
+  sms_transactional_opt_in?: boolean;
   items: Array<{ ticket_type_id: string; quantity: number }>;
   idempotency_key?: string;
   success_url?: string;

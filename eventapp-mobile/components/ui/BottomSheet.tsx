@@ -70,6 +70,11 @@ export function BottomSheet({ open, onClose, title, children, maxHeight = 600 }:
     closeTimer.current = setTimeout(finishClose, 280);
   };
 
+  // A closed sheet must not leave a transparent native Modal in the view
+  // hierarchy. On Android, such a Modal can still consume every touch even
+  // though its backdrop and sheet are no longer visible.
+  if (!open) return null;
+
   return (
     <Modal visible={open} transparent animationType="none" statusBarTranslucent onRequestClose={close}>
       <KeyboardAvoidingView

@@ -188,6 +188,15 @@ export const useGuestStore = create((set, get) => ({
     }
   },
 
+  sendQrSms: async (eventId, guestId) => {
+    try {
+      const res = await api.post(`/events/${eventId}/guests/${guestId}/send-qr`, { channel: "SMS" });
+      return { success: true, data: res.data?.data };
+    } catch (err) {
+      return { success: false, error: err?.response?.data?.message || err.message };
+    }
+  },
+
   checkInGuestByQr: async (eventId, payload) => {
     try {
       const res = await api.post(`/events/${eventId}/check-in`, payload);
@@ -202,6 +211,9 @@ export const useGuestStore = create((set, get) => ({
   sendGuestInvitation: async (eventId, guestId, payload = {}) => {
     try {
       const res = await api.post(`/events/${eventId}/guests/${guestId}/invitations`, payload);
+      if (res.data?.data?.delivered === false) {
+        return { success: false, error: res.data?.data?.invitation?.failed_reason || "Invitation delivery failed" };
+      }
       return { success: true, data: res.data?.data };
     } catch (err) {
       return { success: false, error: err?.response?.data?.message || err.message };
@@ -211,13 +223,23 @@ export const useGuestStore = create((set, get) => ({
   bulkSendInvitations: async (eventId, guestIds, payload = {}) => {
     try {
       set({ isSubmitting: true });
-      for (const guestId of guestIds)
-        await api.post(`/events/${eventId}/guests/${guestId}/invitations`, payload);
+      const res = await api.post(`/events/${eventId}/invitations/send`, {
+        guest_ids: guestIds,
+        ...payload,
+      });
+      const data = res.data?.data;
       set({ isSubmitting: false, selectedGuestIds: [] });
-      return { success: true };
+      if (!data || data.sent < 1) {
+        return { success: false, data, error: res.data?.message || "No invitations were sent" };
+      }
+      return {
+        success: true,
+        data,
+        ...(data.failed > 0 ? { error: res.data?.message || `${data.failed} invitations could not be sent` } : {}),
+      };
     } catch (err) {
       set({ isSubmitting: false, error: err?.response?.data?.message || err.message });
-      return { success: false };
+      return { success: false, error: err?.response?.data?.message || err.message };
     }
   },
 

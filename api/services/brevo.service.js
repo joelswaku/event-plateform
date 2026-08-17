@@ -184,8 +184,37 @@ import { env } from "../config/env.js";
  * Keeps leading + if present.
  */
 function normalizePhone(phone) {
-  if (!phone) return "";
-  return phone.replace(/[^\d+]/g, "");
+  const raw = String(phone || "").trim();
+  const digits = raw.replace(/\D/g, "");
+
+  if (!digits) return "";
+  if (raw.startsWith("+")) return `+${digits}`;
+  if (raw.startsWith("00")) return `+${digits.slice(2)}`;
+
+  // A national number cannot be delivered reliably because the API has no
+  // country context. Keep it invalid instead of guessing a country code.
+  return digits;
+}
+
+function deliveryError(message, code = "SMS_DELIVERY_FAILED", statusCode = 502) {
+  const error = new Error(message);
+  error.code = code;
+  error.statusCode = statusCode;
+  return error;
+}
+
+function validateSmsRecipient(phone) {
+  const recipient = normalizePhone(phone);
+
+  if (!recipient.startsWith("+") || !/^\+\d{6,15}$/.test(recipient)) {
+    throw deliveryError(
+      "Use a mobile number with its country code, for example +1 202 555 0123.",
+      "INVALID_SMS_PHONE",
+      400,
+    );
+  }
+
+  return recipient;
 }
 
 /**
@@ -335,24 +364,33 @@ async function getRestClient() {
  */
 export async function sendBrevoSms({ to, message }) {
   if (!to || !message) {
-    throw new Error("sendBrevoSms requires: to and message");
+    throw deliveryError("sendBrevoSms requires: to and message", "INVALID_SMS_REQUEST", 400);
   }
 
   const client = await getRestClient();
 
   if (!client) {
-    console.warn(
-      `[Brevo] SMS skipped: BREVO_API_KEY not configured (${to})`
+    throw deliveryError(
+      "SMS is not configured. Add BREVO_API_KEY to the API service before sending SMS.",
+      "SMS_NOT_CONFIGURED",
+      503,
     );
-    return { messageId: null };
   }
 
-  const recipient = normalizePhone(to);
+  const recipient = validateSmsRecipient(to);
   const sender = (env.brevoSmsSender || "LiteEvent").slice(0, 11);
+
+  if (!/^[A-Za-z0-9]{1,11}$/.test(sender)) {
+    throw deliveryError(
+      "BREVO_SMS_SENDER must contain only letters and numbers and be at most 11 characters.",
+      "INVALID_SMS_SENDER",
+      503,
+    );
+  }
 
   try {
     const result =
-      await client.transactionalSms.sendTransacSms({
+      await client.transactionalSms.sendAsyncTransactionalSms({
         sender,
         recipient,
         content: message,
@@ -364,7 +402,15 @@ export async function sendBrevoSms({ to, message }) {
       result?.messageId ??
       null;
 
-    console.log(`[Brevo] SMS sent: ${messageId} -> ${recipient}`);
+    if (!messageId) {
+      throw deliveryError(
+        "Brevo did not confirm the SMS request. Please try again.",
+        "SMS_NOT_ACCEPTED",
+        502,
+      );
+    }
+
+    console.log(`[Brevo] SMS accepted: ${messageId} -> ${recipient}`);
 
     return {
       messageId,
@@ -381,8 +427,10 @@ export async function sendBrevoSms({ to, message }) {
       `[Brevo] SMS error for ${recipient}: ${safeStringify(detail)}`
     );
 
-    throw new Error(
-      `Brevo SMS failed for ${recipient}: ${safeStringify(detail)}`
+    if (error?.code && error?.statusCode) throw error;
+
+    throw deliveryError(
+      `Brevo SMS failed for ${recipient}: ${safeStringify(detail)}`,
     );
   }
 }

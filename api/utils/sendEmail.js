@@ -1086,3 +1086,41 @@ export async function sendRsvpConfirmationEmail({
     html,
   });
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SMS Functions
+// ═══════════════════════════════════════════════════════════════════════════════
+
+import { sendBrevoSms } from "../services/brevo.service.js";
+
+/**
+ * Send QR code via SMS
+ */
+export async function sendQrCodeSms({
+  to,
+  guestName,
+  eventTitle,
+  eventDate,
+  venueName,
+  qrToken,
+}) {
+  const dateStr = eventDate
+    ? new Date(eventDate).toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "";
+
+  const qrUrl = `${env.frontendUrl || "https://app.liteevent.com"}/qr/${qrToken}`;
+
+  const message = `Hi ${guestName}! Your entry pass for "${eventTitle}"${
+    dateStr ? ` on ${dateStr}` : ""
+  }${venueName ? ` at ${venueName}` : ""} is ready. View your QR code: ${qrUrl}`;
+
+  return sendBrevoSms({
+    to,
+    message,
+  });
+}

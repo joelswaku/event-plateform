@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import {
@@ -9,7 +9,7 @@ import {
   CheckSquare, Square, LogIn, X, ScanLine, Send,
   ChevronDown, ChevronUp, Search, Home, User,
   CalendarDays, Ticket, ChevronLeft, ChevronRight,
-  CheckCheck, Lock, Zap,
+  CheckCheck, Lock, Zap, MessageCircle,
 } from "lucide-react";
 import { useGuestStore }         from "@/store/guest.store";
 import { useSeatingStore }       from "@/store/seating.store";
@@ -628,7 +628,7 @@ function MobileGuestsPage({
 }
 
 /* ── SendQrModal (Multi-Channel) ────────────────────────────── */
-function SendQrModal({ open, onClose, guest, eventId, sendQrEmail }) {
+function SendQrModal({ open, onClose, guest, eventId, sendQrEmail, sendQrSms }) {
   const [sending, setSending] = useState(false);
 
   const handleSendEmail = async () => {
@@ -647,9 +647,28 @@ function SendQrModal({ open, onClose, guest, eventId, sendQrEmail }) {
     }
   };
 
+  const handleSendSms = async () => {
+    if (!guest?.phone) {
+      toast.error("Guest has no phone number");
+      return;
+    }
+    if (!guest.sms_transactional_consent_at) return;
+    setSending(true);
+    const res = await sendQrSms(eventId, guest.id);
+    setSending(false);
+    if (res?.success) {
+      toast.success(`QR pass sent by SMS to ${guest.phone}`);
+      onClose();
+    } else {
+      toast.error(res?.error || "Failed to send QR by SMS");
+    }
+  };
+
   if (!open) return null;
 
   const hasEmail = guest?.email;
+  const hasPhone = guest?.phone;
+  const canSendSms = Boolean(hasPhone && guest?.sms_transactional_consent_at);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -691,9 +710,27 @@ function SendQrModal({ open, onClose, guest, eventId, sendQrEmail }) {
             </button>
           )}
 
-          {!hasEmail && (
+          {canSendSms && (
+            <button
+              onClick={handleSendSms}
+              disabled={sending}
+              className="w-full flex items-center gap-3 p-4 rounded-[16px] border transition-all disabled:opacity-50 hover:bg-opacity-20"
+              style={{ background: 'rgba(16,185,129,0.08)', borderColor: 'rgba(16,185,129,0.3)' }}
+            >
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]" style={{ background: 'rgba(16,185,129,0.15)' }}>
+                <MessageCircle size={18} style={{ color: '#10b981' }} />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-bold text-white">Send via SMS</p>
+                <p className="text-[11px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.45)' }}>{guest.phone}</p>
+              </div>
+              {sending && <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400/40 border-t-emerald-400" />}
+            </button>
+          )}
+
+          {!hasEmail && !hasPhone && (
             <div className="px-4 py-5 text-center text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
-              No email address is saved for this guest.
+              No email address or phone number is saved for this guest.
             </div>
           )}
         </div>
@@ -720,6 +757,7 @@ function SendQrModal({ open, onClose, guest, eventId, sendQrEmail }) {
 export default function GuestsPage() {
   const { eventId } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const prices = useSubscriptionStore(s => s.prices);
   const plan   = useSubscriptionStore(s => s.plan);
 
@@ -729,7 +767,7 @@ export default function GuestsPage() {
     createGuest, updateGuest, deleteGuest,
     bulkDeleteGuests, bulkSendInvitations, bulkSubmitRsvp,
     sendGuestInvitation, generateQrPass, manualCheckIn,
-    checkInGuestByQr, sendQrEmail,
+    checkInGuestByQr, sendQrEmail, sendQrSms,
     toggleGuestSelection, clearSelection, selectAllGuests,
     isLoading, isSubmitting,
   } = useGuestStore();
@@ -755,7 +793,9 @@ export default function GuestsPage() {
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
   const [inviteChannelModal, setInviteChannelModal] = useState(null);
   const [qrChannelModal, setQrChannelModal] = useState(null);
+  const [bulkInviteIds, setBulkInviteIds] = useState(null);
   const [filterStatus, setFilterStatus] = useState("ALL"); // ALL, GOING, MAYBE, DECLINED, PENDING
+  const handledEditGuestId = useRef(null);
 
   useEffect(() => {
     if (!eventId) return;
@@ -837,23 +877,41 @@ export default function GuestsPage() {
     });
     setShowModal(true);
   };
-  const closeModal    = () => { if (submitting) return; setShowModal(false); setEditingGuest(null); setForm(emptyForm); };
+  const closeModal    = () => {
+    if (submitting) return;
+    setShowModal(false);
+    setEditingGuest(null);
+    setForm(emptyForm);
+    if (searchParams.has("edit")) {
+      router.replace(`/events/${eventId}/guests`, { scroll: false });
+    }
+  };
   const handleChange  = (field, value) => setForm((p) => ({ ...p, [field]: value }));
 
-  const handleSubmit = async () => {
-    // Validation
-    if (!form.full_name.trim()) { toast.error("Full name is required"); return; }
-    if (!form.email.trim() && !form.phone.trim()) { toast.error("Email or phone is required"); return; }
+  // Guest-detail pages use ?edit=<guestId> so the existing editor opens
+  // immediately after returning to the list. This keeps the edit form in one
+  // place while avoiding a confusing, empty return to the guest list.
+  useEffect(() => {
+    const guestIdToEdit = searchParams.get("edit");
+    if (!guestIdToEdit || handledEditGuestId.current === guestIdToEdit) return;
 
-    // Email format validation
-    if (form.email.trim()) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(form.email.trim())) {
-        toast.error("Please enter a valid email address");
-        return;
-      }
-    }
+    const guestToEdit = guests.find((guest) => guest.id === guestIdToEdit);
+    if (!guestToEdit) return;
 
+    handledEditGuestId.current = guestIdToEdit;
+    setEditingGuest(guestToEdit);
+    setForm({
+      full_name: guestToEdit.full_name || "",
+      email: guestToEdit.email || "",
+      phone: guestToEdit.phone || "",
+      plus_one_allowed: guestToEdit.plus_one_allowed || false,
+      plus_one_count: guestToEdit.plus_one_count || 0,
+      is_vip: guestToEdit.is_vip || false,
+    });
+    setShowModal(true);
+  }, [guests, searchParams]);
+
+  const saveGuest = async () => {
     const payload = {
       full_name: form.full_name.trim(),
       email: form.email.trim() || null,
@@ -872,21 +930,32 @@ export default function GuestsPage() {
           closeModal();
           setShowGuestLimitModal(true);
         } else {
-          // Show specific error message if available
           const errorMsg = res?.message || (editingGuest ? "Update failed" : "Create failed");
           toast.error(errorMsg);
         }
         return;
       }
       toast.success(editingGuest ? "Guest updated" : "Guest added");
-
-      // Track guest added conversion
-      if (!editingGuest) {
-        trackConversion.guestAdded();
-      }
-
+      if (!editingGuest) trackConversion.guestAdded();
       closeModal();
     } finally { setSubmitting(false); }
+  };
+
+  const handleSubmit = () => {
+    // Validation
+    if (!form.full_name.trim()) { toast.error("Full name is required"); return; }
+    if (!form.email.trim() && !form.phone.trim()) { toast.error("Email or phone is required"); return; }
+
+    // Email format validation
+    if (form.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(form.email.trim())) {
+        toast.error("Please enter a valid email address");
+        return;
+      }
+    }
+
+    saveGuest();
   };
 
   const confirmDelete = async () => {
@@ -911,6 +980,18 @@ export default function GuestsPage() {
       trackConversion.invitationSent('email');
     } else {
       toast.error(res?.error || "Failed to send invitation");
+    }
+  };
+
+  const handleSendSms = async (guest) => {
+    if (!guest?.sms_transactional_consent_at) return;
+    setInviteChannelModal(null);
+    const res = await sendGuestInvitation(eventId, guest.id, { channel: 'SMS' });
+    if (res?.success) {
+      toast.success(`Invitation sent by SMS to ${guest.full_name}`);
+      trackConversion.invitationSent('sms');
+    } else {
+      toast.error(res?.error || "Failed to send invitation by SMS");
     }
   };
 
@@ -988,9 +1069,29 @@ export default function GuestsPage() {
     const r = await bulkDeleteGuests(eventId, selectedGuestIds);
     r?.success ? toast.success("Deleted") : toast.error("Bulk delete failed");
   };
-  const handleBulkInvite = async () => {
-    const r = await bulkSendInvitations(eventId, selectedGuestIds, { channel: "EMAIL" });
-    r?.success ? toast.success("Invitations sent via email") : toast.error("Bulk invite failed");
+  const handleBulkInvite = (ids = selectedGuestIds) => {
+    if (!ids?.length) {
+      toast.error("Select at least one guest");
+      return;
+    }
+    setBulkInviteIds([...ids]);
+  };
+
+  const sendBulkInvites = async (channel) => {
+    if (!bulkInviteIds?.length) return;
+    const r = await bulkSendInvitations(eventId, bulkInviteIds, { channel });
+    if (r?.success) {
+      const sent = r.data?.sent ?? bulkInviteIds.length;
+      const failed = r.data?.failed ?? 0;
+      toast.success(
+        failed > 0
+          ? `${sent} sent by ${channel === "SMS" ? "SMS" : "email"}; ${failed} could not be sent`
+          : `${sent} invitation${sent === 1 ? "" : "s"} sent by ${channel === "SMS" ? "SMS" : "email"}`,
+      );
+      setBulkInviteIds(null);
+    } else {
+      toast.error(r?.error || "No invitations were sent. Check guest contact details and try again.");
+    }
   };
   const handleBulkRsvp = async (status) => {
     const r = await bulkSubmitRsvp(eventId, selectedGuestIds, status);
@@ -1020,8 +1121,7 @@ export default function GuestsPage() {
             r?.success ? toast.success("Deleted") : toast.error("Bulk delete failed");
           }}
           onBulkInvite={async (ids) => {
-            const r = await bulkSendInvitations(eventId, ids, { channel: "EMAIL" });
-            r?.success ? toast.success("Invitations sent") : toast.error("Bulk invite failed");
+            handleBulkInvite(ids);
           }}
           onBulkRsvp={async (ids, status) => {
             const r = await bulkSubmitRsvp(eventId, ids, status);
@@ -1308,7 +1408,7 @@ export default function GuestsPage() {
               <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
             </div>
             <div className="space-y-4">
-              {[["Full name *", "full_name", "text", "John Doe"], ["Email", "email", "email", "john@example.com"], ["Phone", "phone", "tel", "+1 555 123 4567"]].map(([label, field, type, ph]) => (
+              {[["Full name *", "full_name", "text", "John Doe"], ["Email", "email", "email", "john@example.com"], ["Phone (include country code for SMS)", "phone", "tel", "+1 555 123 4567"]].map(([label, field, type, ph]) => (
                 <div key={field}>
                   <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
                   <input type={type} value={form[field]} placeholder={ph}
@@ -1489,6 +1589,22 @@ export default function GuestsPage() {
                   <ChevronRight size={16} className="text-indigo-400" />
                 </button>
               )}
+
+              {inviteChannelModal.phone && inviteChannelModal.sms_transactional_consent_at && (
+                <button
+                  onClick={() => handleSendSms(inviteChannelModal)}
+                  className="w-full flex items-center gap-3 p-4 rounded-2xl border border-emerald-700/30 bg-emerald-900/10 hover:bg-emerald-900/20 transition-colors"
+                >
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-900/20">
+                    <MessageCircle size={18} className="text-emerald-400" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-bold text-white">Send via SMS</p>
+                    <p className="text-xs mt-0.5 text-gray-400 truncate">{inviteChannelModal.phone}</p>
+                  </div>
+                  <ChevronRight size={16} className="text-emerald-400" />
+                </button>
+              )}
             </div>
 
             <div className="px-4 pb-4">
@@ -1503,6 +1619,30 @@ export default function GuestsPage() {
         </div>
       )}
 
+      {bulkInviteIds && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
+          <div className="w-full max-w-sm overflow-hidden rounded-3xl border border-gray-800 bg-gray-900">
+            <div className="px-6 pt-6 pb-4">
+              <h2 className="text-xl font-black text-white">Send invitations</h2>
+              <p className="mt-1 text-sm text-gray-400">Choose how to invite {bulkInviteIds.length} selected guest{bulkInviteIds.length === 1 ? "" : "s"}.</p>
+            </div>
+            <div className="space-y-2 px-4 pb-4">
+              <button onClick={() => sendBulkInvites("EMAIL")} className="flex w-full items-center gap-3 rounded-2xl border border-indigo-700/30 bg-indigo-900/10 p-4 text-left transition-colors hover:bg-indigo-900/20">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-900/20"><Mail size={18} className="text-indigo-400" /></div>
+                <div className="flex-1"><p className="text-sm font-bold text-white">Send via Email</p><p className="mt-0.5 text-xs text-gray-400">Only guests with an email address will receive it.</p></div>
+                <ChevronRight size={16} className="text-indigo-400" />
+              </button>
+              <button onClick={() => sendBulkInvites("SMS")} className="flex w-full items-center gap-3 rounded-2xl border border-emerald-700/30 bg-emerald-900/10 p-4 text-left transition-colors hover:bg-emerald-900/20">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-900/20"><MessageCircle size={18} className="text-emerald-400" /></div>
+                <div className="flex-1"><p className="text-sm font-bold text-white">Send via SMS</p><p className="mt-0.5 text-xs text-gray-400">To selected guests with a phone number.</p></div>
+                <ChevronRight size={16} className="text-emerald-400" />
+              </button>
+            </div>
+            <div className="px-4 pb-4"><button onClick={() => setBulkInviteIds(null)} className="w-full rounded-2xl bg-gray-800 py-3 text-sm font-bold text-gray-400 hover:bg-gray-700">Cancel</button></div>
+          </div>
+        </div>
+      )}
+
       {/* QR Channel Modal */}
       <SendQrModal
         open={!!qrChannelModal}
@@ -1510,6 +1650,7 @@ export default function GuestsPage() {
         guest={qrChannelModal}
         eventId={eventId}
         sendQrEmail={sendQrEmail}
+        sendQrSms={sendQrSms}
       />
     </>
   );

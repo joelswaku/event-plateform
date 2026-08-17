@@ -11,6 +11,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useDonationStore, Donation } from '@/store/donation.store';
+import { useEventStore } from '@/store/event.store';
 import { Colors } from '@/constants/colors';
 import { toast } from '@/lib/toast';
 import { pickAndUploadImage } from '@/lib/imageUpload';
@@ -103,27 +104,46 @@ function FundraiserCard({
   return (
     <View style={s.fundraiserCard}>
       <View style={s.fundraiserTopBar} />
-      {coverImage ? <Image source={{ uri: coverImage }} style={s.fundraiserImage} resizeMode="cover" /> : null}
-      <View style={s.fundraiserBody}>
-        <View style={s.fundraiserTitleRow}>
-          <View>
-            <Text style={s.fundraiserEyebrow}>FUNDRAISER</Text>
-            <Text style={s.fundraiserTitle}>{title || 'Support this event'}</Text>
-          </View>
-          <Pressable onPress={onEdit} style={s.fundraiserEdit} hitSlop={8}>
-            <Feather name="edit-3" size={13} color={ROSE} />
-            <Text style={s.fundraiserEditTxt}>Edit</Text>
-          </Pressable>
+      <View style={s.fundraiserHeader}>
+        <View style={s.fundraiserHeaderIcon}>
+          <Feather name="heart" size={17} color={ROSE} />
         </View>
-        <Text style={s.fundraiserMessage} numberOfLines={3}>
-          {message || 'Add a short story so guests understand what their contribution supports.'}
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={s.fundraiserSetupLabel}>Fundraiser setup</Text>
+          <Text style={s.fundraiserCardTitle}>Your public donation card</Text>
+        </View>
+        <Pressable onPress={onEdit} style={s.fundraiserEdit} hitSlop={8}>
+          <Feather name="edit-3" size={13} color={ROSE} />
+          <Text style={s.fundraiserEditTxt}>Edit</Text>
+        </Pressable>
+      </View>
+      {coverImage ? (
+        <View style={{ position: 'relative' }}>
+          <Image source={{ uri: coverImage }} style={s.fundraiserImage} resizeMode="cover" />
+          {/* Gradient overlay matching web design */}
+          <LinearGradient
+            colors={['rgba(7,24,39,0.1)', 'rgba(7,24,39,0.52)', 'rgba(7,24,39,0.96)']}
+            style={StyleSheet.absoluteFill}
+          />
+        </View>
+      ) : null}
+      <View style={s.fundraiserBody}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.fundraiserEyebrow}>Fundraiser</Text>
+          <Text style={s.fundraiserTitle}>{title || 'Support this event'}</Text>
+        </View>
+        <Text style={s.fundraiserMessage} numberOfLines={4}>
+          {message || 'Every contribution makes a difference. Your donation helps us create an unforgettable experience for everyone.'}
         </Text>
-        <View style={s.fundraiserAmounts}>
-          {(amounts.length ? amounts : DEFAULT_AMOUNTS).map((amount, index) => (
-            <View key={`${amount}-${index}`} style={s.fundraiserAmountPill}>
-              <Text style={s.fundraiserAmountTxt}>{fmtAmount(amount)}</Text>
-            </View>
-          ))}
+        <View style={{ paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' }}>
+          <Text style={{ fontSize: 10, fontWeight: '700', color: Colors.text.subtle, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Suggested Amounts</Text>
+          <View style={s.fundraiserAmounts}>
+            {(amounts.length ? amounts : DEFAULT_AMOUNTS).map((amount, index) => (
+              <View key={`${amount}-${index}`} style={s.fundraiserAmountPill}>
+                <Text style={s.fundraiserAmountTxt}>{fmtAmount(amount)}</Text>
+              </View>
+            ))}
+          </View>
         </View>
       </View>
     </View>
@@ -532,6 +552,7 @@ function DonateForm({ eventId, presets }: { eventId: string; presets: number[] }
 export default function DonationsScreen() {
   const { id: eventId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const event = useEventStore(state => state.events.find(item => item.id === eventId));
   const { donations, loading, totalRaised, confirmedCount,
           donationAmounts, donationConfig, fetchDonations, fetchDonationConfig } = useDonationStore();
   const [configOpen, setConfigOpen] = useState(false);
@@ -586,19 +607,11 @@ export default function DonationsScreen() {
 
   const ListHeader = (
     <>
-      <FundraiserCard
-        title={localTitle}
-        message={localMessage}
-        coverImage={localCoverImage}
-        amounts={presets}
-        onEdit={() => setConfigOpen(true)}
-      />
-
-      {/* Stats */}
+      {/* Web-mobile order: totals first, then contribution breakdown. */}
       <View style={s.statsRow}>
         <StatTile label="Total Raised"  value={fmtAmount(totalRaised)} color={ROSE} />
         <StatTile label="Confirmed"     value={confirmedCount}          color={Colors.accent.emerald} />
-        <StatTile label="Total"         value={donations.length}        color={Colors.accent.indigo} />
+        <StatTile label="Total Donors"  value={donations.length}        color={Colors.accent.indigo} />
       </View>
 
       {/* Donut charts */}
@@ -610,15 +623,19 @@ export default function DonationsScreen() {
         </View>
       )}
 
-      {/* Section label + config button */}
+      <FundraiserCard
+        title={localTitle}
+        message={localMessage}
+        coverImage={localCoverImage}
+        amounts={presets}
+        onEdit={() => setConfigOpen(true)}
+      />
+
+      {/* Donor list follows the fundraiser card, like web mobile. */}
       <View style={s.sectionRow}>
         <Text style={s.sectionLabel}>
           DONORS {donations.length > 0 ? `(${donations.length})` : ''}
         </Text>
-        <Pressable onPress={() => setConfigOpen(true)} style={s.configBtn} hitSlop={8}>
-          <Feather name="settings" size={13} color={Colors.text.muted} />
-          <Text style={s.configBtnTxt}>Setup</Text>
-        </Pressable>
       </View>
     </>
   );
@@ -638,9 +655,10 @@ export default function DonationsScreen() {
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
               <Feather name="heart" size={16} color="#fff" />
             </View>
-            <View>
-              <Text style={s.headerTitle}>Donations</Text>
-              <Text style={s.headerSub}>Track & receive contributions</Text>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={s.headerEyebrow}>Donations</Text>
+              <Text style={s.headerTitle} numberOfLines={1}>{event?.title || 'Donations'}</Text>
+              <Text style={s.headerSub}>Configure donation amounts and track contributions.</Text>
             </View>
           </View>
         </View>
@@ -733,27 +751,31 @@ const s = StyleSheet.create({
     backgroundColor: Colors.bg.elevated, borderWidth: 1, borderColor: Colors.border.DEFAULT,
     alignItems: 'center', justifyContent: 'center',
   },
-  headerMid:  { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerMid:  { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 0 },
   headerIcon: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  headerTitle: { fontSize: 17, fontWeight: '900', color: '#fff' },
-  headerSub:   { fontSize: 11, color: Colors.text.muted, marginTop: 1 },
+  headerEyebrow: { fontSize: 9, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase', color: ROSE, marginBottom: 1 },
+  headerTitle: { fontSize: 16, fontWeight: '900', color: '#fff' },
+  headerSub:   { fontSize: 10, color: Colors.text.muted, marginTop: 1 },
 
   listContent: { paddingHorizontal: 16, paddingBottom: 48 },
 
-  /* fundraiser preview */
-  fundraiserCard: { marginTop: 16, overflow: 'hidden', borderRadius: 18, borderWidth: 1, borderColor: `${ROSE}35`, backgroundColor: Colors.bg.elevated },
-  fundraiserTopBar: { height: 3, backgroundColor: ROSE },
+  /* fundraiser preview - matching web mobile design */
+  fundraiserCard: { marginTop: 16, overflow: 'hidden', borderRadius: 24, borderWidth: 1, borderColor: `${ROSE}35`, backgroundColor: Colors.bg.elevated, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8 },
+  fundraiserTopBar: { height: 4, backgroundColor: ROSE },
+  fundraiserHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.border.subtle },
+  fundraiserHeaderIcon: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: `${ROSE}14`, borderWidth: 1, borderColor: `${ROSE}30` },
+  fundraiserSetupLabel: { fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase', color: ROSE },
+  fundraiserCardTitle: { marginTop: 2, fontSize: 14, lineHeight: 18, fontWeight: '900', color: '#fff' },
   fundraiserImage: { width: '100%', height: 156 },
-  fundraiserBody: { padding: 16, gap: 10 },
-  fundraiserTitleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
-  fundraiserEyebrow: { fontSize: 9, fontWeight: '900', letterSpacing: 1.2, color: `${ROSE}cc` },
-  fundraiserTitle: { marginTop: 3, flexShrink: 1, fontSize: 18, lineHeight: 22, fontWeight: '900', color: '#fff' },
-  fundraiserMessage: { fontSize: 13, lineHeight: 19, color: Colors.text.muted },
-  fundraiserEdit: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 9, borderWidth: 1, borderColor: `${ROSE}40`, backgroundColor: `${ROSE}10` },
-  fundraiserEditTxt: { fontSize: 11, fontWeight: '800', color: ROSE },
-  fundraiserAmounts: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 2 },
-  fundraiserAmountPill: { borderRadius: 99, paddingHorizontal: 11, paddingVertical: 7, borderWidth: 1, borderColor: `${ROSE}45`, backgroundColor: `${ROSE}12` },
-  fundraiserAmountTxt: { fontSize: 12, fontWeight: '900', color: '#fda4af' },
+  fundraiserBody: { padding: 18, gap: 14 },
+  fundraiserEyebrow: { fontSize: 9, fontWeight: '900', letterSpacing: 1.5, color: `${ROSE}`, textTransform: 'uppercase' },
+  fundraiserTitle: { marginTop: 5, flexShrink: 1, fontSize: 21, lineHeight: 26, fontWeight: '900', color: '#fff', letterSpacing: -0.4 },
+  fundraiserMessage: { fontSize: 14, lineHeight: 22, color: Colors.text.muted, fontWeight: '500' },
+  fundraiserEdit: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: `${ROSE}50`, backgroundColor: `${ROSE}15` },
+  fundraiserEditTxt: { fontSize: 12, fontWeight: '800', color: ROSE },
+  fundraiserAmounts: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 6 },
+  fundraiserAmountPill: { borderRadius: 99, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1.5, borderColor: `${ROSE}50`, backgroundColor: `${ROSE}15` },
+  fundraiserAmountTxt: { fontSize: 14, fontWeight: '900', color: '#fda4af', letterSpacing: 0.2 },
 
   /* stats */
   statsRow: { flexDirection: 'row', gap: 10, paddingTop: 16, paddingBottom: 12 },

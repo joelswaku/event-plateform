@@ -269,6 +269,7 @@ export default function CreateEventScreen() {
   const [form,         setForm]       = useState<FormState>(INITIAL);
   const [expandedCat, setExpandedCat]= useState<string | null>(null);
   const [saving,      setSaving]     = useState(false);
+  const [errors,      setErrors]     = useState<Record<string, string | undefined>>({});
 
   useEffect(() => { fetchSubscription(); }, []);
 
@@ -278,8 +279,31 @@ export default function CreateEventScreen() {
     return <UpgradeGate onBack={() => router.back()} />;
   }
 
-  const update = (key: keyof FormState, val: unknown) =>
+  const update = (key: keyof FormState, val: unknown) => {
+    if ((key === 'starts_at' || key === 'ends_at') && val instanceof Date) {
+      const nextStart = key === 'starts_at' ? val : form.starts_at;
+      const nextEnd = key === 'ends_at' ? val : form.ends_at;
+
+      if (nextStart && nextEnd && nextEnd <= nextStart) {
+        setErrors(previous => ({
+          ...previous,
+          ends_at: 'Choose an end date and time after the event start.',
+        }));
+        showWarning(
+          'Event dates need updating',
+          'Choose an end date and time after the event start before continuing.',
+        );
+        return;
+      }
+    }
+
     setForm(f => ({ ...f, [key]: val }));
+    setErrors(previous => ({
+      ...previous,
+      [key]: undefined,
+      ...((key === 'starts_at' || key === 'ends_at') ? { ends_at: undefined } : {}),
+    }));
+  };
 
   // Mutual exclusivity for RSVP / Ticketing / Donations
   const toggleModule = (key: 'allow_rsvp' | 'allow_ticketing' | 'allow_donations', val: boolean) => {
@@ -323,24 +347,33 @@ export default function CreateEventScreen() {
     toggleModule(key, val);
   };
 
-  const canAdvance = () => {
-    if (step === 0) return !!form.subcategory;
-    if (step === 1) return !!form.title.trim() && !!form.starts_at;
-    if (step === 2) return !!form.venue_name.trim() && !!form.city.trim();
-    return true;
-  };
-
   const handleContinue = () => {
     if (step === 0 && !form.subcategory) {
+      setErrors(previous => ({ ...previous, subcategory: 'Choose an event type to continue.' }));
       return showWarning('Category required', 'Please select an event type to continue.');
     }
     if (step === 1) {
-      if (!form.title.trim()) return showWarning('Title required', 'Enter a title for your event.');
-      if (!form.starts_at) return showWarning('Start date required', 'Select when your event starts.');
+      const nextErrors: Record<string, string> = {};
+      if (!form.title.trim()) nextErrors.title = 'Enter an event title.';
+      if (!form.starts_at) nextErrors.starts_at = 'Select when your event starts.';
+      if (!form.ends_at) nextErrors.ends_at = 'Select when your event ends.';
+      if (form.starts_at && form.ends_at && form.ends_at <= form.starts_at) {
+        nextErrors.ends_at = 'Choose an end date and time after the event start.';
+      }
+      if (Object.keys(nextErrors).length) {
+        setErrors(previous => ({ ...previous, ...nextErrors }));
+        const firstError = nextErrors.title || nextErrors.starts_at || nextErrors.ends_at;
+        return showWarning('Complete event details', firstError!);
+      }
     }
     if (step === 2) {
-      if (!form.venue_name.trim()) return showWarning('Venue required', 'Enter a venue name or location.');
-      if (!form.city.trim()) return showWarning('City required', 'Enter the city for your event.');
+      const nextErrors: Record<string, string> = {};
+      if (!form.venue_name.trim()) nextErrors.venue_name = 'Enter a venue name or location.';
+      if (!form.city.trim()) nextErrors.city = 'Enter the city for your event.';
+      if (Object.keys(nextErrors).length) {
+        setErrors(previous => ({ ...previous, ...nextErrors }));
+        return showWarning('Complete venue details', nextErrors.venue_name || nextErrors.city!);
+      }
     }
     setStep(s => s + 1);
   };
@@ -349,6 +382,7 @@ export default function CreateEventScreen() {
     if (!form.title.trim()) return notify.titleRequired();
     if (!form.event_type)   return showWarning('Category required', 'Select an event category to continue.');
     if (!form.starts_at) return showWarning('Start date required', 'Select a start date for your event.');
+    if (!form.ends_at) return showWarning('End date required', 'Select an end date for your event.');
     if (!form.venue_name.trim()) return showWarning('Venue required', 'Enter a venue name or location.');
     if (!form.city.trim()) return showWarning('City required', 'Enter the city where your event takes place.');
 
@@ -446,6 +480,7 @@ export default function CreateEventScreen() {
           {step === 0 && (
             <View style={styles.catWrap}>
               <Text style={styles.stepHint}>What kind of event are you hosting?</Text>
+              {!!errors.subcategory && <Text style={styles.inlineError}>{errors.subcategory}</Text>}
               {CATEGORIES.map(cat => {
                 const isExpanded = expandedCat === cat.id;
                 const hasSel     = cat.subcategories.some(s => s.id === form.subcategory);
@@ -496,6 +531,7 @@ export default function CreateEventScreen() {
                                   allow_donations:  false,
                                   open_rsvp:        false,
                                 }));
+                                setErrors(previous => ({ ...previous, subcategory: undefined }));
                                 setExpandedCat(null);
                               }}
                             >
@@ -537,6 +573,7 @@ export default function CreateEventScreen() {
                 value={form.title}
                 onChangeText={t => update('title', t)}
                 icon="type"
+                error={errors.title}
               />
               <Input
                 label="Description"
@@ -552,12 +589,15 @@ export default function CreateEventScreen() {
                 value={form.starts_at}
                 onChange={d => update('starts_at', d)}
                 minDate={new Date()}
+                error={errors.starts_at}
               />
               <DateTimePicker
-                label="End Date & Time"
+                label="End Date & Time *"
                 value={form.ends_at}
                 onChange={d => update('ends_at', d)}
                 minDate={form.starts_at ?? new Date()}
+                minExclusive
+                error={errors.ends_at}
               />
               <Input
                 label="Timezone (Auto-detected)"
@@ -574,9 +614,9 @@ export default function CreateEventScreen() {
           {step === 2 && (
             <View style={styles.fields}>
               <Text style={styles.stepHint}>Where is the event taking place?</Text>
-              <Input label="Venue Name"     placeholder="Madison Square Garden" value={form.venue_name}    onChangeText={t => update('venue_name', t)}    icon="map-pin"  />
+              <Input label="Venue Name *"   placeholder="Madison Square Garden" value={form.venue_name}    onChangeText={t => update('venue_name', t)}    icon="map-pin" error={errors.venue_name} />
               <Input label="Street Address" placeholder="4 Pennsylvania Plaza"  value={form.venue_address} onChangeText={t => update('venue_address', t)} icon="navigation"/>
-              <Input label="City"           placeholder="New York"               value={form.city}          onChangeText={t => update('city', t)}          icon="map"      />
+              <Input label="City *"         placeholder="New York"               value={form.city}          onChangeText={t => update('city', t)}          icon="map" error={errors.city} />
               <Input label="State / Province" placeholder="New York"             value={form.state}         onChangeText={t => update('state', t)}         icon="map"      />
               <Input
                 label="Zip / Postal"
@@ -630,7 +670,7 @@ export default function CreateEventScreen() {
             <Button
               label={step === 0 ? (form.subcategory ? `Continue with ${selectedSub?.label}` : 'Select a category') : 'Continue'}
               onPress={handleContinue}
-              disabled={!canAdvance()}
+              disabled={saving}
               accent={Colors.accent.indigo}
               size="lg"
             />
@@ -709,6 +749,7 @@ const styles = StyleSheet.create({
   content:  { padding: 16, paddingBottom: 16, gap: 12 },
   stepHint: { fontSize: 14, color: Colors.text.muted, marginBottom: 4 },
   label:    { fontSize: 11, fontWeight: '700', color: Colors.text.muted, marginBottom: 6 },
+  inlineError: { color: Colors.accent.red, fontSize: 12, fontWeight: '700', marginTop: -4, marginBottom: 4 },
 
   catWrap:  { gap: 8 },
   catGroup: { gap: 0 },

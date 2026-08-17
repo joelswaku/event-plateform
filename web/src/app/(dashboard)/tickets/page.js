@@ -14,6 +14,7 @@ import { useTicketStore }  from "@/store/ticket.store";
 import { useEventStore }   from "@/store/event.store";
 import { EVENT_CATEGORIES } from "@/config/event-categories";
 import { api } from "@/lib/api";
+import EnableModuleModal from "@/components/events/EnableModuleModal";
 
 /* ── constants ───────────────────────────────────────────── */
 const ENTERTAINMENT_SUBS =
@@ -1561,6 +1562,7 @@ export default function TicketsPage() {
   const [showEventPicker, setShowEventPicker] = useState(false);
   const [search, setSearch]                 = useState("");
   const [sort, setSort]                     = useState("date_asc");
+  const [confirmModal, setConfirmModal]     = useState(null); // { event, modules }
 
   // Must be declared before handleNewTicketClick which depends on it
   const ownedActiveEvents = useMemo(() =>
@@ -1603,6 +1605,37 @@ export default function TicketsPage() {
     (eventId) => router.push(`/events/${eventId}/tickets`),
     [router]
   );
+
+  // Enable ticketing function
+  const handleEnableTicketing = useCallback(async (event) => {
+    // Check if donations is enabled (would be disabled)
+    const otherModules = [];
+    if (event.allow_donations) otherModules.push('Donations');
+    if (event.allow_rsvp) otherModules.push('RSVP');
+
+    setConfirmModal({ event, otherModules });
+  }, []);
+
+  const confirmEnableTicketing = useCallback(async () => {
+    if (!confirmModal) return;
+
+    try {
+      await api.patch(`/events/${confirmModal.event.id}`, {
+        allow_ticketing: true,
+        allow_donations: false, // Disable donations when enabling ticketing
+      });
+
+      setConfirmModal(null);
+      await fetchEvents(); // Refresh event list
+      await loadTicketedEvents(); // Refresh ticketed events
+
+      // Navigate to the tickets page for this event
+      router.push(`/events/${confirmModal.event.id}/tickets`);
+    } catch (error) {
+      console.error('Failed to enable ticketing:', error);
+      alert(error?.response?.data?.message || 'Failed to enable ticketing');
+    }
+  }, [confirmModal, fetchEvents, loadTicketedEvents, router]);
 
   /* aggregate stats */
   const stats = useMemo(() => {
@@ -1683,7 +1716,10 @@ export default function TicketsPage() {
           search={search}
           setSearch={setSearch}
           onManage={navigate}
-          onNavigateToEvent={(id) => router.push(`/events/${id}`)}
+          onNavigateToEvent={(id) => {
+            const event = filteredAllEvents.find(e => e.id === id);
+            if (event) handleEnableTicketing(event);
+          }}
           onCreate={() => setShowOverlay(true)}
           fetchError={fetchError}
           onRetry={loadTicketedEvents}
@@ -1819,7 +1855,7 @@ export default function TicketsPage() {
                   key={event.id}
                   event={event}
                   index={i}
-                  onGo={() => router.push(`/events/${event.id}`)}
+                  onGo={() => handleEnableTicketing(event)}
                 />
               ))}
             </div>
@@ -1887,6 +1923,16 @@ export default function TicketsPage() {
           <CreateTicketOverlay onClose={() => setShowOverlay(false)} />
         )}
       </AnimatePresence>
+
+      {/* ── Enable Ticketing Confirmation Modal ── */}
+      {confirmModal && (
+        <EnableModuleModal
+          moduleKey="allow_ticketing"
+          otherModules={confirmModal.otherModules}
+          onConfirm={confirmEnableTicketing}
+          onCancel={() => setConfirmModal(null)}
+        />
+      )}
     </div>
     </div>
     </>

@@ -14,23 +14,8 @@ const SUGGESTED = [
   "Is this event family-friendly?",
 ];
 
-const CHAT_BUTTON_POSITIONS = [
-  {
-    left: "auto",
-    right: "max(16px, calc(env(safe-area-inset-right) + 16px))",
-    offsetY: 0,
-  },
-  {
-    left: "max(16px, calc(env(safe-area-inset-left) + 16px))",
-    right: "auto",
-    offsetY: 0,
-  },
-  {
-    left: "auto",
-    right: "max(16px, calc(env(safe-area-inset-right) + 16px))",
-    offsetY: -74,
-  },
-];
+const WIDGET_GUTTER = 16;
+const DRAG_THRESHOLD = 6;
 
 function TypingDots() {
   return (
@@ -57,13 +42,16 @@ export default function EventChatbot({ eventId }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
-  const [buttonPosition, setButtonPosition] = useState(0);
-  const [isRelocating, setIsRelocating] = useState(false);
+  const [dragPosition, setDragPosition] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
-  const activeButtonPosition = CHAT_BUTTON_POSITIONS[buttonPosition];
+  const widgetRef = useRef(null);
+  const dragRef = useRef(null);
+  const didDragRef = useRef(false);
 
   const sessionKey = `chatbot_session_${eventId}`;
+  const widgetPositionKey = `chatbot_widget_position_${eventId}`;
 
   function getSessionToken() {
     let token = sessionStorage.getItem(sessionKey);
@@ -84,28 +72,105 @@ export default function EventChatbot({ eventId }) {
     }
   }, [open]);
 
-  // Keep the invitation noticeable without interrupting someone who is chatting.
-  // It fades out before moving, then returns in a different safe corner.
+  // The question button stays where the visitor leaves it. This also keeps it
+  // clear of browser controls on small screens after the first reposition.
   useEffect(() => {
-    if (open) {
-      setIsRelocating(false);
-      return undefined;
+    try {
+      const savedPosition = window.localStorage.getItem(widgetPositionKey);
+      if (!savedPosition) return;
+
+      const parsedPosition = JSON.parse(savedPosition);
+      if (Number.isFinite(parsedPosition?.x) && Number.isFinite(parsedPosition?.y)) {
+        setDragPosition(parsedPosition);
+      }
+    } catch {
+      // A saved position is a convenience only; the chat remains usable without it.
+    }
+  }, [widgetPositionKey]);
+
+  function clampPosition(x, y) {
+    const rect = widgetRef.current?.getBoundingClientRect();
+    const widgetWidth = rect?.width ?? 182;
+    const widgetHeight = rect?.height ?? 50;
+
+    return {
+      x: Math.min(Math.max(WIDGET_GUTTER, x), window.innerWidth - widgetWidth - WIDGET_GUTTER),
+      y: Math.min(Math.max(WIDGET_GUTTER, y), window.innerHeight - widgetHeight - WIDGET_GUTTER),
+    };
+  }
+
+  function handleDragStart(event) {
+    if (open || event.button > 0) return;
+
+    const rect = widgetRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    didDragRef.current = false;
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: rect.left,
+      originY: rect.top,
+    };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+
+  function handleDragMove(event) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId || open) return;
+
+    const movedX = event.clientX - drag.startX;
+    const movedY = event.clientY - drag.startY;
+    if (Math.abs(movedX) > DRAG_THRESHOLD || Math.abs(movedY) > DRAG_THRESHOLD) {
+      didDragRef.current = true;
+      setIsDragging(true);
+      setDragPosition(clampPosition(drag.originX + movedX, drag.originY + movedY));
+    }
+  }
+
+  function handleDragEnd(event) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    dragRef.current = null;
+    setIsDragging(false);
+
+    if (!didDragRef.current) return;
+
+    const position = clampPosition(
+      drag.originX + event.clientX - drag.startX,
+      drag.originY + event.clientY - drag.startY,
+    );
+    setDragPosition(position);
+    // Save the value currently shown by the widget so it remains in the same
+    // place on the visitor's next visit to this event.
+    try {
+      window.localStorage.setItem(widgetPositionKey, JSON.stringify(position));
+    } catch {
+      // Storage can be unavailable in private browsing; dragging still works.
     }
 
-    let revealTimer;
-    const moveTimer = window.setInterval(() => {
-      setIsRelocating(true);
-      revealTimer = window.setTimeout(() => {
-        setButtonPosition((current) => (current + 1) % CHAT_BUTTON_POSITIONS.length);
-        setIsRelocating(false);
-      }, 360);
-    }, 8500);
+    window.setTimeout(() => {
+      didDragRef.current = false;
+    }, 0);
+  }
 
-    return () => {
-      window.clearInterval(moveTimer);
-      if (revealTimer) window.clearTimeout(revealTimer);
-    };
-  }, [open]);
+  function handleDragCancel(event) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    dragRef.current = null;
+    didDragRef.current = false;
+    setIsDragging(false);
+  }
+
+  function toggleChat() {
+    if (didDragRef.current) return;
+    setOpen((value) => !value);
+  }
 
   async function send(text) {
     const trimmed = (text ?? input).trim();
@@ -136,20 +201,18 @@ export default function EventChatbot({ eventId }) {
 
   return (
     <div
-      className="fixed bottom-28 sm:bottom-6 z-50 flex flex-col items-end gap-3"
+      ref={widgetRef}
+      className="fixed bottom-28 sm:bottom-6 z-50"
       style={{
-        left: activeButtonPosition.left,
-        right: activeButtonPosition.right,
-        opacity: isRelocating ? 0 : 1,
-        transform: `translateY(${activeButtonPosition.offsetY}px) scale(${isRelocating ? 0.92 : 1})`,
-        pointerEvents: isRelocating ? "none" : "auto",
-        transition: "opacity 360ms ease, transform 360ms ease",
+        ...(dragPosition
+          ? { left: dragPosition.x, top: dragPosition.y, right: "auto", bottom: "auto" }
+          : { left: "auto", right: "max(16px, calc(env(safe-area-inset-right) + 16px))" }),
       }}
     >
       {/* Chat window */}
       {open && (
         <div
-          className="w-85 sm:w-95 flex flex-col overflow-hidden shadow-2xl"
+          className="absolute bottom-[calc(100%+12px)] right-0 flex w-[calc(100vw-32px)] sm:w-95 flex-col overflow-hidden shadow-2xl"
           style={{
             background: "#0f0f1a",
             border: "1px solid rgba(255,255,255,0.08)",
@@ -263,12 +326,20 @@ export default function EventChatbot({ eventId }) {
 
       {/* Toggle button */}
       <button
-        onClick={() => setOpen((v) => !v)}
+        type="button"
+        onPointerDown={handleDragStart}
+        onPointerMove={handleDragMove}
+        onPointerUp={handleDragEnd}
+        onPointerCancel={handleDragCancel}
+        onClick={toggleChat}
+        aria-label={open ? "Close event assistant" : "Ask the event assistant a question"}
         className="flex items-center gap-2.5 rounded-2xl text-white text-sm font-semibold shadow-2xl transition-all hover:scale-105 active:scale-95"
         style={{
           background: open ? "#3730a3" : "linear-gradient(135deg,#4f46e5,#7c3aed)",
           boxShadow: "0 8px 32px rgba(79,70,229,0.4)",
           padding: "12px 18px",
+          cursor: isDragging ? "grabbing" : "grab",
+          touchAction: "none",
         }}
       >
         {open ? (

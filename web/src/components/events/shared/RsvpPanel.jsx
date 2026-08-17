@@ -75,6 +75,7 @@ export default function RsvpPanel({ token }) {
   const [guestName, setGuestName] = useState("");
   const [email,     setEmail]     = useState("");
   const [phone,     setPhone]     = useState("");
+  const [smsConsent, setSmsConsent] = useState(false);
   const [plusOnes,  setPlusOnes]  = useState(0);
 
   /* Submission */
@@ -109,6 +110,7 @@ export default function RsvpPanel({ token }) {
         setGuestName(d.guest?.full_name ?? "");
         setEmail(d.guest?.email ?? "");
         setPhone(d.guest?.phone ?? "");
+        setSmsConsent(Boolean(d.guest?.sms_transactional_consent_at));
         if (d.existing_rsvp) {
           setFinal(d.existing_rsvp.rsvp_status);
           setPlusOnes(d.existing_rsvp.plus_one_count ?? 0);
@@ -138,6 +140,7 @@ export default function RsvpPanel({ token }) {
           guest_name:     guestName.trim() || null,
           email:          email.trim()     || null,
           phone:          phone.trim()     || null,
+          ...(phone.trim() ? { sms_transactional_opt_in: smsConsent } : {}),
         }),
       });
       const json = await res.json();
@@ -156,7 +159,7 @@ export default function RsvpPanel({ token }) {
       setSubmitting(false);
       setPending(null);
     }
-  }, [submitting, token, inv, plusOnes, guestName, email, phone]);
+  }, [submitting, token, inv, plusOnes, guestName, email, phone, smsConsent]);
 
   if (!token) return null;
 
@@ -446,6 +449,29 @@ export default function RsvpPanel({ token }) {
                     placeholder="+1 (555) 000-0000"
                   />
                 </FieldGroup>
+
+                <label style={{
+                  display: "flex", alignItems: "flex-start", gap: 10,
+                  padding: "12px 13px", borderRadius: 12,
+                  border: `1.5px solid ${smsConsent ? "#c9a96e" : "#e8e0d5"}`,
+                  background: smsConsent ? "#fdf8f0" : "#faf8f5",
+                  cursor: "pointer",
+                  opacity: 1,
+                  color: "#57534e", lineHeight: 1.5,
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={smsConsent}
+                    onChange={e => setSmsConsent(e.target.checked)}
+                    style={{ marginTop: 2, width: 16, height: 16, accentColor: "#b8944d", flexShrink: 0, cursor: "pointer" }}
+                  />
+                  <span style={{ fontSize: 11 }}>
+                    <strong style={{ display: "block", fontSize: 12, color: "#57411f", marginBottom: 3 }}>I agree to receive transactional SMS messages about this event{phone.trim() ? " *" : ""}.</strong>
+                    {phone.trim()
+                      ? "Messages may include invitations, RSVP updates, tickets, QR entry passes, and reminders. Message frequency may vary. Message and data rates may apply. Reply STOP to opt out or HELP for help. Your mobile information will not be sold or shared with third parties for promotional or marketing purposes."
+                      : "Add a phone number to choose whether you want event SMS updates."}
+                  </span>
+                </label>
 
                 {plusOneAllow && (
                   <FieldGroup label={`Companions (max ${maxPlusOnes})`}>

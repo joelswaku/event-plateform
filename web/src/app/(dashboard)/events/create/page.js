@@ -385,20 +385,49 @@ function StepDetails({ subcategory, features, formData, setFormData, onBack, onN
     "w-full rounded-xl border-2 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 sm:px-3.5 py-2.5 sm:py-3 text-sm sm:text-base text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900 transition";
 
   const set = (k, v) => {
-    setFormData((p) => ({ ...p, [k]: v }));
-    setErrors((e) => ({ ...e, [k]: undefined }));
+    const nextForm = { ...formData, [k]: v };
+    setFormData(nextForm);
+    setErrors((previousErrors) => {
+      const nextErrors = { ...previousErrors, [k]: undefined };
+
+      // Catch a changed start time that now falls after the existing end time
+      // immediately, instead of waiting until the final create step.
+      if (k === "starts_at" || k === "ends_at") {
+        if (nextForm.starts_at && nextForm.ends_at && new Date(nextForm.ends_at) <= new Date(nextForm.starts_at)) {
+          nextErrors.ends_at = "Event end must be after the event start";
+        } else {
+          nextErrors.ends_at = undefined;
+        }
+      }
+
+      return nextErrors;
+    });
   };
 
   const validate = () => {
     const e = {};
     if (!formData.title.trim()) e.title = "Title is required";
     if (!formData.starts_at) e.starts_at = "Start date is required";
+    if (!formData.ends_at) e.ends_at = "End date is required";
     if (formData.starts_at && formData.ends_at && new Date(formData.ends_at) <= new Date(formData.starts_at)) {
       e.ends_at = "Event end must be after the event start";
     }
     if (!formData.venue_name.trim()) e.venue_name = "Venue name is required";
     if (!formData.city.trim()) e.city = "City is required";
     return e;
+  };
+
+  const validateRequiredField = (field) => {
+    const messages = {
+      title: "Title is required",
+      venue_name: "Venue name is required",
+      city: "City is required",
+    };
+    const value = formData[field];
+    setErrors((previousErrors) => ({
+      ...previousErrors,
+      [field]: String(value ?? "").trim() ? undefined : messages[field],
+    }));
   };
 
   const handleContinue = () => {
@@ -425,6 +454,7 @@ function StepDetails({ subcategory, features, formData, setFormData, onBack, onN
         <input
           value={formData.title}
           onChange={(e) => set("title", e.target.value)}
+          onBlur={() => validateRequiredField("title")}
           placeholder={`e.g. ${subcategory.icon} ${subcategory.label} 2025`}
           className={inputCls}
         />
@@ -439,7 +469,7 @@ function StepDetails({ subcategory, features, formData, setFormData, onBack, onN
             error={errors.starts_at}
           />
         </Field>
-        <Field label="End Date & Time">
+        <Field label="End Date & Time *">
           <DateTimePicker
             value={formData.ends_at}
             onChange={(v) => set("ends_at", v)}
@@ -457,6 +487,7 @@ function StepDetails({ subcategory, features, formData, setFormData, onBack, onN
           <input
             value={formData.venue_name}
             onChange={(e) => set("venue_name", e.target.value)}
+            onBlur={() => validateRequiredField("venue_name")}
             placeholder="Venue or Online"
             className={inputCls}
           />
@@ -476,6 +507,7 @@ function StepDetails({ subcategory, features, formData, setFormData, onBack, onN
           <input
             value={formData.city}
             onChange={(e) => set("city", e.target.value)}
+            onBlur={() => validateRequiredField("city")}
             placeholder="e.g. New York"
             className={inputCls}
           />

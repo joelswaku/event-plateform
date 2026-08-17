@@ -353,6 +353,7 @@ export default function EditEventScreen() {
               value={form.ends_at instanceof Date ? form.ends_at : null}
               onChange={d => change('ends_at', d)}
               minDate={form.starts_at instanceof Date ? form.starts_at : undefined}
+              minExclusive
             />
             <Field label="Timezone">
               <TextInput

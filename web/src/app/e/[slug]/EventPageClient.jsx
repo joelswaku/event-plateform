@@ -271,6 +271,7 @@ function TicketCheckoutDrawer({ ticket, event, onClose, onBack, theme }) {
   const [step,       setStep]       = useState("form");
   const [qty,        setQty]        = useState(1);
   const [form,       setForm]       = useState({ name: "", email: "", phone: "" });
+  const [smsConsent, setSmsConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error,      setError]      = useState("");
   const [result,     setResult]     = useState(null);
@@ -283,11 +284,12 @@ function TicketCheckoutDrawer({ ticket, event, onClose, onBack, theme }) {
     if (!form.name.trim())  return setError("Full name is required");
     if (!form.email.trim()) return setError("Email is required");
     if (!/\S+@\S+\.\S+/.test(form.email)) return setError("Enter a valid email");
+    if (form.phone.trim() && !smsConsent) return setError("Please confirm SMS consent before submitting a phone number.");
     setError(""); setSubmitting(true);
     try {
       const res  = await fetch(`${API}/public/events/${event.id}/orders`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ buyer_name: form.name.trim(), buyer_email: form.email.trim().toLowerCase(), buyer_phone: form.phone.trim() || undefined, items: [{ ticket_type_id: ticket.id, quantity: qty }], idempotency_key: ticketRequestKey.current }),
+        body: JSON.stringify({ buyer_name: form.name.trim(), buyer_email: form.email.trim().toLowerCase(), buyer_phone: form.phone.trim() || undefined, sms_transactional_opt_in: form.phone.trim() ? smsConsent : undefined, items: [{ ticket_type_id: ticket.id, quantity: qty }], idempotency_key: ticketRequestKey.current }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Order failed");
@@ -352,6 +354,24 @@ function TicketCheckoutDrawer({ ticket, event, onClose, onBack, theme }) {
             <div className="rounded-xl p-3 text-xs leading-5" style={{ background: colors.surface, border: `1px solid ${colors.border}`, color: colors.muted }}>
               ✉️ Your e-ticket and QR entry code will be sent to this email after checkout.
             </div>
+
+            {/* Transactional SMS consent */}
+            <label className="flex items-start gap-3 cursor-pointer rounded-xl p-3" style={{ background: `color-mix(in srgb, ${colors.accent} 8%, ${colors.background})`, border: `1px solid color-mix(in srgb, ${colors.accent} 20%, ${colors.border})` }}>
+              <input
+                type="checkbox"
+                checked={smsConsent}
+                onChange={e => setSmsConsent(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded"
+                style={{ accentColor: colors.accent }}
+              />
+              <span className="flex-1 text-xs leading-5" style={{ color: colors.text }}>
+                <strong>I agree to receive transactional SMS messages about this event{form.phone.trim() ? " *" : ""}.</strong>
+                <span className="block mt-1" style={{ color: colors.muted }}>
+                  {form.phone.trim() ? "Messages may include ticket delivery, QR entry, and event updates. Message frequency varies. Msg & data rates may apply. Reply STOP to opt out or HELP for help. Your mobile information is not sold or shared for promotional purposes." : "Add a phone number if you would like to receive ticket and event messages by SMS."}
+                </span>
+              </span>
+            </label>
+
             {error && <p className="text-sm text-red-600">{error}</p>}
             <div className="flex items-center justify-between border-t py-3" style={{ borderColor: colors.border }}>
               <span className="text-sm" style={{ color: colors.muted }}>Total</span>
@@ -626,24 +646,21 @@ export default function EventPageClient({ event, sections, token }) {
   }, [showStickyBar]);
 
   // Keep the opening frame predictable in mobile browsers, the Expo web view,
-  // and short laptop screens. Events with Tickets or Donations start just
-  // inside the hero so the action card and its reassurance text are visible
-  // together (instead of leaving the purchase card below the fold). This is an
-  // intentional, small offset — not an accidental jump to Tickets.
+  // and short laptop screens. Ticket and donation data can change the layout
+  // after the page renders, but the visitor must always first see the start of
+  // the Hero — never a card that has pushed the title above the viewport.
   useEffect(() => {
-    const isCompactViewport = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
-    const isShortLaptopViewport = typeof window !== "undefined"
-      && window.matchMedia("(min-width: 769px) and (max-height: 820px)").matches;
-    const shouldPrioritizeAction = (showTicket || showDonate) && (isCompactViewport || isShortLaptopViewport);
+    const shouldPrioritizeAction = showTicket || showDonate;
 
     if (!shouldPrioritizeAction) return;
 
     let visitorInteracted = false;
     let resetFrame = null;
     const previousScrollRestoration = window.history.scrollRestoration;
-    // Keep the full call-to-action and its reassurance line in view. Short
-    // laptop screens need a little more room than phones for this card.
-    const initialScrollTop = isCompactViewport ? 190 : 280;
+    // Always begin at the real top of the event page. The Hero itself owns the
+    // responsive ticket-card spacing; scrolling into its middle hides its
+    // title and subtitle on every template.
+    const initialScrollTop = 0;
 
     const restoreOpeningPosition = () => {
       if (visitorInteracted) return;

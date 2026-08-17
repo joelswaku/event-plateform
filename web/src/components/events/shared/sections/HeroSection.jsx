@@ -28,6 +28,18 @@ const HEADING_STYLE = {
   CLASSIC: { fontWeight: 400, fontSize: "clamp(2.5rem, 6vw, 5rem)",    letterSpacing: "0.06em",  lineHeight: 1.15 },
 };
 
+// Ticketed heroes need to introduce the event and show the complete purchase
+// card in the first phone viewport. Keep the existing desktop scale, but use a
+// more compact floor on small screens.
+const TICKET_HERO_HEADING_SIZE = {
+  MODERN:  "clamp(2rem, 8vw, 6.5rem)",
+  FUN:     "clamp(2rem, 7vw, 5.5rem)",
+  MINIMAL: "clamp(2rem, 6vw, 5rem)",
+  LUXURY:  "clamp(2rem, 6.5vw, 5.5rem)",
+  ELEGANT: "clamp(2rem, 6vw, 5rem)",
+  CLASSIC: "clamp(2rem, 6vw, 5rem)",
+};
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function EditorBadge() {
@@ -1572,52 +1584,52 @@ function HeroTicketCard({ event, ctaText, isEditor, priceLabel, spotsLeft, hasLi
         </div>
 
         <div className="relative">
-          <div className="flex items-center gap-3 border-b px-5 py-4 sm:px-6" style={{ background: "var(--t-bg)", borderColor: "var(--t-border)" }}>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: "var(--t-bg-alt)", border: "1px solid var(--t-border)", color: "var(--t-accent)" }}>
-              <Ticket size={18} />
+          <div className="flex items-center gap-2.5 border-b px-3.5 py-3 sm:gap-3 sm:px-6 sm:py-4" style={{ background: "var(--t-bg)", borderColor: "var(--t-border)" }}>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10" style={{ background: "var(--t-bg-alt)", border: "1px solid var(--t-border)", color: "var(--t-accent)" }}>
+              <Ticket size={17} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: "var(--t-text-muted)" }}>Tickets for this event</p>
-              <p className="mt-0.5 truncate text-base font-bold" style={{ color: "var(--t-text)" }}>{event?.title || "Choose your ticket"}</p>
+              <p className="text-[9px] font-black uppercase tracking-[0.14em] sm:text-[10px] sm:tracking-[0.18em]" style={{ color: "var(--t-text-muted)" }}>Tickets for this event</p>
+              <p className="mt-0.5 truncate text-sm font-bold sm:text-base" style={{ color: "var(--t-text)" }}>{event?.title || "Choose your ticket"}</p>
             </div>
-            <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide" style={{ background: "var(--t-accent)", color: "var(--t-accent-fg,#111)" }}>
+            <span className="shrink-0 rounded-full px-2 py-1 text-[9px] font-black uppercase tracking-wide sm:px-2.5 sm:text-[10px]" style={{ background: "var(--t-accent)", color: "var(--t-accent-fg,#111)" }}>
               {ticketCount || 1} type{ticketCount === 1 ? "" : "s"}
             </span>
           </div>
 
-          <div className="grid gap-5 px-5 py-5 sm:px-6 md:grid-cols-[1fr_auto] md:items-center">
+          <div className="grid gap-3 px-3.5 py-3.5 sm:gap-5 sm:px-6 sm:py-5 md:grid-cols-[1fr_auto] md:items-center">
             <div>
-              <p className="text-xl font-black leading-tight sm:text-2xl" style={{ color: "var(--t-text)" }}>
+              <p className="text-lg font-black leading-tight sm:text-2xl" style={{ color: "var(--t-text)" }}>
                 {isSoldOut ? "This event is currently full." : "Your place is waiting."}
               </p>
-              <p className="mt-2 text-sm leading-6" style={{ color: "var(--t-text-muted)" }}>
+              <p className="mt-1.5 text-[12px] leading-5 sm:mt-2 sm:text-sm sm:leading-6" style={{ color: "var(--t-text-muted)" }}>
                 Choose a ticket and receive your e-ticket and QR entry code by email.
               </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border)", color: "var(--t-text-muted)" }}><QrCode size={12} /> QR entry</span>
-                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border)", color: "var(--t-text-muted)" }}><Lock size={11} /> Secure checkout</span>
+              <div className="mt-3 flex flex-wrap gap-1.5 sm:mt-4 sm:gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-bold sm:px-2.5 sm:text-[10px]" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border)", color: "var(--t-text-muted)" }}><QrCode size={11} /> QR entry</span>
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-bold sm:px-2.5 sm:text-[10px]" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border)", color: "var(--t-text-muted)" }}><Lock size={10} /> Secure checkout</span>
                 {countdown && <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border)", color: "var(--t-text-muted)" }}><Clock size={12} /> {countdown.days}d {countdown.hours}h {countdown.minutes}m</span>}
               </div>
             </div>
 
-            <div className="min-w-[180px] rounded-2xl p-4 text-left md:text-right" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border)" }}>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: "var(--t-text-muted)" }}>From</p>
-              <p className="mt-1 text-3xl font-black leading-none" style={{ color: "var(--t-text)" }}>{isSoldOut ? "—" : (priceLabel || "Free")}</p>
-              <p className="mt-2 text-xs font-bold" style={{ color: isUrgent ? "#DC2626" : "var(--t-text-muted)" }}>{availability}</p>
+            <div className="min-w-0 rounded-xl p-3 text-left sm:min-w-[180px] sm:rounded-2xl sm:p-4 md:text-right" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border)" }}>
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] sm:text-[10px] sm:tracking-[0.18em]" style={{ color: "var(--t-text-muted)" }}>From</p>
+              <p className="mt-1 text-2xl font-black leading-none sm:text-3xl" style={{ color: "var(--t-text)" }}>{isSoldOut ? "—" : (priceLabel || "Free")}</p>
+              <p className="mt-1.5 text-[11px] font-bold sm:mt-2 sm:text-xs" style={{ color: isUrgent ? "#DC2626" : "var(--t-text-muted)" }}>{availability}</p>
             </div>
           </div>
 
-          <div className="border-t px-5 pb-5 pt-4 sm:px-6 sm:pb-6" style={{ borderColor: "var(--t-border)" }}>
+          <div className="border-t px-3.5 pb-3.5 pt-3 sm:px-6 sm:pb-6 sm:pt-4" style={{ borderColor: "var(--t-border)" }}>
             <button
               type="button"
               onClick={isEditor ? undefined : onBuyTickets}
               disabled={isSoldOut}
-              className="flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-black uppercase tracking-[0.1em] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
+              className="flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-[12px] font-black uppercase tracking-[0.1em] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 sm:px-6 sm:py-3.5 sm:text-sm"
               style={{ background: "var(--t-accent)", color: "var(--t-accent-fg,#111)", boxShadow: "0 8px 22px rgba(0,0,0,0.14)" }}
             >
               <Ticket size={16} /> {isSoldOut ? "Sold Out" : (ctaText || "Choose your ticket")} <ArrowRight size={15} strokeWidth={2.6} />
             </button>
-            {!isSoldOut && <p className="mt-3 text-center text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--t-text-muted)" }}>Instant e-ticket · QR code entry · Stripe checkout</p>}
+            {!isSoldOut && <p className="mt-2 text-center text-[8px] font-semibold uppercase tracking-[0.1em] sm:mt-3 sm:text-[10px] sm:tracking-[0.12em]" style={{ color: "var(--t-text-muted)" }}>Instant e-ticket · QR code entry · Stripe checkout</p>}
           </div>
         </div>
       </div>
@@ -1631,18 +1643,18 @@ function HeroTicketAction({ event, ctaText, isEditor, priceLabel, spotsLeft, has
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.65, ease: EASE, delay }}
-      className={`relative left-1/2 w-screen -translate-x-1/2 overflow-hidden ${compact ? "-mt-2 pt-6 sm:-mt-4 sm:pt-8" : "mt-4 pt-8 sm:mt-6 sm:pt-10"}`}
+      className={`relative left-1/2 w-screen -translate-x-1/2 overflow-hidden ${compact ? "-mt-3 pt-6 sm:-mt-4 sm:pt-8" : "mt-3 pt-6 sm:mt-6 sm:pt-10"}`}
     >
       <svg
         aria-hidden="true"
-        className="absolute inset-x-0 top-0 h-16 w-full sm:h-20"
+        className="absolute inset-x-0 top-0 h-12 w-full sm:h-20"
         viewBox="0 0 1440 160"
         preserveAspectRatio="none"
       >
         <path d="M0 160V116C340 35 1100 35 1440 116V160H0Z" fill="color-mix(in srgb, var(--t-bg) 68%, transparent)" />
       </svg>
-      <div className="relative flex items-center py-7 sm:py-9" style={{ background: "color-mix(in srgb, var(--t-bg) 68%, transparent)", backdropFilter: "blur(12px)" }}>
-        <div className="mx-auto w-full max-w-5xl px-5 sm:px-8">
+      <div className="relative flex items-center py-4 sm:py-9" style={{ background: "color-mix(in srgb, var(--t-bg) 68%, transparent)", backdropFilter: "blur(12px)" }}>
+        <div className="mx-auto w-full max-w-5xl px-3.5 sm:px-8">
           <HeroTicketCard
             event={event}
             ctaText={ctaText}
@@ -1741,6 +1753,9 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
   const isLeft         = align === "left";
   const isRight        = align === "right";
   const isCentered     = !isLeft && !isRight;
+  // A builder field containing spaces should not suppress the event name.
+  // This keeps the title visible on the public mobile page as well.
+  const heroTitle      = section.title?.trim() || event?.title?.trim() || "Welcome";
 
   const textAlignClass = isLeft ? "text-left items-start" : isRight ? "text-right items-end" : "text-center items-center";
 
@@ -1793,7 +1808,12 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
 
   const bg           = config.background_color || DEFAULT_BG[theme] || DEFAULT_BG.CLASSIC;
   const overlayGrad  = `linear-gradient(to bottom, rgba(0,0,0,${overlayOpacity * 0.6}) 0%, rgba(0,0,0,${overlayOpacity}) 100%)`;
-  const headingStyle = { fontFamily: "var(--t-font-heading)", color: "#ffffff", ...(HEADING_STYLE[theme] || HEADING_STYLE.CLASSIC) };
+  const headingStyle = {
+    fontFamily: "var(--t-font-heading)",
+    color: "#ffffff",
+    ...(HEADING_STYLE[theme] || HEADING_STYLE.CLASSIC),
+    ...(isTicketed ? { fontSize: TICKET_HERO_HEADING_SIZE[theme] || TICKET_HERO_HEADING_SIZE.CLASSIC } : {}),
+  };
   const showOrnament = theme === "CLASSIC" || theme === "ELEGANT";
 
   const ctaAreaProps = {
@@ -1815,6 +1835,12 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
     onRsvp: handleRsvp,
     onBuyTickets: handleBuyTickets,
   };
+
+  // On a phone, the Luxury hero must leave room for both its title and the
+  // complete ticket card before the visitor needs to scroll.
+  const luxuryContentSpacing = isTicketed
+    ? "gap-4 px-5 pb-2 pt-16 sm:gap-8 sm:px-6 sm:pb-24 sm:pt-28"
+    : "gap-8 px-6 pb-16 pt-20 sm:pb-24 sm:pt-28";
 
   // ── LUXURY ───────────────────────────────────────────────────────────────────
   if (theme === "LUXURY") {
@@ -1843,7 +1869,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
         <div className="absolute inset-x-0 top-0 h-px" style={{ background: "var(--t-accent)", opacity: 0.35 }} aria-hidden="true" />
         <div className="absolute inset-x-0 bottom-0 h-px" style={{ background: "var(--t-accent)", opacity: 0.25 }} aria-hidden="true" />
 
-        <div className={`relative z-10 mx-auto w-full max-w-5xl px-6 pt-20 pb-16 flex flex-col gap-8 sm:pt-28 sm:pb-24 ${textAlignClass}`}>
+        <div className={`relative z-10 mx-auto flex w-full max-w-5xl flex-col ${luxuryContentSpacing} ${textAlignClass}`}>
           {config.eyebrow && (
             <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, ease: EASE, delay: 0.2 }}
               style={{ color: "var(--t-accent)", fontSize: "0.65rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.55em" }}>
@@ -1851,7 +1877,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
             </motion.p>
           )}
           <motion.h1 initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1.1, ease: EASE, delay: 0.35 }} style={headingStyle}>
-            {section.title || (!isEditor && event?.title) || "Welcome"}
+            {heroTitle}
           </motion.h1>
           <Ornament centered={isCentered} />
           {section.body && (
@@ -1863,7 +1889,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
           <CtaArea {...ctaAreaProps} delay={0.8} />
         </div>
 
-        {!isEditor && <ScrollIndicator />}
+        {!isEditor && !showTicketBlock && <ScrollIndicator />}
         {isEditor && <EditorBadge />}
       </section>
     );
@@ -1900,7 +1926,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 0.15 }}
             className="mb-6 h-1 w-16" style={{ background: "var(--t-accent)" }} aria-hidden="true" />
           <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.85, ease: EASE, delay: 0.25 }} style={headingStyle}>
-            {section.title || (!isEditor && event?.title) || "Welcome"}
+            {heroTitle}
           </motion.h1>
           {section.body && (
             <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE, delay: 0.45 }}
@@ -1944,7 +1970,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
             </motion.p>
           )}
           <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, ease: EASE, delay: 0.2 }} style={headingStyle}>
-            {section.title || (!isEditor && event?.title) || "Welcome"}
+            {heroTitle}
           </motion.h1>
           {section.body && (
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1, delay: 0.45 }}
@@ -1986,7 +2012,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
             </motion.p>
           )}
           <motion.h1 initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease: EASE, delay: 0.25 }} style={headingStyle}>
-            {section.title || (!isEditor && event?.title) || "Welcome"}
+            {heroTitle}
           </motion.h1>
           {section.body && (
             <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: EASE, delay: 0.45 }}
@@ -2030,7 +2056,7 @@ export default function HeroSection({ section, event, isEditor = false, onEdit }
           </motion.p>
         )}
         <motion.h1 initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease: EASE, delay: 0.25 }} style={headingStyle}>
-          {section.title || (!isEditor && event?.title) || "Welcome"}
+          {heroTitle}
         </motion.h1>
         {section.body && (
           <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: EASE, delay: 0.45 }}

@@ -2,6 +2,7 @@
 import express from "express";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { resolveOrganization } from "../middleware/organization.middleware.js";
+import { bulkInvitationLimiter, sendGuestInvitationLimiter, sendQrLimiter } from "../utils/rateLimite.js";
 import {
   createGuest,
   listGuests,
@@ -18,6 +19,7 @@ import {
   generateQrPass,
   sendQrEmail,
   sendGuestInvitation,
+  sendSelectedGuestInvitations,
   checkInGuestByQr,
   getGuestDashboard,
   sendInvitationsToAllGuests,
@@ -47,8 +49,9 @@ router.get("/events/:eventId/rsvps", listGuestRsvps);
 router.post("/events/:eventId/attendance", markGuestAttendance);
 
 router.post("/events/:eventId/guests/:guestId/qr-pass", generateQrPass);
-router.post("/events/:eventId/guests/:guestId/send-qr", sendQrEmail);
-router.post("/events/:eventId/guests/:guestId/invitations", sendGuestInvitation);
+router.post("/events/:eventId/guests/:guestId/send-qr", sendQrLimiter, sendQrEmail);
+router.post("/events/:eventId/guests/:guestId/invitations", sendGuestInvitationLimiter, sendGuestInvitation);
+router.post("/events/:eventId/invitations/send", bulkInvitationLimiter, sendSelectedGuestInvitations);
 
 router.post("/events/:eventId/guests/:guestId/manual-checkin", manualCheckIn);
 router.get("/events/:eventId/attendance", listAttendance);

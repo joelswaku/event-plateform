@@ -1848,6 +1848,7 @@ function TicketCheckoutModal({ ticket, event, onClose, theme }) {
   const [step, setStep] = useState("form"); // form | success | paid
   const [qty, setQty] = useState(1);
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
+  const [smsConsent, setSmsConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
@@ -1873,6 +1874,7 @@ function TicketCheckoutModal({ ticket, event, onClose, theme }) {
   async function submit() {
     if (!form.name.trim() || !form.email.trim()) { setError("Name and email are required"); return; }
     if (!/\S+@\S+\.\S+/.test(form.email)) { setError("Enter a valid email address"); return; }
+    if (form.phone.trim() && !smsConsent) { setError("Please confirm SMS consent before submitting a phone number."); return; }
     setSubmitting(true);
     setError("");
     try {
@@ -1883,6 +1885,7 @@ function TicketCheckoutModal({ ticket, event, onClose, theme }) {
           buyer_name:  form.name.trim(),
           buyer_email: form.email.trim(),
           buyer_phone: form.phone.trim() || undefined,
+          sms_transactional_opt_in: form.phone.trim() ? smsConsent : undefined,
           items: [{ ticket_type_id: ticket.id, quantity: qty }],
         }),
       });
@@ -1965,6 +1968,14 @@ function TicketCheckoutModal({ ticket, event, onClose, theme }) {
                   </div>
                 ))}
               </div>
+
+              <label className="flex cursor-pointer items-start gap-2.5 rounded-xl p-3" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border)" }}>
+                <input type="checkbox" checked={smsConsent} onChange={(event) => setSmsConsent(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded" style={{ accentColor: "var(--t-accent)" }} />
+                <span className="text-xs leading-relaxed" style={{ color: "var(--t-text-muted)" }}>
+                  <strong style={{ color: "var(--t-text)" }}>I agree to receive transactional SMS messages about this event{form.phone.trim() ? " *" : ""}.</strong>
+                  <span className="mt-0.5 block">{form.phone.trim() ? "Messages may include ticket delivery, QR entry, and event updates. Message frequency varies. Msg & data rates may apply. Reply STOP to opt out or HELP for help. Your mobile information is not sold or shared for promotional purposes." : "Add a phone number if you would like to receive ticket and event messages by SMS."}</span>
+                </span>
+              </label>
 
               {/* Total */}
               <div className="flex items-center justify-between rounded-2xl px-4 py-3" style={{ background: "var(--t-bg)", border: "1px solid var(--t-border)" }}>

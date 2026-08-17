@@ -242,11 +242,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Always request fresh account details. Profile edits may have been made
       // from another signed-in device while this app was in the background.
       // Add timestamp to URL to force Android to bypass aggressive HTTP caching
-      const res  = await api.get<{ data: User; user: User }>(`/auth/me?_t=${Date.now()}`, {
+      const res  = await api.get<{ data?: User | { user?: User }; user?: User }>(`/auth/me?_t=${Date.now()}`, {
         headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
       });
-      const user = res.data?.data ?? (res.data as unknown as { user: User })?.user;
-      if (user) {
+      // Production clients have used both { user } and { data: { user } }.
+      // Unwrap either shape before replacing the locally persisted profile.
+      const wrappedUser = (res.data?.data as { user?: User } | undefined)?.user;
+      const directUser  = res.data?.data as User | undefined;
+      const freshUser   = wrappedUser ?? directUser ?? res.data?.user;
+      if (freshUser?.id) {
+        // The current-user endpoint intentionally returns a small account
+        // record. Preserve any locally held fields it does not include, while
+        // allowing fresh name and avatar values to update immediately.
+        const user = { ...(get().user ?? {}), ...freshUser } as User;
         applyUser(user);
         await persistSession(user, true);
         set({ user });

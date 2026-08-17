@@ -191,6 +191,7 @@ export async function sendQrEmail(req, res) {
       guestId: req.params.guestId,
       organizationId: req.organizationId,
       userId: req.user.id,
+      payload: req.body,
     });
     res.json({ success: true, data: result });
   } catch (e) {
@@ -212,9 +213,41 @@ export async function sendGuestInvitation(req, res) {
       payload: req.body,
     });
 
+    if (!result.delivered) {
+      return res.status(502).json({
+        success: false,
+        message: result.invitation?.failed_reason || "Invitation delivery failed",
+        data: result,
+      });
+    }
+
     res.json({ success: true, data: result });
   } catch (e) {
     handleError(res, e);
+  }
+}
+
+export async function sendSelectedGuestInvitations(req, res) {
+  try {
+    const result = await guestsService.sendInvitationsToSelectedGuestsService({
+      eventId: req.params.eventId,
+      guestIds: req.body?.guest_ids,
+      organizationId: req.organizationId,
+      userId: req.user.id,
+      payload: { channel: req.body?.channel },
+    });
+
+    const success = result.sent > 0;
+    const status = result.failed > 0 ? 207 : 200;
+    return res.status(status).json({
+      success,
+      message: result.failed
+        ? `${result.sent} invitation${result.sent === 1 ? "" : "s"} sent; ${result.failed} could not be sent.`
+        : `${result.sent} invitation${result.sent === 1 ? "" : "s"} sent.`,
+      data: result,
+    });
+  } catch (e) {
+    return handleError(res, e);
   }
 }
 
