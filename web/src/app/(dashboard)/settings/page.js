@@ -135,10 +135,9 @@ function MobileSettings() {
     enterprise: "Enterprise · Custom limits",
   }[plan] ?? "1 event · 50 guests · Classic templates only";
 
-  async function handleLogout() {
+  function handleLogout() {
     setLoggingOut(true);
-    router.replace("/login");
-    try { await logoutAction(); } catch {}
+    logoutAction();
   }
 
   return (
@@ -429,7 +428,7 @@ function MobileMenuItem({ Icon, label, href, soon, newTab = false, onPress, icon
 const PLAN_PERKS = {
   free:    ["1 event", "50 guests", "Classic templates only", "Tickets (2% fee)", "Instant confirmation only", "No planner access"],
   starter: ["1 active event", "500 guests/event", "All templates", "Full planner", "1 team invite", "1 reminder config", "Tickets (2% fee)"],
-  pro:     ["3 active events", "Unlimited guests", "All templates", "Full planner", "3 team invites", "Unlimited reminders", "Tickets (1.5% fee)"],
+  pro:     ["3 active events", "Unlimited guests", "All templates", "Full planner", "3 team invites", "5 email reminders", "Tickets (1.5% fee)"],
 };
 
 const PLAN_META = {
@@ -529,10 +528,9 @@ function DesktopSettings() {
     setPortalLoading(false);
   }
 
-  async function handleLogout() {
+  function handleLogout() {
     setLoggingOut(true);
-    router.replace("/login");
-    try { await logoutAction(); } catch {}
+    logoutAction();
   }
 
   const perks = PLAN_PERKS[isPro ? "pro" : isStarter ? "starter" : "free"] ?? PLAN_PERKS.free;

@@ -220,8 +220,8 @@ export default function SupportScreen() {
   }
 
   function handleEmail() {
-    Linking.openURL('mailto:support@meetcraft.app').catch(() =>
-      Alert.alert('Cannot open email', 'Please email us at support@meetcraft.app')
+    Linking.openURL('mailto:support@liteevent.com').catch(() =>
+      Alert.alert('Cannot open email', 'Please email us at support@liteevent.com')
     );
   }
 
@@ -292,7 +292,7 @@ export default function SupportScreen() {
             </View>
             <View style={styles.contactText}>
               <Text style={styles.contactTitle}>Email support</Text>
-              <Text style={styles.contactSub}>support@meetcraft.app</Text>
+              <Text style={styles.contactSub}>support@liteevent.com</Text>
             </View>
             <Feather name="external-link" size={14} color={Colors.text.subtle} />
           </Pressable>
@@ -327,11 +327,11 @@ export default function SupportScreen() {
 
         {/* Legal */}
         <View style={styles.legalRow}>
-          <Pressable onPress={() => Linking.openURL('https://meetcraft.app/privacy-policy')} style={styles.legalLink}>
+          <Pressable onPress={() => Linking.openURL('https://liteevent.com/privacy-policy')} style={styles.legalLink}>
             <Text style={styles.legalText}>Privacy Policy</Text>
           </Pressable>
           <View style={styles.legalDot} />
-          <Pressable onPress={() => Linking.openURL('https://meetcraft.app/terms')} style={styles.legalLink}>
+          <Pressable onPress={() => Linking.openURL('https://liteevent.com/terms')} style={styles.legalLink}>
             <Text style={styles.legalText}>Terms of Service</Text>
           </Pressable>
         </View>

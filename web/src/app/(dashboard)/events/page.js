@@ -173,6 +173,28 @@ function EventCard({ event, index }) {
   const img  = heroImg(event);
   const date = fmtDate(event.starts_at_local ?? event.starts_at_utc);
 
+  // Module-specific stats
+  const stats = [];
+  if (event.allow_rsvp) {
+    stats.push(
+      { label: 'Guests', value: event.guest_count ?? 0, color: '#6366f1' },
+      { label: 'Attending', value: event.attending_count ?? 0, color: '#10b981' },
+      { label: 'Pending', value: (event.guest_count ?? 0) - (event.attending_count ?? 0), color: '#f59e0b' }
+    );
+  } else if (event.allow_ticketing) {
+    stats.push(
+      { label: 'Types', value: event.ticket_count ?? 0, color: '#6366f1' },
+      { label: 'Sold', value: event.checkin_count ?? 0, color: '#f59e0b' },
+      { label: 'Scanned', value: event.checkin_count ?? 0, color: '#10b981' }
+    );
+  } else if (event.allow_donations) {
+    stats.push(
+      { label: 'Donations', value: 0, color: '#f43f5e' },
+      { label: 'Donors', value: 0, color: '#a78bfa' },
+      { label: 'Total', value: 0, color: '#10b981' }
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -203,14 +225,48 @@ function EventCard({ event, index }) {
 
         {/* Card body */}
         <div className="flex flex-1 flex-col gap-2 p-4">
-          {event.event_type && (
-            <span className="self-start rounded-full bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-indigo-600 dark:text-indigo-400">
-              {event.event_type}
-            </span>
-          )}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {event.event_type && (
+              <span className="rounded-full bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-indigo-600 dark:text-indigo-400">
+                {event.event_type}
+              </span>
+            )}
+            {event.allow_rsvp && (
+              <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-600 dark:text-emerald-400">
+                RSVP
+              </span>
+            )}
+            {event.allow_ticketing && (
+              <span className="rounded-full bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-amber-600 dark:text-amber-400">
+                TICKETS
+              </span>
+            )}
+            {event.allow_donations && (
+              <span className="rounded-full bg-rose-50 dark:bg-rose-950/40 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-rose-600 dark:text-rose-400">
+                DONATIONS
+              </span>
+            )}
+          </div>
           <h3 className="line-clamp-2 text-[15px] font-bold leading-snug text-(--text-primary) transition-colors group-hover:text-(--accent)">
             {event.title}
           </h3>
+
+          {/* Module stats */}
+          {stats.length > 0 && (
+            <div className="grid grid-cols-3 gap-1.5 py-2">
+              {stats.map(stat => (
+                <div key={stat.label} className="flex flex-col items-center gap-0.5 rounded-lg border border-border bg-(--bg-elevated) py-1.5">
+                  <span className="text-[18px] font-black leading-none" style={{ color: stat.color }}>
+                    {stat.value}
+                  </span>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-(--text-muted)">
+                    {stat.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="mt-auto flex flex-col gap-1 pt-1">
             {date && (
               <div className="flex items-center gap-1.5 text-[11px] text-(--text-muted)">
@@ -361,6 +417,28 @@ function MobileEventCard({ event }) {
   const cfg  = sc(event.status);
   const date = fmtDate(event.starts_at_local ?? event.starts_at_utc);
 
+  // Module-specific stats
+  const stats = [];
+  if (event.allow_rsvp) {
+    stats.push(
+      { label: 'Guests', value: event.guest_count ?? 0, color: '#6366f1' },
+      { label: 'Attending', value: event.attending_count ?? 0, color: '#10b981' },
+      { label: 'Pending', value: (event.guest_count ?? 0) - (event.attending_count ?? 0), color: '#f59e0b' }
+    );
+  } else if (event.allow_ticketing) {
+    stats.push(
+      { label: 'Types', value: event.ticket_count ?? 0, color: '#6366f1' },
+      { label: 'Sold', value: event.checkin_count ?? 0, color: '#f59e0b' },
+      { label: 'Scanned', value: event.checkin_count ?? 0, color: '#10b981' }
+    );
+  } else if (event.allow_donations) {
+    stats.push(
+      { label: 'Donations', value: 0, color: '#f43f5e' },
+      { label: 'Donors', value: 0, color: '#a78bfa' },
+      { label: 'Total', value: 0, color: '#10b981' }
+    );
+  }
+
   return (
     <Link
       href={`/events/${event.id}`}
@@ -403,6 +481,40 @@ function MobileEventCard({ event }) {
       <div className="flex min-h-[78px] items-center gap-3 px-4 pb-3.5" style={{ background: "#0e0e16" }}>
         <div className="min-w-0 flex-1">
           <p className="line-clamp-1 text-[17px] font-extrabold tracking-tight text-white">{event.title}</p>
+          <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+            {event.allow_rsvp && (
+              <span className="rounded-full bg-emerald-950/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-400">
+                RSVP
+              </span>
+            )}
+            {event.allow_ticketing && (
+              <span className="rounded-full bg-amber-950/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-400">
+                TICKETS
+              </span>
+            )}
+            {event.allow_donations && (
+              <span className="rounded-full bg-rose-950/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-rose-400">
+                DONATIONS
+              </span>
+            )}
+          </div>
+
+          {/* Module stats */}
+          {stats.length > 0 && (
+            <div className="mt-2 grid grid-cols-3 gap-1.5">
+              {stats.map(stat => (
+                <div key={stat.label} className="flex flex-col items-center gap-0.5 rounded-lg border py-1.5" style={{ background: "#14141f", borderColor: "rgba(255,255,255,0.07)" }}>
+                  <span className="text-[18px] font-black leading-none" style={{ color: stat.color }}>
+                    {stat.value}
+                  </span>
+                  <span className="text-[8px] font-bold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.40)" }}>
+                    {stat.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {event.venue_name ? (
             <div className="mt-1 flex items-center gap-1.5">
               <MapPin size={11} style={{ color: "rgba(255,255,255,0.35)" }} />

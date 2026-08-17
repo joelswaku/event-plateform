@@ -39,7 +39,7 @@ const FAQS = [
   },
   {
     q: "I lost access to my account. What do I do?",
-    a: "Use the 'Forgot password' link on the login page to reset your password via email. If you still can't access your account, email us at support@meetcraft.app.",
+    a: "Use the 'Forgot password' link on the login page to reset your password via email. If you still can't access your account, email us at support@liteevent.com.",
   },
   {
     q: "How do I add team members to my event?",
@@ -268,7 +268,7 @@ export default function SupportPage() {
           <div className="rounded-3xl border p-5 space-y-1 bg-white dark:bg-white/3 border-gray-200 dark:border-white/8">
             <p className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-white/40 px-1 pb-2">Resources</p>
             {[
-              { label: "Documentation", url: "https://meetcraft.app/docs" },
+              { label: "Documentation", url: "https://liteevent.com/faq" },
               { label: "Privacy Policy", url: "/privacy-policy" },
               { label: "Terms of Service", url: "/terms" },
             ].map(({ label, url }) => (

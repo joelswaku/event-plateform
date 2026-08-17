@@ -40,7 +40,7 @@ const STATUS_LABELS = {
 
 const FREE_FEATURES    = ["1 event", "50 guests", "Classic templates only", "Tickets (2% fee)", "Instant confirmation only", "No planner access"];
 const STARTER_FEATURES = ["1 active event", "500 guests/event", "All templates", "Full planner", "1 team invite", "1 reminder config", "Tickets (2% fee)"];
-const PRO_FEATURES     = ["3 active events", "Unlimited guests", "All templates", "Full planner", "3 team invites", "Unlimited reminders", "Tickets (1.5% fee)"];
+const PRO_FEATURES     = ["3 active events", "Unlimited guests", "All templates", "Full planner", "3 team invites", "5 email reminders", "Tickets (1.5% fee)"];
 
 /* ─────────────────────────────────────────────────────────────────────
    MOBILE  (< sm)

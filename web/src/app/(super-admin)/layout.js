@@ -84,9 +84,8 @@ export default function SuperAdminLayout({ children }) {
 
   if (!user?.is_super_admin) return null;
 
-  async function handleLogout() {
-    router.replace("/login");
-    await logout().catch(() => {});
+  function handleLogout() {
+    logout();
   }
 
   return (

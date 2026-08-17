@@ -59,7 +59,7 @@ const PRICING_PLANS = [
       "All templates & styles",
       "Full planner access",
       "3 team invites",
-      "Unlimited email reminders",
+      "5 email reminders",
       "Ticket selling (1.5% fee)",
       "QR scanner",
       "Advanced analytics",

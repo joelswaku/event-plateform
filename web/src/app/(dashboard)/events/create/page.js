@@ -15,7 +15,7 @@ import { motion } from "framer-motion";
 import {
   ChevronLeft, Check, Ticket, Users,
   Lock, Sparkles, ArrowRight, CalendarDays, LayoutTemplate,
-  Heart,
+  Heart, Zap,
 } from "lucide-react";
 import { useEventStore } from "@/store/event.store";
 import { useSubscriptionStore } from "@/store/subscription.store";
@@ -26,7 +26,7 @@ import { useAIStore } from "@/store/ai.store";
 import { CountrySelector } from "@/components/ui/CountrySelector";
 
 /* ── Wizard steps ──────────────────────────────────────────── */
-const STEPS = ["Category", "Type", "Details", "Settings"];
+const STEPS = ["Category", "Type", "Details", "Settings", "Review"];
 
 /* ── Plan limit error card ─────────────────────────────────── */
 function EventLimitCard({ onUpgrade, plan }) {
@@ -297,7 +297,7 @@ const FEATURE_OPTIONS = [
   },
 ];
 
-function StepFeatures({ subcategory, features, onChange, onNext, onBack, submitting }) {
+function StepFeatures({ subcategory, features, onChange, onNext, onBack }) {
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="text-center">
@@ -362,14 +362,89 @@ function StepFeatures({ subcategory, features, onChange, onNext, onBack, submitt
         </p>
         <button
           onClick={onNext}
-          disabled={submitting}
-          className="flex items-center justify-center gap-2 rounded-xl px-5 sm:px-6 py-2.5 text-sm sm:text-base font-bold text-white transition active:scale-95 disabled:opacity-60"
+          className="flex items-center justify-center gap-2 rounded-xl px-5 sm:px-6 py-2.5 text-sm sm:text-base font-bold text-white transition active:scale-95"
           style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)", boxShadow: "0 4px 14px rgba(99,102,241,0.35)" }}>
-          {submitting ? (
-            <><span className="h-4 w-4 sm:h-5 sm:w-5 animate-spin rounded-full border-2 border-white border-t-transparent" /> Creating…</>
-          ) : (
-            <><Check className="w-4 h-4 sm:w-5 sm:h-5" /> Create Event</>
-          )}
+          Review event <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Final review before creating ─────────────────────────── */
+function StepReview({ subcategory, features, formData, onBack, onSubmit, submitting }) {
+  const formatDateTime = (value) => {
+    if (!value) return "Not set";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Not set";
+    return new Intl.DateTimeFormat("en-US", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: formData.timezone || undefined,
+    }).format(date);
+  };
+  const enabledFeatures = FEATURE_OPTIONS.filter((option) => features[option.key]);
+
+  return (
+    <div className="space-y-5 sm:space-y-6">
+      <div className="text-center">
+        <button onClick={onBack}
+          className="mx-auto mb-3 flex items-center gap-1 text-sm sm:text-base text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+          <ChevronLeft className="w-4 h-4" /> Back
+        </button>
+        <span className="text-3xl sm:text-4xl">{subcategory.icon}</span>
+        <h2 className="mt-2 text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">Review your event</h2>
+        <p className="mt-1 text-sm sm:text-base text-gray-500 dark:text-gray-400">Check the details before creating your event.</p>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-950/40">
+        <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-800 sm:px-5">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Event details</p>
+          <p className="mt-1 text-base font-bold text-gray-900 dark:text-white">{formData.title}</p>
+          <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{subcategory.icon} {subcategory.label}</p>
+        </div>
+        <div className="grid gap-px bg-gray-200 sm:grid-cols-2 dark:bg-gray-800">
+          <div className="bg-white px-4 py-3 dark:bg-gray-900 sm:px-5">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Starts</p>
+            <p className="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-200">{formatDateTime(formData.starts_at)}</p>
+          </div>
+          <div className="bg-white px-4 py-3 dark:bg-gray-900 sm:px-5">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Ends</p>
+            <p className="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-200">{formatDateTime(formData.ends_at)}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900 sm:px-5">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Venue</p>
+        <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{formData.venue_name}</p>
+        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+          {[formData.venue_address, formData.city, formData.state, formData.country].filter(Boolean).join(", ")}
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900 sm:px-5">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Active module</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {enabledFeatures.length ? enabledFeatures.map((feature) => (
+            <span key={feature.key} className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300">
+              {feature.label}
+            </span>
+          )) : <span className="text-sm text-gray-500 dark:text-gray-400">No guest module selected</span>}
+        </div>
+      </div>
+
+      <p className="text-center text-xs text-gray-400">You can update these details anytime after creating the event.</p>
+
+      <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+        <button onClick={onBack} disabled={submitting}
+          className="rounded-xl border border-gray-200 px-5 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
+          Edit details
+        </button>
+        <button onClick={onSubmit} disabled={submitting}
+          className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-white transition active:scale-95 disabled:opacity-60"
+          style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)", boxShadow: "0 4px 16px rgba(99,102,241,0.35)" }}>
+          {submitting ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> Creating…</> : <><Check className="w-4 h-4" /> Create event</>}
         </button>
       </div>
     </div>
@@ -822,8 +897,17 @@ function CreateEventPageInner() {
                 if (!exclusive.includes(key)) return { ...f, [key]: true };
                 return { ...f, rsvp: key === 'rsvp', ticketing: key === 'ticketing', donations: key === 'donations' };
               })}
-              onNext={handleSubmit}
+              onNext={() => setStep(4)}
               onBack={() => setStep(2)}
+            />
+          )}
+          {step === 4 && subcategory && (
+            <StepReview
+              subcategory={subcategory}
+              features={features}
+              formData={formData}
+              onBack={() => setStep(3)}
+              onSubmit={handleSubmit}
               submitting={submitting}
             />
           )}

@@ -12,7 +12,7 @@ import api              from '@/lib/api';
 import { Colors }       from '@/constants/colors';
 import { toast }        from '@/lib/toast';
 
-const CURRENT_VERSION = '2025.1';
+const CURRENT_VERSION = '2026.1';
 const BG   = '#07070f';
 const CARD = '#0d0d1a';
 
@@ -100,7 +100,9 @@ export function TermsGate() {
   const user    = useAuthStore(s => s.user);
   const setUser = useAuthStore(s => s.setUser);
 
-  const needsAcceptance = !!user && !user.terms_accepted_at;
+  const needsAcceptance = !!user && (
+    !user.terms_accepted_at || user.terms_version_accepted !== CURRENT_VERSION
+  );
 
   const [checked,   setChecked]   = useState(false);
   const [loading,   setLoading]   = useState(false);

@@ -98,7 +98,7 @@ const CATEGORIES = [
   },
 ];
 
-const STEPS = ['Category', 'Details', 'Venue', 'Settings'];
+const STEPS = ['Category', 'Details', 'Venue', 'Settings', 'Review'];
 
 interface FormState {
   subcategory:      string;
@@ -204,7 +204,7 @@ function UpgradeGate({ onBack }: { onBack: () => void }) {
                 {prices.pro?.amount != null ? `$${prices.pro.amount}` : '$49'}
               </Text>
               <Text style={ug.planPeriod}>/month</Text>
-              {['3 active events', 'Unlimited guests', 'Full planner', '3 team invites', 'Unlimited reminders', 'Tickets (1.5% fee)'].map(f => (
+              {['3 active events', 'Unlimited guests', 'Full planner', '3 team invites', '5 email reminders', 'Tickets (1.5% fee)'].map(f => (
                 <View key={f} style={ug.featureRow}>
                   <Feather name="check" size={11} color="#C9A96E" />
                   <Text style={ug.featureTxt}>{f}</Text>
@@ -449,7 +449,7 @@ export default function CreateEventScreen() {
               {selectedSub ? ` · ${selectedSub.icon} ${selectedSub.label}` : ''}
             </Text>
           </View>
-          {step === 3 && (
+          {step === STEPS.length - 1 && (
             <Pressable onPress={submit} hitSlop={8} disabled={saving}>
               <Text style={[styles.skipText, saving && { opacity: 0.5 }]}>Done</Text>
             </Pressable>
@@ -662,13 +662,20 @@ export default function CreateEventScreen() {
             </View>
           )}
 
+          {/* ── STEP 4: Review ── */}
+          {step === 4 && (
+            <ReviewSummary form={form} selectedSub={selectedSub} />
+          )}
+
         </ScrollView>
 
         {/* Bottom CTA */}
         <View style={styles.bottom}>
           {step < STEPS.length - 1 ? (
             <Button
-              label={step === 0 ? (form.subcategory ? `Continue with ${selectedSub?.label}` : 'Select a category') : 'Continue'}
+              label={step === 0
+                ? (form.subcategory ? `Continue with ${selectedSub?.label}` : 'Select a category')
+                : step === STEPS.length - 2 ? 'Review event' : 'Continue'}
               onPress={handleContinue}
               disabled={saving}
               accent={Colors.accent.indigo}
@@ -715,6 +722,66 @@ function ToggleRow({ icon, label, sub, value, onChange, color }: {
         thumbColor={value ? color : Colors.text.subtle}
       />
     </Pressable>
+  );
+}
+
+type ReviewSubcategory = { icon: string; label: string };
+
+function ReviewSummary({ form, selectedSub }: { form: FormState; selectedSub?: ReviewSubcategory }) {
+  const formatDateTime = (value: Date | null) => value
+    ? value.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+    : 'Not set';
+  const enabledModules = [
+    form.allow_rsvp && { label: 'RSVP', color: Colors.accent.emerald },
+    form.allow_ticketing && { label: 'Ticketing', color: Colors.accent.amber },
+    form.allow_donations && { label: 'Donations', color: Colors.accent.violet },
+  ].filter(Boolean) as { label: string; color: string }[];
+  const venue = [form.venue_address, form.city, form.state, form.country].filter(Boolean).join(', ');
+
+  return (
+    <View style={styles.reviewWrap}>
+      <View style={styles.reviewHeading}>
+        <Text style={styles.reviewEmoji}>{selectedSub?.icon ?? '✨'}</Text>
+        <Text style={styles.reviewTitle}>Review your event</Text>
+        <Text style={styles.reviewSub}>Check the details before creating your event.</Text>
+      </View>
+
+      <View style={styles.reviewCard}>
+        <Text style={styles.reviewLabel}>EVENT DETAILS</Text>
+        <Text style={styles.reviewEventTitle}>{form.title}</Text>
+        <Text style={styles.reviewMuted}>{selectedSub ? `${selectedSub.icon} ${selectedSub.label}` : 'Event type'}</Text>
+        <View style={styles.reviewDivider} />
+        <View style={styles.reviewDateGrid}>
+          <View style={styles.reviewDateCell}>
+            <Text style={styles.reviewLabel}>STARTS</Text>
+            <Text style={styles.reviewValue}>{formatDateTime(form.starts_at)}</Text>
+          </View>
+          <View style={styles.reviewDateCell}>
+            <Text style={styles.reviewLabel}>ENDS</Text>
+            <Text style={styles.reviewValue}>{formatDateTime(form.ends_at)}</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.reviewCard}>
+        <Text style={styles.reviewLabel}>VENUE</Text>
+        <Text style={styles.reviewValue}>{form.venue_name}</Text>
+        {!!venue && <Text style={styles.reviewMuted}>{venue}</Text>}
+      </View>
+
+      <View style={styles.reviewCard}>
+        <Text style={styles.reviewLabel}>ACTIVE MODULE</Text>
+        <View style={styles.reviewPills}>
+          {enabledModules.length ? enabledModules.map(module => (
+            <View key={module.label} style={[styles.reviewPill, { backgroundColor: `${module.color}18`, borderColor: `${module.color}50` }]}>
+              <Text style={[styles.reviewPillText, { color: module.color }]}>{module.label}</Text>
+            </View>
+          )) : <Text style={styles.reviewMuted}>No guest module selected</Text>}
+        </View>
+      </View>
+
+      <Text style={styles.reviewNote}>You can update these details anytime after creating the event.</Text>
+    </View>
   );
 }
 
@@ -812,6 +879,27 @@ const styles = StyleSheet.create({
   toggleIcon:  { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   toggleLabel: { fontSize: 14, fontWeight: '700', color: '#fff' },
   toggleSub:   { fontSize: 11, color: Colors.text.muted, marginTop: 1 },
+
+  reviewWrap: { gap: 12 },
+  reviewHeading: { alignItems: 'center', gap: 4, paddingVertical: 4 },
+  reviewEmoji: { fontSize: 32 },
+  reviewTitle: { color: '#fff', fontSize: 21, fontWeight: '900', marginTop: 2 },
+  reviewSub: { color: Colors.text.muted, fontSize: 13, textAlign: 'center' },
+  reviewCard: {
+    backgroundColor: Colors.bg.card, borderWidth: 1, borderColor: Colors.border.DEFAULT,
+    borderRadius: 14, padding: 14, gap: 5,
+  },
+  reviewLabel: { color: Colors.text.muted, fontSize: 10, fontWeight: '800', letterSpacing: 0.7 },
+  reviewEventTitle: { color: '#fff', fontSize: 17, fontWeight: '900', marginTop: 1 },
+  reviewValue: { color: '#fff', fontSize: 13, fontWeight: '700', marginTop: 1 },
+  reviewMuted: { color: Colors.text.muted, fontSize: 12, lineHeight: 18 },
+  reviewDivider: { height: 1, backgroundColor: Colors.border.subtle, marginVertical: 7 },
+  reviewDateGrid: { flexDirection: 'row', gap: 12 },
+  reviewDateCell: { flex: 1, gap: 3 },
+  reviewPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 3 },
+  reviewPill: { borderWidth: 1, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 5 },
+  reviewPillText: { fontSize: 11, fontWeight: '800' },
+  reviewNote: { color: Colors.text.subtle, fontSize: 11, lineHeight: 16, textAlign: 'center', paddingHorizontal: 12, marginTop: 2 },
 
   bottom: { padding: 16, paddingBottom: 32, borderTopWidth: 1, borderTopColor: Colors.border.subtle },
 });

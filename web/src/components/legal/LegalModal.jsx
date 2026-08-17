@@ -207,7 +207,7 @@ export default function LegalModal({ slug, onClose }) {
 
               <div className="mt-8 pt-4 border-t border-white/8">
                 <p className="text-[11px] text-white/25 text-center">
-                  LiteEvent LLC · 17200 E Iliff Ave Ste A12 PMB 1011, Aurora, CO 80013
+                  Lakenah LLC · Operator of LiteEvent · 17200 E Iliff Ave Ste A12 PMB 1011, Aurora, CO 80013
                 </p>
               </div>
             </div>

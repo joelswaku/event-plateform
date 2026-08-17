@@ -228,6 +228,10 @@ export const useAuthStore = create(
       },
 
       refreshToken: async () => {
+        // A deliberate local logout wins over a still-valid server cookie. This
+        // prevents an offline logout from silently restoring the old session.
+        if (hasLogoutMarker()) return null;
+
         try {
           // Web uses httpOnly cookies - refresh token sent automatically
           const res = await api.post("/auth/refresh-token");
@@ -256,6 +260,11 @@ export const useAuthStore = create(
       },
 
       fetchMe: async () => {
+        // Never restore a session after the person explicitly signed out. The
+        // server cookie may remain until connectivity returns, but the browser
+        // must stay signed out until a new successful login clears this marker.
+        if (hasLogoutMarker()) return null;
+
         try {
           const res = await api.get("/auth/me");
           const user = res.data?.data || res.data?.user;
@@ -430,40 +439,36 @@ export const useAuthStore = create(
         }
       },
 
-      logout: async () => {
-        try {
-          await api.post("/auth/logout");
-        } catch {
-          // ignore backend logout failure
-        } finally {
-          // Stop session monitoring
-          sessionMonitor.stop();
+      logout: () => {
+        // Local logout must never depend on the network. Doing this first also
+        // prevents AuthProvider from bouncing a slow logout back to dashboard.
+        sessionMonitor.stop();
+        markLoggedOut();
+        authSync.broadcast("logout");
+        set({
+          user: null,
+          accessToken: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: null,
+        });
+        useSubscriptionStore.getState().setUnsubscribed();
 
-          // This durable marker protects browser history entries restored from
-          // iOS/Android back-forward cache after the server session is revoked.
-          markLoggedOut();
-
-          // Broadcast logout to other tabs
-          authSync.broadcast("logout");
-
-          // Cookies cleared by backend - just clear local state
-          set({
-            user: null,
-            isAuthenticated: false,
-            isLoading: false,
-            error: null,
-          });
-          // Subscription state is persisted separately. Clear it with the
-          // account session so its short request cache and plan never leak
-          // into the next login.
-          useSubscriptionStore.getState().setUnsubscribed();
-
-          // Replace the protected history entry. Using href leaves the previous
-          // dashboard page available to the browser Back button and can restore
-          // its stale in-memory state from the back-forward cache.
-          if (typeof window !== "undefined") {
-            window.location.replace("/");
+        if (typeof window !== "undefined") {
+          // Revoke the server session when possible, without blocking logout or
+          // surfacing an offline error. keepalive lets the request finish during
+          // navigation on supported mobile and desktop browsers.
+          if (navigator.onLine !== false) {
+            void fetch("/api/auth/logout", {
+              method: "POST",
+              credentials: "include",
+              keepalive: true,
+            }).catch(() => {});
           }
+
+          // Replace rather than push so browser Back cannot restore a protected
+          // dashboard from the back-forward cache.
+          window.location.replace("/login");
         }
       },
     }),

@@ -83,16 +83,8 @@ export default function Topbar() {
     ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
     : user?.email?.slice(0, 2).toUpperCase() ?? "?";
 
-  // ── FIX: await logout then navigate — store cannot call router ──────────────
-  async function handleLogout() {
-    // Navigate first to prevent dashboard from trying to fetch data during logout
-    router.replace("/login");
-    // Then clear auth state (async, but we don't wait)
-    try {
-      await logoutAction();
-    } catch {
-      // Ignore logout API errors - state is already cleared client-side
-    }
+  function handleLogout() {
+    logoutAction();
   }
 
   return (

@@ -1,603 +1,367 @@
+export const CURRENT_LEGAL_VERSION = "2026.1";
+export const LEGAL_EFFECTIVE_DATE = "2026-08-16";
+
 export const LEGAL_DEFAULTS = [
   {
-    slug:           "terms",
-    title:          "Terms of Service",
-    version:        "2025.1",
-    effective_date: "2025-06-01",
+    slug: "terms",
+    title: "Terms of Service",
+    version: CURRENT_LEGAL_VERSION,
+    effective_date: LEGAL_EFFECTIVE_DATE,
     content: `# Terms of Service
 
-**Effective Date:** June 1, 2025
-**Version:** 2025.1
+**Effective date:** August 16, 2026
+**Version:** 2026.1
 
-These Terms of Service ("Terms") constitute a legally binding agreement between you and **LiteEvent LLC**, a Colorado limited liability company ("Company," "we," "us," or "our"), governing your access to and use of the LiteEvent event management platform and all related services (collectively, the "Service"). By creating an account, accessing, or using the Service, you agree to be bound by these Terms and our Privacy Policy. If you do not agree, you may not use the Service.
+These Terms of Service ("Terms") are an agreement between you and **Lakenah LLC** ("Lakenah," "we," "us," or "our"), the company that operates the LiteEvent website, mobile applications, and related event-management services (collectively, the "Service"). "LiteEvent" is the name of the Service.
+
+By creating an account, publishing an event, buying a ticket, making a donation, registering for an event, or otherwise using the Service, you agree to these Terms, our Privacy Policy, Cookies Policy, and Acceptable Use Policy. If you do not agree, do not use the Service.
 
 ---
 
-## 1. Eligibility
+## 1. Eligibility and authority
 
-You must be at least 18 years of age and legally capable of entering a binding contract under applicable law to register for or use the Service. By using the Service, you represent that you meet these requirements. If you use the Service on behalf of an organization or business, you represent that you have authority to bind that entity to these Terms.
+You must be at least the age of majority where you live and able to enter into a binding agreement. If you use LiteEvent for a company, organization, school, church, nonprofit, or other group, you confirm that you are authorized to accept these Terms for that group.
 
-## 2. Description of Service
+## 2. What LiteEvent provides
 
-LiteEvent is a cloud-based event management platform that enables event organizers to:
-- Create and publish events with customizable landing pages
-- Sell tickets and collect secure payments via Stripe
-- Collect RSVPs and manage guest lists
-- Accept donations for fundraisers and causes
-- Send automated guest communications and reminders
-- Access event analytics and reporting
-- Collaborate with team members
+LiteEvent provides software that can help organizers create event pages, manage RSVPs and guests, communicate with attendees, sell tickets, accept donations, manage tasks and vendors, and check guests in. We provide technology; we are not the organizer, venue, promoter, performer, sponsor, insurer, or agent for an event unless we expressly agree in writing.
 
-LiteEvent provides technology tools to organizers. We are not a venue, producer, promoter, or co-organizer of any event listed or managed through the platform. LiteEvent is not responsible for the conduct, quality, cancellation, or outcome of any event.
+An event organizer—not Lakenah—is responsible for the event, its accuracy, safety, accessibility, permits, insurance, staffing, cancellation, refunds, and compliance with applicable law.
 
-## 3. Account Registration
+## 3. Your account
 
-To access the Service, you must register for an account. You agree to:
-- Provide accurate, complete, and current registration information
-- Keep your login credentials confidential and not share your password
-- Notify us promptly at **support@liteevent.com** of any suspected unauthorized use of your account
-- Be responsible for all activities that occur under your account
+Keep your account information accurate and your login credentials confidential. You are responsible for activity under your account and must promptly notify us at **support@liteevent.com** if you suspect unauthorized access. We may suspend or restrict an account when we reasonably believe it is compromised, unlawful, fraudulent, or violates these Terms.
 
-We reserve the right to suspend or terminate accounts that contain false or misleading information.
+## 4. Plans, subscriptions, and payments
 
-## 4. Subscription Plans and Fees
+### 4.1 Plans and fees
 
-### 4.1 Plan Tiers
+Available plans, features, limits, service fees, and prices are shown in LiteEvent at the time you subscribe or purchase. Subscription fees are billed in U.S. dollars and, unless otherwise stated at checkout, renew automatically at the end of each billing period until you cancel.
 
-LiteEvent offers the following subscription plans. Features and limits are subject to change with 30 days prior written notice.
+You can cancel a subscription through Billing settings. Cancellation normally takes effect at the end of the current paid period. Except where required by law or expressly stated otherwise, subscription fees are not refundable for a partial billing period.
 
-**Free Plan — $0/month**
-- 1 active event at a time, up to 50 guests per event
-- 3 event page templates (Classic style), 1 team member seat
-- RSVP collection and QR scanner included
+### 4.2 Tickets and donations
 
-**Starter Plan — $19/month**
-- 1 active event, up to 500 guests per event
-- All templates and styles, 2 team member seats (owner + 1 additional)
-- Ticket sales (2% platform fee), event analytics, full planner access, 1 enabled email reminder config per event
+Ticket prices, donation amounts, taxes, fees, availability, refunds, and fulfillment are set or controlled by the applicable organizer and shown before payment. LiteEvent may charge a disclosed platform service fee. Free tickets do not have a platform service fee unless clearly disclosed before registration.
 
-**Pro Plan — $49/month**
-- 3 active events, unlimited guests per event, 4 team member seats (owner + 3 additional)
-- Custom domain, full analytics, unlimited email reminders, ticket sales (1.5% platform fee), full planner access
+### 4.3 Payment processing
 
-**Enterprise Plan — Custom pricing**
-- Custom event limits, unlimited guests, and team members
-- Custom domain, white-label, SSO, dedicated support
+Payments are processed by **Stripe** or another payment provider identified at checkout. Your use of a payment provider is also subject to that provider's terms and privacy practices. Lakenah does not receive or store full payment-card numbers. We may receive payment status, transaction identifiers, limited billing information, and fraud-prevention signals needed to operate the Service.
 
-### 4.2 Subscription Billing
+### 4.4 Organizer obligations
 
-- Subscriptions are billed monthly in advance via Stripe.
-- Subscriptions **auto-renew** unless you cancel through Account Settings → Billing.
-- Cancellation takes effect at the end of the current billing period; no partial refunds are issued for unused time.
-- Subscription pricing is in U.S. dollars.
+Organizers are responsible for accurately describing events and tickets, maintaining a clear attendee refund policy, handling applicable taxes, and honoring valid refunds. Organizers must not use LiteEvent for illegal, deceptive, or unauthorized fundraising, ticketing, or payment activity.
 
-### 4.3 Ticket Platform Service Fee
+## 5. Event organizers and attendees
 
-For paid ticket sales processed through LiteEvent:
-- A **platform service fee based on the organizer's plan** is added to the buyer's checkout total. The exact fee, subtotal, and total are shown before secure checkout.
-- Free tickets (price = $0) carry no platform service fee.
-- The platform service fee is **non-refundable** except upon event cancellation by the organizer (see Section 7).
-- This fee is separate from and in addition to Stripe's payment processing fee.
+### 5.1 Organizers
 
-### 4.4 Stripe Payment Processing
+If you create or manage an event, you are responsible for the content you publish and for your attendees' personal information. You must have a lawful basis to collect, use, upload, and communicate with guests. You must obtain any permissions, notices, and consents required for event communications, including email and SMS.
 
-All payments are processed by **Stripe, Inc.** By using paid features, you agree to Stripe's Terms of Service (stripe.com/legal). LiteEvent does not store or have access to full payment card numbers.
+### 5.2 Attendees, ticket buyers, and donors
 
-### 4.5 Taxes
+Your agreement about an event, ticket, donation, venue, experience, cancellation, or refund is primarily with the organizer. Direct event-related questions and refund requests to the organizer first. LiteEvent may help administer a payment or communication but does not guarantee that an event will occur or that an organizer will perform its obligations.
 
-You are solely responsible for determining and remitting applicable taxes on ticket sales conducted through your account. LiteEvent does not collect or remit taxes on behalf of organizers.
+## 6. Communications and SMS
 
-## 5. Organizer Responsibilities
+The Service may send transactional messages such as account verification, password resets, invitations, RSVPs, ticket receipts, QR passes, event reminders, security notices, and support replies. Marketing messages, if any, are subject to the permissions and unsubscribe options required by law.
 
-As an event organizer, you agree to:
-- Provide accurate, truthful, and complete event information
-- Obtain all required permits, licenses, venue contracts, and insurance
-- Comply with all applicable federal, state, and local laws
-- Honor the refund policy disclosed to attendees in your event listing
-- Use attendee personal data only for event management purposes and in compliance with applicable privacy law
-- Notify attendees promptly if an event is cancelled, postponed, or materially changed
+Do not send SMS through LiteEvent unless the recipient has provided the required consent. SMS consent is not a condition of buying a ticket, registering, or using the Service. Message frequency may vary. Message and data rates may apply. Recipients can reply **STOP** to opt out of SMS and **HELP** for help where those commands are supported. Organizers remain responsible for their own messaging practices and legal compliance.
 
-## 6. Attendee Terms
+## 7. Your content and our intellectual property
 
-By purchasing a ticket or registering for an event through LiteEvent:
-- Your agreement is with the event organizer regarding the event itself, not with LiteEvent
-- Refund requests must be directed to the event organizer per their stated refund policy
-- LiteEvent may facilitate refund processing but is not independently obligated to refund attendees
-- Platform service fees are non-refundable except upon event cancellation by the organizer
+You retain ownership of the content you submit, including event text, images, schedules, and guest-facing materials. You grant Lakenah a worldwide, non-exclusive, royalty-free license to host, reproduce, adapt for technical formatting, and display that content only as needed to operate, secure, improve, and provide the Service.
 
-## 7. Refunds and Cancellations
+Lakenah and its licensors own the LiteEvent software, brand, templates, designs, and other Service materials. You may not copy, reverse engineer, resell, or exploit them except as these Terms allow or as applicable law permits.
 
-### 7.1 Event Cancellations by Organizer
+## 8. Acceptable use
 
-If an organizer cancels an event, LiteEvent will use commercially reasonable efforts to process full refunds of ticket face value. Platform service fees are non-refundable.
+You must comply with our Acceptable Use Policy and all applicable laws. You may not use the Service to create deceptive events, collect payments for events you do not intend to hold, send spam, infringe intellectual-property rights, harass others, circumvent security, introduce malicious code, scrape data without permission, or facilitate unlawful activity.
 
-### 7.2 Subscription Refunds
+## 9. Third-party services
 
-Subscription fees are non-refundable except where required by applicable law. Contact **support@liteevent.com** within 30 days of a charge if you believe you were billed in error.
+The Service integrates with third-party products, such as payment processors, email and SMS delivery providers, map services, cloud media storage, app-notification providers, and AI tools. Those services are controlled by their providers, and their availability and terms may change. We are not responsible for third-party services, content, or policies.
 
-### 7.3 Chargebacks
+## 10. Suspension and termination
 
-Initiating a chargeback without first contacting us constitutes a violation of these Terms and may result in account suspension. Contact **support@liteevent.com** for billing disputes.
-
-## 8. Intellectual Property
-
-### 8.1 LiteEvent IP
-
-LiteEvent and its licensors own all rights in the platform, software, trademarks, and content we provide. You may not copy, modify, distribute, or create derivative works without prior written consent.
-
-### 8.2 Your Content
-
-You retain ownership of User Content you create on the platform. By submitting User Content, you grant LiteEvent a non-exclusive, worldwide, royalty-free license to host, store, and display it solely to operate and improve the Service.
-
-## 9. DMCA Notice
-
-To report copyright infringement under 17 U.S.C. § 512(c)(3):
-
-**LiteEvent LLC — DMCA Agent**
-17200 E Iliff Ave Ste A12 PMB 1011, Aurora, CO 80013
-Email: **legal@liteevent.com**
-
-## 10. Prohibited Conduct
-
-You agree not to use the Service to:
-- Create fraudulent or deceptive events, or collect payment without intending to hold the event
-- Impersonate any person or organization
-- Harass, threaten, or harm any person
-- Upload or distribute malware or harmful code
-- Conduct unauthorized scraping or data extraction
-- Circumvent security controls or access restrictions
-- Violate any applicable law, including U.S. sanctions and export restrictions
-- Facilitate money laundering, terrorist financing, or other financial crimes
+You may stop using LiteEvent at any time. We may suspend or terminate access, remove content, limit transactions, or take other reasonable steps when necessary to protect users, investigate suspected violations, comply with law, manage risk, or enforce these Terms. Provisions that should reasonably survive termination—including payment obligations, ownership, disclaimers, limitations of liability, and dispute provisions—will survive.
 
 ## 11. Disclaimers
 
-THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND. LITEEVENT DOES NOT WARRANT THAT THE SERVICE WILL BE UNINTERRUPTED, ERROR-FREE, OR SECURE. LITEEVENT IS NOT A PARTY TO TRANSACTIONS BETWEEN ORGANIZERS AND ATTENDEES.
+THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE." TO THE MAXIMUM EXTENT PERMITTED BY LAW, LAKENAH DISCLAIMS ALL WARRANTIES, WHETHER EXPRESS, IMPLIED, OR STATUTORY, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. WE DO NOT GUARANTEE THAT THE SERVICE WILL ALWAYS BE AVAILABLE, ERROR-FREE, SECURE, OR SUITABLE FOR EVERY EVENT.
 
-## 12. Limitation of Liability
+## 12. Limitation of liability
 
-TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, LITEEVENT'S TOTAL LIABILITY FOR ANY CLAIM SHALL NOT EXCEED THE GREATER OF: (a) FEES PAID BY YOU TO LITEEVENT IN THE PRECEDING 12 MONTHS, OR (b) $100.00 U.S. LITEEVENT IS NOT LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES.
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, LAKENAH WILL NOT BE LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES, OR FOR LOST PROFITS, REVENUE, DATA, GOODWILL, OR EVENT OPPORTUNITIES. LAKENAH'S TOTAL LIABILITY ARISING FROM OR RELATED TO THE SERVICE WILL NOT EXCEED THE GREATER OF (A) THE AMOUNTS YOU PAID TO LAKENAH FOR THE SERVICE IN THE 12 MONTHS BEFORE THE EVENT GIVING RISE TO THE CLAIM OR (B) US$100.
+
+Nothing in these Terms limits liability that cannot lawfully be limited.
 
 ## 13. Indemnification
 
-You agree to indemnify and hold harmless LiteEvent LLC, its officers, directors, employees, and agents from claims arising out of: (a) your use of the Service; (b) your User Content; (c) your events; (d) your violation of these Terms; or (e) your violation of applicable law.
+To the extent permitted by law, you will defend, indemnify, and hold harmless Lakenah LLC and its officers, employees, contractors, and agents from claims, losses, and expenses arising from your event, your content, your unlawful use of the Service, your breach of these Terms, or your violation of another person's rights.
 
-## 14. Dispute Resolution
+## 14. Governing law and disputes
 
-### 14.1 Informal Resolution First
+Before filing a claim, contact **legal@liteevent.com** and describe the issue. We will try in good faith to resolve it. These Terms are governed by Colorado law and applicable U.S. federal law, without regard to conflict-of-law rules. Where permitted, courts located in Arapahoe County, Colorado will have exclusive jurisdiction. This section does not remove any non-waivable consumer protection or venue rights that apply to you.
 
-Contact us at **legal@liteevent.com** before initiating formal proceedings. We will respond within 30 days.
+## 15. Changes to these Terms
 
-### 14.2 Binding Arbitration
+We may update these Terms when our Service, law, or business practices change. For material changes, we will provide reasonable advance notice in the Service, by email, or both, and may require renewed acceptance. The effective date and version at the top show when the current Terms took effect.
 
-Unresolved disputes shall be settled by binding arbitration under **AAA Consumer Arbitration Rules** in **Arapahoe County, Colorado** (or by phone/video at your election).
+## 16. Contact
 
-### 14.3 Class Action Waiver
+**Lakenah LLC — operator of LiteEvent**
 
-Each party may bring claims only in an individual capacity, not as a class or representative action.
+17200 E Iliff Ave Ste A12 PMB 1011
 
-### 14.4 One-Year Limitation
+Aurora, CO 80013, United States
 
-Any claim must be filed within one (1) year after it arose; otherwise permanently waived.
-
-## 15. Governing Law
-
-These Terms are governed by the laws of the **State of Colorado** and applicable U.S. federal law, without regard to conflict of law principles.
-
-## 16. Changes to These Terms
-
-We will provide at least **14 days' notice** of material changes via email or in-app notification. Continued use after the effective date constitutes acceptance.
-
-## 17. Contact Us
-
-**LiteEvent LLC**
-17200 E Iliff Ave Ste A12 PMB 1011, Aurora, CO 80013
-Support: **support@liteevent.com** | Legal: **legal@liteevent.com**`,
+Support: **support@liteevent.com**
+Legal: **legal@liteevent.com**`,
   },
 
   {
-    slug:           "privacy-policy",
-    title:          "Privacy Policy",
-    version:        "2025.1",
-    effective_date: "2025-06-01",
+    slug: "privacy-policy",
+    title: "Privacy Policy",
+    version: CURRENT_LEGAL_VERSION,
+    effective_date: LEGAL_EFFECTIVE_DATE,
     content: `# Privacy Policy
 
-**Effective Date:** June 1, 2025
-**Version:** 2025.1
+**Effective date:** August 16, 2026
+**Version:** 2026.1
 
-This Privacy Policy describes how **LiteEvent LLC** ("LiteEvent," "we," "us," or "our"), a Colorado limited liability company, collects, uses, discloses, and protects personal information when you use the LiteEvent platform (the "Service"). It also describes your rights under the **Colorado Privacy Act (C.R.S. § 6-1-1301 et seq.)** and, where applicable, the **California Consumer Privacy Act (CCPA)**.
-
----
-
-## 1. Who We Are
-
-**LiteEvent LLC**
-17200 E Iliff Ave Ste A12 PMB 1011, Aurora, CO 80013
-Privacy: **privacy@liteevent.com** | Support: **support@liteevent.com**
+This Privacy Policy explains how **Lakenah LLC** ("Lakenah," "LiteEvent," "we," "us," or "our") collects, uses, shares, retains, and protects personal information when you use LiteEvent.
 
 ---
 
-## 2. Information We Collect
+## 1. Who is responsible for your information
 
-### 2.1 Information You Provide
-- **Account:** Name, email, hashed password, phone, profile photo
-- **Event content:** Titles, descriptions, dates, locations, images, ticket types, discount codes, custom RSVP fields
-- **Attendee data:** Guest names, emails, phone numbers, RSVP responses, custom field answers, check-in status
-- **Payments:** Billing name and email (full card data is processed and stored exclusively by Stripe — never by LiteEvent)
-- **Donations:** Donor name, email, amount, optional message
-- **Support:** Messages and attachments you send us
+**Lakenah LLC** operates LiteEvent and is responsible for personal information we use to run the platform, including account, support, security, and platform-administration data.
 
-### 2.2 Information Collected Automatically
-- **Log data:** IP address, browser type and version, OS, pages visited, timestamps, referrer URLs
-- **Device data (mobile):** Device model, OS version, unique identifiers, push notification tokens (via Expo)
-- **Location:** City/region from IP address; precise location only if you grant permission for address autocomplete (Google Places API)
-- **Cookies:** As described in our Cookies Policy (liteevent.com/cookies-policy)
+For an organizer's event, the organizer generally decides why and how attendee information is collected and used. That organizer may be a separate controller or business under applicable privacy law. If you have a question about an event's guest list, ticket, refund, or event-specific communications, contact the organizer first.
 
-### 2.3 Information from Third Parties
-- **Stripe:** Transaction status, Stripe Customer ID (not raw card numbers)
-- **Google:** Location data from Places API address autocomplete
-- **Expo:** Push notification tokens and delivery status
+**Contact us**
 
----
+Lakenah LLC — Privacy
 
-## 3. How We Use Your Information
+17200 E Iliff Ave Ste A12 PMB 1011, Aurora, CO 80013, United States
+**privacy@liteevent.com**
 
-We use collected data to:
-- Create and maintain your account
-- Process ticket purchases, issue receipts, and manage organizer payouts
-- Process donations and issue confirmations
-- Send transactional emails (confirmations, receipts, reminders, password resets) via Resend
-- Send push notifications for event updates (mobile app, via Expo)
-- Detect and prevent fraud, abuse, and security incidents
-- Analyze anonymized usage to improve the Service
-- Provide customer support
-- Comply with legal obligations and enforce our Terms
+## 2. Information we collect
 
-**We do not sell personal data or use it for behavioral advertising.**
+Depending on how you use LiteEvent, we may collect:
 
----
+- **Account information:** name, email address, password hash, phone number, profile image, authentication details, and account preferences.
+- **Event and organizer information:** event titles, descriptions, dates, locations, images, ticket settings, team information, tasks, vendors, and event communications.
+- **Attendee information:** names, email addresses, phone numbers, RSVP responses, guest details, custom-field responses, seating, check-in status, and QR-pass information.
+- **Transaction information:** payment status, amount, currency, ticket or donation details, refund status, and payment-provider identifiers. Payment-card details are collected by Stripe or the provider shown at checkout, not by Lakenah.
+- **Communication and consent information:** support messages, email-delivery status, SMS consent and opt-out records, and notices we send or receive.
+- **Technical information:** IP address, browser and device details, operating system, app version, pages or screens used, timestamps, error logs, and security-related activity.
+- **Mobile permissions:** push-notification tokens, camera access for QR scanning, or contacts only when you choose to grant those permissions. We use each permission for the feature you requested.
+- **Information from services you choose to connect:** for example, basic profile information from Google sign-in or location information supplied through Google address tools.
 
-## 4. How We Share Your Information
+Please do not submit sensitive personal information unless it is necessary for your event and you have a lawful basis to do so. LiteEvent is not intended to collect health records, government identification numbers, or highly sensitive information through standard event forms.
 
-We do not sell personal information. We share it only as follows:
+## 3. How we use information
 
-### 4.1 Service Providers
+We use personal information to:
 
-| Provider | Purpose | Privacy Policy |
-|----------|---------|----------------|
-| Stripe, Inc. | Payment processing, fraud prevention | stripe.com/privacy |
-| Resend | Transactional email delivery | resend.com/privacy |
-| Google LLC | Address autocomplete (Places API) | policies.google.com/privacy |
-| Expo Technology | Push notification delivery | expo.dev/privacy |
+- provide, personalize, maintain, and secure LiteEvent;
+- create accounts and verify users;
+- publish events and process RSVPs, tickets, donations, refunds, and check-ins;
+- send transactional emails, SMS messages where consent is recorded, push notifications, and support responses;
+- prevent fraud, misuse, security incidents, and payment disputes;
+- provide event analytics and help organizers operate their events;
+- improve features, including AI-assisted features when you choose to use them;
+- comply with law, enforce our agreements, and protect rights and safety.
 
-### 4.2 Organizers and Attendees
-- **Organizers** receive attendee data (name, email, RSVP responses) for their events. Organizers are independently responsible for lawful use of attendee data.
-- **Attendees** see organizer contact information and published event details.
+Where required by law, our legal basis may be performance of a contract, your consent, compliance with a legal obligation, or our legitimate interests in operating a secure and reliable Service.
 
-### 4.3 Legal Disclosure
-We may disclose personal information in response to valid legal process, or when necessary to protect the safety of our users, LiteEvent, or the public.
+## 4. How we share information
 
-### 4.4 Business Transfers
-In the event of a merger, acquisition, or asset sale, personal data may be transferred. We will notify you before data becomes subject to a materially different privacy policy.
+We do **not** sell personal information or share it for cross-context behavioral advertising. We may share information with:
 
----
+- **Event organizers and their authorized team members** so they can manage their own events, attendees, tickets, and communications.
+- **Service providers** that process information for us, including Stripe for payments; Brevo and other configured delivery providers for email and SMS; Cloudinary for uploaded media; Google for sign-in and location tools; Expo for mobile push notifications; and Anthropic or another configured AI provider when you use AI features.
+- **Professional advisers, regulators, law enforcement, or other parties** when we reasonably believe disclosure is necessary to comply with law, enforce our rights, prevent fraud, or protect people and property.
+- **A successor organization** in connection with a merger, acquisition, financing, reorganization, or sale of assets, subject to applicable law.
 
-## 5. Data Retention
+Service providers may process information only as needed to provide their services and under their own contractual and privacy obligations.
 
-| Data | Retention |
-|------|-----------|
-| Account and event data | Life of account + 3 years after deletion |
-| Payment records | 7 years (U.S. tax law) |
-| Log and usage data | 12 months |
-| Support communications | 3 years |
-| Deleted accounts | 30-day soft delete, then permanently purged |
+## 5. Cookies and similar technologies
 
----
+We use cookies, browser storage, and similar technologies to keep you signed in, remember settings, protect the Service, and understand basic performance. See our Cookies Policy for details and available controls.
 
-## 6. Your Privacy Rights
+## 6. Data retention
 
-### 6.1 Colorado Residents — Colorado Privacy Act (CPA)
+We keep information only for as long as reasonably necessary for the purposes described here, including to provide the Service, meet tax and accounting obligations, resolve disputes, enforce agreements, and comply with law. Retention depends on the type of information, your account status, and an organizer's lawful needs. We may retain limited records after deletion where necessary for security, fraud prevention, legal compliance, or backup-recovery cycles.
 
-Under C.R.S. § 6-1-1301 et seq. (effective July 1, 2023), Colorado residents have the right to:
-- **Access** personal data we hold about you
-- **Correct** inaccurate personal data
-- **Delete** personal data we have collected
-- **Data portability** — receive your data in a portable, machine-readable format
-- **Opt out** of sale, targeted advertising, and profiling (we do not engage in these practices, but you may exercise the right at any time)
+## 7. Security
 
-**To exercise these rights:** Email **privacy@liteevent.com** with subject "Colorado Privacy Request." We will respond within **45 days** (extendable by 45 days with notice). We will not discriminate against you for exercising these rights.
+We use reasonable administrative, technical, and organizational safeguards designed to protect personal information. No system is completely secure, and we cannot guarantee absolute security. Keep your credentials confidential and contact us promptly if you believe your account has been compromised.
 
-**To appeal:** Email **privacy@liteevent.com** with subject "Privacy Appeal." If your appeal is denied, you may file a complaint with the **Colorado Attorney General** at coag.gov.
+## 8. Your privacy choices and rights
 
-### 6.2 California Residents — CCPA
+Subject to applicable law, you may request access to, correction of, deletion of, or a portable copy of your personal information. You may also object to or restrict certain processing where those rights apply.
 
-Because we do not sell or share personal information for cross-context behavioral advertising as defined under the CCPA, most CCPA provisions do not apply to our practices. For requests, contact **privacy@liteevent.com**.
+To make a request, email **privacy@liteevent.com** with enough information for us to verify your identity and understand your request. We may need to confirm your identity before responding. You may also update many account details in LiteEvent and use links in messages to manage email preferences.
 
-### 6.3 All Users
+### Colorado residents
 
-Regardless of location, you may:
-- Update your information through Account Settings
-- Unsubscribe from marketing emails at any time
-- Request account deletion by emailing **support@liteevent.com**
+If the Colorado Privacy Act applies to our processing, Colorado residents may have rights to access, correct, delete, and obtain a portable copy of their personal data, and to opt out of sale, targeted advertising, or certain profiling. LiteEvent does not sell personal data or use it for targeted advertising. We will respond to a verified request within the period required by law, generally 45 days, with an extension only where law allows and notice is given.
 
----
+If we deny a request, you may appeal by emailing **privacy@liteevent.com** with the subject line "Privacy Appeal." You may also contact the Colorado Attorney General if you are dissatisfied with the appeal outcome.
 
-## 7. Children's Privacy
+### California residents
 
-The Service is not directed to individuals under 13. We do not knowingly collect data from children under 13. If you believe your child has provided us with personal information, contact **privacy@liteevent.com** and we will promptly delete it.
+California residents may have rights under California privacy law to know, access, correct, delete, and limit certain uses of personal information. We do not sell or share personal information for cross-context behavioral advertising. Submit a verified request through **privacy@liteevent.com**.
 
----
+## 9. SMS and communications choices
 
-## 8. Data Security
+When you provide separate consent for transactional event SMS, messages may include invitations, RSVP updates, tickets, QR entry passes, reminders, and other event-related updates. Consent is not a condition of purchase or registration. Message frequency may vary and message/data rates may apply. You can reply **STOP** to opt out or **HELP** for help where the messaging program supports those commands.
 
-We implement commercially reasonable security measures including TLS encryption in transit, bcrypt password hashing, role-based access controls, and encrypted storage for sensitive fields. We do not store payment card numbers. No security system is impenetrable. In the event of a breach affecting your data, we will notify you as required under Colorado C.R.S. § 6-1-716.
+Organizers are responsible for the content and legality of the messages they initiate. Marketing messages require any additional consent required by applicable law.
 
----
+## 10. Children's privacy
 
-## 9. International Transfers
+LiteEvent is not directed to children under 13, and we do not knowingly collect personal information from children under 13 without legally required consent. If you believe a child has provided information to LiteEvent improperly, email **privacy@liteevent.com**.
 
-LiteEvent operates in the United States. If you access the Service from outside the U.S., your data will be transferred to and processed in the United States.
+## 11. International users
 
----
+LiteEvent is operated from the United States. If you use the Service from another country, your information may be processed in the United States and other countries where our service providers operate. Those locations may have different data-protection laws than your country.
 
-## 10. Changes to This Policy
+## 12. Changes to this Policy
 
-Material changes will be communicated via email or in-app notice at least **14 days** before taking effect.
+We may update this Privacy Policy as our practices or legal obligations change. We will post the updated version here and revise the effective date. If a change is material, we will provide additional notice where required by law.
 
----
+## 13. Contact
 
-## 11. Contact Us
+For privacy questions or requests, contact:
 
-**LiteEvent LLC — Privacy**
-17200 E Iliff Ave Ste A12 PMB 1011, Aurora, CO 80013
-Privacy: **privacy@liteevent.com** | Support: **support@liteevent.com**`,
+**Lakenah LLC — operator of LiteEvent**
+
+17200 E Iliff Ave Ste A12 PMB 1011
+
+Aurora, CO 80013, United States
+**privacy@liteevent.com**`,
   },
 
   {
-    slug:           "cookies-policy",
-    title:          "Cookies Policy",
-    version:        "2025.1",
-    effective_date: "2025-06-01",
+    slug: "cookies-policy",
+    title: "Cookies Policy",
+    version: CURRENT_LEGAL_VERSION,
+    effective_date: LEGAL_EFFECTIVE_DATE,
     content: `# Cookies Policy
 
-**Effective Date:** June 1, 2025
-**Version:** 2025.1
+**Effective date:** August 16, 2026
+**Version:** 2026.1
 
-This Cookies Policy explains how **LiteEvent LLC** uses cookies and similar tracking technologies on liteevent.com and the LiteEvent platform. For how we handle personal data generally, see our Privacy Policy (liteevent.com/privacy-policy).
-
----
-
-## 1. What Are Cookies?
-
-Cookies are small text files placed on your device when you visit a website. They allow the site to remember your actions and preferences over time. We also use related technologies including:
-
-- **Local storage:** Persists data in your browser across sessions (e.g., theme preference)
-- **Session storage:** Temporary data cleared when you close your browser tab
-- **Pixel tags / web beacons:** Tiny images that indicate when a page or email is viewed
+This Cookies Policy explains how **Lakenah LLC**, operator of LiteEvent, uses cookies and similar technologies on liteevent.com and in the LiteEvent web experience. For our broader information practices, read our Privacy Policy.
 
 ---
 
-## 2. Categories of Cookies We Use
+## 1. What cookies and similar technologies are
 
-### 2.1 Strictly Necessary Cookies
+Cookies are small text files that a website stores in your browser. Similar technologies include local storage, session storage, pixels, software-development kits, and device identifiers. These technologies help a service remember information, provide features, and protect accounts.
 
-Required for the Service to function. These cookies cannot be disabled without preventing you from logging in or completing purchases.
+## 2. How LiteEvent uses them
 
-- **Authentication token:** Keeps you logged in for up to 30 days
-- **CSRF token:** Prevents cross-site request forgery attacks
-- **Session identifier:** Maintains your active session state
+### Strictly necessary technologies
 
-### 2.2 Preference Cookies
+These are needed to provide core functions such as sign-in, session management, security, fraud prevention, form protection, checkout, and remembering whether you accepted or dismissed an essential Service notice. Blocking them may prevent the Service from working properly.
 
-Remember choices you make to personalize your experience. Disabling them will not break the Service, but some preferences may reset between visits.
+### Preference technologies
 
-- Dark / light theme preference
-- Dismissed onboarding tips or announcement banners
-- Locale or language setting
+These remember choices such as a theme, language, display preference, or onboarding state. You can usually remove them through browser settings, although the choice may reset.
 
-### 2.3 Analytics Cookies
+### Performance and diagnostics
 
-Collect anonymized, aggregated data about how users interact with the platform. Used only to improve the Service — never to identify individual users.
+We may collect limited technical and diagnostic information, such as device type, browser, app version, error details, and pages or screens used, to operate, secure, and improve LiteEvent. We do not use these technologies for targeted advertising.
 
-- Pages visited and time spent
-- Browser and device type
-- Anonymous error and crash reports
+### Third-party technologies
 
-### 2.4 Third-Party Cookies
+Third parties may set or use their own technologies when you use their integrated services, including Stripe during payment checkout and Google when you use Google sign-in, Maps, or address autocomplete. Their use is governed by their own policies.
 
-Some integrated services may set their own cookies governed by their own privacy policies:
+## 3. What we do not use cookies for
 
-| Provider | Purpose | Policy |
-|----------|---------|--------|
-| Stripe, Inc. | Fraud prevention, payment session | stripe.com/cookie-settings |
-| Google LLC | Maps / Places API autocomplete | policies.google.com/technologies/cookies |
+LiteEvent does not use cookies to sell your personal information or to deliver cross-site behavioral advertising.
 
-**What we do NOT use cookies for:**
-- Targeted or behavioral advertising
-- Cross-site tracking for ad networks
-- Selling or licensing your data to any third party
+## 4. Your controls
 
----
+You can control cookies through your browser settings. Typical options include blocking third-party cookies, deleting stored site data, and using private browsing. Browser controls are usually found in the privacy or site-data settings for Chrome, Safari, Firefox, Edge, and other browsers.
 
-## 3. Cookie Duration
+If you block or delete strictly necessary cookies, you may not be able to sign in, make a purchase, or use other secured features. You can manage mobile permissions, including notifications and camera access, through your device settings.
 
-| Type | Duration |
-|------|----------|
-| Session cookies | Deleted when browser closes |
-| Authentication cookies | Up to 30 days (or until logout) |
-| Preference cookies | Up to 12 months |
-| Analytics cookies | Up to 13 months |
+## 5. Cookie duration
 
----
+Some technologies last only while your browser is open. Others can remain until they expire, you log out, or you delete them. Duration depends on the purpose of the technology and your browser settings. We do not publish authentication-token names or detailed security lifetimes because doing so could weaken account security.
 
-## 4. Managing Cookies
+## 6. Changes to this Policy
 
-### 4.1 Browser Settings
+If we materially change how we use cookies or similar technologies, we will update this Policy and revise the effective date. If consent is required for a new non-essential technology, we will request it as required by law before using that technology.
 
-**Google Chrome:** Settings → Privacy and Security → Cookies and other site data
+## 7. Contact
 
-**Mozilla Firefox:** Settings → Privacy & Security → Cookies and Site Data
+For questions about cookies or privacy, contact:
 
-**Apple Safari:** Preferences → Privacy → Manage Website Data
+**Lakenah LLC — operator of LiteEvent**
 
-**Microsoft Edge:** Settings → Cookies and site permissions
+17200 E Iliff Ave Ste A12 PMB 1011
 
-Disabling strictly necessary cookies will prevent login. Disabling others will not affect core functionality.
-
-### 4.2 Mobile App
-
-Manage notification and tracking permissions through your device's OS settings (Settings → LiteEvent).
-
----
-
-## 5. Do Not Track
-
-We do not currently respond to "Do Not Track" (DNT) browser signals because no universal standard exists for interpreting them. You may manage tracking preferences using your browser settings above.
-
----
-
-## 6. Changes to This Policy
-
-We will update this Policy if our use of cookies materially changes. Changes will be reflected on this page with a revised Effective Date.
-
----
-
-## 7. Contact Us
-
-**LiteEvent LLC**
-17200 E Iliff Ave Ste A12 PMB 1011, Aurora, CO 80013
-Email: **privacy@liteevent.com** | Support: **support@liteevent.com**`,
+Aurora, CO 80013, United States
+**privacy@liteevent.com**`,
   },
 
   {
-    slug:           "acceptable-use",
-    title:          "Acceptable Use Policy",
-    version:        "2025.1",
-    effective_date: "2025-06-01",
+    slug: "acceptable-use",
+    title: "Acceptable Use Policy",
+    version: CURRENT_LEGAL_VERSION,
+    effective_date: LEGAL_EFFECTIVE_DATE,
     content: `# Acceptable Use Policy
 
-**Effective Date:** June 1, 2025
-**Version:** 2025.1
+**Effective date:** August 16, 2026
+**Version:** 2026.1
 
-This Acceptable Use Policy ("AUP") defines the standards of conduct required of all users of the LiteEvent platform. This AUP is incorporated into and forms part of our Terms of Service (liteevent.com/terms). Violations may result in immediate suspension, account termination, withholding of payouts, and referral to law enforcement.
-
----
-
-## 1. Prohibited Events and Content
-
-You may not create, list, promote, or sell tickets for events or content that:
-
-### 1.1 Involve Illegal Activity
-- Violates any applicable federal, Colorado state (C.R.S.), or local law
-- Facilitates the sale or distribution of illegal drugs, controlled substances, or illegal firearms
-- Constitutes an unlicensed lottery, raffle, or gambling activity (C.R.S. § 18-10-101 et seq.)
-- Involves human trafficking, exploitation, or coercion
-- Promotes or facilitates terrorism, hate crimes, or mass violence
-
-### 1.2 Involve Fraud or Deception
-- Misrepresents any material detail of an event (date, location, performers, lineup, ticket availability)
-- Creates events without a genuine intent to hold them, or collects payments for non-existent events
-- Sells tickets without authority, or engages in ticket scalping in violation of C.R.S. § 6-1-720 or other applicable law
-- Impersonates any person, organization, brand, venue, or public figure
-- Uses counterfeit or unauthorized tickets
-
-### 1.3 Involve Harmful or Offensive Content
-- Is pornographic, sexually explicit, or obscene
-- Is hateful or discriminatory based on race, color, national origin, ancestry, sex, gender identity, sexual orientation, religion, age, disability, military status, or any other protected class under federal or Colorado law (C.R.S. § 24-34-601 et seq.)
-- Harasses, threatens, intimidates, or incites violence against any individual or group
-- Is defamatory, libelous, or invades any person's right to privacy or publicity
+This Acceptable Use Policy is part of the LiteEvent Terms of Service. It applies to all organizers, team members, attendees, ticket buyers, donors, and other users of LiteEvent, which is operated by **Lakenah LLC**.
 
 ---
 
-## 2. Prohibited Conduct Toward Other Users
+## 1. Lawful, accurate events
 
-You may not:
-- Collect or use attendee personal data beyond what is necessary to manage your events
-- Send unsolicited commercial messages (spam) to attendees or other users, in violation of the CAN-SPAM Act (15 U.S.C. § 7701) or Colorado's Consumer Protection Act (C.R.S. § 6-1-301)
-- Use attendee contact information to market unrelated products or services without prior explicit consent
-- Sell, trade, or disclose attendee personal data to third parties without a valid legal basis and adequate disclosure, consistent with the Colorado Privacy Act (C.R.S. § 6-1-1301 et seq.)
-- Stalk, harass, threaten, or harm any LiteEvent user, employee, or agent
+You may use LiteEvent only for lawful, genuine events and activities. You must provide accurate information about event dates, locations, prices, availability, organizers, and refund terms. You must have every license, permit, insurance policy, consent, and authorization required for your event.
 
----
+## 2. You may not use LiteEvent to
 
-## 3. Technical Prohibitions
+- create or promote fraudulent, deceptive, nonexistent, or illegal events;
+- collect ticket or donation payments without intending to provide the described event or purpose;
+- facilitate illegal gambling, money laundering, sanctions violations, trafficking, exploitation, violence, or unlawful sale of goods or services;
+- harass, threaten, discriminate against, or harm another person;
+- infringe copyright, trademark, privacy, publicity, or other rights;
+- upload malware, probe systems, bypass security, scrape data, or interfere with the Service;
+- impersonate a person, organization, venue, performer, or brand;
+- use attendee information for unrelated marketing, sell it, or disclose it without a lawful basis;
+- send spam or SMS messages without required consent;
+- collect more attendee information than is reasonably needed for your event.
 
-You may not:
-- Attempt to gain unauthorized access to any account, server, database, or system component
-- Use bots, crawlers, or automated scripts to extract data from the Service without LiteEvent's written permission
-- Send automated bulk messages or spam through any Service communication channel
-- Upload or distribute malware, ransomware, spyware, viruses, or any harmful code
-- Conduct denial-of-service (DoS) or DDoS attacks against LiteEvent or any third party
-- Bypass, disable, or interfere with security features or access controls
-- Reverse engineer, decompile, or attempt to access source code or proprietary systems
-- Test for vulnerabilities without prior written authorization from LiteEvent
+## 3. Financial and payment rules
 
----
+You may not misuse payment features, submit false disputes or chargebacks, retain proceeds that must be refunded, or use the Service for transactions unrelated to a legitimate event. Organizers must promptly address valid attendee concerns and comply with applicable tax and consumer-protection requirements.
 
-## 4. Financial Prohibitions
+## 4. Enforcement
 
-You may not:
-- Use LiteEvent to facilitate money laundering or financial crime (18 U.S.C. § 1956 et seq.)
-- Collect payments for goods or services unrelated to a legitimate event on the platform
-- Engage in transactions that violate U.S. sanctions (OFAC regulations)
-- File bad-faith chargebacks or payment disputes to obtain refunds you are not entitled to
-- Retain ticket sale proceeds from cancelled events without issuing required refunds
+Lakenah may investigate reports and take reasonable action, including removing content, suspending accounts, limiting transactions, preserving records, notifying payment providers, and cooperating with authorities where appropriate. We may not be able to disclose investigation outcomes because of privacy and security obligations.
 
----
+## 5. Report a concern
 
-## 5. Data and Privacy Prohibitions
+Email **legal@liteevent.com** with the subject "AUP Report" and include the event URL or name, a description of the concern, and any supporting information.
 
-You may not:
-- Collect excessive or unnecessary attendee personal data through custom RSVP fields
-- Process attendee data in violation of the Colorado Privacy Act (C.R.S. § 6-1-1301 et seq.) or other applicable privacy law
-- Share or sell attendee personal data without a valid legal basis and adequate disclosure
-- Use LiteEvent as a mechanism to circumvent data protection obligations
+## 6. Contact
 
----
+**Lakenah LLC — operator of LiteEvent**
 
-## 6. Intellectual Property Prohibitions
+17200 E Iliff Ave Ste A12 PMB 1011
 
-You may not:
-- Upload or share content that infringes any third party's copyright, trademark, trade secret, or patent
-- Use LiteEvent's name, logos, or trademarks without prior written consent
-- Create events that misappropriate the name, image, or brand of any public figure, company, or organization without authorization
-
----
-
-## 7. Consequences of Violations
-
-LiteEvent may, in its sole discretion:
-- Remove or restrict access to violating content
-- Issue a written warning
-- Temporarily or permanently suspend your account
-- Withhold, freeze, or reverse organizer payouts pending investigation
-- Disclose information to law enforcement or regulators as required or permitted by law
-- Pursue civil remedies, including injunctive relief in Arapahoe County, Colorado
-
-Termination for AUP violations does not entitle you to a refund of fees paid.
-
----
-
-## 8. Reporting Violations
-
-Email **legal@liteevent.com** with subject "AUP Violation Report." Include:
-- Description of the alleged violation
-- URL or event name involved
-- Supporting evidence (screenshots, etc.)
-
-We investigate all reports in good faith. We may not be able to disclose the outcome of an investigation due to privacy obligations.
-
----
-
-## 9. Changes to This Policy
-
-Material changes will be communicated via email or in-app notice at least 14 days before taking effect. Continued use after the effective date constitutes acceptance.
-
----
-
-## 10. Contact
-
-**LiteEvent LLC**
-17200 E Iliff Ave Ste A12 PMB 1011, Aurora, CO 80013
-Legal: **legal@liteevent.com** | Support: **support@liteevent.com**`,
+Aurora, CO 80013, United States
+Legal: **legal@liteevent.com**`,
   },
 ];

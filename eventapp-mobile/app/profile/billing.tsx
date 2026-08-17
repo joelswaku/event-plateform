@@ -41,7 +41,7 @@ const PRO_FEATURES: FeatureItem[] = [
   'All templates',
   'Full planner',
   '3 team invites',
-  'Unlimited reminders',
+  '5 email reminders',
   'Tickets (1.5% fee)',
   'QR scanner',
   'Advanced analytics',

@@ -15,33 +15,8 @@ const AppDownloadSection = dynamic(() => import("@/components/landing/AppDownloa
 const PlannerSection     = dynamic(() => import("@/components/landing/PlannerSection"), { ssr: true });
 const HowItWorks         = dynamic(() => import("@/components/landing/HowItWorks"), { ssr: true });
 const PricingSection     = dynamic(() => import("@/components/landing/PricingSection"), { ssr: true });
-const TestimonialsSection = dynamic(() => import("@/components/landing/TestimonialsSection"), { ssr: true });
+const ReviewsSection      = dynamic(() => import("@/components/reviews/ReviewsSection"), { ssr: true });
 const Footer             = dynamic(() => import("@/components/landing/Footer"), { ssr: true });
-
-/* ─── static data ──────────────────────────────────────────── */
-const TESTIMONIALS = [
-  {
-    name: "Emma Johnson",
-    role: "Event Organizer",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&q=80",
-    text: "LiteEvent made organizing our conference incredibly easy. The mobile app is a game-changer!",
-    rating: 5,
-  },
-  {
-    name: "Michael Chen",
-    role: "Wedding Planner",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&q=80",
-    text: "Best event management platform I've used. The templates are beautiful and the RSVP system is flawless.",
-    rating: 5,
-  },
-  {
-    name: "Sarah Williams",
-    role: "Festival Director",
-    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&q=80",
-    text: "From ticket sales to check-ins, everything just works. Our attendees love the mobile experience.",
-    rating: 5,
-  },
-];
 
 const HOW_IT_WORKS = [
   {
@@ -196,9 +171,9 @@ export default function LandingPage() {
         <AppDownloadSection />
       </Suspense>
 
-      {/* Testimonials */}
+      {/* Approved customer reviews */}
       <Suspense fallback={<SectionSkeleton height="h-80" />}>
-        <TestimonialsSection testimonials={TESTIMONIALS} />
+        <ReviewsSection />
       </Suspense>
 
       {/* Pricing with real API data */}

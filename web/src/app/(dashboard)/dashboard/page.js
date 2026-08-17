@@ -9,6 +9,7 @@ import {
   Home, Calendar, MapPin, ChevronRight, Check,
   Activity, Users, Search, X, Star, ArrowRight,
   UserCheck, Camera, ClipboardList, Clipboard, Layout, Maximize,
+  Clock, CreditCard, Heart,
 } from "lucide-react";
 
 import BillingModal from "@/components/layout/BillingModal";
@@ -98,7 +99,7 @@ const sc = (status) => STATUS_CFG[status] ?? STATUS_CFG.DRAFT;
 function MobileStatTile({ value, label, Icon, accent }) {
   return (
     <div
-      className="flex w-[84px] shrink-0 flex-col gap-1 overflow-hidden rounded-[18px] border p-[14px]"
+      className="flex min-w-[84px] flex-1 flex-col gap-1 overflow-hidden rounded-[18px] border p-[14px]"
       style={{
         borderColor: `${accent}22`,
         background: `linear-gradient(135deg, ${accent}18 0%, ${accent}06 100%)`,
@@ -471,9 +472,8 @@ function MobileBottomNav() {
   const scannerEvent = events.find(event => event.id === activeEventId) ?? events[0] ?? null;
   const scanHref = scannerEvent ? `/events/${scannerEvent.id}/scanner` : "/events";
 
-  async function handleLogout() {
-    router.replace("/login");
-    await logoutFn().catch(() => {});
+  function handleLogout() {
+    logoutFn();
   }
 
   const tabs = [
@@ -801,9 +801,32 @@ function MobileDashboard() {
   const activeStats     = dashboard?.event?.id === activeEventId ? dashboard.stats : null;
   const guestCount      = activeStats?.guest_count     ?? 0;
   const attendingCount  = activeStats?.attending_count ?? 0;
+  const pendingCount    = guestCount - attendingCount;
   const ticketCount     = activeStats?.ticket_count    ?? 0;
   const checkinCount    = activeStats?.checkin_count   ?? 0;
   const recent          = events.slice(0, 6);
+
+  // Module-specific stats
+  const statTiles = [];
+  if (activeEvent?.allow_rsvp) {
+    statTiles.push(
+      { value: guestCount, label: 'Guests', Icon: Users, accent: '#6366f1' },
+      { value: attendingCount, label: 'Attending', Icon: UserCheck, accent: '#10b981' },
+      { value: pendingCount, label: 'Pending', Icon: Clock, accent: '#f59e0b' }
+    );
+  } else if (activeEvent?.allow_ticketing) {
+    statTiles.push(
+      { value: ticketCount, label: 'Types', Icon: Ticket, accent: '#6366f1' },
+      { value: checkinCount, label: 'Sold', Icon: CreditCard, accent: '#f59e0b' },
+      { value: checkinCount, label: 'Scanned', Icon: Camera, accent: '#10b981' }
+    );
+  } else if (activeEvent?.allow_donations) {
+    statTiles.push(
+      { value: 0, label: 'Donations', Icon: Heart, accent: '#f43f5e' },
+      { value: 0, label: 'Donors', Icon: Users, accent: '#a78bfa' },
+      { value: 0, label: 'Total', Icon: DollarSign, accent: '#10b981' }
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-hidden" style={{ background: "#07070f" }}>
@@ -904,15 +927,19 @@ function MobileDashboard() {
         )}
 
         {/* ── Stats row ─────────────────────────────────────────────────── */}
-        <div
-          className="flex gap-2 overflow-x-auto px-5 pb-1 pt-1.5"
-          style={{ scrollbarWidth: "none" }}
-        >
-          <MobileStatTile value={guestCount}     label="Guests"    Icon={Users}      accent="#6366f1" />
-          <MobileStatTile value={attendingCount} label="Attending" Icon={UserCheck}  accent="#10b981" />
-          <MobileStatTile value={ticketCount}    label="Tickets"   Icon={Ticket}     accent="#f59e0b" />
-          <MobileStatTile value={checkinCount}   label="Scanned"   Icon={Camera}     accent="#a78bfa" />
-        </div>
+        {statTiles.length > 0 && (
+          <div className="flex gap-2 px-5 pb-1 pt-1.5">
+            {statTiles.map(tile => (
+              <MobileStatTile
+                key={tile.label}
+                value={tile.value}
+                label={tile.label}
+                Icon={tile.Icon}
+                accent={tile.accent}
+              />
+            ))}
+          </div>
+        )}
 
         {/* ── Active event switcher ──────────────────────────────────────── */}
         <MobileActiveEventToggle
@@ -1153,7 +1180,7 @@ const UPGRADE_CFG = {
         shadowHex:  "rgba(201,169,110,0.35)",
         ctaText:    "#000",
         ctaLabel:   "Go Pro",
-        perks:      ["3 active events", "Unlimited guests", "Full planner", "3 team invites", "Unlimited reminders", "Tickets (1.5% fee)"],
+        perks:      ["3 active events", "Unlimited guests", "Full planner", "3 team invites", "5 email reminders", "Tickets (1.5% fee)"],
       },
     ],
   },
@@ -1172,7 +1199,7 @@ const UPGRADE_CFG = {
         shadowHex:  "rgba(201,169,110,0.35)",
         ctaText:    "#000",
         ctaLabel:   "Go Pro",
-        perks:      ["3 active events", "Unlimited guests", "Full planner", "3 team invites", "Unlimited reminders", "Tickets (1.5% fee)"],
+        perks:      ["3 active events", "Unlimited guests", "Full planner", "3 team invites", "5 email reminders", "Tickets (1.5% fee)"],
       },
     ],
   },

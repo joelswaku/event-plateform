@@ -838,7 +838,7 @@ function TermsAcceptanceModal({ onAccepted, onClose }) {
           <div className="rounded-xl border border-amber-100 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/8 px-4 py-3 mb-4">
             <p className="text-xs text-amber-700 dark:text-amber-300/80 leading-relaxed">
               <strong>As an organizer, you are responsible</strong> for your event&rsquo;s refund policy,
-              ensuring the event takes place, and complying with all applicable laws. LiteEvent LLC
+              ensuring the event takes place, and complying with all applicable laws. Lakenah LLC, operator of LiteEvent,
               (dba LiteEvent) is a platform provider, not a co-organizer.
             </p>
           </div>

@@ -619,7 +619,37 @@ function StickyBars({ event, donConfig, tickets, theme }) {
 }
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
-export default function EventPageClient({ event, sections, token }) {
+export default function EventPageClient({ event: initialEvent, sections: initialSections, token }) {
+  // State for real-time updates
+  const [event, setEvent] = useState(initialEvent);
+  const [sections, setSections] = useState(initialSections);
+
+  // Poll for updates every 10 seconds
+  useEffect(() => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const slug = event.slug;
+        const endpoint = token
+          ? `/public/pages/${slug}/invited?token=${encodeURIComponent(token)}`
+          : `/public/pages/${slug}`;
+
+        const res = await fetch(`${API}${endpoint}`);
+        const data = await res.json();
+
+        if (data?.data?.event) {
+          setEvent(data.data.event);
+          if (data.data.sections) {
+            setSections(data.data.sections);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch event updates:', error);
+      }
+    }, 10000); // Poll every 10 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [event.slug, token]);
+
   const eventTheme = useMemo(() => resolveThemeFromSections(sections || []), [sections]);
   const enrichedEvent = {
     ...event,

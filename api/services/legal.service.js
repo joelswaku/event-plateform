@@ -23,7 +23,15 @@ async function ensureLegalTable() {
       await client.query(
         `INSERT INTO legal_pages (slug, title, content, version, effective_date)
          VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (slug) DO NOTHING`,
+         ON CONFLICT (slug) DO UPDATE SET
+           title          = EXCLUDED.title,
+           content        = EXCLUDED.content,
+           version        = EXCLUDED.version,
+           effective_date = EXCLUDED.effective_date,
+           is_published   = true,
+           updated_at     = NOW()
+         WHERE legal_pages.updated_by IS NULL
+           AND legal_pages.version <> EXCLUDED.version`,
         [page.slug, page.title, page.content, page.version, page.effective_date]
       );
     }

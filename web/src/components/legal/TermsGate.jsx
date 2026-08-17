@@ -6,7 +6,7 @@ import { api }          from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
 import LegalModal       from "./LegalModal";
 
-const CURRENT_VERSION = "2025.1";
+const CURRENT_VERSION = "2026.1";
 
 export default function TermsGate({ children }) {
   const user      = useAuthStore(s => s.user);
@@ -14,7 +14,7 @@ export default function TermsGate({ children }) {
 
   const needsAcceptance =
     user &&
-    !user.terms_accepted_at;
+    (!user.terms_accepted_at || user.terms_version_accepted !== CURRENT_VERSION);
 
   const [checked,   setChecked]   = useState(false);
   const [loading,   setLoading]   = useState(false);

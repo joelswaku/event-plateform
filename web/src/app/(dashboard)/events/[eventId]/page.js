@@ -12,7 +12,7 @@ import {
   Share2, MoreHorizontal, ArrowLeft, Camera, ExternalLink,
   Send, EyeOff, Archive, Trash2, RotateCcw, CreditCard,
   LayoutGrid, CheckCircle, Copy, Check, X as XIcon, Link2,
-  ClipboardList, Sparkles, Bell,
+  ClipboardList, Sparkles, Bell, DollarSign,
 } from "lucide-react";
 import { useEventStore }  from "@/store/event.store";
 import { useTeamStore }   from "@/store/team.store";
@@ -1018,12 +1018,25 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
     { FIcon: Settings,   label: "Settings",  sub: "Edit event details",  accent: "#6b7280", grad: "linear-gradient(135deg,#374151,#4b5563)", href: `/events/${eventId}/settings`,  show: perms.canEdit          },
   ].filter(f => f.show !== false);
 
-  const STAT_ITEMS = [
-    { SIcon: Users,        label: "Guests",    value: stats.guest_count     ?? 0, accent: "#6366f1", href: `/events/${eventId}/guests`  },
-    { SIcon: UserCheck,    label: "Attending", value: stats.attending_count ?? 0, accent: "#10b981"  },
-    { SIcon: Ticket,       label: "Tickets",   value: stats.ticket_count    ?? 0, accent: "#f59e0b", href: `/events/${eventId}/tickets` },
-    { SIcon: CheckCircle,  label: "Scanned",   value: stats.checkin_count   ?? 0, accent: "#a78bfa", href: `/events/${eventId}/scanner` },
+  const pendingCount = (stats.guest_count ?? 0) - (stats.attending_count ?? 0);
+
+  const ALL_STAT_ITEMS = [
+    { SIcon: Users,        label: "Guests",    value: stats.guest_count     ?? 0, accent: "#6366f1", href: `/events/${eventId}/guests`,  modules: ['allow_rsvp'] },
+    { SIcon: UserCheck,    label: "Attending", value: stats.attending_count ?? 0, accent: "#10b981", modules: ['allow_rsvp'] },
+    { SIcon: Clock,        label: "Pending",   value: pendingCount,               accent: "#f59e0b", modules: ['allow_rsvp'] },
+    { SIcon: Ticket,       label: "Types",     value: stats.ticket_count    ?? 0, accent: "#6366f1", href: `/events/${eventId}/tickets`, modules: ['allow_ticketing'] },
+    { SIcon: CreditCard,   label: "Sold",      value: stats.checkin_count   ?? 0, accent: "#f59e0b", modules: ['allow_ticketing'] },
+    { SIcon: CheckCircle,  label: "Scanned",   value: stats.checkin_count   ?? 0, accent: "#10b981", href: `/events/${eventId}/scanner`, modules: ['allow_ticketing'] },
+    { SIcon: Heart,        label: "Donations", value: 0,                          accent: "#f43f5e", modules: ['allow_donations'] },
+    { SIcon: Users,        label: "Donors",    value: 0,                          accent: "#a78bfa", modules: ['allow_donations'] },
+    { SIcon: DollarSign,   label: "Total",     value: 0,                          accent: "#10b981", modules: ['allow_donations'] },
   ];
+
+  const STAT_ITEMS = event
+    ? ALL_STAT_ITEMS.filter(stat =>
+        stat.modules.some(module => event[module])
+      )
+    : [];
 
   const ticketPct = (stats.ticket_count ?? 0) > 0
     ? Math.min(((stats.checkin_count ?? 0) / (stats.ticket_count ?? 1)) * 100, 100)
@@ -1219,20 +1232,20 @@ function MobileEventDetail({ event, stats, eventId, hasFullTicketing, isPublic, 
             )}
           </div>
 
-          {/* Stats 4-col grid */}
-          <div className="grid grid-cols-4 gap-[10px]">
+          {/* Stats 3-col grid */}
+          <div className="grid grid-cols-3 gap-[10px]">
             {STAT_ITEMS.map(({ SIcon, label, value, accent, href }) => {
               const card = (
                 <div
-                  className="relative flex flex-col items-center gap-1 overflow-hidden rounded-[16px] border py-4"
+                  className="relative flex flex-col items-center gap-1 overflow-hidden rounded-[16px] border py-4 px-2"
                   style={{ background: "#0e0e16", borderColor: "rgba(255,255,255,0.07)" }}
                 >
                   <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, ${accent}14, ${accent}06)` }} />
-                  <div className="relative flex h-8 w-8 items-center justify-center rounded-[10px]" style={{ background: `${accent}20` }}>
-                    <SIcon size={15} style={{ color: accent }} />
+                  <div className="relative flex h-9 w-9 items-center justify-center rounded-[10px]" style={{ background: `${accent}20` }}>
+                    <SIcon size={16} style={{ color: accent }} />
                   </div>
-                  <span className="relative text-[24px] font-black leading-none" style={{ color: accent, letterSpacing: "-0.5px" }}>{value}</span>
-                  <span className="relative text-[10px] font-bold" style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "0.5px" }}>{label}</span>
+                  <span className="relative text-[26px] font-black leading-none mt-1" style={{ color: accent, letterSpacing: "-0.5px" }}>{value}</span>
+                  <span className="relative text-[10px] font-bold uppercase" style={{ color: "rgba(255,255,255,0.40)", letterSpacing: "0.8px" }}>{label}</span>
                 </div>
               );
               if (href) return <Link key={label} href={href} className="block transition-transform active:scale-95">{card}</Link>;
@@ -1745,6 +1758,18 @@ export default function EventDetailPage() {
     ? (event.ends_at_utc && new Date(event.ends_at_utc) < new Date()) ||
       ["ARCHIVED", "CANCELLED"].includes((event.status ?? "").toUpperCase())
     : false;
+  const pendingCount = (stats.guest_count ?? 0) - (stats.attending_count ?? 0);
+  const STAT_ITEMS = [
+    { SIcon: Users,       label: "Guests",    value: stats.guest_count     ?? 0, accent: "#6366f1", href: `/events/${eventId}/guests`,  modules: ["allow_rsvp"] },
+    { SIcon: UserCheck,   label: "Attending", value: stats.attending_count ?? 0, accent: "#10b981", modules: ["allow_rsvp"] },
+    { SIcon: Clock,       label: "Pending",   value: pendingCount,                accent: "#f59e0b", modules: ["allow_rsvp"] },
+    { SIcon: Ticket,      label: "Types",     value: stats.ticket_count    ?? 0, accent: "#6366f1", href: `/events/${eventId}/tickets`, modules: ["allow_ticketing"] },
+    { SIcon: CreditCard,  label: "Sold",      value: stats.checkin_count   ?? 0, accent: "#f59e0b", modules: ["allow_ticketing"] },
+    { SIcon: CheckCircle, label: "Scanned",   value: stats.checkin_count   ?? 0, accent: "#10b981", href: `/events/${eventId}/scanner`, modules: ["allow_ticketing"] },
+    { SIcon: Heart,       label: "Donations", value: 0,                           accent: "#f43f5e", modules: ["allow_donations"] },
+    { SIcon: Users,       label: "Donors",    value: 0,                           accent: "#a78bfa", modules: ["allow_donations"] },
+    { SIcon: DollarSign,  label: "Total",     value: 0,                           accent: "#10b981", modules: ["allow_donations"] },
+  ].filter((stat) => stat.modules.some((module) => event[module]));
 
   if (fetchError) {
     return (
@@ -1847,11 +1872,34 @@ export default function EventDetailPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <StatCard title="Guests"    value={stats.guest_count    ?? 0} subtitle="Total invited"    icon={Users}    color="indigo"  href={`/events/${eventId}/guests`} />
-            <StatCard title="Attending" value={stats.attending_count ?? 0} subtitle="Confirmed RSVPs" icon={UserCheck} color="emerald" />
-            <StatCard title="Tickets"   value={stats.ticket_count   ?? 0} subtitle="Issued"           icon={Ticket}   color="violet"  href={`/events/${eventId}/tickets`} />
-            <StatCard title="Check-ins" value={stats.checkin_count  ?? 0} subtitle="Scanned entries"  icon={QrCode}   color="amber"   href={`/events/${eventId}/scanner`} />
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+            {STAT_ITEMS.map((stat) => (
+              <StatCard
+                key={stat.label}
+                title={stat.label}
+                value={stat.value}
+                subtitle={
+                  stat.label === 'Guests' ? 'Total invited' :
+                  stat.label === 'Attending' ? 'Confirmed' :
+                  stat.label === 'Pending' ? 'Not responded' :
+                  stat.label === 'Types' ? 'Ticket types' :
+                  stat.label === 'Sold' ? 'Tickets sold' :
+                  stat.label === 'Scanned' ? 'Check-ins' :
+                  stat.label === 'Donations' ? 'Received' :
+                  stat.label === 'Donors' ? 'Contributors' :
+                  stat.label === 'Total' ? 'Amount raised' : ''
+                }
+                icon={stat.SIcon}
+                color={
+                  stat.accent === '#6366f1' ? 'indigo' :
+                  stat.accent === '#10b981' ? 'emerald' :
+                  stat.accent === '#f59e0b' ? 'amber' :
+                  stat.accent === '#a78bfa' ? 'violet' :
+                  stat.accent === '#f43f5e' ? 'rose' : 'indigo'
+                }
+                href={stat.href}
+              />
+            ))}
           </div>
 
           <PerformancePredictionWidget eventId={eventId} publishedAt={event.published_at} />
@@ -2022,6 +2070,15 @@ function EventRemindersModal({ open, onClose, eventId, eventTitle }) {
     }
     if (!isPro) {
       setUpgradeTier('pro');
+      return;
+    }
+
+    // Pro plan limit: 5 total reminders maximum
+    if (reminders.length >= 5) {
+      toast.error('You have reached the maximum of 5 reminders for Pro plan.', {
+        duration: 4000,
+        icon: '⚠️',
+      });
       return;
     }
 
