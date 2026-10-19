@@ -210,3 +210,15 @@ pids/
 # ========================================
 storybook-static/
 secret.json
+
+# ========================================
+# DATABASE DUMPS & LOCAL SECRETS (NEVER COMMIT!)
+# ========================================
+*_backup.sql
+*-backup.sql
+event_backup.sql
+*.dump
+*.pgdump
+.railway-cron-secret.txt
+**/.railway-cron-secret.txt
+*secret*.txt
